@@ -1569,12 +1569,22 @@ class OfflineQueue:
 
 #### 4.1.4 JSON 파일 모니터링 서비스 (frontend-pc/services/json_file_monitor.py)
 
-**⚠️ 중요: 외부 공정 앱과의 통신**
+**⚠️ 중요: 외부 공정 앱과의 통신 - 완공(COMPLETE) 전용**
 
-이 서비스는 외부 업체가 개발한 공정 앱(7개, 각기 다름)이 생성하는 JSON 파일을 자동으로 감지하고 처리합니다.
-- 공정 앱은 수정 불가능 (소스코드 접근 불가)
-- JSON 파일 방식이 유일한 통신 수단
-- 폴더 위치로 착공/완공 구분: `C:\F2X\input\start\` vs `C:\F2X\input\complete\`
+이 서비스는 외부 업체가 개발한 공정 앱(7개, 각기 다름)이 생성하는 **완공(COMPLETE) JSON 파일**을 자동으로 감지하고 처리합니다.
+
+**착공 vs 완공 처리 방식:**
+- ✅ **착공(START)**: **바코드 스캐너 + UI 직접 입력** (주요 방법, Section 4.1.1 참조)
+  - 작업자가 바코드 리더기로 LOT 스캔 → 즉시 UI 피드백
+  - JSON 파일 모니터링은 백업 용도로만 사용 가능 (선택사항)
+- ✅ **완공(COMPLETE)**: **JSON 파일 모니터링** (이 섹션의 주요 목적)
+  - 공정 앱은 수정 불가능 (소스코드 접근 불가)
+  - JSON 파일 방식이 유일한 통신 수단
+  - 폴더 위치: `C:\F2X\input\complete\`
+
+**설계 근거:**
+- 착공 시에는 작업자가 PC 앞에 있어 즉각적인 피드백이 가능하고 필요함
+- 완공 시에는 외부 공정 앱이 자동으로 처리하므로 비동기 파일 모니터링이 적합함
 
 ```python
 import os
@@ -1665,7 +1675,10 @@ class JSONFileMonitor:
 
     def start(self):
         """파일 모니터링 시작"""
-        # start 폴더 모니터링
+
+        # [선택사항] start 폴더 모니터링 (백업용)
+        # 주의: 착공은 바코드 UI가 주요 방법이며, JSON 모니터링은 백업 용도
+        # 필요하지 않다면 이 부분을 주석 처리 가능
         start_handler = JSONFileHandler(
             monitor=self,
             operation_type='START',
@@ -1673,7 +1686,8 @@ class JSONFileMonitor:
         )
         self.observer.schedule(start_handler, str(self.input_start_path), recursive=False)
 
-        # complete 폴더 모니터링
+        # [필수] complete 폴더 모니터링 (주요 기능)
+        # 외부 공정 앱이 생성하는 완공 JSON 파일 처리
         complete_handler = JSONFileHandler(
             monitor=self,
             operation_type='COMPLETE',
@@ -1683,8 +1697,8 @@ class JSONFileMonitor:
 
         self.observer.start()
         logger.info("JSON 파일 모니터링 시작")
-        logger.info(f"  - START: {self.input_start_path}")
-        logger.info(f"  - COMPLETE: {self.input_complete_path}")
+        logger.info(f"  - START: {self.input_start_path} (백업용, 선택사항)")
+        logger.info(f"  - COMPLETE: {self.input_complete_path} (주요 기능, 필수)")
 
     def stop(self):
         """파일 모니터링 종료"""
@@ -1910,9 +1924,10 @@ def main():
     json_monitor.start()
 
     logger.info("=== F2X MES Frontend App 시작 ===")
-    logger.info("- JSON 파일 모니터링: 활성화")
-    logger.info("- 착공 폴더: C:\\F2X\\input\\start\\")
-    logger.info("- 완공 폴더: C:\\F2X\\input\\complete\\")
+    logger.info("- 착공 방식: 바코드 스캐너 + UI (주요)")
+    logger.info("- 완공 방식: JSON 파일 모니터링")
+    logger.info("  → 완공 폴더: C:\\F2X\\input\\complete\\ (주요 감시)")
+    logger.info("  → 착공 폴더: C:\\F2X\\input\\start\\ (백업용, 선택)")
 
     # 메인 윈도우 실행
     window = MainWindow()
@@ -2050,7 +2065,7 @@ def write_complete_json(serial_number: str, process_code: str, operator_id: str,
 if __name__ == '__main__':
     # 착공 예시
     write_start_json(
-        serial_number="SN-FN-KR01-20251110-D-000001-0001-A7",
+        serial_number="FN-KR-251110D-001-0001",
         process_code="LMA",
         operator_id="W002",
         equipment_id="LMA-STATION-01"
@@ -2058,7 +2073,7 @@ if __name__ == '__main__':
 
     # 완공 예시
     write_complete_json(
-        serial_number="SN-FN-KR01-20251110-D-000001-0001-A7",
+        serial_number="FN-KR-251110D-001-0001",
         process_code="LMA",
         operator_id="W002",
         is_pass=True,

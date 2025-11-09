@@ -177,61 +177,95 @@ graph TB
 - 중복 처리 가능성 (처리 상태 추적 어려움)
 - 에러 추적 부족 (실패한 파일 관리 불명확)
 - 착공/완공 구분 방법 불명확
+- 착공 시 즉각적인 피드백 제공 어려움
 
 **제약사항:**
 - ⚠️ **공정 앱은 외부 업체 개발** (7개 업체, 각기 다름)
 - ⚠️ **공정 앱 수정 불가능** (소스코드 접근 불가)
-- ⚠️ **JSON 파일 방식 필수 유지** (유일한 통신 수단)
+- ⚠️ **완공 데이터는 JSON 파일 방식 필수 유지** (유일한 통신 수단)
 
-#### 개선안 (v2.0) - JSON 파일 처리 최적화
+#### 개선안 (v2.0) - 착공/완공 분리 처리
 
-**핵심 개선: 폴더 구조화 + Frontend App 강화**
+##### 핵심 개선: 착공은 UI 직접 입력, 완공은 JSON 파일 모니터링
+
+##### 3.2.1 착공(START) 처리 - 바코드 스캐너 방식
+
+```
+[작업자] → 바코드 리더기로 LOT 스캔
+    ↓
+[Frontend App - PyQt5]
+  ├─ 즉시 UI 피드백 (LOT 정보 표시)
+  ├─ 공정 착공 정보 입력 (작업자, 시작 시간 등)
+  └─ 유효성 검증 (LOT 중복, 이전 공정 완료 여부)
+    ↓ REST API (HTTPS) - 동기 호출
+[Backend 서버 - FastAPI]
+  ├─ LOT 상태 검증
+  ├─ DB 저장 (work_records 테이블)
+  └─ 성공/실패 응답
+    ↓
+[Frontend App] → UI 피드백 (성공: 녹색, 실패: 빨간색 + 에러 메시지)
+```
+
+**장점:**
+
+- ✅ **즉각적인 피드백** (작업자가 PC 앞에 있음)
+- ✅ **직관적인 UX** (바코드 스캔 → 즉시 결과 확인)
+- ✅ **데이터 무결성** (실시간 검증 가능)
+- ✅ **오류 즉시 대응** (작업자가 바로 확인 가능)
+
+##### 3.2.2 완공(COMPLETE) 처리 - JSON 파일 방식
 
 ```
 [공정 앱 - 외부 업체, 변경 불가]
          ↓ JSON 파일 생성
-[C:\F2X\input\]
-  ├─ start\      (착공 데이터)
-  └─ complete\   (완공 데이터)
+[C:\F2X\input\complete\]
          ↓ watchdog 감시
-[Frontend App - PyQt5, 내부 개발 가능]
-  ├─ 폴더별 파일 감시 (착공/완공 구분)
+[Frontend App - PyQt5]
   ├─ JSON 읽기 및 스키마 검증
   ├─ 파일 락 안전 처리
-  ├─ 처리 완료 파일 이동 (processed/)
-  ├─ 에러 파일 분리 (error/)
+  ├─ 처리 완료 파일 이동 (processed/complete/)
+  ├─ 에러 파일 분리 (error/complete/)
   └─ 오프라인 큐 지원 (SQLite)
-         ↓ REST API (HTTPS)
+         ↓ REST API (HTTPS) - 비동기 호출
 [Backend 서버 - FastAPI]
 ```
 
+**장점:**
+
+- ✅ **외부 공정 앱 수정 불필요** (기존 JSON 방식 유지)
+- ✅ **파일 처리 안정성** (락 처리, 재시도, 이동 관리)
+- ✅ **중복 처리 방지** (processed 폴더로 이동)
+- ✅ **에러 추적 용이** (error 폴더 분리)
+- ✅ **오프라인 대응** (네트워크 단절 시 로컬 큐)
+
 **폴더 구조:**
-```
+
+```text
 C:\F2X\
 ├── input\
-│   ├── start\       # 공정 앱이 착공 JSON 생성
-│   └── complete\    # 공정 앱이 완공 JSON 생성
+│   ├── start\       # (선택) 백업용 착공 JSON (watchdog 모니터링 최소)
+│   └── complete\    # 공정 앱이 완공 JSON 생성 (주요 모니터링 대상)
 │
 ├── processed\
-│   ├── start\       # 착공 처리 완료
-│   └── complete\    # 완공 처리 완료
+│   ├── start\       # 백업 착공 처리 완료
+│   └── complete\    # 완공 처리 완료 (30일 보관)
 │
 ├── error\
-│   ├── start\       # 착공 에러 (형식 오류 등)
-│   └── complete\    # 완공 에러
+│   ├── start\       # 백업 착공 에러
+│   └── complete\    # 완공 에러 (수동 처리 필요)
 │
 └── queue\
     └── offline_queue.db  # 네트워크 단절 시 임시 저장
 ```
 
 **개선 효과:**
-- ✅ **외부 공정 앱 수정 불필요** (JSON 파일만 올바른 폴더에 생성)
-- ✅ **착공/완공 명확히 구분** (폴더로 구분)
-- ✅ **파일 처리 안정성** (락 처리, 재시도, 이동 관리)
-- ✅ **중복 처리 방지** (processed 폴더로 이동)
-- ✅ **에러 추적 용이** (error 폴더 분리)
+
+- ✅ **착공 UX 최적화** (바코드 스캔 → 즉시 피드백)
+- ✅ **완공 안정성 확보** (JSON 파일 처리 최적화)
+- ✅ **외부 공정 앱 수정 불필요** (완공 JSON 방식 유지)
+- ✅ **작업 효율성 향상** (착공 시 대기 시간 제거)
+- ✅ **오류 즉시 대응** (착공 시 실시간 검증)
 - ✅ **오프라인 대응** (네트워크 단절 시 로컬 큐)
-- ✅ **트랜잭션 보장** (파일 이동 + DB 기록 원자적 처리)
 
 ### 3.3 네트워크 구성
 
@@ -360,7 +394,7 @@ C:\F2X\
 
 ```json
 {
-  "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+  "serial_number": "FN-KR-251110D-001-0001",
   "process_code": "LMA",
   "operator_id": "W002",
   "equipment_id": "LMA-STATION-01",
@@ -372,7 +406,7 @@ C:\F2X\
 
 | 필드 | 타입 | 설명 | 예시 |
 |------|------|------|------|
-| `serial_number` | string | 시리얼 번호 (전체) | SN-FN-KR01-20251110-D-000001-0001-A7 |
+| `serial_number` | string | 시리얼 번호 (전체) | FN-KR-251110D-001-0001 |
 | `process_code` | string | 공정 코드 | SPRING, LMA, LASER, EOL, ROBOT, PRINT, PACK |
 | `operator_id` | string | 작업자 ID | W001, W002, ... |
 | `equipment_id` | string | 설비 ID (선택) | LMA-STATION-01 |
@@ -382,7 +416,7 @@ C:\F2X\
 
 ```json
 {
-  "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+  "serial_number": "FN-KR-251110D-001-0001",
   "process_code": "LMA",
   "operator_id": "W002",
   "is_pass": true,
@@ -406,7 +440,7 @@ C:\F2X\
 
 | 필드 | 타입 | 설명 | 예시 |
 |------|------|------|------|
-| `serial_number` | string | 시리얼 번호 | SN-FN-KR01-... |
+| `serial_number` | string | 시리얼 번호 | FN-KR-251110D-001-0001 |
 | `process_code` | string | 공정 코드 | LMA |
 | `operator_id` | string | 작업자 ID | W002 |
 | `is_pass` | boolean | 합격 여부 | true, false |
@@ -608,16 +642,16 @@ Backend API 호출 → 500 Internal Server Error
 
 ### 4.1 LOT 번호 체계 v2 (개선안)
 
-#### 형식: `FN-[Plant]-YYYYMMDD-[Shift]-[SeqNo]`
+#### 형식: `FN-[Plant]-YYMMDD[Shift]-[Seq]`
 
 ```
-FN-KR01-20251109-D-000001
-│  │    │        │ │
-│  │    │        │ └─ 시퀀스 번호 (000001-999999)
-│  │    │        └─── 교대 (D=Day, N=Night)
-│  │    └──────────── 생산 날짜 (전체 연도 8자리)
-│  └───────────────── 공장 코드 (KR01=한국 1공장)
-└──────────────────── 브랜드 (FN=F2X NeuroHub)
+FN-KR-251109D-001
+│  │  │      │  │
+│  │  │      │  └─ 일일 LOT 번호 (001-999)
+│  │  │      └──── 교대 (D=주간, N=야간)
+│  │  └─────────── 생산 날짜 (YYMMDD)
+│  └────────────── 공장 코드 (KR=한국, CN=중국, US=미국)
+└───────────────── 브랜드 (FN=F2X NeuroHub)
 ```
 
 #### 구성 요소
@@ -625,20 +659,27 @@ FN-KR01-20251109-D-000001
 | 필드 | 길이 | 설명 | 예시 |
 |------|------|------|------|
 | Brand | 2 | F2X NeuroHub | FN |
-| Plant | 4 | 공장 코드 | KR01, CN01, US01 |
-| Date | 8 | 생산 날짜 (YYYYMMDD) | 20251109 |
+| Plant | 2 | 공장 코드 | KR, CN, US |
+| Date | 6 | 생산 날짜 (YYMMDD) | 251109 |
 | Shift | 1 | 교대 (D/N) | D, N |
-| SeqNo | 6 | 시퀀스 (000001~999999) | 000001 |
+| Seq | 3 | 일일 LOT (001~999) | 001, 150 |
 
-**총 길이:** 24자 (구분자 포함)
+**총 길이:** 17자 (구분자 포함)
+
+**예시:**
+
+- `FN-KR-251109D-001` - 2025년 11월 9일 주간 첫 번째 LOT
+- `FN-KR-251109D-150` - 2025년 11월 9일 주간 150번째 LOT
+- `FN-KR-251109N-001` - 2025년 11월 9일 야간 첫 번째 LOT
 
 #### 특징 및 장점
 
-✅ **고유성 보장:** 공장 + 날짜 + 교대 + 시퀀스로 중복 불가
-✅ **확장성:** 일일 최대 999,999 × 2교대 = 약 200만 LOT 지원
+✅ **간결성:** 17자로 바코드 스캔 및 입력 용이
+✅ **고유성 보장:** 공장 + 날짜 + 교대 + LOT 번호로 중복 불가
+✅ **확장성:** 일일 최대 999 LOT × 2교대 = 1,998 LOT/일 (충분한 규모)
 ✅ **글로벌 대응:** 공장 코드로 다국적 생산 지원
 ✅ **추적성:** LOT만으로 생산지, 날짜, 교대 파악 가능
-✅ **정렬 용이:** 날짜 기반 자동 정렬
+✅ **읽기 쉬움:** 교대+날짜 통합으로 직관적
 
 #### 생성 알고리즘
 
@@ -648,7 +689,7 @@ from sqlalchemy import text
 
 async def generate_lot_number(db, plant_code: str, shift: str) -> str:
     """LOT 번호 생성 (동시성 보장)"""
-    today = datetime.now().strftime("%Y%m%d")
+    today = datetime.now().strftime("%y%m%d")  # YYMMDD
 
     # DB 시퀀스 사용 (트랜잭션 보장)
     result = await db.execute(text(
@@ -669,51 +710,65 @@ async def generate_lot_number(db, plant_code: str, shift: str) -> str:
     ), {"plant": plant_code, "date": today, "shift": shift})
 
     seq = result.scalar()
-    lot_number = f"FN-{plant_code}-{today}-{shift}-{seq:06d}"
+    lot_number = f"FN-{plant_code}-{today}{shift}-{seq:03d}"
 
     return lot_number
+
+# 예시
+# generate_lot_number(db, "KR", "D") → "FN-KR-251109D-001"
+# generate_lot_number(db, "CN", "N") → "FN-CN-251109N-002"
 ```
 
 ### 4.2 시리얼 번호 체계 v2 (개선안)
 
-#### 형식: `SN-[LOT번호]-[SeqNo]-[Checksum]`
+#### 형식: `[LOT번호]-[SeqNo]`
 
 ```
-SN-FN-KR01-20251109-D-000001-0001-A7
-│  │                           │    │
-│  │                           │    └─ 체크섬 (2자리)
-│  │                           └────── LOT 내 시퀀스 (0001-9999)
-│  └──────────────────────────────── LOT 번호 전체
-└─────────────────────────────────── Serial Number
+FN-KR-251109D-001-0001
+│                  │
+│                  └─ LOT 내 시퀀스 (0001-9999)
+└──────────────────── LOT 번호 (17자)
 ```
 
-**총 길이:** 35자
+**총 길이:** 22자 (구분자 포함)
 
-#### 체크섬 알고리즘 (Luhn Algorithm 변형)
+**예시:**
+
+- `FN-KR-251109D-001-0001` - 2025년 11월 9일 주간 첫 LOT의 첫 제품
+- `FN-KR-251109D-001-0150` - 2025년 11월 9일 주간 첫 LOT의 150번째 제품
+- `FN-KR-251109N-002-0001` - 2025년 11월 9일 야간 두 번째 LOT의 첫 제품
+
+#### 생성 알고리즘
 
 ```python
-def calculate_checksum(serial_base: str) -> str:
-    """체크섬 계산 (2자리 16진수)"""
-    # 숫자만 추출
-    digits = [int(c) for c in serial_base if c.isdigit()]
+async def generate_serial_number(db, lot_number: str) -> str:
+    """시리얼 번호 생성 (LOT 내 시퀀스)"""
 
-    # Luhn 알고리즘
-    total = 0
-    for i, digit in enumerate(reversed(digits)):
-        if i % 2 == 1:
-            digit *= 2
-            if digit > 9:
-                digit -= 9
-        total += digit
+    # DB 시퀀스 사용 (트랜잭션 보장)
+    result = await db.execute(text(
+        """
+        INSERT INTO serial_sequences (lot_number, seq)
+        VALUES (:lot,
+                COALESCE((
+                    SELECT seq + 1
+                    FROM serial_sequences
+                    WHERE lot_number = :lot
+                    ORDER BY seq DESC
+                    LIMIT 1
+                ), 1))
+        RETURNING seq
+        """
+    ), {"lot": lot_number})
 
-    checksum = (10 - (total % 10)) % 10
-    # 16진수 2자리로 변환
-    return f"{checksum:02X}"
+    seq = result.scalar()
+    serial_number = f"{lot_number}-{seq:04d}"
+
+    return serial_number
 
 # 예시
-serial_base = "FN-KR01-20251109-D-000001-0001"
-checksum = calculate_checksum(serial_base)  # "A7"
-serial_number = f"SN-{serial_base}-{checksum}"
+# lot = "FN-KR-251109D-001"
+# generate_serial_number(db, lot) → "FN-KR-251109D-001-0001"
+# generate_serial_number(db, lot) → "FN-KR-251109D-001-0002"
 ```
 
 #### 시리얼 번호 검증
@@ -721,32 +776,72 @@ serial_number = f"SN-{serial_base}-{checksum}"
 ```python
 def validate_serial_number(serial_number: str) -> bool:
     """시리얼 번호 유효성 검증"""
-    if not serial_number.startswith("SN-"):
+    if not serial_number.startswith("FN-"):
         return False
 
     parts = serial_number.split("-")
-    if len(parts) != 9:  # SN + 6 LOT parts + SeqNo + Checksum
+    if len(parts) != 5:  # FN + Plant + DateShift + LOT + Seq
         return False
 
-    # 체크섬 검증
-    serial_base = "-".join(parts[1:-1])
-    expected_checksum = calculate_checksum(serial_base)
-    actual_checksum = parts[-1]
+    # 각 파트 검증
+    brand, plant, date_shift, lot_seq, serial_seq = parts
 
-    return expected_checksum == actual_checksum
+    # 브랜드 체크
+    if brand != "FN":
+        return False
+
+    # 공장 코드 체크 (2자리 대문자)
+    if len(plant) != 2 or not plant.isupper():
+        return False
+
+    # 날짜+교대 체크 (6자리 숫자 + 1자리 D/N)
+    if len(date_shift) != 7:
+        return False
+    if not date_shift[:6].isdigit():
+        return False
+    if date_shift[6] not in ['D', 'N']:
+        return False
+
+    # LOT 번호 체크 (3자리 숫자)
+    if len(lot_seq) != 3 or not lot_seq.isdigit():
+        return False
+
+    # 시리얼 시퀀스 체크 (4자리 숫자)
+    if len(serial_seq) != 4 or not serial_seq.isdigit():
+        return False
+
+    return True
+
+# 예시
+validate_serial_number("FN-KR-251109D-001-0001")  # True
+validate_serial_number("FN-KR-251109D-001-9999")  # True
+validate_serial_number("FN-US-251109N-150-0025")  # True
+validate_serial_number("INVALID-001-0001")       # False
 ```
 
 ### 4.3 번호 체계 비교표
 
 | 구분 | v1.6 (기존) | v2.0 (개선안) | 비고 |
 |------|-------------|---------------|------|
-| **LOT 형식** | FN-YYMMDD-Axxx | FN-KR01-YYYYMMDD-D-000001 | - |
-| **LOT 길이** | 15자 | 24자 | +9자 |
-| **일일 용량** | 25,974 (26그룹×999) | 1,999,998 (2교대×999,999) | 77배 증가 |
-| **공장 구분** | 없음 | 있음 (KR01, CN01...) | 다국적 지원 |
-| **교대 구분** | 없음 | 있음 (D/N) | 생산 시간대 추적 |
-| **연도 표기** | YY (2자리) | YYYY (4자리) | 2100년 이후 대비 |
-| **Serial 체크섬** | 없음 | 있음 (Luhn) | 입력 오류 방지 |
+| **LOT 형식** | FN-YYMMDD-Axxx | FN-KR-YYMMDD[D/N]-XXX | 교대 통합 |
+| **LOT 예시** | FN-251109-A001 | FN-KR-251109D-001 | - |
+| **LOT 길이** | 15자 | 17자 | +2자 |
+| **Serial 형식** | (미정의) | [LOT]-XXXX | LOT + 시퀀스 |
+| **Serial 예시** | - | FN-KR-251109D-001-0001 | - |
+| **Serial 길이** | - | 22자 | 바코드 최적 |
+| **일일 용량** | 25,974 (26그룹×999) | 1,998 LOT (2교대×999) | LOT 기반 관리 |
+| **LOT당 제품** | - | 9,999개 | 충분한 용량 |
+| **공장 구분** | 없음 | 있음 (KR, CN, US) | 글로벌 확장 |
+| **교대 구분** | 없음 | 있음 (D/N) | 시간대 추적 |
+| **연도 표기** | YY (2자리) | YY (2자리) | 2099년까지 |
+| **체크섬** | 없음 | 없음 | 단순성 우선 |
+
+**개선 포인트:**
+
+- ✅ **간결성**: 22자로 바코드 스캔 최적화
+- ✅ **명확성**: LOT-Serial 구조로 계층 명확
+- ✅ **확장성**: 글로벌 공장 코드 지원
+- ✅ **추적성**: 날짜, 교대, LOT, 제품 순서 모두 파악 가능
 
 ---
 
@@ -1295,7 +1390,7 @@ ORDER BY p.sequence_order;
     "status": "IN_PROGRESS",
     "serials": [
       {
-        "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+        "serial_number": "FN-KR-251110D-001-0001",
         "status": "COMPLETED",
         "current_process": "포장"
       }
@@ -1364,7 +1459,7 @@ ORDER BY p.sequence_order;
 {
   "success": true,
   "data": {
-    "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+    "serial_number": "FN-KR-251110D-001-0001",
     "lot_number": "FN-KR01-20251110-D-000001",
     "status": "IN_PROGRESS",
     "current_process": "LMA 조립",
@@ -1393,7 +1488,7 @@ ORDER BY p.sequence_order;
 **Request:**
 ```json
 {
-  "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+  "serial_number": "FN-KR-251110D-001-0001",
   "process_code": "LMA",
   "operator_id": "operator02",
   "equipment_id": "LMA-STATION-01"
@@ -1406,7 +1501,7 @@ ORDER BY p.sequence_order;
   "success": true,
   "data": {
     "process_data_id": 123,
-    "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+    "serial_number": "FN-KR-251110D-001-0001",
     "process_name": "LMA 조립",
     "started_at": "2025-11-10T09:30:00+09:00",
     "status": "IN_PROGRESS"
@@ -1456,7 +1551,7 @@ ORDER BY p.sequence_order;
 **스프링 투입:**
 ```json
 {
-  "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+  "serial_number": "FN-KR-251110D-001-0001",
   "operator_id": "operator01",
   "process_specific_data": {
     "inspection_result": "OK",
@@ -1468,7 +1563,7 @@ ORDER BY p.sequence_order;
 **EOL 검사:**
 ```json
 {
-  "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+  "serial_number": "FN-KR-251110D-001-0001",
   "operator_id": "operator04",
   "process_specific_data": {
     "temperature_sensor": 25.3,
@@ -1527,7 +1622,7 @@ ORDER BY p.sequence_order;
 {
   "type": "process_update",
   "data": {
-    "serial_number": "SN-FN-KR01-20251110-D-000001-0001-A7",
+    "serial_number": "FN-KR-251110D-001-0001",
     "process": "LMA 조립",
     "status": "completed",
     "timestamp": "2025-11-10T09:33:45+09:00"

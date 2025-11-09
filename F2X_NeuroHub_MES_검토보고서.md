@@ -430,7 +430,7 @@ server {
 
 > ⚠️ **초기 개발(Phase 1)에 포함 권장**
 
-### 🟠 HIGH-001: JSON 파일 처리 안정성 부족
+### 🟠 HIGH-001: 착공/완공 처리 방식 개선 필요
 
 **심각도:** High
 **카테고리:** 시스템 아키텍처
@@ -439,7 +439,7 @@ server {
 
 **현재 구조 (v1.6):**
 ```
-[공정 앱 - 외부 업체] → JSON 파일 생성
+[공정 앱 - 외부 업체] → JSON 파일 생성 (착공/완공 모두)
          ↓
 [C:\F2X\output\] (단일 폴더)
          ↓
@@ -451,86 +451,177 @@ server {
 **제약사항:**
 - ⚠️ **공정 앱은 외부 업체 개발** (7개 업체, 각기 다름)
 - ⚠️ **공정 앱 수정 불가능** (소스코드 접근 불가)
-- ⚠️ **JSON 파일 방식 필수 유지** (유일한 통신 수단)
+- ⚠️ **완공 데이터는 JSON 파일 방식 필수 유지** (유일한 통신 수단)
 
 **문제:**
-1. **파일 처리 안정성 부족**
+1. **착공 시 UX 문제**
+   - JSON 파일 방식 → 비동기 처리로 즉각적인 피드백 어려움
+   - 작업자가 PC 앞에 있는데도 결과 확인 지연
+   - 에러 발생 시 작업자가 즉시 알 수 없음
+
+2. **완공 JSON 파일 처리 안정성 부족**
    - 파일 락 경합 (공정 앱과 Frontend App 동시 접근)
    - 중복 처리 가능성 (처리 상태 추적 어려움)
    - 에러 파일 관리 불명확
 
-2. **착공/완공 구분 방법 불명확**
+3. **착공/완공 구분 방법 불명확**
    - 단일 폴더 사용 → 착공인지 완공인지 구분 어려움
    - JSON 내용으로만 판단 → 복잡도 증가
 
-3. **에러 추적 어려움**
+4. **에러 추적 어려움**
    - 실패한 파일 처리 방법 없음
    - 재처리 메커니즘 부재
 
 #### 개선안
 
-**폴더 구조화 + Frontend App 강화**
+**착공/완공 분리 처리: 착공은 바코드 UI, 완공은 JSON 파일**
+
+##### 1) 착공(START) 처리 - 바코드 스캐너 방식
+
+```
+[작업자] → 바코드 리더기로 LOT 스캔
+    ↓
+[Frontend App - PyQt5]
+  ├─ 즉시 UI 피드백 (LOT 정보 표시)
+  ├─ 공정 착공 정보 입력
+  └─ 유효성 검증 (LOT 중복, 이전 공정 완료 여부)
+    ↓ REST API (HTTPS) - 동기 호출
+[Backend 서버 - FastAPI]
+  ├─ LOT 상태 검증
+  ├─ DB 저장
+  └─ 성공/실패 응답
+    ↓
+[Frontend App] → UI 피드백 (성공: 녹색, 실패: 빨간색 + 메시지)
+```
+
+**장점:**
+- ✅ **즉각적인 피드백** (작업자가 PC 앞에 있음)
+- ✅ **직관적인 UX** (바코드 스캔 → 즉시 결과)
+- ✅ **실시간 검증** (데이터 무결성 보장)
+- ✅ **오류 즉시 대응** (작업자가 바로 확인)
+
+##### 2) 완공(COMPLETE) 처리 - JSON 파일 방식
 
 ```
 [공정 앱 - 외부 업체, 변경 불가]
          ↓ JSON 파일 생성
-[C:\F2X\input\]
-  ├─ start\      (착공 데이터) ← 폴더로 구분
-  └─ complete\   (완공 데이터)
+[C:\F2X\input\complete\]
          ↓ watchdog 감시
-[Frontend App - PyQt5, 내부 개발 가능]
-  ├─ 폴더별 파일 감시 (착공/완공 자동 구분)
+[Frontend App - PyQt5]
   ├─ JSON 읽기 및 스키마 검증
   ├─ 파일 락 안전 처리
-  ├─ 처리 완료 파일 이동 (processed/)
-  ├─ 에러 파일 분리 (error/)
+  ├─ 처리 완료 파일 이동 (processed/complete/)
+  ├─ 에러 파일 분리 (error/complete/)
   └─ 오프라인 큐 지원 (SQLite)
-         ↓ REST API (HTTPS)
+         ↓ REST API (HTTPS) - 비동기 호출
 [Backend 서버 - FastAPI]
 ```
 
-**폴더 구조:**
-```
-C:\F2X\
-├── input\start\      # 공정 앱이 착공 JSON 생성
-├── input\complete\   # 공정 앱이 완공 JSON 생성
-├── processed\        # 처리 완료 (30일 보관)
-├── error\            # 에러 발생 (수동 처리)
-└── queue\            # 오프라인 큐 (SQLite)
-```
-
-**개선 효과:**
-- ✅ **외부 공정 앱 수정 불필요** (올바른 폴더에만 JSON 생성)
-- ✅ **착공/완공 명확히 구분** (폴더로 구분)
+**장점:**
+- ✅ **외부 공정 앱 수정 불필요** (기존 JSON 방식 유지)
 - ✅ **파일 처리 안정성** (락 처리, 재시도, 이동 관리)
 - ✅ **중복 처리 방지** (processed 폴더로 이동)
 - ✅ **에러 추적 용이** (error 폴더 분리)
+
+**폴더 구조:**
+
+```text
+C:\F2X\
+├── input\
+│   ├── start\       # (선택) 백업용 착공 JSON (우선순위 낮음)
+│   └── complete\    # 공정 앱이 완공 JSON 생성 (주요 모니터링)
+├── processed\
+│   ├── start\       # 백업 착공 처리 완료
+│   └── complete\    # 완공 처리 완료 (30일 보관)
+├── error\
+│   ├── start\       # 백업 착공 에러
+│   └── complete\    # 완공 에러 (수동 처리)
+└── queue\
+    └── offline_queue.db  # 오프라인 큐 (SQLite)
+```
+
+**개선 효과:**
+
+- ✅ **착공 UX 최적화** (바코드 스캔 → 즉시 피드백)
+- ✅ **완공 안정성 확보** (JSON 파일 처리 최적화)
+- ✅ **외부 공정 앱 수정 불필요** (완공 JSON 방식 유지)
+- ✅ **작업 효율성 향상** (착공 대기 시간 제거)
+- ✅ **오류 즉시 대응** (착공 실시간 검증)
 - ✅ **오프라인 대응** (네트워크 단절 시 로컬 큐)
 
 **구현 예시:**
 
+##### A) 착공(START) - 바코드 스캔 UI
+
 ```python
-# Frontend App (PyQt5)
+# Frontend App (PyQt5) - 착공 처리
+from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton
+from PyQt5.QtCore import Qt
+
+class ProcessStartWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.barcode_input = QLineEdit()
+        self.barcode_input.setPlaceholderText("LOT 번호를 스캔하세요...")
+        self.barcode_input.returnPressed.connect(self.on_barcode_scanned)
+        self.status_label = QLabel("대기 중...")
+
+    def on_barcode_scanned(self):
+        lot_number = self.barcode_input.text().strip()
+        if not lot_number:
+            return
+
+        try:
+            # 1. UI 피드백 (처리 중)
+            self.status_label.setText(f"처리 중: {lot_number}")
+            self.status_label.setStyleSheet("color: blue")
+
+            # 2. API 호출 (동기)
+            response = api_client.post('/api/v1/process/start', json={
+                'lot_number': lot_number,
+                'station_id': self.station_id,
+                'operator': self.operator_name,
+                'timestamp': datetime.now().isoformat()
+            })
+
+            # 3. 성공 피드백
+            self.status_label.setText(f"✓ 착공 완료: {lot_number}")
+            self.status_label.setStyleSheet("color: green; font-weight: bold")
+            self.barcode_input.clear()
+
+        except ValidationError as e:
+            # 4. 실패 피드백 (즉시)
+            self.status_label.setText(f"✗ 오류: {e.message}")
+            self.status_label.setStyleSheet("color: red; font-weight: bold")
+            QMessageBox.warning(self, "착공 실패", e.message)
+
+        except NetworkError:
+            # 5. 네트워크 오류 → 오프라인 큐
+            offline_queue.enqueue({...}, 'START')
+            self.status_label.setText("오프라인 큐에 저장됨")
+```
+
+##### B) 완공(COMPLETE) - JSON 파일 모니터링
+
+```python
+# Frontend App (PyQt5) - 완공 처리
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-class JSONFileHandler(FileSystemEventHandler):
+class CompleteJSONHandler(FileSystemEventHandler):
+    """완공 JSON 파일만 모니터링"""
+
     def on_created(self, event):
         if not event.src_path.endswith('.json'):
             return
 
-        # 착공 또는 완공 폴더 판단
-        if '\\start\\' in event.src_path:
-            process_type = 'START'
-        elif '\\complete\\' in event.src_path:
-            process_type = 'COMPLETE'
-        else:
+        # complete 폴더만 처리
+        if '\\complete\\' not in event.src_path:
             return
 
-        # 파일 처리
-        self.process_json_file(event.src_path, process_type)
+        self.process_complete_json(event.src_path)
 
-    def process_json_file(self, filepath, process_type):
+    def process_complete_json(self, filepath):
         try:
             # 1. 파일 쓰기 완료 대기
             wait_for_file_complete(filepath)
@@ -539,29 +630,25 @@ class JSONFileHandler(FileSystemEventHandler):
             data = safe_read_json(filepath)
 
             # 3. 스키마 검증
-            validate_json_schema(data, process_type)
+            validate_json_schema(data, 'COMPLETE')
 
-            # 4. API 호출
-            if process_type == 'START':
-                api_client.post('/api/v1/process/start', json=data)
-            else:
-                api_client.post('/api/v1/process/complete', json=data)
+            # 4. API 호출 (비동기)
+            api_client.post('/api/v1/process/complete', json=data)
 
             # 5. processed 폴더로 이동
-            move_to_processed(filepath, process_type)
+            move_to_processed(filepath, 'complete')
 
         except ValidationError as e:
             # 스키마 오류 → error 폴더로
-            move_to_error(filepath, process_type, str(e))
+            move_to_error(filepath, 'complete', str(e))
         except NetworkError as e:
             # 네트워크 오류 → 오프라인 큐
-            offline_queue.enqueue(data, process_type)
-            move_to_processed(filepath, process_type)
+            offline_queue.enqueue(data, 'COMPLETE')
+            move_to_processed(filepath, 'complete')
 
-# Observer 설정
+# Observer 설정 - complete 폴더만 감시
 observer = Observer()
-observer.schedule(JSONFileHandler(), 'C:\\F2X\\input\\start', recursive=False)
-observer.schedule(JSONFileHandler(), 'C:\\F2X\\input\\complete', recursive=False)
+observer.schedule(CompleteJSONHandler(), 'C:\\F2X\\input\\complete', recursive=False)
 observer.start()
 ```
 
