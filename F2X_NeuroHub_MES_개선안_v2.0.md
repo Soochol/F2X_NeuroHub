@@ -71,9 +71,309 @@
 
 ---
 
-## 2. 변경 사항 요약
+## 2. 생산 워크플로우
 
-### 2.1 주요 개선 사항
+### 2.1 전체 프로세스 개요
+
+```mermaid
+sequenceDiagram
+    participant 관리자 as 생산 관리자<br/>(React Dashboard)
+    participant Backend as Backend Server<br/>(FastAPI)
+    participant 라벨프린터 as 바코드 라벨<br/>프린터
+    participant 작업자 as 현장 작업자<br/>(PyQt5 앱)
+    participant 공정앱 as 외부 공정 앱<br/>(7개 업체)
+
+    Note over 관리자,Backend: 1️⃣ LOT 생성 단계
+    관리자->>Backend: POST /lots<br/>(제품모델, 목표수량)
+    Backend-->>관리자: LOT 번호 생성<br/>FN-KR-251110D-001
+
+    Note over 관리자,Backend: 2️⃣ 시리얼 번호 발행
+    관리자->>Backend: POST /lots/{lot}/serials<br/>(quantity: 100)
+    Backend-->>관리자: 시리얼 번호 리스트<br/>001-0001 ~ 001-0100
+
+    Note over 관리자,라벨프린터: 3️⃣ 바코드 라벨 출력
+    관리자->>라벨프린터: 라벨 출력 명령
+    라벨프린터-->>관리자: 100장 라벨 출력 완료
+
+    Note over 작업자,Backend: 4️⃣ 착공 프로세스 (각 공정마다)
+    작업자->>작업자: 바코드 스캔<br/>(시리얼 번호)
+    작업자->>Backend: POST /process/start<br/>(동기 API)
+    Backend-->>작업자: 착공 성공/실패<br/>(즉시 피드백)
+
+    Note over 공정앱,Backend: 5️⃣ 완공 프로세스 (각 공정마다)
+    공정앱->>공정앱: 공정 작업 수행
+    공정앱->>작업자: JSON 파일 생성<br/>(C:\F2X\input\complete\)
+    작업자->>작업자: watchdog 모니터링<br/>(JSON 파일 감지)
+    작업자->>Backend: POST /process/complete<br/>(비동기 API)
+    Backend-->>작업자: 완공 처리 완료
+
+    Note over 관리자,Backend: 6️⃣ 모니터링
+    관리자->>Backend: GET /dashboard/summary
+    Backend-->>관리자: 실시간 생산 현황
+```
+
+**프로세스 흐름:**
+
+1. **LOT 생성** (관리자) → 생산 계획 수립
+2. **시리얼 발행** (관리자) → 개별 제품 번호 생성
+3. **라벨 출력** (관리자) → 바코드 라벨 인쇄
+4. **착공** (작업자) → 바코드 스캔으로 공정 시작
+5. **완공** (공정 앱) → JSON 파일로 결과 전송
+6. **모니터링** (관리자) → 실시간 현황 확인
+
+---
+
+### 2.2 LOT 생성 (생산 관리자)
+
+**수행 주체:** 생산 관리자 또는 생산 계획자
+
+**수행 위치:** React Dashboard (관리자 웹 페이지)
+
+**수행 시점:** 생산 계획 수립 시 (일일 또는 교대조별)
+
+**입력 항목:**
+
+| 항목 | 설명 | 예시 |
+|------|------|------|
+| 제품 모델 | 생산할 제품 모델 코드 | NH-F2X-001 |
+| 공장 코드 | 생산 공장 (다공장 확장 대비) | KR01 (한국 1공장) |
+| 교대조 | Day/Night Shift | D (Day), N (Night) |
+| 목표 수량 | LOT별 생산 목표 수량 | 100 |
+| 우선순위 | 생산 우선순위 (선택) | NORMAL, HIGH, URGENT |
+
+**처리 프로세스:**
+
+```
+1. 관리자가 React Dashboard 접속
+2. "LOT 생성" 메뉴 선택
+3. 제품 모델 선택 (드롭다운)
+4. 목표 수량 입력
+5. "생성" 버튼 클릭
+6. Backend가 LOT 번호 자동 생성
+   - 형식: FN-{공장코드}-{YYMMDD}{교대}-{일련번호}
+   - 예시: FN-KR-251110D-001
+7. 생성 완료 메시지 표시
+```
+
+**API 호출:**
+
+```http
+POST /api/v1/lots
+Content-Type: application/json
+
+{
+  "plant_code": "KR01",
+  "product_model_code": "NH-F2X-001",
+  "shift": "D",
+  "target_quantity": 100,
+  "priority": "NORMAL"
+}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "lot_number": "FN-KR-251110D-001",
+    "target_quantity": 100,
+    "status": "CREATED",
+    "created_at": "2025-11-10T08:00:00+09:00"
+  }
+}
+```
+
+---
+
+### 2.3 시리얼 번호 발행
+
+**수행 주체:** 시스템 자동 또는 생산 관리자
+
+**수행 시점:** LOT 생성 직후 (자동) 또는 필요 시 (수동)
+
+**처리 방식:**
+
+- **옵션 A (자동):** LOT 생성 시 목표 수량만큼 자동 생성
+- **옵션 B (수동):** 관리자가 Dashboard에서 "시리얼 발행" 버튼 클릭
+
+**생성 규칙:**
+
+```
+형식: {제품코드}-{공장코드}-{YYMMDD}{교대}-{LOT일련번호}-{시리얼일련번호}
+예시:
+- FN-KR-251110D-001-0001
+- FN-KR-251110D-001-0002
+- FN-KR-251110D-001-0003
+...
+- FN-KR-251110D-001-0100
+```
+
+**API 호출:**
+
+```http
+POST /api/v1/lots/FN-KR-251110D-001/serials
+Content-Type: application/json
+
+{
+  "quantity": 100
+}
+```
+
+**응답:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "lot_number": "FN-KR-251110D-001",
+    "generated_count": 100,
+    "serials": [
+      "FN-KR-251110D-001-0001",
+      "FN-KR-251110D-001-0002",
+      ...
+      "FN-KR-251110D-001-0100"
+    ]
+  }
+}
+```
+
+**데이터베이스 저장:**
+
+- `serials` 테이블에 100개 레코드 생성
+- 초기 상태: `status = 'CREATED'`, `current_process = null`
+
+---
+
+### 2.4 바코드 라벨 출력
+
+**수행 주체:** 생산 관리자
+
+**수행 위치:** React Dashboard → 바코드 프린터
+
+**출력 정보:**
+
+| 항목 | 내용 |
+|------|------|
+| 바코드 타입 | QR Code 또는 Code128 |
+| 시리얼 번호 | FN-KR-251110D-001-0001 |
+| LOT 번호 | FN-KR-251110D-001 |
+| 제품명 | F2X Wearable Robot Standard |
+| 생산 날짜 | 2025-11-10 |
+
+**라벨 레이아웃 예시:**
+
+```
+┌─────────────────────────────┐
+│  F2X Wearable Robot         │
+│                             │
+│  ███████████████████        │
+│  █ QR Code 바코드 █        │
+│  ███████████████████        │
+│                             │
+│  FN-KR-251110D-001-0001     │
+│  LOT: FN-KR-251110D-001     │
+│  Date: 2025-11-10           │
+└─────────────────────────────┘
+```
+
+**출력 프로세스:**
+
+```
+1. 관리자가 Dashboard에서 LOT 선택
+2. "바코드 라벨 출력" 버튼 클릭
+3. 프린터 설정 확인
+4. 시리얼 번호 개수만큼 라벨 출력 (100장)
+5. 출력 완료 메시지
+```
+
+**참고:**
+
+- 바코드 프린터는 별도 구매 필요 (약 50-200만원)
+- Zebra, TSC, Godex 등 일반 산업용 프린터 사용 가능
+- 라벨 크기: 50mm x 30mm (권장)
+
+---
+
+### 2.5 착공 프로세스 (작업자)
+
+**수행 주체:** 현장 작업자
+
+**수행 위치:** 각 공정 작업 PC (PyQt5 앱)
+
+**수행 공정:** 7개 모든 공정 (스프링 투입, LMA 조립, 레이저 마킹, EOL 검사, 로봇 성능검사, 프린팅, 포장)
+
+**처리 방식:** 바코드 스캔 → 즉시 Backend API 호출 → 즉시 피드백
+
+**작업 흐름:**
+
+```
+1. 작업자가 바코드 라벨 스캔
+   - 시리얼 번호: FN-KR-251110D-001-0001
+
+2. PyQt5 앱이 자동으로 정보 수집
+   - serial_number: FN-KR-251110D-001-0001 (스캔)
+   - process_code: LMA (작업 PC 고정값)
+   - operator_id: W002 (로그인 정보 또는 스캔)
+   - equipment_id: EQ-LMA-01 (작업 PC 고정값)
+
+3. Backend API 호출 (동기, 즉시 응답)
+   POST /api/v1/process/start
+
+4. UI 피드백
+   - 성공: "✓ 착공 완료" (녹색)
+   - 실패: "✗ 오류: 이전 공정 미완료" (빨간색)
+
+5. 작업자가 공정 작업 수행
+```
+
+**상세 설명:** Section 4.5.3의 "1. 착공 데이터" 참조
+
+---
+
+### 2.6 완공 프로세스 (외부 공정 앱)
+
+**수행 주체:** 외부 업체 공정 앱 (7개 업체, 각기 다름)
+
+**처리 방식:** JSON 파일 생성 → Frontend 앱이 watchdog 모니터링
+
+**제약사항:**
+
+- ⚠️ 공정 앱은 외부 업체 개발 (소스코드 접근 불가)
+- ⚠️ JSON 파일 방식이 유일한 통신 수단
+
+**작업 흐름:**
+
+```
+1. 작업자가 공정 앱에서 작업 수행
+   - 예: LMA 조립 완료
+
+2. 공정 앱이 JSON 파일 생성
+   - 위치: C:\F2X\input\complete\
+   - 파일명: 자유 (예: LMA_20251110_093015.json)
+
+3. Frontend 앱 (PyQt5)이 watchdog로 파일 감지
+   - 파일 생성 이벤트 감지
+   - 파일 쓰기 완료 대기
+
+4. JSON 파일 읽기 및 검증
+   - 스키마 검증 (필수 필드 확인)
+
+5. Backend API 호출 (비동기)
+   POST /api/v1/process/complete
+
+6. 파일 이동
+   - 성공: C:\F2X\processed\complete\
+   - 실패: C:\F2X\error\complete\
+```
+
+**JSON 파일 형식:** Section 4.5.3의 "2. 완공 데이터" 참조
+
+---
+
+## 3. 변경 사항 요약
+
+### 3.1 주요 개선 사항
 
 | 구분 | v1.6 (기존) | v2.0 (개선안) | 개선 효과 |
 |------|-------------|---------------|-----------|
@@ -88,7 +388,7 @@
 | **테스트** | 없음 | **단위/통합 테스트 80%** | 품질 보증 |
 | **투자 금액** | 4,280만원 | **5,080만원** | +18.7% |
 
-### 2.2 Critical 이슈 해결
+### 3.2 Critical 이슈 해결
 
 ✅ **개발 일정 과소 추정** → 2-3개월로 조정
 ✅ **단일 장애점(SPOF)** → Active-Standby 이중화 (Phase 2)
@@ -98,9 +398,9 @@
 
 ---
 
-## 3. 시스템 아키텍처
+## 4. 시스템 아키텍처
 
-### 3.1 전체 구성도 (개선안)
+### 4.1 전체 구성도 (개선안)
 
 ```mermaid
 graph TB
@@ -713,9 +1013,9 @@ Backend API 호출 → 500 Internal Server Error
 
 ---
 
-## 4. LOT 및 시리얼 번호 체계
+## 5. LOT 및 시리얼 번호 체계
 
-### 4.1 LOT 번호 체계 v2 (개선안)
+### 5.1 LOT 번호 체계 v2 (개선안)
 
 #### 형식: `FN-[Plant]-YYMMDD[Shift]-[Seq]`
 
@@ -794,7 +1094,7 @@ async def generate_lot_number(db, plant_code: str, shift: str) -> str:
 # generate_lot_number(db, "CN", "N") → "FN-CN-251109N-002"
 ```
 
-### 4.2 시리얼 번호 체계 v2 (개선안)
+### 5.2 시리얼 번호 체계 v2 (개선안)
 
 #### 형식: `[LOT번호]-[SeqNo]`
 
@@ -894,7 +1194,7 @@ validate_serial_number("FN-US-251109N-150-0025")  # True
 validate_serial_number("INVALID-001-0001")       # False
 ```
 
-### 4.3 번호 체계 비교표
+### 5.3 번호 체계 비교표
 
 | 구분 | v1.6 (기존) | v2.0 (개선안) | 비고 |
 |------|-------------|---------------|------|
@@ -920,9 +1220,9 @@ validate_serial_number("INVALID-001-0001")       # False
 
 ---
 
-## 5. 데이터베이스 설계
+## 6. 데이터베이스 설계
 
-### 5.1 ERD 개요
+### 6.1 ERD 개요
 
 ```
 ┌─────────────┐         ┌──────────────┐
@@ -953,7 +1253,7 @@ validate_serial_number("INVALID-001-0001")       # False
                          └─────────────┘
 ```
 
-### 5.2 핵심 테이블 DDL
+### 6.2 핵심 테이블 DDL
 
 #### 5.2.1 공정 마스터 (processes)
 
@@ -1259,7 +1559,7 @@ INSERT INTO defect_codes (defect_code, defect_name, process_id, severity) VALUES
 CREATE INDEX idx_defect_codes_process ON defect_codes(process_id);
 ```
 
-### 5.3 트리거 및 함수
+### 6.3 트리거 및 함수
 
 #### 5.3.1 감사 로그 자동 기록 트리거
 
@@ -1320,7 +1620,7 @@ CREATE TRIGGER serials_status_history_trigger
     FOR EACH ROW EXECUTE FUNCTION status_history_trigger_func();
 ```
 
-### 5.4 뷰 (Views)
+### 6.4 뷰 (Views)
 
 #### 5.4.1 생산 현황 요약 뷰
 
@@ -1367,15 +1667,15 @@ ORDER BY p.sequence_order;
 
 ---
 
-## 6. API 명세
+## 7. API 명세
 
-### 6.1 API 기본 정보
+### 7.1 API 기본 정보
 
 **Base URL:** `https://192.168.1.100/api/v1`
 **인증 방식:** JWT Bearer Token
 **Content-Type:** `application/json`
 
-### 6.2 인증 API
+### 7.2 인증 API
 
 #### POST `/auth/login`
 **설명:** 사용자 로그인
@@ -1408,7 +1708,7 @@ ORDER BY p.sequence_order;
 }
 ```
 
-### 6.3 LOT 관리 API
+### 7.3 LOT 관리 API
 
 #### POST `/lots`
 **설명:** 새 LOT 생성
@@ -1499,7 +1799,7 @@ ORDER BY p.sequence_order;
 }
 ```
 
-### 6.4 시리얼 관리 API
+### 7.4 시리얼 관리 API
 
 #### POST `/lots/{lot_id}/serials/generate`
 **설명:** 시리얼 번호 일괄 생성
@@ -1555,7 +1855,7 @@ ORDER BY p.sequence_order;
 }
 ```
 
-### 6.5 공정 데이터 API
+### 7.5 공정 데이터 API
 
 #### POST `/process/start`
 **설명:** 공정 착공 (Frontend App → Backend API)
@@ -1671,7 +1971,7 @@ ORDER BY p.sequence_order;
 }
 ```
 
-### 6.6 대시보드 API
+### 7.6 대시보드 API
 
 #### GET `/dashboard/summary`
 **설명:** 생산 현황 요약 (오늘)
@@ -1726,7 +2026,7 @@ ORDER BY p.sequence_order;
 }
 ```
 
-### 6.7 에러 응답 형식
+### 7.7 에러 응답 형식
 
 ```json
 {
@@ -1752,9 +2052,9 @@ ORDER BY p.sequence_order;
 
 ---
 
-## 7. 보안 및 인증
+## 8. 보안 및 인증
 
-### 7.1 JWT 인증 시스템
+### 8.1 JWT 인증 시스템
 
 #### 토큰 구조
 ```
@@ -1807,7 +2107,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         )
 ```
 
-### 7.2 역할 기반 접근 제어 (RBAC)
+### 8.2 역할 기반 접근 제어 (RBAC)
 
 #### 권한 테이블
 
@@ -1874,7 +2174,7 @@ async def create_lot(lot_data: LotCreate, current_user: dict):
     ...
 ```
 
-### 7.3 HTTPS 설정
+### 8.3 HTTPS 설정
 
 #### Nginx 설정
 
@@ -1921,7 +2221,7 @@ server {
 }
 ```
 
-### 7.4 접근 로그
+### 8.4 접근 로그
 
 ```sql
 CREATE TABLE access_logs (
@@ -1942,9 +2242,9 @@ CREATE INDEX idx_access_logs_timestamp ON access_logs(timestamp DESC);
 
 ---
 
-## 8. 에러 처리 및 복구
+## 9. 에러 처리 및 복구
 
-### 8.1 에러 처리 프레임워크
+### 9.1 에러 처리 프레임워크
 
 #### 에러 클래스 계층
 
@@ -2083,7 +2383,7 @@ class ErrorHandler:
             )
 ```
 
-### 8.2 오프라인 모드 지원
+### 9.2 오프라인 모드 지원
 
 #### 작업 PC 로컬 큐 (SQLite)
 
@@ -2167,7 +2467,7 @@ class OfflineQueue:
         conn.close()
 ```
 
-### 8.3 재시도 메커니즘
+### 9.3 재시도 메커니즘
 
 ```python
 # retry_decorator.py
@@ -2205,9 +2505,9 @@ async def send_process_data(api_client, data):
 
 ---
 
-## 9. 백업 및 재해복구
+## 10. 백업 및 재해복구
 
-### 9.1 백업 전략
+### 10.1 백업 전략
 
 #### 백업 유형 및 주기
 
@@ -2309,7 +2609,7 @@ echo "=== Backup Completed Successfully at $(date) ==="
 0 */6 * * * root /usr/local/bin/mes-incremental-backup.sh >> /var/log/mes-backup.log 2>&1
 ```
 
-### 9.2 재해복구 계획
+### 10.2 재해복구 계획
 
 #### RPO/RTO 정의
 
@@ -2404,7 +2704,7 @@ systemctl restart mes-backend
 echo "=== Recovery Completed ==="
 ```
 
-### 9.3 재해복구 훈련
+### 10.3 재해복구 훈련
 
 **훈련 일정:** 분기별 1회
 **훈련 항목:**
@@ -2415,9 +2715,9 @@ echo "=== Recovery Completed ==="
 
 ---
 
-## 10. 개발 계획
+## 11. 개발 계획
 
-### 10.1 개발 일정 (8주)
+### 11.1 개발 일정 (8주)
 
 #### Week 1: 프로젝트 준비 및 설계
 - **Day 1-2:** 요구사항 상세 분석 및 킥오프
@@ -2498,7 +2798,7 @@ echo "=== Recovery Completed ==="
   - 사용자 지원
   - 문서 최종 정리
 
-### 10.2 팀 구성
+### 11.2 팀 구성
 
 | 역할 | 인원 | 책임 |
 |------|------|------|
@@ -2511,7 +2811,7 @@ echo "=== Recovery Completed ==="
 **최소 인원:** 2-3명 (풀스택)
 **권장 인원:** 3-4명
 
-### 10.3 개발 프로세스
+### 11.3 개발 프로세스
 
 #### Agile/Scrum
 - **Sprint 기간:** 2주
@@ -2538,9 +2838,9 @@ main (운영)
 
 ---
 
-## 11. 투자 계획
+## 12. 투자 계획
 
-### 11.1 초기 투자 비용
+### 12.1 초기 투자 비용
 
 #### 하드웨어 (1,605만원)
 
@@ -2600,7 +2900,7 @@ main (운영)
 
 **기타 소계:** 710만원
 
-### 11.2 총 투자 요약
+### 12.2 총 투자 요약
 
 | 구분 | Phase 1 (MVP) | Phase 2 (안정화) | 합계 |
 |------|---------------|------------------|------|
@@ -2613,7 +2913,7 @@ main (운영)
 **Phase 1 (필수):** 4,780만원 (2개월)
 **Phase 2 (권장):** 900만원 (1개월)
 
-### 11.3 연간 운영 비용 (TCO)
+### 12.3 연간 운영 비용 (TCO)
 
 | 구분 | 항목 | 연간 비용 |
 |------|------|-----------|
@@ -2626,7 +2926,7 @@ main (운영)
 | **기타** | 소모품 (라벨, 토너 등) | 50만원 |
 | **합계** | | **1,362만원/년** |
 
-### 11.4 ROI 분석
+### 12.4 ROI 분석
 
 #### 기대 효과 (연간)
 
@@ -2653,9 +2953,9 @@ main (운영)
 
 ---
 
-## 12. 부록
+## 13. 부록
 
-### 12.1 용어 정의
+### 13.1 용어 정의
 
 | 용어 | 설명 |
 |------|------|
@@ -2670,14 +2970,14 @@ main (운영)
 | **JWT** | JSON Web Token (인증 토큰) |
 | **PITR** | Point-In-Time Recovery (특정 시점 복구) |
 
-### 12.2 참고 자료
+### 13.2 참고 자료
 
 - FastAPI 공식 문서: https://fastapi.tiangolo.com
 - PostgreSQL 공식 문서: https://www.postgresql.org/docs/
 - React 공식 문서: https://react.dev
 - PyQt5 공식 문서: https://www.riverbankcomputing.com/static/Docs/PyQt5/
 
-### 12.3 문서 버전 이력
+### 13.3 문서 버전 이력
 
 | 버전 | 날짜 | 변경 내용 | 작성자 |
 |------|------|-----------|--------|
@@ -2685,7 +2985,7 @@ main (운영)
 | v1.6 | 2025.11.09 | 투자 목록 추가 | - |
 | **v2.0** | **2025.11.10** | **검토 후 전면 개선** | **Claude** |
 
-### 12.4 연락처
+### 13.4 연락처
 
 **프로젝트 관리자:** TBD
 **기술 책임자:** TBD
