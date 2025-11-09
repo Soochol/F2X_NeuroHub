@@ -771,9 +771,6 @@ C:\F2X\
   "is_pass": true,
   "cycle_time": 185,
   "process_specific_data": {
-    "lma_model": "LMA-2024-V2",
-    "torque_test": 5.2,
-    "alignment_check": "OK",
     "외관검사": "OK"
   },
   "timestamp": "2025-11-10T09:33:20+09:00"
@@ -787,9 +784,6 @@ C:\F2X\
   "is_pass": true,
   "cycle_time": 185,
   "process_specific_data": {
-    "lma_model": "LMA-2024-V2",
-    "torque_test": 5.2,
-    "alignment_check": "OK",
     "외관검사": "OK"
   },
   "inspection_result": {
@@ -844,9 +838,6 @@ C:\F2X\
 **LMA 조립 (LMA):**
 ```json
 {
-  "lma_model": "LMA-2024-V2",
-  "torque_test": 5.2,
-  "alignment_check": "OK",
   "외관검사": "OK"
 }
 ```
@@ -1918,9 +1909,6 @@ ORDER BY p.sequence_order;
   "process_data_id": 123,
   "is_pass": true,
   "process_specific_data": {
-    "lma_model": "LMA-2024-V2",
-    "torque_test": 5.2,
-    "alignment_check": "OK",
     "외관검사": "OK"
   },
   "inspection_result": {
