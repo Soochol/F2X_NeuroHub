@@ -832,6 +832,7 @@ C:\F2X\
 ```json
 {
   "inspection_result": "OK",
+  "모선_lot": "ML-2025-001",
   "spring_lot": "SL-2025-001",
   "spring_af": 15.5,
   "spring_diameter": 12.5
@@ -1952,6 +1953,7 @@ ORDER BY p.sequence_order;
   "operator_id": "operator01",
   "process_specific_data": {
     "inspection_result": "OK",
+    "모선_lot": "ML-2025-001",
     "spring_lot": "SL-2025-001",
     "spring_af": 15.5,
     "spring_diameter": 12.5
