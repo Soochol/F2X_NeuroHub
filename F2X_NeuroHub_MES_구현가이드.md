@@ -1364,7 +1364,16 @@ class MainWindow(QMainWindow):
             self.log("오프라인 모드로 작업합니다")
 
     def on_start_process(self):
-        """공정 착공"""
+        """
+        공정 착공 (바코드 스캔 → API 호출)
+
+        ✅ 착공 처리 프로세스:
+        1. 작업자 바코드 스캔 → operator_id
+        2. 제품 시리얼 번호 바코드 스캔 → serial_number
+        3. 자동 정보 수집 (process_code, equipment_id, workstation)
+        4. Backend API 호출 → 즉시 응답
+        5. UI 피드백 표시
+        """
         serial_number = self.serial_input.text().strip()
         process = self.process_combo.currentText()
 
@@ -1372,21 +1381,29 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "경고", "시리얼 번호를 입력하세요")
             return
 
+        # 착공 데이터 구성
         data = {
             "serial_number": serial_number,
             "process_code": self.get_process_code(process),
-            "operator_id": "OPERATOR01"  # 실제로는 로그인 정보
+            "operator_id": self.config.get("operator_id", "OPERATOR01"),  # 실제로는 로그인 정보 또는 바코드 스캔
+            "equipment_id": self.config.get("equipment_id"),  # 작업 PC 설정 파일에서 로드 (선택)
+            "workstation": self.config.get("workstation")     # 작업 PC 설정 파일에서 로드 (선택)
         }
 
         try:
+            # 동기 API 호출 (즉시 응답)
             result = self.api_client.start_process(data)
-            self.log(f"착공 완료: {result}")
-            QMessageBox.information(self, "성공", "공정을 시작했습니다")
+            self.log(f"착공 완료: {result['data']}")
+            QMessageBox.information(
+                self,
+                "착공 성공",
+                f"공정 착공이 완료되었습니다.\n시리얼: {serial_number}\n시작 시각: {result['data']['started_at']}"
+            )
         except Exception as e:
             # 오프라인 큐에 저장
             self.offline_queue.enqueue("/api/v1/process/start", "POST", data)
             self.log(f"오프라인 큐에 저장: {data}")
-            QMessageBox.warning(self, "오프라인", "서버 연결 실패. 재연결 시 자동 전송됩니다")
+            QMessageBox.warning(self, "오프라인 모드", "서버 연결 실패. 재연결 시 자동 전송됩니다")
 
     def on_complete_process(self):
         """공정 완공"""

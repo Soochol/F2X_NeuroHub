@@ -388,53 +388,14 @@ C:\F2X\
 
 #### 3.5.3 JSON 스키마 (표준 포맷)
 
-**⚠️ 중요: 외부 공정 앱은 완공(COMPLETE) JSON만 생성합니다.**
+**⚠️ 중요:**
 
 - ✅ **착공(START)**: 프론트엔드 앱에서 바코드 스캔으로 처리 (JSON 불필요)
 - ✅ **완공(COMPLETE)**: 외부 공정 앱이 JSON 파일 생성 (아래 포맷 준수 필수)
 
-**완공 JSON (input/complete/ 폴더) - 필수**
-
-```json
-{
-  "serial_number": "FN-KR-251110D-001-0001",
-  "process_code": "LMA",
-  "operator_id": "W002",
-  "is_pass": true,
-  "cycle_time": 185,
-  "process_specific_data": {
-    "lma_model": "LMA-2024-V2",
-    "assembly_complete": true,
-    "torque_test": 5.2
-  },
-  "inspection_result": {
-    "visual_check": "OK",
-    "dimension_check": "OK"
-  },
-  "defect_code": null,
-  "defect_description": null,
-  "timestamp": "2025-11-10T09:33:20+09:00"
-}
-```
-
-**필수 필드:**
-
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| `serial_number` | string | 시리얼 번호 | FN-KR-251110D-001-0001 |
-| `process_code` | string | 공정 코드 | LMA |
-| `operator_id` | string | 작업자 ID | W002 |
-| `is_pass` | boolean | 합격 여부 | true, false |
-| `cycle_time` | integer | 사이클 타임 (초) | 185 |
-| `process_specific_data` | object | 공정별 특화 데이터 | {...} |
-| `inspection_result` | object | 검사 결과 (선택) | {...} |
-| `defect_code` | string \| null | 불량 코드 (불합격 시) | D002 |
-| `defect_description` | string \| null | 불량 상세 | "LMA 조립 불량" |
-| `timestamp` | string | 완공 시각 | 2025-11-10T09:33:20+09:00 |
-
 ---
 
-##### 착공 데이터 (Frontend App → Backend API)
+##### 1. 착공 데이터 (Frontend App → Backend API)
 
 착공(START) 작업은 프론트엔드 앱에서 바코드 스캐너로 처리하며, 다음 정보를 수집하여 Backend API로 전송합니다:
 
@@ -494,6 +455,52 @@ C:\F2X\
   "error_code": "ALREADY_STARTED"
 }
 ```
+
+---
+
+##### 2. 완공 데이터 (외부 공정 앱 → JSON 파일)
+
+완공(COMPLETE) 작업은 외부 공정 앱이 JSON 파일을 생성하여 처리합니다.
+
+**파일 위치**: `C:\F2X\input\complete\*.json`
+
+**JSON 포맷:**
+```json
+{
+  "serial_number": "FN-KR-251110D-001-0001",
+  "process_code": "LMA",
+  "operator_id": "W002",
+  "is_pass": true,
+  "cycle_time": 185,
+  "process_specific_data": {
+    "lma_model": "LMA-2024-V2",
+    "assembly_complete": true,
+    "torque_test": 5.2
+  },
+  "inspection_result": {
+    "visual_check": "OK",
+    "dimension_check": "OK"
+  },
+  "defect_code": null,
+  "defect_description": null,
+  "timestamp": "2025-11-10T09:33:20+09:00"
+}
+```
+
+**완공 필수 필드:**
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| `serial_number` | string | 시리얼 번호 | FN-KR-251110D-001-0001 |
+| `process_code` | string | 공정 코드 | LMA |
+| `operator_id` | string | 작업자 ID | W002 |
+| `is_pass` | boolean | 합격 여부 | true, false |
+| `cycle_time` | integer | 사이클 타임 (초) | 185 |
+| `process_specific_data` | object | 공정별 특화 데이터 | {...} |
+| `inspection_result` | object | 검사 결과 (선택) | {...} |
+| `defect_code` | string \| null | 불량 코드 (불합격 시) | D002 |
+| `defect_description` | string \| null | 불량 상세 | "LMA 조립 불량" |
+| `timestamp` | string | 완공 시각 | 2025-11-10T09:33:20+09:00 |
 
 ---
 
