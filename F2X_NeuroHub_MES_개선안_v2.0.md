@@ -388,31 +388,12 @@ C:\F2X\
 
 #### 3.5.3 JSON 스키마 (표준 포맷)
 
-모든 공정 앱은 다음 JSON 포맷을 준수해야 합니다.
+**⚠️ 중요: 외부 공정 앱은 완공(COMPLETE) JSON만 생성합니다.**
 
-**착공 JSON (input/start/ 폴더)**
+- ✅ **착공(START)**: 프론트엔드 앱에서 바코드 스캔으로 처리 (JSON 불필요)
+- ✅ **완공(COMPLETE)**: 외부 공정 앱이 JSON 파일 생성 (아래 포맷 준수 필수)
 
-```json
-{
-  "serial_number": "FN-KR-251110D-001-0001",
-  "process_code": "LMA",
-  "operator_id": "W002",
-  "equipment_id": "LMA-STATION-01",
-  "timestamp": "2025-11-10T09:30:15+09:00"
-}
-```
-
-**필수 필드:**
-
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| `serial_number` | string | 시리얼 번호 (전체) | FN-KR-251110D-001-0001 |
-| `process_code` | string | 공정 코드 | SPRING, LMA, LASER, EOL, ROBOT, PRINT, PACK |
-| `operator_id` | string | 작업자 ID | W001, W002, ... |
-| `equipment_id` | string | 설비 ID (선택) | LMA-STATION-01 |
-| `timestamp` | string (ISO 8601) | 착공 시각 | 2025-11-10T09:30:15+09:00 |
-
-**완공 JSON (input/complete/ 폴더)**
+**완공 JSON (input/complete/ 폴더) - 필수**
 
 ```json
 {
