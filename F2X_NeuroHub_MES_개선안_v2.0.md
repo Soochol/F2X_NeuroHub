@@ -464,12 +464,25 @@ C:\F2X\
 
 **파일 위치**: `C:\F2X\input\complete\*.json`
 
-**JSON 포맷:**
+**JSON 포맷 (최소):**
 ```json
 {
   "serial_number": "FN-KR-251110D-001-0001",
-  "process_code": "LMA",
-  "operator_id": "W002",
+  "is_pass": true,
+  "cycle_time": 185,
+  "process_specific_data": {
+    "lma_model": "LMA-2024-V2",
+    "assembly_complete": true,
+    "torque_test": 5.2
+  },
+  "timestamp": "2025-11-10T09:33:20+09:00"
+}
+```
+
+**JSON 포맷 (전체 옵션):**
+```json
+{
+  "serial_number": "FN-KR-251110D-001-0001",
   "is_pass": true,
   "cycle_time": 185,
   "process_specific_data": {
@@ -483,24 +496,33 @@ C:\F2X\
   },
   "defect_code": null,
   "defect_description": null,
-  "timestamp": "2025-11-10T09:33:20+09:00"
+  "timestamp": "2025-11-10T09:33:20+09:00",
+  "process_code": "LMA",
+  "operator_id": "W002"
 }
 ```
 
-**완공 필수 필드:**
+**완공 필드 명세:**
 
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| `serial_number` | string | 시리얼 번호 | FN-KR-251110D-001-0001 |
-| `process_code` | string | 공정 코드 | LMA |
-| `operator_id` | string | 작업자 ID | W002 |
-| `is_pass` | boolean | 합격 여부 | true, false |
-| `cycle_time` | integer | 사이클 타임 (초) | 185 |
-| `process_specific_data` | object | 공정별 특화 데이터 | {...} |
-| `inspection_result` | object | 검사 결과 (선택) | {...} |
-| `defect_code` | string \| null | 불량 코드 (불합격 시) | D002 |
-| `defect_description` | string \| null | 불량 상세 | "LMA 조립 불량" |
-| `timestamp` | string | 완공 시각 | 2025-11-10T09:33:20+09:00 |
+| 필드 | 타입 | 필수 | 설명 | 예시 |
+|------|------|------|------|------|
+| `serial_number` | string | ✅ | 시리얼 번호 | FN-KR-251110D-001-0001 |
+| `is_pass` | boolean | ✅ | 합격 여부 | true, false |
+| `cycle_time` | integer | ✅ | 사이클 타임 (초) | 185 |
+| `process_specific_data` | object | ✅ | 공정별 특화 데이터 | {...} |
+| `timestamp` | string | ✅ | 완공 시각 | 2025-11-10T09:33:20+09:00 |
+| `inspection_result` | object | ⬜ | 검사 결과 | {...} |
+| `defect_code` | string \| null | ⬜ | 불량 코드 (불합격 시) | D002 |
+| `defect_description` | string \| null | ⬜ | 불량 상세 | "LMA 조립 불량" |
+| `process_code` | string | ⬜ | 공정 코드 (검증용) | LMA |
+| `operator_id` | string | ⬜ | 완공 작업자 ID (착공과 다를 경우) | W002 |
+
+**⚠️ 중요:**
+
+- `process_code`, `operator_id`는 **선택 사항**입니다.
+- Backend는 착공 시 저장된 정보를 `serial_number`로 조회하여 사용합니다.
+- `process_code`: 검증 목적으로만 사용 (착공한 공정과 일치 확인)
+- `operator_id`: 완공 작업자가 착공 작업자와 다를 경우에만 필요 (교대 근무 등)
 
 ---
 
