@@ -432,6 +432,71 @@ C:\F2X\
 | `defect_description` | string \| null | 불량 상세 | "LMA 조립 불량" |
 | `timestamp` | string | 완공 시각 | 2025-11-10T09:33:20+09:00 |
 
+---
+
+##### 착공 데이터 (Frontend App → Backend API)
+
+착공(START) 작업은 프론트엔드 앱에서 바코드 스캐너로 처리하며, 다음 정보를 수집하여 Backend API로 전송합니다:
+
+**API 엔드포인트**: `POST /api/v1/process/start`
+
+**Request Body:**
+```json
+{
+  "serial_number": "FN-KR-251110D-001-0001",
+  "process_code": "LMA",
+  "operator_id": "W002",
+  "equipment_id": "EQ-LMA-01",
+  "workstation": "STATION-02"
+}
+```
+
+**착공 필수 필드:**
+
+| 필드 | 타입 | 설명 | 입력 방식 | 예시 |
+|------|------|------|-----------|------|
+| `serial_number` | string | 시리얼 번호 | 바코드 스캔 | FN-KR-251110D-001-0001 |
+| `process_code` | string | 공정 코드 | 작업 PC 고정값 | LMA |
+| `operator_id` | string | 작업자 ID | 바코드 스캔 또는 입력 | W002 |
+| `equipment_id` | string | 설비 ID (선택) | 작업 PC 고정값 | EQ-LMA-01 |
+| `workstation` | string | 작업 스테이션 (선택) | 작업 PC 고정값 | STATION-02 |
+
+**착공 처리 프로세스:**
+
+1. **작업자 바코드 스캔** → `operator_id` 입력
+2. **제품 시리얼 번호 바코드 스캔** → `serial_number` 입력
+3. **자동 정보 수집**:
+   - `process_code`: 작업 PC에 미리 설정된 공정 코드
+   - `equipment_id`: 작업 PC에 연결된 설비 ID (선택)
+   - `workstation`: 작업 스테이션 정보 (선택)
+   - `timestamp`: 서버에서 자동 생성
+4. **Backend API 호출** → 즉시 응답 (동기 처리)
+5. **UI 피드백** → 착공 성공/실패 메시지 표시
+
+**Response (성공):**
+```json
+{
+  "status": "success",
+  "message": "착공 처리 완료",
+  "data": {
+    "serial_number": "FN-KR-251110D-001-0001",
+    "process_code": "LMA",
+    "started_at": "2025-11-10T09:30:00+09:00"
+  }
+}
+```
+
+**Response (실패):**
+```json
+{
+  "status": "error",
+  "message": "이미 착공된 시리얼 번호입니다",
+  "error_code": "ALREADY_STARTED"
+}
+```
+
+---
+
 #### 3.5.4 공정별 `process_specific_data` 예시
 
 **스프링 투입 (SPRING):**
@@ -1464,29 +1529,50 @@ ORDER BY p.sequence_order;
 ### 6.5 공정 데이터 API
 
 #### POST `/process/start`
-**설명:** 공정 착공
+**설명:** 공정 착공 (Frontend App → Backend API)
+
+**처리 방식:** 바코드 스캐너로 입력, 동기 처리 (즉시 응답)
 
 **Request:**
 ```json
 {
   "serial_number": "FN-KR-251110D-001-0001",
   "process_code": "LMA",
-  "operator_id": "operator02",
-  "equipment_id": "LMA-STATION-01"
+  "operator_id": "W002",
+  "equipment_id": "EQ-LMA-01",
+  "workstation": "STATION-02"
 }
 ```
 
-**Response (201 Created):**
+**Request 필드:**
+
+| 필드 | 타입 | 필수 | 설명 | 입력 방식 |
+|------|------|------|------|-----------|
+| `serial_number` | string | ✅ | 시리얼 번호 | 바코드 스캔 |
+| `process_code` | string | ✅ | 공정 코드 | 작업 PC 고정값 |
+| `operator_id` | string | ✅ | 작업자 ID | 바코드 스캔 또는 입력 |
+| `equipment_id` | string | ⬜ | 설비 ID | 작업 PC 고정값 |
+| `workstation` | string | ⬜ | 작업 스테이션 | 작업 PC 고정값 |
+
+**Response (200 OK):**
 ```json
 {
-  "success": true,
+  "status": "success",
+  "message": "착공 처리 완료",
   "data": {
-    "process_data_id": 123,
     "serial_number": "FN-KR-251110D-001-0001",
-    "process_name": "LMA 조립",
-    "started_at": "2025-11-10T09:30:00+09:00",
-    "status": "IN_PROGRESS"
+    "process_code": "LMA",
+    "started_at": "2025-11-10T09:30:00+09:00"
   }
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "이미 착공된 시리얼 번호입니다",
+  "error_code": "ALREADY_STARTED"
 }
 ```
 
