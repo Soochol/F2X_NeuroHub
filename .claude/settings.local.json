@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:\\myCodeRepoWindows\\F2X_NeuroHub\\F2X_NeuroHub_MES_개선안_v2.0.md.tmp\")",
+      "Bash(move:*)",
+      "Bash({ head -n 874 \"c:\\myCodeRepoWindows\\F2X_NeuroHub\\F2X_NeuroHub_MES_개선안_v2.0.md\")",
+      "Bash(})",
+      "Bash(\"c:\\myCodeRepoWindows\\F2X_NeuroHub\\F2X_NeuroHub_MES_개선안_v2.0_new.md\")",
+      "Bash(grep:*)",
+      "Bash({ head -n 652 \"c:\\myCodeRepoWindows\\F2X_NeuroHub\\F2X_NeuroHub_MES_개선안_v2.0.md\")",
+      "Bash(pip install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(python convert_md_to_docx.py:*)",
+      "Bash(dir:*)",
+      "Bash(timeout:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
