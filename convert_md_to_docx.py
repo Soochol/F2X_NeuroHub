@@ -92,17 +92,7 @@ def set_cell_background(cell, fill):
 
 
 def add_boxed_heading(doc, text, level):
-    """Premium Modern Tech Style: 세련된 박스형 제목"""
-
-    # 색상 정의 (더 세련된 색상 팔레트)
-    colors = {
-        1: ('0F2C4C', RGBColor(255, 255, 255)),  # Deep navy bg, white text
-        2: ('1F4E78', RGBColor(255, 255, 255)),  # Dark blue bg, white text
-        3: ('F5F5F5', RGBColor(31, 78, 120)),    # Very light gray bg, dark blue text
-        4: (None, RGBColor(31, 78, 120))         # No background, dark blue text
-    }
-
-    bg_color, text_color = colors.get(level, colors[4])
+    """Minimal Datasheet Style: 단순한 제목 (ST 스타일)"""
 
     para = doc.add_paragraph()
     para.paragraph_format.keep_with_next = True
@@ -112,62 +102,35 @@ def add_boxed_heading(doc, text, level):
         para.paragraph_format.space_before = Pt(20)
         para.paragraph_format.space_after = Pt(14)
         font_size = Pt(22)
-        left_padding = Pt(15)
-        vertical_padding = '120'  # 6pt
+        # H1에만 하단 테두리 추가
+        pPr = para._element.get_or_add_pPr()
+        pBdr = OxmlElement('w:pBdr')
+        bottom_border = OxmlElement('w:bottom')
+        bottom_border.set(qn('w:val'), 'single')
+        bottom_border.set(qn('w:sz'), '8')  # 1pt
+        bottom_border.set(qn('w:space'), '4')
+        bottom_border.set(qn('w:color'), '333333')
+        pBdr.append(bottom_border)
+        pPr.append(pBdr)
     elif level == 2:
         para.paragraph_format.space_before = Pt(16)
         para.paragraph_format.space_after = Pt(12)
         font_size = Pt(17)
-        left_padding = Pt(12)
-        vertical_padding = '100'  # 5pt
     elif level == 3:
         para.paragraph_format.space_before = Pt(14)
         para.paragraph_format.space_after = Pt(8)
         font_size = Pt(13.5)
-        left_padding = Pt(10)
-        vertical_padding = '80'   # 4pt
     else:
         para.paragraph_format.space_before = Pt(12)
         para.paragraph_format.space_after = Pt(6)
         font_size = Pt(11.5)
-        left_padding = Pt(0)
-        vertical_padding = '0'
 
-    # 배경색 및 스타일링 (Level 1-3)
-    if bg_color:
-        shading = OxmlElement('w:shd')
-        shading.set(qn('w:fill'), bg_color)
-        para._element.get_or_add_pPr().append(shading)
-
-        # 패딩 추가 (상하좌우)
-        para.paragraph_format.left_indent = left_padding
-        para.paragraph_format.right_indent = Pt(10)
-
-        # 내부 간격
-        pPr = para._element.get_or_add_pPr()
-        spacing = OxmlElement('w:spacing')
-        spacing.set(qn('w:before'), vertical_padding)
-        spacing.set(qn('w:after'), vertical_padding)
-        pPr.append(spacing)
-
-        # Level 1, 2에 왼쪽 accent 바 추가
-        if level in [1, 2]:
-            pBdr = OxmlElement('w:pBdr')
-            left_border = OxmlElement('w:left')
-            left_border.set(qn('w:val'), 'single')
-            left_border.set(qn('w:sz'), '48')  # 6pt 두께
-            left_border.set(qn('w:space'), '4')
-            accent_color = '4A90E2' if level == 1 else '5BA3F5'  # Bright blue accent
-            left_border.set(qn('w:color'), accent_color)
-            pBdr.append(left_border)
-            pPr.append(pBdr)
-
-    # 텍스트 추가
+    # 텍스트 추가 - 배경색 없이 단순하게
     run = para.add_run(text)
-    run.font.name = 'Calibri Light' if level in [1, 2] else 'Calibri'
+    run.font.name = 'Calibri'
     run.font.size = font_size
     run.font.bold = True
-    run.font.color.rgb = text_color
+    run.font.color.rgb = RGBColor(51, 51, 51)  # Dark gray text
 
     # 한글 폰트
     rPr = run._element.get_or_add_rPr()
@@ -232,7 +195,7 @@ def create_cover_page(doc):
     spacing_elem.set(qn('w:val'), '80')  # 문자 간격
     rPr.append(spacing_elem)
 
-    # 얇은 accent 라인
+    # 얇은 accent 라인 (검정색으로 변경)
     accent_line = doc.add_paragraph()
     accent_line.paragraph_format.space_before = Pt(6)
     accent_line.paragraph_format.space_after = Pt(20)
@@ -240,71 +203,33 @@ def create_cover_page(doc):
     pBdr = OxmlElement('w:pBdr')
     top_border = OxmlElement('w:top')
     top_border.set(qn('w:val'), 'single')
-    top_border.set(qn('w:sz'), '18')  # 2.25pt
+    top_border.set(qn('w:sz'), '8')  # 1pt (더 얇게)
     top_border.set(qn('w:space'), '1')
-    top_border.set(qn('w:color'), '4A90E2')  # Bright blue accent
+    top_border.set(qn('w:color'), '333333')  # Dark gray
     pBdr.append(top_border)
     accent_line._element.get_or_add_pPr().append(pBdr)
 
-    # 메인 타이틀 박스 (Deep navy background with accent)
+    # 메인 타이틀 (배경색 제거)
     title_para = doc.add_paragraph()
     title_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
     title_para.paragraph_format.space_before = Pt(0)
-    title_para.paragraph_format.space_after = Pt(0)
-    title_para.paragraph_format.left_indent = Pt(20)
-    title_para.paragraph_format.right_indent = Pt(15)
-
-    # 배경색
-    shading = OxmlElement('w:shd')
-    shading.set(qn('w:fill'), '0F2C4C')  # Deep navy
-    title_para._element.get_or_add_pPr().append(shading)
-
-    # 내부 간격 증가
-    pPr = title_para._element.get_or_add_pPr()
-    spacing = OxmlElement('w:spacing')
-    spacing.set(qn('w:before'), '240')  # 12pt
-    spacing.set(qn('w:after'), '240')   # 12pt
-    pPr.append(spacing)
-
-    # 왼쪽 accent 바
-    pBdr = OxmlElement('w:pBdr')
-    left_border = OxmlElement('w:left')
-    left_border.set(qn('w:val'), 'single')
-    left_border.set(qn('w:sz'), '60')  # 7.5pt 두께
-    left_border.set(qn('w:space'), '4')
-    left_border.set(qn('w:color'), '4A90E2')  # Bright blue accent
-    pBdr.append(left_border)
-    pPr.append(pBdr)
+    title_para.paragraph_format.space_after = Pt(8)
 
     run = title_para.add_run('MES 시스템 개선안')
     run.font.size = Pt(44)
     run.font.bold = True
-    run.font.color.rgb = RGBColor(255, 255, 255)
-    run.font.name = 'Calibri Light'
+    run.font.color.rgb = RGBColor(51, 51, 51)  # Dark gray
+    run.font.name = 'Calibri'
 
-    # 버전 박스 (더 부드러운 블루)
+    # 버전 (배경색 제거)
     version_para = doc.add_paragraph()
     version_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
     version_para.paragraph_format.space_after = Pt(0)
-    version_para.paragraph_format.left_indent = Pt(20)
-    version_para.paragraph_format.right_indent = Pt(15)
-
-    # 배경색
-    shading = OxmlElement('w:shd')
-    shading.set(qn('w:fill'), '1F4E78')  # Dark blue
-    version_para._element.get_or_add_pPr().append(shading)
-
-    # 내부 간격
-    pPr = version_para._element.get_or_add_pPr()
-    spacing = OxmlElement('w:spacing')
-    spacing.set(qn('w:before'), '120')
-    spacing.set(qn('w:after'), '120')
-    pPr.append(spacing)
 
     run = version_para.add_run('Version 2.0')
     run.font.size = Pt(19)
     run.font.bold = True
-    run.font.color.rgb = RGBColor(255, 255, 255)
+    run.font.color.rgb = RGBColor(102, 102, 102)  # Medium gray
     run.font.name = 'Calibri'
 
     # 공간
@@ -342,7 +267,7 @@ def create_cover_page(doc):
         # 레이블 셀
         label_cell = row.cells[0]
         label_cell.text = label
-        set_cell_background(label_cell, 'F8F9FA')
+        set_cell_background(label_cell, 'FFFFFF')  # White background
         label_cell.width = Inches(1.5)
 
         for para in label_cell.paragraphs:
@@ -448,29 +373,29 @@ def apply_inline_formatting(paragraph, text):
 
 
 def create_styled_table(doc, headers, rows):
-    """Premium Modern Tech 스타일 테이블"""
+    """Minimal Datasheet 스타일 테이블 (ST 스타일)"""
     table = doc.add_table(rows=1, cols=len(headers))
 
-    # 헤더 행 - Deep navy with premium feel
+    # 헤더 행 - White background with bold text
     hdr_cells = table.rows[0].cells
     for i, header in enumerate(headers):
         cell = hdr_cells[i]
         cell.text = header.strip('*').strip()
 
-        # Deep navy header
-        set_cell_background(cell, '0F2C4C')
+        # White header background
+        set_cell_background(cell, 'FFFFFF')
 
         for paragraph in cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
             for run in paragraph.runs:
                 run.font.bold = True
                 run.font.size = Pt(10)
-                run.font.color.rgb = RGBColor(255, 255, 255)
+                run.font.color.rgb = RGBColor(51, 51, 51)  # Dark gray text
                 run.font.name = 'Calibri'
 
         cell.vertical_alignment = 1
 
-        # 셀 패딩 증가 (더 여유로운 느낌)
+        # 셀 패딩
         tc = cell._element
         tcPr = tc.get_or_add_tcPr()
         tcMar = OxmlElement('w:tcMar')
@@ -503,7 +428,7 @@ def create_styled_table(doc, headers, rows):
                         run.font.name = 'Calibri'
                         run.font.color.rgb = RGBColor(51, 51, 51)
 
-                # 셀 패딩 증가
+                # 셀 패딩
                 tc = cell._element
                 tcPr = tc.get_or_add_tcPr()
                 tcMar = OxmlElement('w:tcMar')
@@ -519,51 +444,61 @@ def create_styled_table(doc, headers, rows):
                     tcMar.append(margin)
                 tcPr.append(tcMar)
 
-                # 교차 행 배경 (더 부드러운 색상)
-                if idx % 2 == 1:
-                    set_cell_background(cell, 'F8F9FA')  # Very light gray
-                else:
-                    set_cell_background(cell, 'FFFFFF')  # White
+                # 모든 행 흰색 배경 (교차 행 배경 제거)
+                set_cell_background(cell, 'FFFFFF')  # White
 
-    # 테이블 스타일 - 깔끔한 선
+    # 테이블 스타일 - Minimal Datasheet
     table.style = 'Table Grid'
 
-    # 테이블 테두리 커스터마이징 (더 세련된 스타일)
+    # 테이블 테두리 커스터마이징 (ST 스타일)
     tbl = table._tbl
     tblPr = tbl.tblPr
     if tblPr is None:
         tblPr = OxmlElement('w:tblPr')
         tbl.insert(0, tblPr)
 
-    # 테두리 설정 (헤더는 없고, 데이터 행은 얇은 회색)
+    # 테두리 설정 - 얇은 회색 테두리
     tblBorders = OxmlElement('w:tblBorders')
 
-    # 외부 테두리 없음
+    # 외부 테두리
     for border_name in ['top', 'left', 'right', 'bottom']:
         border = OxmlElement(f'w:{border_name}')
         border.set(qn('w:val'), 'single')
         border.set(qn('w:sz'), '6')  # 0.75pt
         border.set(qn('w:space'), '0')
-        border.set(qn('w:color'), 'E0E0E0')  # Very light gray
+        border.set(qn('w:color'), 'D0D0D0')  # Light gray
         tblBorders.append(border)
 
-    # 내부 수평선 (얇고 부드러운)
+    # 내부 수평선
     insideH = OxmlElement('w:insideH')
     insideH.set(qn('w:val'), 'single')
-    insideH.set(qn('w:sz'), '4')  # 0.5pt
+    insideH.set(qn('w:sz'), '6')  # 0.75pt
     insideH.set(qn('w:space'), '0')
-    insideH.set(qn('w:color'), 'E8E8E8')
+    insideH.set(qn('w:color'), 'D0D0D0')
     tblBorders.append(insideH)
 
-    # 내부 수직선 (더 얇게)
+    # 내부 수직선
     insideV = OxmlElement('w:insideV')
     insideV.set(qn('w:val'), 'single')
-    insideV.set(qn('w:sz'), '2')  # 0.25pt
+    insideV.set(qn('w:sz'), '6')  # 0.75pt
     insideV.set(qn('w:space'), '0')
-    insideV.set(qn('w:color'), 'F0F0F0')
+    insideV.set(qn('w:color'), 'D0D0D0')
     tblBorders.append(insideV)
 
     tblPr.append(tblBorders)
+
+    # 헤더 행에 하단 굵은 테두리 추가 (ST 스타일)
+    header_row = table.rows[0]
+    for cell in header_row.cells:
+        tcPr = cell._element.get_or_add_tcPr()
+        tcBorders = OxmlElement('w:tcBorders')
+        bottom_border = OxmlElement('w:bottom')
+        bottom_border.set(qn('w:val'), 'single')
+        bottom_border.set(qn('w:sz'), '12')  # 1.5pt (더 굵게)
+        bottom_border.set(qn('w:space'), '0')
+        bottom_border.set(qn('w:color'), '999999')  # Medium gray
+        tcBorders.append(bottom_border)
+        tcPr.append(tcBorders)
 
     # 테이블 앞뒤 여백 증가
     table_para = doc.paragraphs[-1] if doc.paragraphs else None
