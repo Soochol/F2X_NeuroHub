@@ -58,7 +58,7 @@
 - 불량 유형 코드 체계
 - **예상 독서 시간:** 25분
 
-### 3. MES 요구사항 (TO-BE)
+### 3. [MES 요구사항 (TO-BE)](./03-requirements/03-1-functional.md)
 
 **하위 문서:**
 - [3.1 기능 요구사항](./03-requirements/03-1-functional.md) - LOT 관리, 공정 관리, 모니터링
@@ -66,7 +66,7 @@
 - [3.3 검수 기준](./03-requirements/03-3-acceptance.md) - 기능 검수 항목
 - **예상 독서 시간:** 40분
 
-### 4. 시스템 아키텍처
+### 4. [시스템 아키텍처](./04-architecture/04-1-deployment-options.md)
 
 **하위 문서:**
 - [4.1 배포 옵션 비교](./04-architecture/04-1-deployment-options.md) - 온프레미스 vs Railway vs AWS
@@ -74,7 +74,7 @@
 - [4.3 기술 스택](./04-architecture/04-3-tech-stack.md) - 백엔드, 프론트엔드, 인프라 상세
 - **예상 독서 시간:** 35분
 
-### 5. 데이터 설계
+### 5. [데이터 설계](./05-data-design/05-1-erd.md)
 
 **하위 문서:**
 - [5.1 ERD 및 테이블 스키마](./05-data-design/05-1-erd.md) - 데이터베이스 설계
