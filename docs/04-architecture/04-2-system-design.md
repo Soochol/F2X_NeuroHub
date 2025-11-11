@@ -6,7 +6,11 @@
 
 본 섹션에서는 배포 옵션별 시스템 아키텍처 구성도를 제공합니다.
 
-### 4.2.1 Option A: 온프레미스 구성도
+> ⚠️ **네트워크 요구사항**:
+> - **온프레미스**: 내부 LAN만 필요 (인터넷 불필요)
+> - **클라우드(Railway/AWS)**: 인터넷 연결 필수
+
+### 4.2.1 Option A: 온프레미스 구성도 (인터넷 불필요)
 
 ```mermaid
 graph TB
@@ -32,10 +36,10 @@ graph TB
         Dashboard[React Dashboard<br/>웹 브라우저]
     end
 
-    PC1 -->|WiFi| Nginx
+    PC1 -->|내부 LAN| Nginx
     PC2 --> PC1
     PC3 --> PC1
-    Dashboard -->|WiFi/VPN| Nginx
+    Dashboard -->|내부 LAN| Nginx
     Nginx --> Backend1
     Nginx --> Backend2
     Backend1 --> DB
@@ -44,7 +48,14 @@ graph TB
     Backend2 --> Redis
 ```
 
-### 4.2.2 Option B-1: Railway 구성도
+**특징:**
+- ✅ 인터넷 불필요 - 내부 LAN만 사용
+- ✅ 외부 네트워크 차단 가능
+- ✅ ISP 장애와 무관
+
+---
+
+### 4.2.2 Option B-1: Railway 구성도 (인터넷 필수)
 
 ```mermaid
 graph TB
@@ -65,16 +76,23 @@ graph TB
         Dashboard[React Dashboard<br/>웹 브라우저]
     end
 
-    PC1 -->|HTTPS| Backend
+    PC1 -->|인터넷<br/>HTTPS| Backend
     PC2 --> PC1
     PC3 --> PC1
-    Dashboard -->|HTTPS| Backend
+    Dashboard -->|인터넷<br/>HTTPS| Backend
     Backend --> DB
     Backend --> Redis
     Backend --> Volume
 ```
 
-### 4.2.3 Option B-2: AWS 구성도
+**특징:**
+- ⚠️ **인터넷 연결 필수** - 작업 PC가 Railway 서버에 접근
+- ⚠️ ISP 장애 시 작업 중단
+- ✅ 인프라 관리 불필요
+
+---
+
+### 4.2.3 Option B-2: AWS 구성도 (인터넷 필수)
 
 ```mermaid
 graph TB
@@ -101,10 +119,10 @@ graph TB
         Dashboard[React Dashboard<br/>웹 브라우저]
     end
 
-    PC1 -->|HTTPS| ALB
+    PC1 -->|인터넷<br/>HTTPS| ALB
     PC2 --> PC1
     PC3 --> PC1
-    Dashboard -->|HTTPS| ALB
+    Dashboard -->|인터넷<br/>HTTPS| ALB
     ALB --> Backend1
     ALB --> Backend2
     Backend1 --> RDS
@@ -114,6 +132,12 @@ graph TB
     Backend2 --> ElastiCache
     Backend2 --> S3
 ```
+
+**특징:**
+- ⚠️ **인터넷 연결 필수** - 작업 PC가 AWS 서버에 접근
+- ⚠️ ISP 장애 시 작업 중단
+- ✅ VPN 터널로 보안 강화 가능
+- ✅ 엔터프라이즈급 안정성
 
 ---
 
