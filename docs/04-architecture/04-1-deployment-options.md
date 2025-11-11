@@ -373,4 +373,5 @@ railway volume upload /var/mes/files/
 
 ---
 
-**다음 섹션:** [4.2 시스템 구성도](04-2-system-design.md)
+> **이전 섹션:** [3.3 검수 기준](../03-requirements/03-3-acceptance.md)
+> **다음 섹션:** [4.2 시스템 구성도](04-2-system-design.md)

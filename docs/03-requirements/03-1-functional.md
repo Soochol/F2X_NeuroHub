@@ -295,4 +295,5 @@ sequenceDiagram
 
 ---
 
-**다음 섹션:** [3.4 데이터 인터페이스 요구사항](03-2-api-specs.md)
+> **이전 섹션:** [2. 제품 및 공정 현황 (AS-IS)](../02-product-process.md)
+> **다음 섹션:** [3.4 데이터 인터페이스 요구사항](03-2-api-specs.md)
