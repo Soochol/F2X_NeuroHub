@@ -491,4 +491,4 @@ graph LR
 
 ---
 
-> **다음 섹션:** [3. MES 요구사항 (TO-BE)](./03-requirements/)
+> **다음 섹션:** [3. MES 요구사항 (TO-BE)](./03-requirements/03-1-functional.md)
