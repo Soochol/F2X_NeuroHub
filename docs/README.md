@@ -44,7 +44,7 @@
 
 ### 1. [프로젝트 개요](./01-project-overview.md)
 - 프로젝트 배경 및 목적
-- 프로젝트 범위 (Phase 1 MVP, Phase 2 고도화)
+- 프로젝트 범위 (Phase 1 기본 버전, Phase 2 고도화)
 - 주요 사용자 정의
 
 ### 2. [제품 및 공정 현황 (AS-IS)](./02-product-process.md)
