@@ -67,7 +67,7 @@
 
 **하위 문서:**
 - [4.1 배포 옵션 비교](./04-architecture/04-1-deployment-options.md) - 온프레미스 vs Railway vs AWS
-- [4.2 시스템 설계](./04-architecture/04-2-system-design.md) - 시스템 구성도, 네트워크, 마이그레이션
+- [4.2 시스템 설계](./04-architecture/04-2-system-design.md) - 시스템 구성도, 배포 아키텍처, 네트워크
 - [4.3 기술 스택](./04-architecture/04-3-tech-stack.md) - 백엔드, 프론트엔드, 인프라 상세
 
 ### 5. 데이터 설계
