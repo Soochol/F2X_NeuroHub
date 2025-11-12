@@ -48,7 +48,16 @@
       "Bash(while read f)",
       "Bash(do echo \"Checking: $f\")",
       "Bash([ -s \"$f\" ])",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(tree:*)",
+      "Bash(python:*)",
+      "SlashCommand(/tdd 품질 검사 기능)",
+      "SlashCommand(/tdd:*)",
+      "SlashCommand(/tdd 주문 생성 기능)",
+      "SlashCommand(/tdd 재고 조회 기능)",
+      "Bash(nul)",
+      "Bash(rm:*)",
+      "Bash(del nul 2)"
     ],
     "deny": [],
     "ask": []
