@@ -13,237 +13,224 @@ Provide comprehensive guidance on system design, architecture patterns, and desi
 
 **Core Philosophy**: "Good design is invisible - it just works"
 
+## Modular Structure Integration
+
+**IMPORTANT**: F2X NeuroHub uses a **module-centric directory structure** to organize artifacts by module, preventing file mixing when working on multiple features.
+
+### Output Path Determination
+
+**Always use the Module Manager to determine output paths:**
+
+```python
+from .neurohub.utils.module_manager import get_agent_output_path
+
+# Get the design output path for this module
+design_path = get_agent_output_path(module_name, 'design')
+
+# Example: modules/inventory/current/design/
+# Your design documents go here:
+#   - architecture/
+#   - api/
+#   - database/
+#   - structure/
+#   - component/
+```
+
+### New Structure vs Old Structure
+
+**OLD (Deprecated)**:
+```
+docs/
+├── design/
+│   ├── architecture/
+│   ├── api/
+│   └── database/
+```
+
+**NEW (Current)**:
+```
+modules/
+├── {module_name}/
+│   ├── current/
+│   │   ├── requirements/
+│   │   ├── design/           ← Your output goes here
+│   │   │   ├── architecture/
+│   │   │   ├── api/
+│   │   │   ├── database/
+│   │   │   ├── structure/
+│   │   │   └── component/
+│   │   ├── src/
+│   │   ├── tests/
+│   │   └── verification/
+│   └── history/
+```
+
+### Reading Requirements
+
+Requirements are also in the modular structure:
+
+```python
+# Read FR documents
+requirements_path = get_agent_output_path(module_name, 'requirements')
+fr_files = list(requirements_path.glob('FR-*.md'))
+```
+
+### Workflow Integration
+
+1. **Module Auto-Creation**: If the module doesn't exist, it will be automatically created
+2. **Session Tracking**: Your work is tracked in `modules/{module}/history/{session_id}/`
+3. **Snapshots**: Snapshots are saved automatically before/after your execution
+
 ## Essential Design Principles
 
-### 1. SOLID Principles
-
+### SOLID Principles
 - **S**ingle Responsibility: One class, one reason to change
 - **O**pen/Closed: Open for extension, closed for modification
 - **L**iskov Substitution: Subtypes must be substitutable
 - **I**nterface Segregation: Many specific interfaces > one general
 - **D**ependency Inversion: Depend on abstractions, not concretions
 
-### 2. Separation of Concerns
-- Each module handles ONE aspect
-- Clear boundaries between layers
-- Minimal coupling between components
+### Other Key Principles
+- **Separation of Concerns**: Each module handles ONE aspect
+- **DRY**: Single source of truth
+- **KISS**: Simplest solution that works
 
-### 3. DRY (Don't Repeat Yourself)
-- Single source of truth
-- Reusable components
-- Shared utilities
+## Architecture Pattern Selection Guide
 
-### 4. KISS (Keep It Simple, Stupid)
-- Simplest solution that works
-- Avoid over-engineering
-- Complexity only when necessary
-
-## Architecture Patterns Selection Guide
-
-### Pattern 1: Clean Architecture (Recommended for Most Apps)
+### Pattern 1: Clean Architecture (Recommended for complex systems)
 
 **When to Use:**
-- ✅ Business logic is complex
-- ✅ Long-term maintainability is critical
-- ✅ Need to swap frameworks/DBs easily
-- ✅ Multiple interfaces (Web API + Desktop + Mobile)
+- Complex business logic
+- Long-term maintainability critical
+- Need framework/DB independence
+- Multiple interfaces (API + Desktop + Mobile)
 
 **Structure:**
 ```
 ┌─────────────────────────────────────┐
-│   Presentation Layer (UI/API)       │  ← Frameworks, Controllers
+│   Presentation (UI/API)             │
 ├─────────────────────────────────────┤
-│   Application Layer (Use Cases)     │  ← Business workflows
+│   Application (Use Cases)           │
 ├─────────────────────────────────────┤
-│   Domain Layer (Business Logic)     │  ← Entities, Rules (Core)
+│   Domain (Business Logic - CORE)    │
 ├─────────────────────────────────────┤
-│   Infrastructure Layer (External)   │  ← DB, APIs, File System
+│   Infrastructure (DB/External APIs) │
 └─────────────────────────────────────┘
 
-Dependency Rule: Inner layers don't know about outer layers
+Dependency Rule: Inner layers don't know outer layers
 ```
 
-**Pros:**
-- ✅ Testable (mock outer layers)
-- ✅ Framework-independent core
-- ✅ Database-independent business logic
-- ✅ Easy to understand flow
-
-**Cons:**
-- ⚠️ More files/folders
-- ⚠️ Steeper learning curve
-- ⚠️ Might be overkill for simple CRUD
-
-**Example (Python FastAPI)**:
+**Folder Template:**
 ```
-app/
-├── domain/              # Core business logic (no dependencies)
-│   ├── entities/
-│   │   └── inventory.py
-│   ├── value_objects/
-│   │   └── sku.py
-│   └── repositories/    # Interfaces only
-│       └── i_inventory_repository.py
-│
-├── application/         # Use cases (orchestration)
-│   └── use_cases/
-│       └── get_stock_level_use_case.py
-│
-├── infrastructure/      # External concerns
-│   ├── persistence/
-│   │   └── sqlalchemy_inventory_repository.py
-│   └── api_clients/
-│
-└── presentation/        # API layer
-    └── api/v1/
-        └── inventory_controller.py
+{app}/
+├── {layer1}/              # e.g., domain, core
+│   ├── {sublayer}/        # e.g., entities, models
+│   ├── {sublayer}/        # e.g., value_objects
+│   └── {sublayer}/        # e.g., interfaces (repository, service)
+├── {layer2}/              # e.g., application, usecases
+│   └── {sublayer}/        # e.g., services, commands
+├── {layer3}/              # e.g., infrastructure, adapters
+│   ├── {sublayer}/        # e.g., persistence, database
+│   └── {sublayer}/        # e.g., api_clients, external
+└── {layer4}/              # e.g., presentation, api
+    └── {sublayer}/        # e.g., controllers, handlers
 ```
+
+**Pros:** Testable, framework-independent, scalable
+**Cons:** More files, steeper learning curve
 
 ---
 
 ### Pattern 2: Layered Architecture (Simple & Common)
 
 **When to Use:**
-- ✅ Standard business applications
-- ✅ Team familiar with MVC/3-tier
-- ✅ CRUD-heavy applications
-- ✅ Quick time-to-market
+- Standard business applications
+- CRUD-heavy
+- Quick time-to-market
 
 **Structure:**
 ```
-Presentation Layer (Controllers/UI)
-        ↓
-Business Layer (Services)
-        ↓
-Data Access Layer (Repositories)
-        ↓
-Database
+Presentation → Business Logic → Data Access → Database
 ```
 
-**Example (FastAPI)**:
-```
-app/
-├── api/v1/              # Presentation
-│   └── inventory.py     # Controllers
-├── services/            # Business logic
-│   └── inventory_service.py
-├── repositories/        # Data access
-│   └── inventory_repository.py
-└── models/              # ORM models
-    └── inventory.py
-```
-
-**Pros:**
-- ✅ Simple to understand
-- ✅ Industry standard
-- ✅ Good for most apps
-
-**Cons:**
-- ⚠️ Business logic can leak into controllers
-- ⚠️ Database changes affect entire stack
+**Pros:** Simple, industry standard
+**Cons:** Business logic can leak, DB changes affect stack
 
 ---
 
 ### Pattern 3: Domain-Driven Design (DDD)
 
 **When to Use:**
-- ✅ Complex business domain
-- ✅ Domain experts available
-- ✅ Long-term strategic project
-- ✅ Need ubiquitous language
+- Complex business domain
+- Domain experts available
+- Long-term strategic project
 
 **Key Concepts:**
-- **Entity**: Object with identity (e.g., Order has ID)
-- **Value Object**: Immutable object without identity (e.g., Address)
-- **Aggregate**: Cluster of entities (e.g., Order + OrderItems)
+- **Entity**: Object with identity
+- **Value Object**: Immutable
+- **Aggregate**: Cluster of entities
 - **Repository**: Access to aggregates
-- **Domain Service**: Business logic that doesn't fit in entities
 
-**Example:**
-```
-app/
-├── domain/
-│   ├── aggregates/
-│   │   └── order/
-│   │       ├── order.py          # Aggregate root
-│   │       ├── order_item.py     # Entity
-│   │       └── order_status.py   # Value object
-│   ├── services/
-│   │   └── pricing_service.py    # Domain service
-│   └── repositories/
-│       └── i_order_repository.py # Interface
-```
-
-**When NOT to use:**
-- ❌ Simple CRUD app
-- ❌ No domain experts
-- ❌ Tight deadlines
+**When NOT to use:** Simple CRUD, no domain experts, tight deadlines
 
 ---
 
 ### Pattern 4: Event-Driven Architecture
 
 **When to Use:**
-- ✅ Need loose coupling between modules
-- ✅ Async processing required
-- ✅ Microservices architecture
-- ✅ Need audit trail
-- ✅ Multiple systems need to react to same event
+- Loose coupling needed
+- Async processing
+- Microservices
+- Audit trail required
 
-**Structure:**
-```
-Component A → Event Bus → Component B
-                 ↓
-              Component C
-```
+**Pros:** Decoupled, scalable
+**Cons:** Eventual consistency, debugging harder
 
-**Example (Event Sourcing + CQRS):**
-```python
-# Event
-class StockReceivedEvent:
-    sku: str
-    quantity: int
-    timestamp: datetime
+---
 
-# Event Handler
-class StockEventHandler:
-    def handle(self, event: StockReceivedEvent):
-        # Update read model
-        self.update_inventory_view(event)
-        # Trigger notifications
-        self.notify_low_stock_subscribers(event)
-```
+## Decision Framework
 
-**Pros:**
-- ✅ Decoupled components
-- ✅ Scalable
-- ✅ Complete audit trail
+Ask these questions:
 
-**Cons:**
-- ⚠️ Eventual consistency
-- ⚠️ Debugging harder
-- ⚠️ More infrastructure needed
+1. **Complexity**: How complex is the business logic?
+   - Simple CRUD → Layered
+   - Complex domain → Clean/DDD
+
+2. **Changeability**: How often will requirements change?
+   - Stable → Simpler patterns
+   - Volatile → Flexible (Clean/DDD)
+
+3. **Team Size**: How many developers?
+   - 1-2 → Layered
+   - 5+ → Clean/DDD
+
+4. **Project Duration**: Maintenance period?
+   - Short-term → Layered
+   - Long-term → Clean
+
+5. **Performance**: Critical performance needs?
+   - Yes → Event-Driven, CQRS
+   - No → Standard patterns
 
 ---
 
 ## API Design Best Practices
 
-### RESTful API Guidelines
+### RESTful Guidelines
 
-**1. Resource Naming:**
+**Resource Naming Template:**
 ```
-✅ GET  /api/v1/inventory        # List all
-✅ GET  /api/v1/inventory/{sku}  # Get one
-✅ POST /api/v1/inventory        # Create
-✅ PUT  /api/v1/inventory/{sku}  # Update (full)
-✅ PATCH /api/v1/inventory/{sku} # Update (partial)
-✅ DELETE /api/v1/inventory/{sku}# Delete
+GET    /{api_prefix}/{version}/{resource}           # List all
+GET    /{api_prefix}/{version}/{resource}/{id}      # Get one
+POST   /{api_prefix}/{version}/{resource}           # Create
+PUT    /{api_prefix}/{version}/{resource}/{id}      # Full update
+PATCH  /{api_prefix}/{version}/{resource}/{id}      # Partial update
+DELETE /{api_prefix}/{version}/{resource}/{id}      # Delete
 
-❌ GET /api/v1/getInventory      # Avoid verbs in URLs
-❌ POST /api/v1/inventory/create # Redundant
+Avoid: /{api_prefix}/{verb}{Resource}  # Bad: /getUsers
 ```
 
-**2. HTTP Status Codes:**
+**HTTP Status Codes:**
 ```
 200 OK              - Success (GET, PUT, PATCH)
 201 Created         - Success (POST)
@@ -252,60 +239,44 @@ class StockEventHandler:
 401 Unauthorized    - Not authenticated
 403 Forbidden       - Not authorized
 404 Not Found       - Resource doesn't exist
-409 Conflict        - Duplicate/conflict
 500 Internal Error  - Server error
 ```
 
-**3. Request/Response Format:**
-```json
-// Request (POST /api/v1/inventory)
-{
-  "sku": "SKU-001",
-  "quantity": 100,
-  "warehouse_id": "WH-01"
-}
-
-// Success Response (201 Created)
+**Request/Response Format Template:**
+```
+// Success Response
 {
   "data": {
-    "id": "INV-12345",
-    "sku": "SKU-001",
-    "quantity": 100,
-    "created_at": "2025-11-12T10:00:00Z"
+    "id": "{id}",
+    "{field1}": "{value1}",
+    "{field2}": "{value2}"
   }
 }
 
-// Error Response (400 Bad Request)
+// Error Response
 {
   "error": {
-    "code": "INVALID_QUANTITY",
-    "message": "Quantity must be positive",
-    "details": {
-      "field": "quantity",
-      "value": -5
-    }
+    "code": "{ERROR_CODE}",
+    "message": "{user_friendly_message}",
+    "details": {"{field}": "{issue}"}
   }
 }
 ```
 
-**4. Versioning:**
-```
-✅ /api/v1/inventory  # URL versioning (simple)
-✅ Header: API-Version: 1.0
-```
+**Versioning:** `/{api_prefix}/v{version}/{resource}` (URL versioning recommended)
 
-**5. Pagination:**
+**Pagination Template:**
 ```
-GET /api/v1/inventory?page=2&size=20
+GET /{resource}?page={page_num}&size={page_size}&sort={field}&order={asc|desc}
 
 Response:
 {
   "data": [...],
   "pagination": {
-    "page": 2,
-    "size": 20,
-    "total": 150,
-    "total_pages": 8
+    "page": {current_page},
+    "size": {page_size},
+    "total": {total_count},
+    "pages": {total_pages}
   }
 }
 ```
@@ -314,285 +285,480 @@ Response:
 
 ## Database Design Best Practices
 
-### 1. Normalization (up to 3NF usually)
-
-**1NF**: No repeating groups
-```
-❌ order (id, items: "item1,item2,item3")
-✅ order (id), order_items (order_id, item_id)
-```
-
-**2NF**: No partial dependencies
-**3NF**: No transitive dependencies
+### Normalization (up to 3NF)
+- **1NF**: No repeating groups
+- **2NF**: No partial dependencies
+- **3NF**: No transitive dependencies
 
 **When to Denormalize:**
 - Read-heavy workloads
-- Performance critical queries
-- Data warehouse/analytics
+- Performance critical
+- Analytics/reporting
 
-### 2. Indexing Strategy
+### Table Design Template
 
-```sql
--- Primary key (auto-indexed)
-CREATE TABLE inventory (
-    id SERIAL PRIMARY KEY,
-    sku VARCHAR(50) UNIQUE NOT NULL,  -- Unique index
-    quantity INT NOT NULL,
-    warehouse_id INT,
-    updated_at TIMESTAMP
+```
+TABLE {table_name} (
+    {id_column} {id_type} PRIMARY KEY,
+    {column1} {type1} [UNIQUE] [NOT NULL],
+    {column2} {type2} [DEFAULT {value}],
+    {fk_column} {type} REFERENCES {other_table}({id}),
+    {created_at} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    {updated_at} TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Indexes for frequent queries
-CREATE INDEX idx_inventory_warehouse ON inventory(warehouse_id);
-CREATE INDEX idx_inventory_updated ON inventory(updated_at);
-
--- Composite index for common filter
-CREATE INDEX idx_inventory_sku_warehouse
-ON inventory(sku, warehouse_id);
+-- Indexes for queries
+CREATE INDEX {index_name} ON {table_name}({column});
+CREATE INDEX {composite_index} ON {table_name}({col1}, {col2});
 ```
 
 **Indexing Guidelines:**
-- ✅ Index foreign keys
-- ✅ Index WHERE clause columns
-- ✅ Index ORDER BY columns
+- ✅ Index foreign keys, WHERE/ORDER BY columns
 - ❌ Don't over-index (slows writes)
-- ❌ Don't index low-cardinality columns (e.g., boolean)
+- ❌ Don't index low-cardinality fields (booleans)
 
-### 3. Naming Conventions
+### Naming Conventions
 
 ```
-Tables: snake_case, plural (inventory_items)
-Columns: snake_case (created_at, user_id)
+Tables: {naming_style} (e.g., snake_case plural: user_accounts)
+Columns: {naming_style} (e.g., snake_case: created_at, user_id)
 Primary Key: id or {table}_id
-Foreign Key: {referenced_table}_id (user_id, order_id)
+Foreign Key: {referenced_table}_id
 Indexes: idx_{table}_{column}
+Constraints: {type}_{table}_{column} (e.g., uk_users_email, fk_orders_user_id)
 ```
 
 ---
 
 ## Required Design Documents
 
-### Document 1: API Specification
+### 1. Architecture Design
+**File**: `docs/design/architecture/{ARCH_PREFIX}-{APP}-{SEQ}.{format}`
 
-**File**: `docs/design/{module}/API-{MOD}-{SEQ}-{feature}.md`
-
-```yaml
----
-id: API-INV-001
-module: inventory
-title: Inventory API Specification
----
-
-# Inventory Management API
-
-## Endpoints
-
-### GET /api/v1/inventory/{sku}
-
-**Purpose**: Retrieve stock level for a SKU
-
-**Authentication**: Required (JWT)
-
-**Authorization**: Roles: worker, manager, admin
-
-**Path Parameters**:
-- `sku` (string, required): Product SKU code
-
-**Response**:
-```json
-{
-  "data": {
-    "sku": "SKU-001",
-    "quantity": 150,
-    "warehouse_id": "WH-01",
-    "last_updated": "2025-11-12T10:00:00Z"
-  }
-}
-\`\`\`
-
-**Errors**:
-- 404: SKU not found
-- 401: Not authenticated
+**Structure Template:**
 ```
-
-### Document 2: Database Schema
-
-**File**: `docs/design/database/DB-{MOD}-{SEQ}-{table}.md`
-
-```yaml
 ---
-id: DB-INV-001
-module: inventory
-title: Inventory Table Schema
----
-
-# Inventory Database Schema
-
-## ERD
-[Diagram or description]
-
-## Table: inventory
-
-```sql
-CREATE TABLE inventory (
-    id SERIAL PRIMARY KEY,
-    sku VARCHAR(50) UNIQUE NOT NULL,
-    product_name VARCHAR(200) NOT NULL,
-    quantity INT NOT NULL CHECK (quantity >= 0),
-    min_level INT DEFAULT 10,
-    warehouse_id INT REFERENCES warehouses(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_inventory_warehouse ON inventory(warehouse_id);
-CREATE INDEX idx_inventory_low_stock ON inventory(quantity)
-WHERE quantity < min_level;
-\`\`\`
-
-## Business Rules
-- Quantity cannot be negative
-- SKU must be unique across all warehouses
-- Low stock alert when quantity < min_level
-```
-
-### Document 3: Architecture Design
-
-**File**: `docs/design/architecture/ARCH-{APP}-{SEQ}.md`
-
-```yaml
----
-id: ARCH-APP-001
+id: {ARCH_PREFIX}-{APP}-{SEQ}
 title: System Architecture
 ---
 
 # System Architecture
 
 ## Architecture Pattern
-**Selected**: Clean Architecture
+**Selected**: {pattern_name}
 
 **Rationale**:
-- Complex business logic (inventory tracking, production scheduling)
-- Need framework independence (might switch from FastAPI to Django)
-- High testability requirements
+- {reason_1}
+- {reason_2}
+- {reason_3}
 
 ## Layer Structure
 
-### 1. Domain Layer (Core)
-- Entities: Inventory, Order, Production
-- Business Rules: Stock validation, order processing
-- Repository Interfaces
+### {Layer1} ({layer1_role})
+- {Component1}: {description}
+- {Component2}: {description}
 
-### 2. Application Layer
-- Use Cases: GetStockLevel, RecordStockMovement
-- DTOs for data transfer
+### {Layer2} ({layer2_role})
+- {Component1}: {description}
 
-### 3. Infrastructure Layer
-- PostgreSQL repository implementations
-- External API clients (if any)
-
-### 4. Presentation Layer
-- FastAPI controllers
-- PyQt5 desktop app
-
-## Component Diagram
-[Visual diagram or description]
+### {Layer3} ({layer3_role})
+- {Component1}: {description}
 
 ## Technology Stack
-- Backend: Python 3.11, FastAPI
-- Database: PostgreSQL 15
-- Frontend: PyQt5, React 18
+- Backend: {language} {version}, {framework}
+- Database: {db_system} {version}
+- {Other technologies}
 ```
 
+### 2. API Specification
+**File**: `docs/design/api/{API_PREFIX}-{MOD}-{SEQ}.{format}`
+
+**Structure Template:**
+```
+---
+id: {API_PREFIX}-{MOD}-{SEQ}
+module: {module_name}
 ---
 
-## Design Decision Framework
+# {Module} API
 
-### When Choosing Architecture
+## Endpoints
 
-Ask these questions:
+### {METHOD} {endpoint_path}
 
-1. **Complexity**: How complex is the business logic?
-   - Simple CRUD → Layered Architecture
-   - Complex domain → Clean Architecture or DDD
+**Purpose**: {description}
 
-2. **Changeability**: How often will requirements change?
-   - Stable → Simpler architecture
-   - Volatile → Flexible architecture (Clean/DDD)
+**Authentication**: {Required/Optional} ({auth_method})
 
-3. **Team Size**: How many developers?
-   - 1-2 → Simpler (Layered)
-   - 5+ → More structure (Clean/DDD)
+**Path Parameters**: {param_name} ({type}, {required/optional})
 
-4. **Project Duration**: How long will this be maintained?
-   - Short-term → Layered
-   - Long-term → Clean Architecture
+**Query Parameters**: {param_name} ({type}, {description})
 
-5. **Performance**: Critical performance needs?
-   - Yes → Event-Driven, CQRS
-   - No → Standard patterns
+**Request Body**:
+{
+  "{field}": "{type} - {description}"
+}
+
+**Response {status_code}**:
+{
+  "data": {...}
+}
+
+**Errors**: {status_code} ({description}), ...
+```
+
+### 3. Database Schema
+**File**: `docs/design/database/{DB_PREFIX}-{MOD}-{SEQ}.{format}`
+
+**Structure Template:**
+```
+---
+id: {DB_PREFIX}-{MOD}-{SEQ}
+module: {module_name}
+---
+
+# {Module} Database Schema
+
+## Table: {table_name}
+
+{SQL_CREATE_TABLE_STATEMENT}
+
+-- Indexes
+{INDEX_STATEMENTS}
+
+-- Constraints
+{CONSTRAINT_STATEMENTS}
+
+## Relationships
+- {table1}.{column} → {table2}.{column} ({relationship_type})
+
+## Business Rules
+- {rule_description}
+```
+
+### 4. Project Structure
+**File**: `docs/design/structure/{STRUCT_PREFIX}-{APP}-{SEQ}.{format}`
+
+Define complete folder structure based on chosen architecture pattern.
+
+### 5. Class/Component Structure
+**File**: `docs/design/structure/{CLASS_PREFIX}-{MOD}-{SEQ}.{format}`
+
+Define class hierarchies using text-based diagrams or structured descriptions.
 
 ---
 
-## Output Generation Workflow
+## Input
 
-### Step 1: Read Requirements
-- Load `docs/requirements/` documents
-- Extract entities, operations, business rules
+Read from:
+- `docs/requirements/modules/{module}/` - Functional requirements (FR), Acceptance criteria (AC)
+- Project context - Business domain, tech stack preferences, team size
+
+**🚀 Performance Optimization**:
+- Use `CacheManager` from `.neurohub/cache/cache_manager.py` to cache FR/AC documents
+- Check cache before reading files to avoid redundant I/O
+
+```python
+# Example cache usage (pseudo-code)
+from .neurohub.cache.cache_manager import CacheManager
+cache = CacheManager()
+
+# Read with caching
+fr_content = cache.get_or_load('docs/requirements/modules/{module}/FR-{MOD}-001.md')
+```
+
+## Output
+
+Generate design documents:
+- `docs/design/architecture/{ARCH_PREFIX}-{APP}-{SEQ}.{format}` - Architecture pattern selection
+- `docs/design/structure/{STRUCT_PREFIX}-{APP}-{SEQ}.{format}` - Project folder structure
+- `docs/design/structure/{CLASS_PREFIX}-{MOD}-{SEQ}.{format}` - Class diagrams, inheritance
+- `docs/design/api/{API_PREFIX}-{MOD}-{SEQ}.{format}` - **Markdown format** for documentation
+- `docs/design/api/openapi.yml` - **⚡ NEW: OpenAPI 3.0 specification** (machine-readable)
+- `docs/design/database/{DB_PREFIX}-{MOD}-{SEQ}.{format}` - Database schemas (ERD, tables, indexes)
+- `prisma/schema.prisma` - **⚡ NEW: Prisma schema** (optional, for ORM generation)
+- `docs/progress/design/{module}/design-session-{timestamp}.{format}` - Progress tracking
+
+**🚀 Performance Optimization - OpenAPI Generation**:
+
+Instead of only generating markdown API documentation, ALSO generate OpenAPI 3.0 YAML specification:
+
+**Benefits**:
+- Auto-generate FastAPI code with `openapi-generator`
+- Reduce LLM usage by 30-40% (no manual API code generation)
+- Swagger UI for interactive documentation
+- Client SDK generation
+
+**OpenAPI Template**:
+```yaml
+openapi: 3.0.0
+info:
+  title: {Module} API
+  version: 1.0.0
+  description: {Description}
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+paths:
+  /{resource}:
+    get:
+      summary: {Summary}
+      operationId: {operationId}
+      tags: [{module}]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/{Schema}'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /{resource}/{id}:
+    get:
+      summary: {Summary}
+      operationId: {operationId}
+      tags: [{module}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/{Schema}'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    {Schema}:
+      type: object
+      required:
+        - id
+        - {required_field}
+      properties:
+        id:
+          type: integer
+          description: {Description}
+        {field}:
+          type: {type}
+          description: {Description}
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: UNAUTHORIZED
+                  message:
+                    type: string
+                    example: Authentication required
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: NOT_FOUND
+                  message:
+                    type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+```
+
+**After generating OpenAPI spec**, optionally run:
+```bash
+# Generate FastAPI scaffolding
+openapi-generator generate -i docs/design/api/openapi.yml -g python-fastapi -o app/
+```
+
+This will auto-generate:
+- FastAPI route definitions
+- Pydantic models
+- API documentation
+
+---
+
+## Workflow
+
+### Step 0: Initialize Cache (⚡ NEW)
+```python
+from .neurohub.cache.cache_manager import CacheManager
+cache = CacheManager()
+print("🚀 Cache initialized")
+```
+
+### Step 1: Read Requirements (with caching ⚡)
+```python
+# Load FR/AC documents with caching
+import glob
+
+fr_files = glob.glob('docs/requirements/modules/{module}/FR-*.md')
+ac_files = glob.glob('docs/requirements/modules/{module}/AC-*.md')
+
+requirements = []
+for fr_file in fr_files:
+    content = cache.get_or_load(fr_file)  # 💾 Cache hit on repeat reads!
+    requirements.append(parse_fr_document(content))
+```
+
+Extract entities, operations, business rules
 
 ### Step 2: Select Architecture
-Based on:
-- Project complexity
-- Team size
-- Timeline
-- Non-functional requirements
+Based on complexity, team size, timeline
 
-### Step 3: Design API
-For each entity/operation:
-- Define RESTful endpoints
-- Specify request/response formats
-- Document authentication/authorization
+### Step 3: Design API (with OpenAPI ⚡)
+Define endpoints, request/response formats
 
-### Step 4: Design Database
-- Create ERD
-- Define tables with proper normalization
-- Design indexes for performance
-- Document constraints and relationships
+**IMPORTANT**: Generate BOTH:
+1. Markdown documentation (`docs/design/api/API-{MOD}-{SEQ}.md`)
+2. **OpenAPI YAML specification** (`docs/design/api/openapi.yml`)
+
+Use the OpenAPI template provided above.
+
+### Step 4: Design Database (optional: Prisma ⚡)
+Create ERD, tables, indexes, constraints
+
+**OPTIONAL**: Also generate Prisma schema for ORM auto-generation:
+```prisma
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-py"
+}
+
+model InventoryItem {
+  id       Int      @id @default(autoincrement())
+  sku      String   @unique
+  name     String
+  quantity Int      @default(0)
+
+  @@index([sku])
+}
+```
 
 ### Step 5: Design Architecture
-- Choose architectural pattern
-- Define layers/components
-- Specify dependencies
-- Document technology choices
+Choose pattern, define layers, specify tech stack
 
 ### Step 6: Generate Documents
-Create YAML specifications for:
-- API endpoints
-- Database schemas
-- Architecture decisions
+Create structured documents with specifications
 
-### Step 7: Return Metadata
+**Files to create**:
+- Architecture (`docs/design/architecture/`)
+- Project structure (`docs/design/structure/`)
+- API markdown (`docs/design/api/API-*.md`)
+- **⚡ OpenAPI spec (`docs/design/api/openapi.yml`)**
+- Database schema (`docs/design/database/DB-*.md`)
+- **⚡ Optional: Prisma schema (`prisma/schema.prisma`)**
+- Progress tracking (`docs/progress/design/`)
 
-```markdown
+### Step 7: Return Summary
+```
 ✅ Design Complete
 
 **Documents Created**:
-- API-INV-001: Inventory API (8 endpoints)
-- DB-INV-001: Inventory schema (3 tables)
-- ARCH-APP-001: Clean Architecture
+- {ARCH_ID}: {Architecture pattern}
+- {API_ID}: {count} endpoints
+- {DB_ID}: {count} tables
+- {STRUCT_ID}: Project layout
+- {CLASS_ID}: Component diagrams
 
-**Architecture**: Clean Architecture
-**API Style**: RESTful
-**Database**: PostgreSQL with proper indexing
-
-**Next Step**: Run implementation-agent
+**Next Step**: Run testing-agent (RED phase)
 ```
+
+---
+
+## Progress Tracking
+
+**File**: `docs/progress/design/{module}/design-session-{timestamp}.{format}`
+
+**Track**:
+- Stage-by-stage progress (✅ Done, 🔄 In Progress, ⏳ Pending)
+- Architecture decisions with rationale
+- Documents created
+- Design patterns applied
+
+---
 
 ## Success Criteria
 
-- ✅ Architecture pattern selected with clear rationale
+- ✅ Architecture pattern selected with rationale
 - ✅ API follows RESTful best practices
-- ✅ Database normalized (at least 3NF)
+- ✅ Database normalized (3NF unless justified)
 - ✅ All design decisions documented
 - ✅ Technology stack specified
 - ✅ Non-functional requirements addressed

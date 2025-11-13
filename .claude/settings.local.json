@@ -57,7 +57,18 @@
       "SlashCommand(/tdd 재고 조회 기능)",
       "Bash(nul)",
       "Bash(rm:*)",
-      "Bash(del nul 2)"
+      "Bash(del nul 2)",
+      "Bash(/c/msys64/mingw64/bin/python -m pytest tests/unit/test_menu_system.py -v --tb=short)",
+      "Bash(/c/msys64/mingw64/bin/python -m pip install:*)",
+      "Bash(/c/msys64/mingw64/bin/python -c \"import PySide6; print(''PySide6 installed successfully'')\")",
+      "Bash(pacman -Ss:*)",
+      "Bash(C:/Users/bless/AppData/Local/Programs/Python/Python313/python.exe -m pip install pytest pytest-qt PySide6)",
+      "Bash(cmd.exe /c \"del c:\\myCode\\F2X_NeuroHub\\verify_traceability.py\")",
+      "Bash(cmd.exe /c \"rmdir /s /q c:\\myCode\\F2X_NeuroHub\\docs\")",
+      "Bash(cmd.exe /c \"rmdir /s /q c:\\myCode\\F2X_NeuroHub\\app\")",
+      "Bash(cmd.exe /c \"dir c:\\myCode\\F2X_NeuroHub /b\")",
+      "Bash(cmd.exe /c \"if exist c:\\myCode\\F2X_NeuroHub\\tests rmdir /s /q c:\\myCode\\F2X_NeuroHub\\tests\":*)",
+      "Bash(\"c:\\myCode\\F2X_NeuroHub\\modules\\task_manager\\current\\requirements\\_manifest.json\")"
     ],
     "deny": [],
     "ask": []

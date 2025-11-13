@@ -1,9 +1,123 @@
 {
   "phase": "requirements",
-  "last_updated": null,
-  "total_documents": 0,
-  "documents_by_module": {},
-  "index": [],
-  "dependency_graph": {},
-  "modules": {}
+  "last_updated": "2025-11-12T13:44:24.503148Z",
+  "total_documents": 4,
+  "documents_by_module": {
+    "gui": 4
+  },
+  "index": [
+    {
+      "id": "FR-GUI-001",
+      "uuid": "3265f4ce-b863-4517-bb9b-0ad625143b4d",
+      "file": "modules/gui/FR-GUI-001-main-window-and-application-structure.md",
+      "title": "Main Window and Application Structure",
+      "module": "gui",
+      "type": "functional_requirement",
+      "status": "created",
+      "version": 1,
+      "dependencies": [],
+      "outputs": [],
+      "updated": "2025-11-12T13:44:24.483961Z",
+      "created": "2025-11-12T13:44:24.483961Z"
+    },
+    {
+      "id": "FR-GUI-002",
+      "uuid": "58cbd614-adcb-4cf8-bcb0-43eb82ec773f",
+      "file": "modules/gui/FR-GUI-002-menu-system-and-actions.md",
+      "title": "Menu System and Actions",
+      "module": "gui",
+      "type": "functional_requirement",
+      "status": "created",
+      "version": 1,
+      "dependencies": [
+        "FR-GUI-001"
+      ],
+      "outputs": [],
+      "updated": "2025-11-12T13:44:24.491698Z",
+      "created": "2025-11-12T13:44:24.491698Z"
+    },
+    {
+      "id": "FR-GUI-003",
+      "uuid": "e07d9510-c8d8-43c7-892c-1ec47307c1d2",
+      "file": "modules/gui/FR-GUI-003-user-interface-interactions.md",
+      "title": "User Interface Interactions",
+      "module": "gui",
+      "type": "functional_requirement",
+      "status": "created",
+      "version": 1,
+      "dependencies": [
+        "FR-GUI-001",
+        "FR-GUI-002"
+      ],
+      "outputs": [],
+      "updated": "2025-11-12T13:44:24.497815Z",
+      "created": "2025-11-12T13:44:24.497815Z"
+    },
+    {
+      "id": "AC-GUI-001",
+      "uuid": "a08b4f66-3769-4c82-b46a-df254ee99e33",
+      "file": "modules/gui/AC-GUI-001-test-plan.md",
+      "title": "Acceptance Test Plan",
+      "module": "gui",
+      "type": "acceptance_test",
+      "status": "created",
+      "version": 1,
+      "dependencies": [
+        "FR-GUI-001",
+        "FR-GUI-002",
+        "FR-GUI-003"
+      ],
+      "outputs": [],
+      "updated": "2025-11-12T13:44:24.503148Z",
+      "created": "2025-11-12T13:44:24.503148Z"
+    }
+  ],
+  "dependency_graph": {
+    "FR-GUI-002": {
+      "depends_on": [
+        "FR-GUI-001"
+      ],
+      "used_by": [
+        "FR-GUI-003",
+        "AC-GUI-001"
+      ]
+    },
+    "FR-GUI-001": {
+      "depends_on": [],
+      "used_by": [
+        "FR-GUI-002",
+        "FR-GUI-003",
+        "AC-GUI-001"
+      ]
+    },
+    "FR-GUI-003": {
+      "depends_on": [
+        "FR-GUI-001",
+        "FR-GUI-002"
+      ],
+      "used_by": [
+        "AC-GUI-001"
+      ]
+    },
+    "AC-GUI-001": {
+      "depends_on": [
+        "FR-GUI-001",
+        "FR-GUI-002",
+        "FR-GUI-003"
+      ],
+      "used_by": []
+    }
+  },
+  "modules": {
+    "gui": {
+      "status": "in_progress",
+      "documents": [
+        "FR-GUI-001",
+        "FR-GUI-002",
+        "FR-GUI-003",
+        "AC-GUI-001"
+      ],
+      "completion_percentage": 0
+    }
+  }
 }

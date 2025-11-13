@@ -1,0 +1,297 @@
+# F2X NeuroHub Pipeline Configuration
+# 다양한 개발 워크플로우를 정의합니다
+# 사용 예: python run_pipeline.py --pipeline full-tdd-fast --module inventory
+
+version: 1.0
+
+# 공통 설정
+settings:
+  max_parallel: 4
+  enable_caching: true
+  enable_incremental_build: true
+  log_level: INFO
+
+# 파이프라인 정의
+pipelines:
+
+  # 1. Full TDD (최적화 버전) - 병렬 + 캐싱 + 증분 빌드
+  full-tdd-fast:
+    description: "완전한 TDD 파이프라인 (최적화 버전)"
+    stages:
+      - name: design
+        agent: design-agent
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+        outputs:
+          - docs/design/
+        enable_caching: true
+        enable_incremental: true
+        on_failure: stop
+
+      - name: testing
+        agent: testing-agent
+        depends_on: [design]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - docs/design/
+        outputs:
+          - tests/
+        parallel: true  # implementation과 병렬 실행
+        enable_caching: true
+        validation:
+          - run: pytest tests/${MODULE}/ --collect-only
+            expect: exit_code != 0
+            description: "RED phase - 테스트는 실패해야 함"
+
+      - name: implementation
+        agent: implementation-agent
+        depends_on: [design]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - docs/design/
+          - tests/
+        outputs:
+          - app/
+        parallel: true  # testing과 병렬 실행
+        enable_caching: true
+        enable_incremental: true
+        validation:
+          - run: pytest tests/${MODULE}/ -v
+            expect: exit_code == 0
+            description: "GREEN phase - 모든 테스트 통과"
+
+      - name: verification
+        agent: verification-agent
+        depends_on: [testing, implementation]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - app/
+          - tests/
+        outputs:
+          - docs/verification/
+        enable_incremental: true
+        validation:
+          - check: traceability >= 100%
+            description: "FR-Code 추적성 100%"
+          - check: test_coverage >= 80%
+            description: "테스트 커버리지 80% 이상"
+
+  # 2. Quick Prototype - 빠른 프로토타이핑 (테스트 생략)
+  quick-prototype:
+    description: "빠른 프로토타이핑 모드 (테스트 생략)"
+    stages:
+      - name: design
+        agent: design-agent
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+        outputs:
+          - docs/design/
+
+      - name: implementation
+        agent: implementation-agent
+        depends_on: [design]
+        inputs:
+          - docs/design/
+        outputs:
+          - app/
+        skip_tests: true
+        quick_mode: true
+
+  # 3. Verification Only - 검증만 실행
+  verify-only:
+    description: "기존 코드 검증만 실행"
+    stages:
+      - name: verification
+        agent: verification-agent
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - app/
+          - tests/
+        outputs:
+          - docs/verification/
+        enable_incremental: true
+
+  # 4. Test Only - 테스트만 실행
+  test-only:
+    description: "테스트만 실행 (코드 수정 후 확인)"
+    stages:
+      - name: run-tests
+        agent: testing-runner
+        inputs:
+          - tests/
+          - app/
+        validation:
+          - run: pytest tests/${MODULE}/ -v --cov=app/${MODULE}/
+            expect: exit_code == 0
+          - run: pytest tests/${MODULE}/ --cov-report=html
+            output: htmlcov/
+
+  # 5. Design Only - 설계만 실행
+  design-only:
+    description: "설계 문서만 생성 (코드 생성 없음)"
+    stages:
+      - name: design
+        agent: design-agent
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+        outputs:
+          - docs/design/
+        enable_caching: true
+
+  # 6. Full TDD (기존 버전) - 순차 실행
+  full-tdd-sequential:
+    description: "완전한 TDD 파이프라인 (순차 실행 - 디버깅용)"
+    stages:
+      - name: design
+        agent: design-agent
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+        outputs:
+          - docs/design/
+
+      - name: testing
+        agent: testing-agent
+        depends_on: [design]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - docs/design/
+        outputs:
+          - tests/
+        validation:
+          - run: pytest tests/${MODULE}/ --collect-only
+            expect: exit_code != 0
+
+      - name: implementation
+        agent: implementation-agent
+        depends_on: [testing]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - docs/design/
+          - tests/
+        outputs:
+          - app/
+        validation:
+          - run: pytest tests/${MODULE}/ -v
+            expect: exit_code == 0
+
+      - name: verification
+        agent: verification-agent
+        depends_on: [implementation]
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+          - app/
+          - tests/
+        outputs:
+          - docs/verification/
+
+  # 7. Incremental Build - 변경된 부분만 재생성
+  incremental:
+    description: "변경된 파일만 재생성 (10-20배 빠름)"
+    settings:
+      enable_incremental_build: true
+      force_incremental: true
+    stages:
+      - name: detect-changes
+        agent: change-detector
+        inputs:
+          - docs/requirements/modules/${MODULE}/
+        outputs:
+          - .neurohub/cache/changed_files.json
+
+      - name: regenerate
+        agent: incremental-builder
+        depends_on: [detect-changes]
+        inputs:
+          - .neurohub/cache/changed_files.json
+        outputs:
+          - app/
+          - tests/
+          - docs/design/
+
+  # 8. Multi-Module Parallel - 여러 모듈 동시 처리
+  multi-module:
+    description: "여러 모듈을 동시에 처리"
+    settings:
+      max_parallel: 8
+    stages:
+      - name: design-all
+        agent: design-agent
+        inputs:
+          - docs/requirements/modules/
+        outputs:
+          - docs/design/
+        parallel_modules: true
+
+      - name: implement-all
+        agent: implementation-agent
+        depends_on: [design-all]
+        inputs:
+          - docs/design/
+        outputs:
+          - app/
+        parallel_modules: true
+
+# 에이전트 설정
+agents:
+  design-agent:
+    path: .claude/agents/design-agent.md
+    model: claude-sonnet-4
+    timeout: 600  # 10분
+    retry: 3
+
+  testing-agent:
+    path: .claude/agents/testing-agent.md
+    model: claude-sonnet-4
+    timeout: 900  # 15분
+    retry: 3
+
+  implementation-agent:
+    path: .claude/agents/implementation-agent.md
+    model: claude-sonnet-4
+    timeout: 1800  # 30분
+    retry: 3
+
+  verification-agent:
+    path: .claude/agents/verification-agent.md
+    model: claude-sonnet-4
+    timeout: 600  # 10분
+    retry: 3
+
+  change-detector:
+    type: built-in
+    function: detect_file_changes
+
+  incremental-builder:
+    type: built-in
+    function: incremental_build
+
+  testing-runner:
+    type: built-in
+    function: run_pytest
+
+# 캐싱 설정
+caching:
+  enabled: true
+  backend: file  # file, redis, s3
+  ttl: 604800  # 7일 (초)
+  cache_dir: .neurohub/cache/
+  cache_keys:
+    - source_file_hash
+    - agent_version
+    - dependencies_hash
+
+# 알림 설정
+notifications:
+  enabled: false
+  slack_webhook: ${SLACK_WEBHOOK_URL}
+  email: ${NOTIFICATION_EMAIL}
+  on_success: true
+  on_failure: true
+
+# 로깅 설정
+logging:
+  level: INFO
+  file: .neurohub/logs/pipeline.log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  max_size_mb: 100
+  backup_count: 5

@@ -13,6 +13,63 @@ Validate that implemented code matches functional requirements and design specif
 
 **Core Philosophy**: "Trust, but verify - code must reflect documentation"
 
+## Modular Structure Integration
+
+**IMPORTANT**: F2X NeuroHub uses a **module-centric directory structure**. Verification reports are organized by module.
+
+### Output Path Determination
+
+**Always use the Module Manager to determine paths:**
+
+```python
+from .neurohub.utils.module_manager import get_agent_output_path
+
+# Get paths for different artifacts
+requirements_path = get_agent_output_path(module_name, 'requirements')
+design_path = get_agent_output_path(module_name, 'design')
+src_path = get_agent_output_path(module_name, 'implementation')
+tests_path = get_agent_output_path(module_name, 'testing')
+verification_path = get_agent_output_path(module_name, 'verification')
+
+# Example: modules/inventory/current/verification/
+# Your verification reports go here
+```
+
+### New Structure
+
+```
+modules/
+├── {module_name}/
+│   ├── current/
+│   │   ├── requirements/     ← Read FR/AC from here
+│   │   ├── design/           ← Read design specs from here
+│   │   ├── src/              ← Analyze source code from here
+│   │   ├── tests/            ← Analyze tests from here
+│   │   ├── verification/     ← Write reports here
+│   │   │   ├── traceability-matrix.md
+│   │   │   └── verification-report-{timestamp}.md
+│   │   └── ...
+│   └── history/
+```
+
+### Reading Inputs from Modular Structure
+
+```python
+# Read requirements
+fr_files = list(requirements_path.glob('FR-*.md'))
+ac_files = list(requirements_path.glob('AC-*-test-plan.md'))
+
+# Read design
+api_files = list((design_path / 'api').glob('API-*.md'))
+db_files = list((design_path / 'database').glob('DB-*.md'))
+
+# Analyze code
+src_files = list(src_path.rglob('*.py'))
+
+# Analyze tests
+test_files = list(tests_path.rglob('test_*.py'))
+```
+
 ## Essential Principles
 
 ### 1. Traceability
@@ -32,351 +89,203 @@ Validate that implemented code matches functional requirements and design specif
 - API contracts honored
 
 ### 4. Quality
-- Type hints present
-- Docstrings reference FR IDs
+- Type hints/annotations present (if applicable)
+- Documentation references FR IDs
 - Error handling follows specs
 
 ## Input Documents
 
 Read from:
-- `docs/requirements/modules/{module}/FR-*.md` - Functional requirements
-- `docs/requirements/modules/{module}/AC-*-test-plan.md` - Acceptance criteria
-- `docs/design/api/API-*.md` - API specifications
-- `docs/design/database/DB-*.md` - Database schemas
-- `docs/design/component/COMP-*.md` - Component architecture
+- `docs/requirements/modules/{module}/{FR_PREFIX}-*.{format}` - Functional requirements
+- `docs/requirements/modules/{module}/{AC_PREFIX}-*-test-plan.{format}` - Acceptance criteria
+- `docs/design/` - API specs, DB schemas, architecture
+
+**🚀 Performance Optimization - Use Caching**:
+```python
+from .neurohub.cache.cache_manager import CacheManager
+cache = CacheManager()
+
+# Read requirements with caching (4th agent reading same files!)
+fr_content = cache.get_or_load('docs/requirements/modules/{module}/FR-{MOD}-001.md')
+ac_content = cache.get_or_load('docs/requirements/modules/{module}/AC-{MOD}-001-test-plan.md')
+
+print("💾 Quadruple cache hit: All previous agents cached these!")
+```
 
 ## Code to Analyze
 
 Analyze:
-- `app/**/*.py` - Implementation code
-- `tests/**/*.py` - Test code
+- `{source_root}/**/*.{ext}` - Implementation code
+- `tests/**/*.{ext}` - Test code
+
+**🚀 Performance Optimization - Incremental Verification**:
+
+Instead of parsing ALL files every time, use incremental verification:
+
+```python
+from .neurohub.utils.incremental_builder import IncrementalBuilder
+
+builder = IncrementalBuilder()
+
+# Get list of changed files since last verification
+changed_code = []
+changed_tests = []
+
+for code_file in glob.glob('app/**/*.py'):
+    if builder.has_file_changed(code_file):
+        changed_code.append(code_file)
+        print(f"🔄 Changed: {code_file}")
+
+for test_file in glob.glob('tests/**/*.py'):
+    if builder.has_file_changed(test_file):
+        changed_tests.append(test_file)
+
+# Only parse changed files with AST (5-10x faster!)
+if changed_code:
+    print(f"📝 Parsing {len(changed_code)} changed code files (not all {total_code_files})")
+    partial_analysis = ast_parse_files(changed_code)
+else:
+    print("⏭️  No code changes, skipping AST parsing!")
+```
+
+**Benefits**:
+- First run: Parse all files (5-10 minutes)
+- Subsequent runs: Parse only changed files (30 seconds - 2 minutes)
+- 5-10x faster for incremental verification
 
 ## Verification Methods
 
-### Method 1: Document Parsing (Regex-based)
+### Method 1: Document Parsing (Regex/Text-based)
 
-Extract structured data from markdown documents:
+Extract structured data from requirements documents:
 
-```python
-import re
-from typing import List, Dict
-from pathlib import Path
+**Approach**:
+1. Read markdown/text files from `docs/requirements/`
+2. Use regex patterns to extract:
+   - Document IDs (e.g., `{FR_PREFIX}-{MODULE}-{SEQ}`)
+   - Titles
+   - Acceptance criteria sections (Given-When-Then)
+   - Business rules
+3. Build a requirements index: `{fr_id} → {metadata}`
 
-class DocumentParser:
-    """Parse requirements and design documents."""
-
-    def parse_functional_requirement(self, file_path: str) -> Dict:
-        """
-        Extract FR metadata and acceptance criteria.
-
-        Returns:
+**Data Structure**:
+```
+{
+    '{FR_ID}': {
+        'title': '{requirement_title}',
+        'acceptance_criteria': [
             {
-                'id': 'FR-INV-001',
-                'title': 'Stock Level Inquiry',
-                'module': 'inventory',
-                'priority': 'High',
-                'acceptance_criteria': [
-                    {
-                        'id': 'AC-INV-001-01',
-                        'scenario': 'Valid SKU returns quantity',
-                        'given': 'Repository has SKU-001 with quantity=100',
-                        'when': 'get_stock_level("SKU-001") called',
-                        'then': 'Returns 100'
-                    }
-                ],
-                'business_rules': [
-                    'Quantity cannot be negative',
-                    'SKU must exist in database'
-                ]
+                'id': '{AC_ID}',
+                'scenario': '{scenario_name}',
+                'given': '{preconditions}',
+                'when': '{action}',
+                'then': '{expected_result}'
             }
-        """
-        content = Path(file_path).read_text()
-
-        # Extract FR ID
-        fr_id_match = re.search(r'^id:\s*([A-Z]+-[A-Z]+-\d+)', content, re.MULTILINE)
-        fr_id = fr_id_match.group(1) if fr_id_match else None
-
-        # Extract title
-        title_match = re.search(r'^title:\s*(.+)$', content, re.MULTILINE)
-        title = title_match.group(1) if title_match else None
-
-        # Extract acceptance criteria
-        ac_pattern = r'###\s+AC-([A-Z]+-\d+-\d+):\s*(.+?)\n\*\*Given\*\*:\s*(.+?)\n\*\*When\*\*:\s*(.+?)\n\*\*Then\*\*:\s*(.+?)(?=\n\n|\n###|$)'
-        acceptance_criteria = [
-            {
-                'id': f'AC-{match.group(1)}',
-                'scenario': match.group(2).strip(),
-                'given': match.group(3).strip(),
-                'when': match.group(4).strip(),
-                'then': match.group(5).strip()
-            }
-            for match in re.finditer(ac_pattern, content, re.DOTALL)
-        ]
-
-        # Extract business rules
-        rules_section = re.search(r'## Business Rules\n(.+?)(?=\n##|$)', content, re.DOTALL)
-        business_rules = []
-        if rules_section:
-            business_rules = [
-                rule.strip('- ').strip()
-                for rule in rules_section.group(1).split('\n')
-                if rule.strip().startswith('-')
-            ]
-
-        return {
-            'id': fr_id,
-            'title': title,
-            'acceptance_criteria': acceptance_criteria,
-            'business_rules': business_rules
-        }
-
-    def parse_api_spec(self, file_path: str) -> Dict:
-        """Extract API endpoint specifications."""
-        content = Path(file_path).read_text()
-
-        # Extract endpoints
-        endpoint_pattern = r'###\s+(GET|POST|PUT|PATCH|DELETE)\s+(/api/v\d+/[\w/-]+)'
-        endpoints = [
-            {
-                'method': match.group(1),
-                'path': match.group(2)
-            }
-            for match in re.finditer(endpoint_pattern, content)
-        ]
-
-        return {'endpoints': endpoints}
+        ],
+        'business_rules': [...]
+    }
+}
 ```
 
-### Method 2: Code AST Analysis (Python Abstract Syntax Tree)
+### Method 2: Code Analysis (AST/Language-Specific Parser)
 
 Analyze code structure programmatically:
 
-```python
-import ast
-from typing import List, Dict, Set
+**Approach**:
+1. Use language-specific AST parser or static analysis tool
+2. Extract:
+   - Class/struct/module names
+   - Function/method names
+   - Documentation/comments containing FR references
+   - Type definitions
+3. Build code index: `{file_path}::{class}::{method} → {fr_references}`
 
-class CodeAnalyzer:
-    """Analyze Python code using AST."""
+**Language-Specific Tools**:
+- Python: `ast` module
+- TypeScript/JavaScript: `@typescript-eslint/parser`, `esprima`
+- Java: `JavaParser`, `Eclipse JDT`
+- Go: `go/parser`, `go/ast`
+- C#: `Roslyn`
 
-    def analyze_module(self, file_path: str) -> Dict:
-        """
-        Extract classes, functions, and docstrings.
-
-        Returns:
-            {
-                'classes': [
-                    {
-                        'name': 'InventoryService',
-                        'methods': ['get_stock_level', 'add_stock'],
-                        'references': ['FR-INV-001', 'FR-INV-002']
-                    }
-                ],
-                'functions': [...],
-                'imports': [...]
-            }
-        """
-        with open(file_path, 'r') as f:
-            tree = ast.parse(f.read())
-
-        classes = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                methods = [
-                    m.name for m in node.body
-                    if isinstance(m, ast.FunctionDef)
-                ]
-
-                # Extract FR references from docstrings
-                references = self._extract_fr_references(node)
-
-                classes.append({
-                    'name': node.name,
-                    'methods': methods,
-                    'references': references
-                })
-
-        return {'classes': classes}
-
-    def _extract_fr_references(self, node) -> Set[str]:
-        """Extract FR-XXX-XXX references from docstrings."""
-        references = set()
-
-        # Check class docstring
-        docstring = ast.get_docstring(node)
-        if docstring:
-            fr_matches = re.findall(r'\b(FR-[A-Z]+-\d+)\b', docstring)
-            references.update(fr_matches)
-
-        # Check method docstrings
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef):
-                method_doc = ast.get_docstring(item)
-                if method_doc:
-                    fr_matches = re.findall(r'\b(FR-[A-Z]+-\d+)\b', method_doc)
-                    references.update(fr_matches)
-
-        return references
-
-    def extract_test_coverage(self, test_file: str) -> Dict:
-        """
-        Analyze test file to find AC coverage.
-
-        Returns:
-            {
-                'test_functions': [
-                    {
-                        'name': 'test_get_stock_level_valid_sku',
-                        'ac_references': ['AC-INV-001-01']
-                    }
-                ]
-            }
-        """
-        with open(test_file, 'r') as f:
-            tree = ast.parse(f.read())
-
-        test_functions = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'):
-                docstring = ast.get_docstring(node)
-                ac_refs = []
-                if docstring:
-                    ac_refs = re.findall(r'\b(AC-[A-Z]+-\d+-\d+)\b', docstring)
-
-                test_functions.append({
-                    'name': node.name,
-                    'ac_references': ac_refs
-                })
-
-        return {'test_functions': test_functions}
+**Data Structure**:
+```
+{
+    'classes': [
+        {
+            'name': '{ClassName}',
+            'methods': ['{method1}', '{method2}'],
+            'references': ['{FR_ID1}', '{FR_ID2}']
+        }
+    ]
+}
 ```
 
-### Method 3: Traceability Matrix Generation
+**Reference Extraction**:
+- Search docstrings/comments for FR ID patterns: `{FR_PREFIX}-{MODULE}-{SEQ}`
+- Example patterns: `FR-XXX-001`, `REQ-MOD-123`, etc.
+
+### Method 3: Test Analysis
+
+Extract test coverage information:
+
+**Approach**:
+1. Scan test files for AC references in test names/documentation
+2. Map test functions to acceptance criteria
+3. Build test index: `{test_file}::{test_function} → {ac_references}`
+
+### Method 4: Traceability Matrix Generation
 
 Match requirements → code → tests:
 
-```python
-from typing import Dict, List
+**Algorithm**:
+1. Parse all FR documents → create `requirements` dict
+2. Scan implementation code → populate `implemented_in` field
+3. Scan test code → populate `tested_by` field
+4. Calculate status for each FR:
+   - **Complete**: Has code AND tests
+   - **Implemented (Not Tested)**: Has code, no tests
+   - **Not Started**: No code, no tests
 
-class TraceabilityAnalyzer:
-    """Generate traceability matrix."""
-
-    def __init__(self):
-        self.doc_parser = DocumentParser()
-        self.code_analyzer = CodeAnalyzer()
-
-    def generate_matrix(self, module: str) -> Dict:
-        """
-        Create FR → Code → Test traceability.
-
-        Returns:
-            {
-                'FR-INV-001': {
-                    'title': 'Stock Level Inquiry',
-                    'priority': 'High',
-                    'implemented_in': [
-                        'app/services/inventory_service.py::InventoryService.get_stock_level'
-                    ],
-                    'tested_by': [
-                        'tests/unit/test_inventory_service.py::test_get_stock_level_valid_sku'
-                    ],
-                    'status': 'Complete',
-                    'acceptance_criteria': [
-                        {
-                            'id': 'AC-INV-001-01',
-                            'tested': True,
-                            'test_name': 'test_get_stock_level_valid_sku'
-                        }
-                    ]
-                }
-            }
-        """
-        # 1. Parse all FR documents
-        fr_docs = list(Path(f'docs/requirements/modules/{module}').glob('FR-*.md'))
-        requirements = {}
-
-        for fr_file in fr_docs:
-            fr_data = self.doc_parser.parse_functional_requirement(str(fr_file))
-            fr_id = fr_data['id']
-            requirements[fr_id] = {
-                'title': fr_data['title'],
-                'acceptance_criteria': fr_data['acceptance_criteria'],
-                'implemented_in': [],
-                'tested_by': [],
-                'status': 'Not Started'
-            }
-
-        # 2. Scan code for FR references
-        code_files = list(Path('app').rglob('*.py'))
-        for code_file in code_files:
-            analysis = self.code_analyzer.analyze_module(str(code_file))
-            for cls in analysis['classes']:
-                for fr_ref in cls['references']:
-                    if fr_ref in requirements:
-                        requirements[fr_ref]['implemented_in'].append(
-                            f"{code_file}::{cls['name']}"
-                        )
-
-        # 3. Scan tests for AC references
-        test_files = list(Path('tests').rglob('test_*.py'))
-        for test_file in test_files:
-            test_analysis = self.code_analyzer.extract_test_coverage(str(test_file))
-            for test_func in test_analysis['test_functions']:
-                for ac_ref in test_func['ac_references']:
-                    # Match AC to FR (AC-INV-001-01 → FR-INV-001)
-                    fr_id = '-'.join(ac_ref.split('-')[:3])  # AC-INV-001-01 → FR-INV-001
-                    if fr_id in requirements:
-                        requirements[fr_id]['tested_by'].append(
-                            f"{test_file}::{test_func['name']}"
-                        )
-
-        # 4. Update status
-        for fr_id, data in requirements.items():
-            has_code = len(data['implemented_in']) > 0
-            has_tests = len(data['tested_by']) > 0
-
-            if has_code and has_tests:
-                data['status'] = 'Complete'
-            elif has_code:
-                data['status'] = 'Implemented (Not Tested)'
-            elif has_tests:
-                data['status'] = 'Tests Only (Not Implemented)'
-            else:
-                data['status'] = 'Not Started'
-
-        return requirements
+**Data Structure**:
+```
+{
+    '{FR_ID}': {
+        'title': '{requirement_title}',
+        'implemented_in': ['{file}::{class}::{method}', ...],
+        'tested_by': ['{test_file}::{test_function}', ...],
+        'status': 'Complete' | 'Implemented (Not Tested)' | 'Not Started'
+    }
+}
 ```
 
-## Verification Workflow
+## Workflow
 
 ### Step 1: Parse All Documentation
-```python
-# Read requirements
-fr_files = glob('docs/requirements/modules/**/*.md')
-requirements = [doc_parser.parse_functional_requirement(f) for f in fr_files]
 
-# Read design specs
-api_files = glob('docs/design/api/*.md')
-api_specs = [doc_parser.parse_api_spec(f) for f in api_files]
+```
+fr_files = glob('docs/requirements/modules/**/*.{format}')
+requirements = [parse_functional_requirement(f) for f in fr_files]
 ```
 
 ### Step 2: Analyze All Code
-```python
-# Analyze implementation
-code_files = glob('app/**/*.py')
-code_analysis = [code_analyzer.analyze_module(f) for f in code_files]
 
-# Analyze tests
-test_files = glob('tests/**/*.py')
-test_analysis = [code_analyzer.extract_test_coverage(f) for f in test_files]
+```
+code_files = glob('{source_root}/**/*.{ext}')
+code_analysis = [analyze_module(f) for f in code_files]
+
+test_files = glob('tests/**/*.{ext}')
+test_analysis = [extract_test_coverage(f) for f in test_files]
 ```
 
 ### Step 3: Generate Traceability Matrix
-```python
-matrix = traceability_analyzer.generate_matrix(module='inventory')
+
+```
+matrix = generate_matrix(module='{module_name}')
 ```
 
 ### Step 4: Identify Gaps
-```python
+
+```
 gaps = {
     'missing_implementation': [],  # FRs with no code
     'missing_tests': [],           # FRs with code but no tests
@@ -393,100 +302,90 @@ for fr_id, data in matrix.items():
 
 ### Step 5: Generate Verification Report
 
-Create markdown report:
+Create markdown report with:
+- Summary statistics
+- Traceability matrix table
+- Detailed analysis for each FR
+- Gaps analysis
+- Compliance score
+
+## Verification Report Template
 
 ```markdown
 # Verification Report: {Module}
 
-**Generated**: {timestamp}
+**Generated**: {ISO_8601_timestamp}
 **Module**: {module_name}
 **Status**: {overall_status}
 
 ## Summary
 
-- **Total Requirements**: 15
-- **Fully Implemented**: 12 (80%)
-- **Partially Implemented**: 2 (13%)
-- **Not Started**: 1 (7%)
-- **Test Coverage**: 85%
+- **Total Requirements**: {count}
+- **Fully Implemented**: {count} ({percentage}%)
+- **Partially Implemented**: {count} ({percentage}%)
+- **Not Started**: {count} ({percentage}%)
+- **Test Coverage**: {percentage}%
 
 ## Traceability Matrix
 
 | FR ID | Title | Code | Tests | Status |
 |-------|-------|------|-------|--------|
-| FR-INV-001 | Stock Inquiry | ✅ InventoryService.get_stock_level | ✅ 3 tests | Complete |
-| FR-INV-002 | Stock Receipt | ✅ InventoryService.add_stock | ✅ 2 tests | Complete |
-| FR-INV-003 | Stock Issue | ✅ InventoryService.remove_stock | ⚠️ 0 tests | Missing Tests |
-| FR-INV-004 | Low Stock Alert | ❌ Not found | ❌ No tests | Not Started |
+| {FR_ID_1} | {Title_1} | ✅ {Class}.{method} | ✅ {count} tests | Complete |
+| {FR_ID_2} | {Title_2} | ✅ {Class}.{method} | ✅ {count} tests | Complete |
+| {FR_ID_3} | {Title_3} | ✅ {Class}.{method} | ⚠️ 0 tests | Missing Tests |
+| {FR_ID_4} | {Title_4} | ❌ Not found | ❌ No tests | Not Started |
 
 ## Detailed Analysis
 
-### FR-INV-001: Stock Level Inquiry ✅
+### {FR_ID_1}: {Requirement Title} ✅
 
 **Status**: Complete
-**Priority**: High
 
 **Implementation**:
-- `app/services/inventory_service.py::InventoryService.get_stock_level` (lines 45-58)
+- `{source_root}/{path}/{file}.{ext}::{Class}.{method}`
 
 **Tests**:
-- `tests/unit/test_inventory_service.py::test_get_stock_level_valid_sku`
-- `tests/unit/test_inventory_service.py::test_get_stock_level_invalid_sku_raises_error`
-- `tests/integration/test_inventory_api.py::test_get_stock_endpoint`
+- `tests/{path}/test_{module}.{ext}::{test_function_1}`
+- `tests/{path}/test_{module}.{ext}::{test_function_2}`
 
 **Acceptance Criteria Coverage**:
-- AC-INV-001-01 (Valid SKU): ✅ Tested
-- AC-INV-001-02 (Invalid SKU): ✅ Tested
-- AC-INV-001-03 (Performance): ✅ Tested
-
-**Business Rules Verified**:
-- ✅ SKU must exist in database → ValueError raised (line 52)
-- ✅ Returns integer quantity → Type hint verified
+- {AC_ID_1} ({scenario_name}): ✅ Tested
+- {AC_ID_2} ({scenario_name}): ✅ Tested
 
 ---
 
-### FR-INV-004: Low Stock Alert ❌
+### {FR_ID_4}: {Requirement Title} ❌
 
 **Status**: Not Started
-**Priority**: Medium
 
 **Issues**:
 - ❌ No implementation found
 - ❌ No tests found
 
 **Required Actions**:
-1. Implement `InventoryService.check_low_stock(min_level: int)`
-2. Add unit tests for low stock detection
-3. Add integration test for alert triggering
+1. Implement `{Class}.{method}()`
+2. Add unit tests
+3. Add integration test
 
 ---
 
 ## Gaps Analysis
 
-### Missing Implementation (1)
-- FR-INV-004: Low Stock Alert
+### Missing Implementation ({count})
+- {FR_ID}: {Title}
 
-### Missing Tests (1)
-- FR-INV-003: Stock Issue (has implementation but 0 tests)
+### Missing Tests ({count})
+- {FR_ID}: {Title} (has implementation but 0 tests)
 
-### Code Quality Issues (2)
-- `app/services/inventory_service.py::InventoryService.remove_stock` missing type hint for return value
-- `app/models/inventory.py::Inventory` missing FR reference in docstring
-
-## Recommendations
-
-1. **High Priority**: Implement FR-INV-004 (required for MVP)
-2. **High Priority**: Add tests for FR-INV-003 (critical path)
-3. **Medium Priority**: Add FR references to all docstrings
-4. **Low Priority**: Add type hints to all functions
+### Orphaned Code ({count})
+- `{file}.{ext}::{Class}` (no FR reference found)
 
 ## Compliance Score
 
-**Overall Compliance**: 87%
+**Overall Compliance**: {percentage}%
 
-- Requirements Traceability: 93% (14/15 FRs have code references)
-- Test Coverage: 85% (12/14 implemented FRs have tests)
-- Documentation Quality: 80% (type hints + docstrings)
+- Requirements Traceability: {percentage}% ({count}/{total} FRs have code references)
+- Test Coverage: {percentage}% ({count}/{total} implemented FRs have tests)
 ```
 
 ## Output Files
@@ -494,48 +393,51 @@ Create markdown report:
 Generate these documents:
 
 ### 1. Traceability Matrix
-**File**: `docs/verification/{module}/traceability-matrix.md`
+**File**: `docs/verification/{module}/traceability-matrix.{format}`
 
 ### 2. Verification Report
-**File**: `docs/verification/{module}/verification-report-{timestamp}.md`
+**File**: `docs/verification/{module}/verification-report-{timestamp}.{format}`
 
 ### 3. Progress Dashboard
-**File**: `docs/progress/{module}/progress-{date}.md`
+**File**: `docs/progress/verification/{module}/progress-{date}.{format}`
 
-```markdown
-# Development Progress: Inventory Module
+## Return Metadata
 
-**Date**: 2025-11-12
-**Sprint**: Week 45
-
-## Progress Overview
-
-📊 **Completion**: 87% (13/15 requirements)
-
-| Phase | Status | Progress |
-|-------|--------|----------|
-| Requirements | ✅ Complete | 100% (15/15) |
-| Design | ✅ Complete | 100% (API + DB) |
-| Implementation | 🟡 In Progress | 87% (13/15) |
-| Testing | 🟡 In Progress | 80% (12/15) |
-
-## Current Sprint Tasks
-
-- [x] FR-INV-001: Stock Inquiry
-- [x] FR-INV-002: Stock Receipt
-- [ ] FR-INV-003: Stock Issue (needs tests)
-- [ ] FR-INV-004: Low Stock Alert (not started)
-
-## Blockers
-
-None
-
-## Next Sprint
-
-- Implement FR-INV-004
-- Add missing tests for FR-INV-003
-- Performance optimization
 ```
+✅ Verification Complete
+
+**Module**: {module_name}
+**Requirements Analyzed**: {count}
+**Code Files Scanned**: {count}
+**Test Files Scanned**: {count}
+
+**Traceability**:
+- Fully Traced: {count} ({percentage}%)
+- Partially Traced: {count} ({percentage}%)
+- Missing: {count} ({percentage}%)
+
+**Gaps Identified**:
+- Missing Implementation: {count} ({FR_IDs})
+- Missing Tests: {count} ({FR_IDs})
+- Orphaned Code: {count} (files)
+
+**Reports Generated**:
+- docs/verification/{module}/traceability-matrix.{format}
+- docs/verification/{module}/verification-report-{timestamp}.{format}
+
+**Next Action**: Address gaps in {priority_items}
+```
+
+## Progress Tracking
+
+Create: `docs/progress/verification/{module}/verification-session-{timestamp}.{format}`
+
+Track:
+- Stage-by-stage progress (✅ Done, 🔄 In Progress, ⏳ Pending)
+- Documents parsed
+- Code files analyzed
+- Gaps identified
+- Reports generated
 
 ## Success Criteria
 
@@ -546,33 +448,6 @@ None
 - ✅ Progress tracking updated
 - ✅ Gaps clearly identified
 
-## Return Metadata
-
-```markdown
-✅ Verification Complete
-
-**Module**: inventory
-**Requirements Analyzed**: 15
-**Code Files Scanned**: 8
-**Test Files Scanned**: 5
-
-**Traceability**:
-- Fully Traced: 13 (87%)
-- Partially Traced: 2 (13%)
-- Missing: 0 (0%)
-
-**Gaps Identified**:
-- Missing Implementation: 1 (FR-INV-004)
-- Missing Tests: 1 (FR-INV-003)
-
-**Reports Generated**:
-- docs/verification/inventory/traceability-matrix.md
-- docs/verification/inventory/verification-report-20251112.md
-- docs/progress/inventory/progress-2025-11-12.md
-
-**Next Action**: Address gaps in FR-INV-003 and FR-INV-004
-```
-
 ---
 
-**Remember**: Verification is not just checking boxes - it's ensuring that what was promised (FR) is what was delivered (Code + Tests)!
+**Remember**: Verification ensures that what was promised (FR) is what was delivered (Code + Tests)!

@@ -1,9 +1,99 @@
 {
   "phase": "design",
-  "last_updated": null,
-  "total_documents": 0,
-  "documents_by_module": {},
-  "index": [],
-  "dependency_graph": {},
-  "modules": {}
+  "last_updated": "2025-11-12T22:48:16Z",
+  "total_documents": 5,
+  "documents_by_module": {
+    "gui": 5
+  },
+  "index": [
+    {
+      "id": "ARCH-APP-001",
+      "title": "SimplePySideApp Architecture Design",
+      "type": "architecture",
+      "module": "gui",
+      "file": "architecture/ARCH-APP-001.md",
+      "status": "Draft",
+      "created_date": "2025-11-12T22:48:16Z",
+      "summary": "Defines Layered + MVP architecture pattern for PySide6 GUI application",
+      "related_requirements": ["FR-GUI-001", "FR-GUI-002", "FR-GUI-003"]
+    },
+    {
+      "id": "STRUCT-APP-001",
+      "title": "SimplePySideApp Project Structure Design",
+      "type": "project_structure",
+      "module": "gui",
+      "file": "structure/STRUCT-APP-001-project-layout.md",
+      "status": "Draft",
+      "created_date": "2025-11-12T22:48:16Z",
+      "summary": "Complete project folder structure with presentation, handlers, models, utils layers",
+      "related_requirements": ["FR-GUI-001", "FR-GUI-002", "FR-GUI-003"]
+    },
+    {
+      "id": "CLASS-GUI-001",
+      "title": "MainWindow Class Design",
+      "type": "class_structure",
+      "module": "gui",
+      "file": "structure/CLASS-GUI-001-main-window.md",
+      "status": "Draft",
+      "created_date": "2025-11-12T22:48:16Z",
+      "summary": "MainWindow class structure, methods, attributes, and lifecycle",
+      "related_requirements": ["FR-GUI-001"]
+    },
+    {
+      "id": "CLASS-GUI-002",
+      "title": "Menu System Class Design",
+      "type": "class_structure",
+      "module": "gui",
+      "file": "structure/CLASS-GUI-002-menu-system.md",
+      "status": "Draft",
+      "created_date": "2025-11-12T22:48:16Z",
+      "summary": "Menu creation functions and action handler classes for File, Edit, Help menus",
+      "related_requirements": ["FR-GUI-002"]
+    },
+    {
+      "id": "COMP-GUI-001",
+      "title": "Component Architecture and Interactions",
+      "type": "component_architecture",
+      "module": "gui",
+      "file": "component/COMP-GUI-001-architecture.md",
+      "status": "Draft",
+      "created_date": "2025-11-12T22:48:16Z",
+      "summary": "Component interactions, data flow, signal/slot connections, and event handling",
+      "related_requirements": ["FR-GUI-001", "FR-GUI-002", "FR-GUI-003"]
+    }
+  ],
+  "dependency_graph": {
+    "ARCH-APP-001": {
+      "depends_on": [],
+      "required_by": ["STRUCT-APP-001", "CLASS-GUI-001", "CLASS-GUI-002", "COMP-GUI-001"]
+    },
+    "STRUCT-APP-001": {
+      "depends_on": ["ARCH-APP-001"],
+      "required_by": ["CLASS-GUI-001", "CLASS-GUI-002"]
+    },
+    "CLASS-GUI-001": {
+      "depends_on": ["ARCH-APP-001", "STRUCT-APP-001"],
+      "required_by": ["COMP-GUI-001"]
+    },
+    "CLASS-GUI-002": {
+      "depends_on": ["ARCH-APP-001", "STRUCT-APP-001"],
+      "required_by": ["COMP-GUI-001"]
+    },
+    "COMP-GUI-001": {
+      "depends_on": ["ARCH-APP-001", "CLASS-GUI-001", "CLASS-GUI-002"],
+      "required_by": []
+    }
+  },
+  "modules": {
+    "gui": {
+      "name": "SimplePySideApp GUI",
+      "architecture": "Layered + MVP",
+      "technology": "PySide6",
+      "language": "Python 3.8+",
+      "documents": 5,
+      "classes_designed": 4,
+      "functions_designed": 4,
+      "requirements_covered": ["FR-GUI-001", "FR-GUI-002", "FR-GUI-003"]
+    }
+  }
 }

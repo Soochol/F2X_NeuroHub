@@ -1,89 +1,121 @@
 ---
 name: full
-description: Complete TDD automation pipeline - from requirements to verification (development phase only)
+description: Complete TDD automation pipeline - from design to verification (requires existing requirements documents)
 ---
 
 You are orchestrating a **complete software development pipeline** using specialized Claude agents.
 
 ## Mission
 
-Execute full TDD workflow automatically:
-1. **Requirements** → Analyze user request, create FR documents
-2. **Design** → Create API specs, DB schemas, architecture
-3. **TDD Red Phase** → Generate failing tests first
-4. **TDD Green Phase** → Implement code to pass tests
-5. **Verification** → Validate document-code alignment
+Execute full TDD workflow automatically (starting from existing requirements):
+1. **Design** → Create API specs, DB schemas, architecture, project structure
+2. **TDD Red Phase** → Generate failing tests first
+3. **TDD Green Phase** → Implement code to pass tests
+4. **Verification** → Validate document-code alignment
 
 **Note**: Deployment configuration is handled separately via `/deploy` command.
 
+## Prerequisites
+
+**CRITICAL**: Before running `/full`, requirements documents MUST exist!
+
+### How to Create Requirements
+
+Requirements are created through **interactive dialogue** with the user using `requirements-agent`:
+
+1. User invokes `requirements-agent` directly (not through /full)
+2. Agent conducts 6-stage dialogue with user:
+   - Stage 1: Initial Understanding (purpose, users, value)
+   - Stage 2: Entity & Data Exploration
+   - Stage 3: Operations & Workflows
+   - Stage 4: Business Rules & Constraints
+   - Stage 5: Edge Cases & Errors
+   - Stage 6: Confirmation & Documentation
+3. Agent generates FR and AC documents in `docs/requirements/modules/{module}/`
+4. Agent creates progress log in `docs/progress/requirements/{module}/`
+
+**Then** run `/full` to design and implement based on those requirements.
+
+## Verification Before Starting
+
+Check if requirements exist:
+
+```bash
+# Check for FR documents
+ls docs/requirements/modules/{module}/FR-*.md
+
+# If no files found, STOP and instruct user:
+```
+
+**If requirements missing**, respond:
+
+```
+⚠️ Requirements documents not found!
+
+Before running /full, you need to create requirements through interactive dialogue:
+
+1. Invoke the requirements-agent
+2. Answer questions about your feature
+3. Review and confirm the generated requirements
+4. Then run /full to proceed with design and implementation
+
+Would you like me to start the requirements gathering dialogue now?
+```
+
 ## User Request Format
 
-User provides a feature description, for example:
-- "재고 조회 기능 만들어줘" (Create inventory inquiry feature)
-- "주문 생성 API를 구현해줘" (Implement order creation API)
-- "품질 검사 결과 저장 기능" (Quality inspection result storage)
+User provides a module name (requirements should already exist), for example:
+- "/full --module inventory" (Design and implement inventory module)
+- "/full" (Process all modules with pending requirements)
 
 ## Pipeline Execution
 
-### Phase 1: Requirements Analysis
-
-**Agent**: requirements-agent
-**Input**: User's feature description
-**Output**: FR documents + AC test plans
-
-**Steps**:
-1. Analyze user request to extract entities, operations, business rules
-2. Create functional requirements (FR) documents
-3. Generate acceptance criteria (AC) in Given-When-Then format
-4. Create acceptance test plans
-5. Update manifest.json
-
-**Expected Output**:
-```
-docs/requirements/modules/{module}/
-├── FR-{MOD}-001-{feature}.md
-└── AC-{MOD}-001-test-plan.md
-```
-
-**Status Check**:
-- ✅ FR documents created with unique IDs
-- ✅ Acceptance criteria defined (testable)
-- ✅ Manifest updated
-
----
-
-### Phase 2: System Design
+### Phase 1: Design (Architecture, API, DB, Structure)
 
 **Agent**: design-agent
-**Input**: FR documents from Phase 1
-**Output**: API specs + DB schemas + Architecture design
+**Input**: FR documents from `docs/requirements/modules/{module}/`
+**Output**: Architecture + API specs + DB schemas + Project structure + Class diagrams
 
 **Steps**:
 1. Read all FR documents from docs/requirements/
 2. Select appropriate architecture pattern (Clean Architecture, Layered, DDD)
-3. Design RESTful API endpoints
-4. Design database schema (normalized, indexed)
-5. Create component architecture
-6. Update manifest.json
+3. Design project folder structure (app/, tests/, docs/)
+4. Design class structure with UML diagrams (text format)
+5. Define inheritance and composition relationships
+6. Design RESTful API endpoints
+7. Design database schema (normalized, indexed)
+8. Create component architecture
+9. Create progress tracking document in `docs/progress/design/{module}/`
+10. Update manifest.json
 
 **Expected Output**:
 ```
 docs/design/
+├── architecture/ARCH-APP-001.md
+├── structure/
+│   ├── STRUCT-APP-001-project-layout.md
+│   ├── CLASS-{MOD}-001-{entity}.md
+│   └── INHERIT-{MOD}-001.md
 ├── api/API-{MOD}-001-{feature}.md
 ├── database/DB-{MOD}-001-{table}.md
-├── component/COMP-{MOD}-001-service.md
-└── architecture/ARCH-APP-001.md
+└── component/COMP-{MOD}-001-service.md
+
+docs/progress/design/{module}/design-session-{timestamp}.md
 ```
 
 **Status Check**:
+- ✅ Architecture pattern selected with rationale
+- ✅ Project structure defined (folder layout)
+- ✅ Class diagrams created (entities, services, repositories)
+- ✅ Inheritance/composition relationships defined
 - ✅ API endpoints defined (RESTful)
 - ✅ Database schema created (3NF)
-- ✅ Architecture pattern selected
+- ✅ Progress document created
 - ✅ Manifest updated
 
 ---
 
-### Phase 3: TDD Red Phase (Write Failing Tests First)
+### Phase 2: TDD Red Phase (Write Failing Tests First)
 
 **Agent**: testing-agent
 **Input**: FR + AC + Design specs
@@ -95,8 +127,9 @@ docs/design/
 3. Generate unit tests (70% coverage target)
 4. Generate integration tests (20% coverage)
 5. Generate E2E tests (10% coverage)
-6. **Run pytest** → All tests should FAIL (RED phase)
-7. Update manifest.json
+6. Create progress tracking document in `docs/progress/testing/{module}/`
+7. **Run pytest** → All tests should FAIL (RED phase)
+8. Update manifest.json
 
 **Expected Output**:
 ```
@@ -104,10 +137,13 @@ tests/
 ├── unit/test_{module}_service.py
 ├── integration/test_{module}_api.py
 └── e2e/test_{module}_workflow.py
+
+docs/progress/testing/{module}/testing-session-{timestamp}.md
 ```
 
 **Status Check**:
 - ✅ Test files created with FR/AC references in docstrings
+- ✅ Progress document created
 - ✅ pytest executed → **All tests FAIL** (RED ✅)
 - ❌ If tests PASS unexpectedly → Error (no implementation should exist yet)
 
@@ -115,7 +151,7 @@ tests/
 
 ---
 
-### Phase 4: TDD Green Phase (Implement Code to Pass Tests)
+### Phase 3: TDD Green Phase (Implement Code to Pass Tests)
 
 **Agent**: implementation-agent
 **Input**: FR + Design specs + Failing tests
@@ -123,15 +159,16 @@ tests/
 
 **Steps**:
 1. Read functional requirements (FR)
-2. Read design specifications (API, DB, Component)
-3. Read failing tests from Phase 3
+2. Read design specifications (API, DB, Component, Structure)
+3. Read failing tests from Phase 2
 4. Generate implementation code:
    - Domain entities (app/domain/entities/)
    - Services (app/application/services/)
    - Repositories (app/infrastructure/repositories/)
    - API controllers (app/presentation/api/)
-5. **Run pytest** → All tests should PASS (GREEN phase)
-6. Update manifest.json
+5. Create progress tracking document in `docs/progress/implementation/{module}/`
+6. **Run pytest** → All tests should PASS (GREEN phase)
+7. Update manifest.json
 
 **Expected Output**:
 ```
@@ -140,10 +177,13 @@ app/
 ├── application/services/{module}_service.py
 ├── infrastructure/repositories/{module}_repository.py
 └── presentation/api/v1/{module}.py
+
+docs/progress/implementation/{module}/implementation-session-{timestamp}.md
 ```
 
 **Status Check**:
 - ✅ Code files created with FR references in docstrings
+- ✅ Progress document created
 - ✅ pytest executed → **All tests PASS** (GREEN ✅)
 - ✅ Type hints present
 - ✅ Error handling implemented
@@ -153,7 +193,7 @@ app/
 
 ---
 
-### Phase 5: Verification & Documentation Alignment
+### Phase 4: Verification & Documentation Alignment
 
 **Agent**: verification-agent
 **Input**: FR docs + Code files + Test files
@@ -169,8 +209,9 @@ app/
    - Missing tests (FR with code but no tests)
    - Orphaned code (code with no FR reference)
 6. Generate verification report
-7. Create progress dashboard
-8. Update manifest.json
+7. Create progress tracking document in `docs/progress/verification/{module}/`
+8. Create progress dashboard
+9. Update manifest.json
 
 **Expected Output**:
 ```
@@ -178,12 +219,12 @@ docs/verification/{module}/
 ├── traceability-matrix.md
 └── verification-report-{timestamp}.md
 
-docs/progress/{module}/
-└── progress-{date}.md
+docs/progress/verification/{module}/verification-session-{timestamp}.md
 ```
 
 **Status Check**:
 - ✅ Traceability matrix complete (FR → Code → Test)
+- ✅ Progress document created
 - ✅ No gaps identified (100% coverage)
 - ✅ All business rules verified in code
 - ⚠️ If gaps exist → Report to user
