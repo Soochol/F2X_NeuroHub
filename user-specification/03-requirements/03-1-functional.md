@@ -122,8 +122,59 @@ sequenceDiagram
 
 **FR-PROC-003: 공정 순서 제어**
 
-- 정의된 공정 순서 준수 강제
-- 이전 공정 미완료 시 착공 불가
+**순서 규칙:**
+
+1. **완전 순차 공정:** 공정 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+2. **착공 조건:** 각 공정은 직전 공정이 PASS 완공되어야 착공 가능
+3. **예외 규칙:**
+   - 공정 1 (레이저 마킹): 이전 공정 확인 생략 (시작 공정)
+   - 공정 7 (라벨 프린팅): 공정 6 FAIL 시에도 착공 가능 (불량품도 라벨 필요)
+
+**검증 로직:**
+
+착공 API 호출 시 다음을 확인:
+```sql
+-- 직전 공정 PASS 완공 여부 확인
+SELECT EXISTS (
+  SELECT 1 FROM process_data
+  WHERE lot_id = :lot_id
+    AND process_id = :current_process_id - 1
+    AND result = 'PASS'
+    AND complete_time IS NOT NULL
+)
+```
+
+**에러 처리:**
+
+- 이전 공정 미완료: 에러 코드 `PREVIOUS_PROCESS_NOT_COMPLETED`
+- 순서 위반 시도: 에러 코드 `INVALID_PROCESS_SEQUENCE`
+
+**관리자 예외 처리:**
+
+- 관리자 권한으로 공정 순서 강제 우회 가능
+- 우회 시 다음 필수 사항:
+  - 사유 필수 입력 (예: "긴급 수리 후 재검사")
+  - 감사 로그 자동 기록 (`audit_logs` 테이블)
+  - 승인자 ID 및 시간 기록
+
+**공정 순서 상태 다이어그램:**
+
+```
+[LOT 생성]
+    ↓
+[공정 1 착공] → [공정 1 완공 PASS]
+    ↓                    ↓
+[차단: FAIL]      [공정 2 착공 허용]
+    ↓                    ↓
+[재작업 필요]       [공정 2 완공 PASS]
+                         ↓
+                    [공정 3 착공 허용]
+                         ...
+                         ↓
+                    [공정 8 완공 PASS]
+                         ↓
+                    [LOT 완료]
+```
 
 
 ### 3.2.4 모니터링 및 대시보드
@@ -222,11 +273,96 @@ sequenceDiagram
 
 **불량 상태:**
 - DEFECTED: 불량 발생
+- REWORK: 재작업 중
 - SCRAPPED: 폐기 처리
 
 **상태 전환:**
+- DEFECTED → REWORK (재작업 승인 시)
 - DEFECTED → SCRAPPED (폐기 결정 시)
+- REWORK → IN_PROGRESS (재작업 완료 후 다음 공정 진행)
+- REWORK → SCRAPPED (재작업 실패 또는 한도 초과 시)
 - 모든 상태 전환 이력 기록
+
+**FR-DEFECT-004: 불량 재작업 프로세스**
+
+**재작업 대상:**
+- DEFECTED 상태인 시리얼 번호
+
+**재작업 승인 절차:**
+1. 관리자 또는 품질 관리자가 재작업 승인
+2. 재작업 사유 필수 입력 (예: "부품 교체 후 재검사")
+3. 승인자 ID 및 시간 기록
+4. 시리얼 상태를 DEFECTED → REWORK로 변경
+
+**재작업 실행:**
+1. 불량 발생 공정에 재착공 가능 (이전 완공 데이터는 보존)
+2. 재완공 시 `process_data.is_rework = TRUE` 플래그 설정
+3. 재완공 결과 처리:
+   - **PASS:** 시리얼 상태를 REWORK → IN_PROGRESS로 변경, 다음 공정 진행 가능
+   - **FAIL:** 재작업 횟수 증가 (`serials.rework_count`)
+     - 재작업 횟수 < 3회: 재작업 재시도 가능
+     - 재작업 횟수 ≥ 3회: 자동으로 SCRAPPED 처리
+
+**재작업 제한:**
+- **최대 재작업 횟수:** 3회
+- **재작업 가능 공정:** 불량 발생 공정만 (이전 공정 재작업 불가)
+- **재작업 이력:** 모든 재작업 시도 기록 (`process_data` 테이블에 `is_rework` 플래그)
+
+**데이터 모델 확장:**
+
+다음 필드가 `serials` 테이블에 추가되어야 함:
+```sql
+ALTER TABLE serials ADD COLUMN rework_count INTEGER DEFAULT 0;
+ALTER TABLE serials ADD COLUMN rework_approved_by VARCHAR(50);
+ALTER TABLE serials ADD COLUMN rework_approved_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE serials ADD COLUMN rework_reason TEXT;
+```
+
+다음 필드가 `process_data` 테이블에 추가되어야 함:
+```sql
+ALTER TABLE process_data ADD COLUMN is_rework BOOLEAN DEFAULT FALSE;
+```
+
+**재작업 프로세스 흐름도:**
+
+```
+[불량 발생: DEFECTED]
+         ↓
+[관리자 재작업 승인]
+         ↓
+[재작업 사유 입력]
+         ↓
+[상태: REWORK]
+         ↓
+[해당 공정 재착공]
+         ↓
+[재작업 수행]
+         ↓
+    ┌────┴────┐
+    ↓         ↓
+ [PASS]    [FAIL]
+    ↓         ↓
+[다음 공정] [재작업 횟수 확인]
+                 ↓
+        ┌────────┴────────┐
+        ↓                 ↓
+   [횟수 < 3회]       [횟수 ≥ 3회]
+        ↓                 ↓
+   [재시도 가능]      [SCRAPPED]
+```
+
+**재작업 이력 추적:**
+
+시리얼 번호 상세 조회 시 재작업 이력 포함:
+- 재작업 횟수
+- 각 재작업 시도 시간
+- 재작업 승인자
+- 재작업 사유
+- 재작업 결과 (PASS/FAIL)
+
+**권한 제어:**
+- 재작업 승인 권한: 관리자(ADMIN), 생산 관리자(MANAGER)
+- 재작업 실행: 작업자(WORKER) 가능 (승인 후)
 
 ### 3.2.6 사용자 및 권한 관리
 
@@ -271,27 +407,116 @@ sequenceDiagram
 
 ## 3.3 비기능 요구사항
 
-### 3.3.1 성능
+> **참고:** 비기능 요구사항은 ISO 25010 품질 모델을 기반으로 정의되었습니다.
 
-- 착공 API 응답 시간: 1초 이내
-- 대시보드 로딩 시간: 3초 이내
-- 동시 사용자: 20명
+### 3.3.1 성능 요구사항
 
-### 3.3.2 가용성
+**API 응답 시간:**
+- **NFR-PERF-001:** 착공 API 응답 시간 < 1초 (P95)
+- **NFR-PERF-002:** 완공 API 응답 시간 < 2초 (P95)
+- **NFR-PERF-003:** 대시보드 초기 로딩 < 3초
+- **NFR-PERF-004:** LOT 상세 조회 < 2초
 
-- 목표 시스템 가동률: 99%
+**처리량:**
+- **NFR-PERF-005:** 동시 접속자 100명 지원 (피크 시간 200명)
+- **NFR-PERF-006:** 일일 트랜잭션 50,000건 처리 (확장 시 100,000건)
+- **NFR-PERF-007:** 초당 트랜잭션 처리량(TPS) 최소 20 TPS
 
-### 3.3.3 데이터 보관
+**데이터베이스:**
+- **NFR-PERF-008:** 쿼리 응답 시간 < 500ms (복잡한 집계 쿼리 기준)
+- **NFR-PERF-009:** Connection Pool 최대 50 동시 연결 지원
 
-- 생산 데이터: 영구 보관
-- 백업: 일일 전체 백업, 6시간 증분 백업
-- 백업 보관: 30일
+### 3.3.2 확장성 요구사항
 
-### 3.3.4 보안
+- **NFR-SCALE-001:** 동시 접속자 100명 → 200명 확장 시 코드 변경 없이 인프라만 증설
+- **NFR-SCALE-002:** 일일 트랜잭션 50,000건 → 100,000건 확장 가능
+- **NFR-SCALE-003:** 수평적 확장(Scale-out) 지원 (백엔드 서버 2대 → 4대)
+- **NFR-SCALE-004:** 데이터베이스 파티셔닝 지원 (3개월 단위 날짜 파티셔닝)
 
-- 사용자 인증: JWT 기반
-- 역할 기반 접근 제어 (RBAC)
-- 모든 변경 이력 감사 로그
+### 3.3.3 가용성 요구사항
+
+- **NFR-AVAIL-001:** 시스템 가동률 99% (연간 다운타임 < 87.6시간)
+- **NFR-AVAIL-002:** 계획된 유지보수 다운타임 월 4시간 이내
+- **NFR-AVAIL-003:** 장애 복구 시간(MTTR) < 4시간
+- **NFR-AVAIL-004:** 백업 데이터 복원 시간 < 2시간
+
+### 3.3.4 복구 요구사항
+
+- **NFR-RECOV-001:** RTO (Recovery Time Objective) < 4시간
+- **NFR-RECOV-002:** RPO (Recovery Point Objective) < 6시간
+- **NFR-RECOV-003:** 백업 복원 성공률 > 95%
+- **NFR-RECOV-004:** 일일 전체 백업 + 6시간 증분 백업
+- **NFR-RECOV-005:** 백업 데이터 보관 기간 30일
+
+### 3.3.5 보안 요구사항
+
+**인증 및 권한:**
+- **NFR-SEC-001:** JWT 기반 인증 (Access Token 유효기간 15분, Refresh Token 7일)
+- **NFR-SEC-002:** 역할 기반 접근 제어(RBAC) - 관리자, 생산관리자, 작업자, 뷰어
+- **NFR-SEC-003:** 세션 타임아웃 8시간
+
+**패스워드 정책:**
+- **NFR-SEC-004:** 패스워드 최소 길이 8자
+- **NFR-SEC-005:** 패스워드 복잡도 (대문자, 소문자, 숫자, 특수문자 중 3종 이상)
+- **NFR-SEC-006:** 로그인 실패 5회 시 계정 잠금 (10분)
+
+**통신 보안:**
+- **NFR-SEC-007:** HTTPS 강제 (모든 API 통신)
+- **NFR-SEC-008:** TLS 1.3 사용
+- **NFR-SEC-009:** SQL Injection 방어 (ORM Parameterized Query 사용)
+
+**감사 및 로그:**
+- **NFR-SEC-010:** 모든 CUD(Create/Update/Delete) 작업 감사 로그 기록
+- **NFR-SEC-011:** 로그인/로그아웃 이력 기록
+- **NFR-SEC-012:** 민감 정보 로그 마스킹 (패스워드, 토큰 등)
+
+### 3.3.6 호환성 요구사항
+
+**브라우저 호환성:**
+- **NFR-COMPAT-001:** Chrome 100+ 지원
+- **NFR-COMPAT-002:** Edge 100+ 지원
+- **NFR-COMPAT-003:** Firefox 100+ 지원
+
+**운영체제 호환성:**
+- **NFR-COMPAT-004:** Windows 10/11 지원 (작업 PC)
+- **NFR-COMPAT-005:** Ubuntu 22.04 LTS 지원 (서버)
+
+**하드웨어 호환성:**
+- **NFR-COMPAT-006:** 바코드 스캐너 USB HID 표준 지원
+- **NFR-COMPAT-007:** 라벨 프린터 (Zebra ZT Series, TSC TTP Series 지원)
+- **NFR-COMPAT-008:** ZPL/ESC-POS 명령어 지원
+
+### 3.3.7 유지보수성 요구사항
+
+**로그 관리:**
+- **NFR-MAINT-001:** 구조화된 로그 형식 (JSON)
+- **NFR-MAINT-002:** 로그 레벨 구분 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- **NFR-MAINT-003:** 로그 파일 30일 로테이션
+- **NFR-MAINT-004:** 로그 보관 기간 90일
+
+**모니터링:**
+- **NFR-MAINT-005:** CPU, 메모리, 디스크, 네트워크 메트릭 수집 (15초 간격)
+- **NFR-MAINT-006:** API 응답 시간 모니터링 (P95, P99)
+- **NFR-MAINT-007:** 알림 임계치 (CPU > 80%, 메모리 > 85%, 에러율 > 1%)
+
+**코드 품질:**
+- **NFR-MAINT-008:** 코드 커버리지 > 80%
+- **NFR-MAINT-009:** API 문서 자동 생성 (Swagger/OpenAPI)
+- **NFR-MAINT-010:** 데이터베이스 마이그레이션 스크립트 버전 관리
+
+### 3.3.8 데이터 보관 요구사항
+
+**데이터 보존:**
+- **NFR-DATA-001:** 생산 데이터 영구 보관
+- **NFR-DATA-002:** 완공 JSON 파일 90일 보관
+- **NFR-DATA-003:** 펌웨어 파일 영구 보관 (버전별)
+- **NFR-DATA-004:** 로그 파일 90일 보관
+
+**백업:**
+- **NFR-DATA-005:** 일일 전체 백업 (새벽 2시)
+- **NFR-DATA-006:** 6시간 증분 백업
+- **NFR-DATA-007:** 백업 데이터 30일 보관
+- **NFR-DATA-008:** 백업 무결성 검증 (주 1회)
 
 ---
 

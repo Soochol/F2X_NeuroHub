@@ -64,6 +64,371 @@
 | TC-TRACE-005 | 작업자 추적 | 각 공정 작업자 정보 조회 가능 | 이력 조회 시 작업자 ID 표시 확인 |
 | TC-TRACE-006 | 데이터 무결성 | 모든 공정 데이터 누락 없이 저장 | 샘플 LOT의 전체 공정 데이터 완전성 확인 |
 
+
+## 3.5.6 Given/When/Then 검수 시나리오
+
+이 섹션은 주요 기능의 상세한 BDD(Behavior-Driven Development) 시나리오를 제공합니다.
+
+### 시나리오 1: LOT 생성 및 라벨 출력
+
+**참조:** TC-LOT-001, TC-LOT-002, TC-LOT-003
+
+```gherkin
+Feature: LOT 생성 및 라벨 출력
+  As a 생산 관리자
+  I want to LOT을 생성하고 바코드 라벨을 출력할 수 있어야
+  So that 생산 추적을 시작할 수 있다
+
+Scenario: 정상적인 LOT 생성
+  Given 관리자 대시보드에 로그인되어 있고
+    And 제품 모델 "NH-F2X-001"이 선택되어 있고
+    And 오늘 날짜가 "2025-01-15"이고
+    And 주간 교대(D)가 선택되어 있고
+    And Zebra 프린터가 연결되어 있을 때
+  When "LOT 생성" 버튼을 클릭하면
+  Then LOT 번호 "WF-KR-250115D-001"이 생성되고
+    And LOT 상태가 "CREATED"로 설정되고
+    And 바코드 라벨이 자동으로 출력되고
+    And 성공 메시지 "LOT이 생성되었습니다"가 표시된다
+
+Scenario: 당일 두 번째 LOT 생성 (순번 증가)
+  Given 오늘 날짜가 "2025-01-15"이고
+    And 주간 교대(D)로 LOT "WF-KR-250115D-001"이 이미 생성되어 있을 때
+  When "LOT 생성" 버튼을 클릭하면
+  Then LOT 번호 "WF-KR-250115D-002"가 생성되고
+    And 순번이 자동으로 증가하여 발급된다
+
+Scenario: 중복 LOT 생성 방지
+  Given LOT "WF-KR-250115D-001"이 이미 존재할 때
+  When 동일한 조건으로 LOT을 재생성하려고 시도하면
+  Then HTTP 409 Conflict 응답이 반환되고
+    And 에러 메시지 "이미 존재하는 LOT 번호입니다"가 표시되고
+    And 데이터베이스에 중복 레코드가 생성되지 않는다
+```
+
+### 시나리오 2: 공정 착공 및 순서 제어
+
+**참조:** TC-PROC-001, TC-PROC-002, TC-PROC-006
+
+```gherkin
+Feature: 공정 착공 및 순서 제어
+  As a 현장 작업자
+  I want to 공정에 착공할 수 있어야
+  So that 제품 생산을 진행할 수 있다
+
+Scenario: 첫 번째 공정(라벨 프린팅) 정상 착공
+  Given 프론트엔드 앱에 작업자 "USER001"로 로그인되어 있고
+    And LOT "WF-KR-250115D-001"이 "CREATED" 상태로 존재하고
+    And "라벨 프린팅" 공정(sequence=1)이 선택되어 있을 때
+  When LOT 바코드 "WF-KR-250115D-001"을 스캔하면
+  Then HTTP 201 Created 응답이 반환되고
+    And 착공 시간이 기록되고
+    And 작업자 "USER001"이 기록되고
+    And LOT 상태가 "IN_PROGRESS"로 변경되고
+    And 시리얼 번호 "WF-KR-250115D-001-0001"이 자동 생성되고
+    And 시리얼 바코드 라벨이 출력된다
+
+Scenario: 공정 순서 위반 차단
+  Given 시리얼 "WF-KR-250115D-001-0001"이 존재하고
+    And "라벨 프린팅" 공정(sequence=1)은 완료되지 않았고
+    And "조립" 공정(sequence=2)이 선택되어 있을 때
+  When 시리얼 바코드를 스캔하여 착공하려고 시도하면
+  Then HTTP 400 Bad Request 응답이 반환되고
+    And 에러 코드 "PREVIOUS_PROCESS_NOT_COMPLETED"가 반환되고
+    And 에러 메시지 "이전 공정(라벨 프린팅)이 완료되지 않았습니다"가 표시되고
+    And 착공이 차단된다
+
+Scenario: 이전 공정 PASS 완료 후 정상 착공
+  Given 시리얼 "WF-KR-250115D-001-0001"이 존재하고
+    And "라벨 프린팅" 공정(sequence=1)이 "PASS"로 완료되었고
+    And "조립" 공정(sequence=2)이 선택되어 있을 때
+  When 시리얼 바코드를 스캔하면
+  Then HTTP 201 Created 응답이 반환되고
+    And "조립" 공정 착공이 정상 등록되고
+    And 착공 시간과 작업자가 기록된다
+```
+
+### 시나리오 3: 공정 완공 및 File Watcher
+
+**참조:** TC-PROC-003, TC-PROC-004, TC-PROC-005
+
+```gherkin
+Feature: 공정 완공 데이터 수집
+  As a 외부 검사 장비
+  I want to 완공 데이터를 JSON 파일로 전달할 수 있어야
+  So that MES가 자동으로 데이터를 수집할 수 있다
+
+Scenario: 정상적인 완공 데이터 처리
+  Given File Watcher가 "C:/mes/pending/" 폴더를 감시 중이고
+    And 시리얼 "WF-KR-250115D-001-0001"이 "조립" 공정에 착공되어 있을 때
+  When 다음 JSON 파일이 pending 폴더에 생성되면:
+    """
+    {
+      "schema_version": "1.0",
+      "serial_number": "WF-KR-250115D-001-0001",
+      "process_id": "PROC-002",
+      "result": "PASS",
+      "measured_data": {
+        "온도": 60.5,
+        "변위": 198.3,
+        "힘": 15.2,
+        "모선_lot": "MS-2025-100"
+      },
+      "timestamp": "2025-01-15T14:30:00Z"
+    }
+    """
+  Then File Watcher가 파일을 5초 이내에 감지하고
+    And 백엔드가 JSON을 파싱하여 DB에 저장하고
+    And process_data 테이블에 완공 데이터가 기록되고
+    And 시리얼 상태가 "IN_PROGRESS"로 업데이트되고
+    And JSON 파일이 "C:/mes/completed/" 폴더로 이동된다
+
+Scenario: 필수 필드 누락 시 오류 처리
+  Given File Watcher가 "C:/mes/pending/" 폴더를 감시 중일 때
+  When 다음과 같이 serial_number가 누락된 JSON 파일이 생성되면:
+    """
+    {
+      "schema_version": "1.0",
+      "process_id": "PROC-002",
+      "result": "PASS",
+      "timestamp": "2025-01-15T14:30:00Z"
+    }
+    """
+  Then File Watcher가 파일을 감지하고
+    And 백엔드가 검증 오류를 로그에 기록하고
+    And JSON 파일이 "C:/mes/error/" 폴더로 이동되고
+    And 에러 로그에 "필수 필드 누락: serial_number"가 기록된다
+
+Scenario: 불합격 데이터 처리
+  Given 시리얼 "WF-KR-250115D-001-0001"이 "검사" 공정에 착공되어 있을 때
+  When result가 "FAIL"인 완공 JSON 파일이 생성되면
+  Then 백엔드가 데이터를 처리하고
+    And 시리얼 상태가 "FAILED"로 업데이트되고
+    And 불량 원인이 측정 데이터에 기록되고
+    And 관리자 대시보드에 불량 건수가 증가한다
+```
+
+### 시나리오 4: 대시보드 실시간 모니터링
+
+**참조:** TC-DASH-001, TC-DASH-002, TC-DASH-003
+
+```gherkin
+Feature: 실시간 생산 모니터링
+  As a 생산 관리자
+  I want to 실시간으로 생산 현황을 확인할 수 있어야
+  So that 생산 진행 상황을 모니터링할 수 있다
+
+Scenario: 금일 생산 현황 표시
+  Given 관리자 대시보드가 로드되어 있고
+    And 오늘 날짜가 "2025-01-15"이고
+    And 다음과 같은 데이터가 DB에 존재할 때:
+      | LOT 번호 | 상태 | 착공 수 | 완공 수 | 불량 수 |
+      | WF-KR-250115D-001 | IN_PROGRESS | 50 | 30 | 2 |
+      | WF-KR-250115D-002 | IN_PROGRESS | 20 | 10 | 0 |
+  When 대시보드의 "금일 현황" 패널을 확인하면
+  Then 다음 정보가 표시된다:
+    | 항목 | 값 |
+    | 총 착공 | 70 |
+    | 총 완공 | 40 |
+    | 총 불량 | 2 |
+    | 불량률 | 5.0% |
+
+Scenario: 폴링을 통한 자동 갱신
+  Given 대시보드가 로드되어 있고
+    And 초기 착공 수가 70개로 표시되어 있고
+    And 폴링 주기가 10초로 설정되어 있을 때
+  When 5초 후 현장에서 새로운 착공이 발생하여 DB에 기록되면
+  Then 최대 10초 이내에 대시보드가 폴링 API를 호출하고
+    And 착공 수가 71개로 자동 갱신되고
+    And 사용자가 새로고침 버튼을 누르지 않아도 된다
+
+Scenario: 대시보드 초기 로딩 성능
+  Given 관리자가 로그인되어 있고
+    And DB에 100개의 LOT 데이터가 존재할 때
+  When 대시보드 URL에 접속하면
+  Then 3초 이내에 모든 패널이 렌더링되고
+    And 네트워크 탭에서 API 응답 시간이 1초 이내이고
+    And 사용자에게 로딩 인디케이터가 표시된다
+```
+
+### 시나리오 5: 시리얼 추적 (완전 추적성)
+
+**참조:** TC-TRACE-002, TC-TRACE-003, TC-TRACE-004
+
+```gherkin
+Feature: 시리얼 번호 기반 제품 추적
+  As a 품질 관리자
+  I want to 시리얼 번호로 제품의 전체 이력을 조회할 수 있어야
+  So that 문제 발생 시 원인을 빠르게 파악할 수 있다
+
+Scenario: 시리얼 번호로 전체 이력 조회
+  Given 시리얼 "WF-KR-250115D-001-0001"이 존재하고
+    And 8개 공정을 모두 완료하여 "PASSED" 상태일 때
+  When 대시보드에서 시리얼 번호를 검색하면
+  Then 다음 정보가 5초 이내에 조회된다:
+    | 항목 | 내용 |
+    | LOT 번호 | WF-KR-250115D-001 |
+    | 최종 상태 | PASSED |
+    | 완료 공정 | 8/8 |
+  And 공정별 상세 이력이 표시된다:
+    | 공정명 | 작업자 | 착공시간 | 완공시간 | 결과 |
+    | 라벨 프린팅 | USER001 | 09:00:00 | 09:05:00 | PASS |
+    | 조립 | USER002 | 09:10:00 | 09:30:00 | PASS |
+    | ... | ... | ... | ... | ... |
+  And 측정 데이터가 JSON 형식으로 표시된다
+
+Scenario: 부품 LOT 역추적
+  Given 시리얼 "WF-KR-250115D-001-0001"의 조립 공정 데이터에
+    And 다음과 같은 부품 LOT 정보가 기록되어 있을 때:
+    """
+    {
+      "모선_lot": "MS-2025-100",
+      "링크_lot": "LINK-2025-050"
+    }
+    """
+  When 대시보드에서 부품 추적 탭을 확인하면
+  Then 사용된 부품 LOT 목록이 표시되고
+    And "MS-2025-100" 클릭 시 해당 부품을 사용한 모든 제품 목록이 조회되고
+    And 부품 결함 발생 시 영향받는 제품을 빠르게 식별할 수 있다
+
+Scenario: 불량 원인 추적
+  Given 시리얼 "WF-KR-250115D-001-0050"이 "검사" 공정에서 불합격 처리되었고
+    And 불량 원인이 다음과 같이 기록되어 있을 때:
+    """
+    {
+      "result": "FAIL",
+      "defect_code": "DEF-002",
+      "defect_reason": "변위 측정값 초과 (210.5mm > 200mm)",
+      "measured_data": {
+        "변위": 210.5,
+        "기준값": 200.0
+      }
+    }
+    """
+  When 대시보드에서 시리얼 번호를 조회하면
+  Then 불량 상태가 명확히 표시되고
+    And 불량 공정 "검사"가 강조되고
+    And 불량 원인 "변위 측정값 초과"가 표시되고
+    And 담당 작업자 정보가 표시되고
+    And 이전 공정 데이터를 확인하여 근본 원인 분석이 가능하다
+```
+
+### 시나리오 6: 재작업 프로세스
+
+**참조:** FR-DEFECT-004
+
+```gherkin
+Feature: 불량품 재작업 관리
+  As a 품질 관리자
+  I want to 불량품을 재작업 승인하고 추적할 수 있어야
+  So that 불량품을 회수하여 생산 효율을 높일 수 있다
+
+Scenario: 재작업 승인 및 재투입
+  Given 시리얼 "WF-KR-250115D-001-0050"이 "FAILED" 상태이고
+    And 불량 공정이 "검사"(sequence=7)이고
+    And 품질 관리자 "MANAGER01"로 로그인되어 있을 때
+  When 대시보드에서 재작업 승인 버튼을 클릭하고
+    And 재작업 사유 "변위 측정값 재조정"을 입력하면
+  Then 시리얼 상태가 "IN_PROGRESS"로 변경되고
+    And rework_count가 1 증가하고
+    And rework_approved_by가 "MANAGER01"로 기록되고
+    And rework_approved_at이 현재 시간으로 기록되고
+    And 다음 공정(Firmware Upgrade)부터 재착공 가능하다
+
+Scenario: 재작업 횟수 제한
+  Given 시리얼 "WF-KR-250115D-001-0050"의 rework_count가 3일 때
+  When 재작업 승인을 다시 시도하면
+  Then HTTP 400 Bad Request 응답이 반환되고
+    And 에러 메시지 "재작업 횟수 제한 초과 (최대 3회)"가 표시되고
+    And 승인이 차단된다
+
+Scenario: 재작업 이력 조회
+  Given 시리얼 "WF-KR-250115D-001-0050"이 재작업을 2회 수행했을 때
+  When 대시보드에서 시리얼 이력을 조회하면
+  Then 재작업 이력 섹션에 다음이 표시된다:
+    | 재작업 차수 | 불량 공정 | 승인자 | 승인 시간 | 사유 |
+    | 1차 | 검사 | MANAGER01 | 2025-01-15 10:00 | 변위 재조정 |
+    | 2차 | 검사 | MANAGER01 | 2025-01-15 14:00 | 힘 측정 재검증 |
+  And 각 재작업 후 공정 데이터에 is_rework=true 플래그가 설정되어 있다
+```
+
+### 시나리오 7: 동시성 제어
+
+**참조:** NFR-PERF-002
+
+```gherkin
+Feature: 동시 사용자 처리
+  As a 시스템
+  I want to 여러 작업자의 동시 착공을 안전하게 처리할 수 있어야
+  So that 데이터 무결성을 보장할 수 있다
+
+Scenario: 동일 시리얼 동시 착공 방지
+  Given 시리얼 "WF-KR-250115D-001-0001"이 "라벨 프린팅" 공정을 완료했고
+    And 작업자 A와 작업자 B가 동시에 "조립" 공정 착공을 시도할 때
+  When 두 요청이 1초 이내에 동시에 도착하면
+  Then 먼저 도착한 요청만 성공하고 (HTTP 201)
+    And 나중 요청은 실패하며 (HTTP 409 Conflict)
+    And 에러 메시지 "해당 시리얼은 이미 공정 중입니다"가 반환되고
+    And 데이터베이스에 중복 착공 데이터가 생성되지 않는다
+
+Scenario: 부하 테스트 - 동시 착공 100건
+  Given 100개의 서로 다른 시리얼이 준비되어 있고
+    And 100명의 작업자가 동시에 착공을 시도할 때
+  When 착공 API에 100개의 요청이 동시에 전송되면
+  Then 모든 요청이 2초 이내에 처리되고
+    And 100개 모두 성공 응답(HTTP 201)을 받고
+    And 평균 응답 시간이 500ms 이하이고
+    And 데이터베이스에 정확히 100개의 착공 레코드가 생성된다
+```
+
+### 시나리오 8: API 버전 전환
+
+**참조:** 3.4.0 API 버전 관리 전략
+
+```gherkin
+Feature: API 버전 관리
+  As a 클라이언트 개발자
+  I want to API 버전을 안전하게 전환할 수 있어야
+  So that 시스템 업그레이드 시 호환성을 유지할 수 있다
+
+Scenario: v1 API 정상 동작
+  Given 백엔드 API v1과 v2가 모두 배포되어 있고
+    And 프론트엔드 앱이 v1을 사용 중일 때
+  When "/api/v1/start-work" 엔드포인트를 호출하면
+  Then HTTP 200 응답이 반환되고
+    And v1 응답 스키마로 데이터가 제공된다
+
+Scenario: v2 API로 전환
+  Given 프론트엔드 앱이 v2로 업그레이드되었을 때
+  When "/api/v2/start-work" 엔드포인트를 호출하면
+  Then HTTP 200 응답이 반환되고
+    And v2 응답 스키마(추가 필드 포함)로 데이터가 제공되고
+    And v1 API는 계속 동작한다 (병렬 운영)
+
+Scenario: v1 API 종료 예고
+  Given v1 API가 6개월 후 종료 예정일 때
+  When v1 엔드포인트를 호출하면
+  Then HTTP 200 응답이 정상 반환되고
+    And 응답 헤더에 "Deprecation: true"가 포함되고
+    And 응답 헤더에 "Sunset: 2025-07-15T00:00:00Z"가 포함되어
+    And 클라이언트가 마이그레이션 계획을 세울 수 있다
+```
+
+---
+
+## 3.5.7 성능 및 비기능 요구사항 검수
+
+| 검수 ID | 검수 항목 | 검수 기준 | NFR 참조 |
+|---------|----------|----------|----------|
+| TC-PERF-001 | API 응답 시간 | 착공 API 1초 이내, 완공 API 2초 이내 | NFR-PERF-001 |
+| TC-PERF-002 | 대시보드 로딩 | 초기 로드 3초 이내 | NFR-PERF-003 |
+| TC-PERF-003 | 동시 사용자 | 100명 동시 접속 시 응답 시간 저하 없음 | NFR-PERF-002 |
+| TC-SEC-001 | 인증 검증 | JWT 토큰 없이 API 호출 시 HTTP 401 반환 | NFR-SEC-001 |
+| TC-SEC-002 | 권한 검증 | WORKER 역할로 관리자 API 호출 시 HTTP 403 반환 | NFR-SEC-002 |
+| TC-REL-001 | 데이터베이스 무결성 | LOT 상태 전이 규칙 위반 시 트리거가 차단 | NFR-REL-003 |
+| TC-REL-002 | 트랜잭션 롤백 | 착공 처리 중 오류 발생 시 전체 롤백 | NFR-REL-004 |
+| TC-MAINT-001 | 로그 기록 | 모든 에러에 대해 로그 레벨, 타임스탬프, 스택 트레이스 기록 | NFR-MAINT-002 |
+
 ---
 
 **이전 섹션:** [3.4 데이터 인터페이스 요구사항](03-2-api-specs.md)

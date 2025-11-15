@@ -2,6 +2,185 @@
 
 [← 목차로 돌아가기](../../README.md)
 
+---
+
+## 3.4.0 API 버전 관리 전략
+
+### 개요
+
+본 MES 시스템의 API는 명확한 버전 관리 전략을 통해 하위 호환성을 보장하고, 안정적인 시스템 확장을 지원합니다.
+
+### 버전 정책
+
+**현재 버전:**
+- **v1**: Phase 1 기본 버전 (현재)
+- 모든 API 경로: `/api/v1/...`
+
+**향후 버전 (계획):**
+- **v2**: Phase 2 고도화 (AI 기능, ERP 연동, 고급 분석)
+- **v3**: 향후 확장 (글로벌 다국어, 다중 공장 지원 등)
+
+**버전 수명 주기:**
+- 신규 버전 출시 후 **이전 버전 최소 1년 유지**
+- 폐기 예정 버전은 **6개월 전 사전 공지**
+- 폐기 예정 버전 API 호출 시 응답 헤더에 `X-API-Deprecated: true` 포함
+
+### 하위 호환성 보장 원칙
+
+**DO (허용):**
+- ✅ 선택적(optional) 필드 추가
+- ✅ 새로운 API 엔드포인트 추가
+- ✅ 새로운 열거형(enum) 값 추가
+- ✅ 응답 필드 추가 (기존 필드 유지)
+
+**DON'T (금지 - 새 버전 필요):**
+- ❌ 필수(required) 필드 추가
+- ❌ 기존 필드 제거
+- ❌ 필드 타입 변경 (예: string → integer)
+- ❌ 필드 이름 변경
+- ❌ 기존 열거형(enum) 값 제거
+- ❌ 에러 응답 형식 변경
+
+### 버전 전환 예시
+
+**v1 API (현재):**
+```http
+POST /api/v1/process/start
+Content-Type: application/json
+
+{
+  "lot_number": "WF-KR-251110D-001",
+  "line_id": "LINE-A",
+  "process_id": "PROC-002",
+  "worker_id": "W001"
+}
+```
+
+**v2 API (Phase 2 계획):**
+```http
+POST /api/v2/process/start
+Content-Type: application/json
+
+{
+  "lot_number": "WF-KR-251110D-001",
+  "line_id": "LINE-A",
+  "process_id": "PROC-002",
+  "worker_id": "W001",
+  "worker_rfid": "1234-5678-9ABC",  // 새 필드 추가
+  "start_mode": "auto"                // 새 필드 추가
+}
+```
+
+**v1과 v2 동시 지원:**
+```
+v1 API: /api/v1/process/start (기존 필드만)
+v2 API: /api/v2/process/start (신규 필드 포함)
+
+→ v1 호출 시에도 정상 동작 (신규 필드는 기본값 사용)
+→ 1년 동안 v1, v2 모두 지원
+```
+
+### 외부 앱 대응 (File Watcher)
+
+외부 공정 앱은 File Watcher 방식으로 연동되므로, JSON 스키마 버전 필드를 사용합니다.
+
+**v1 스키마 (현재):**
+```json
+{
+  "schema_version": "1.0",
+  "lot_number": "WF-KR-251110D-001",
+  "process_id": "PROC-003",
+  "process_data": {
+    "temp_sensor": { "measured_temp": 60.2, "result": "PASS" }
+  }
+}
+```
+
+**v2 스키마 (향후):**
+```json
+{
+  "schema_version": "2.0",
+  "lot_number": "WF-KR-251110D-001",
+  "process_id": "PROC-003",
+  "process_data": {
+    "temp_sensor": {
+      "measured_temp": 60.2,
+      "result": "PASS",
+      "measurement_unit": "celsius"  // 새 필드
+    },
+    "ai_prediction": { ... }  // AI 기능 추가
+  }
+}
+```
+
+**백엔드 처리 로직:**
+```python
+# backend/app/api/v1/endpoints/process.py
+def process_complete_data(data: dict):
+    schema_version = data.get("schema_version", "1.0")
+
+    if schema_version == "1.0":
+        # v1 스키마 처리
+        return process_v1_schema(data)
+    elif schema_version == "2.0":
+        # v2 스키마 처리 (Phase 2)
+        return process_v2_schema(data)
+    else:
+        raise ValueError(f"Unsupported schema version: {schema_version}")
+```
+
+### Content Negotiation (선택사항)
+
+향후 `Accept` 헤더를 통한 버전 협상도 지원 가능:
+
+```http
+GET /api/lots/WF-KR-251110D-001
+Accept: application/vnd.mes.v1+json
+
+→ v1 형식 응답
+
+GET /api/lots/WF-KR-251110D-001
+Accept: application/vnd.mes.v2+json
+
+→ v2 형식 응답
+```
+
+### 폐기 프로세스
+
+**1. 폐기 예정 공지 (D-180일)**
+- API 문서에 `DEPRECATED` 표시
+- 응답 헤더에 `X-API-Deprecated: true` 추가
+- 응답 헤더에 `X-API-Sunset: 2026-01-01` (폐기 예정일) 추가
+
+**2. 폐기 경고 (D-90일)**
+- 이메일 공지 (모든 개발자)
+- 대시보드 경고 메시지 표시
+
+**3. 폐기 실행 (D-day)**
+- API 요청 시 `410 Gone` 응답 반환
+```json
+{
+  "error": {
+    "code": "API_DEPRECATED",
+    "message": "This API version has been deprecated. Please use /api/v2/...",
+    "migration_guide": "https://docs.mes.com/api/v1-to-v2-migration"
+  }
+}
+```
+
+### API 문서 자동 생성
+
+FastAPI의 자동 문서 생성 기능을 활용:
+
+```
+v1 API 문서: https://mes-api.com/docs/v1
+v2 API 문서: https://mes-api.com/docs/v2
+```
+
+각 버전별 Swagger UI 및 ReDoc 제공
+
+---
+
 ## 3.4.1 착공 인터페이스
 
 **개요:** 현장 작업자가 프론트엔드 앱에서 LOT 바코드를 스캔하여 공정 착공을 등록하는 인터페이스

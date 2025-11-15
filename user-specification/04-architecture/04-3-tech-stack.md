@@ -24,6 +24,361 @@
   - Overflow: 20
 - 비동기 I/O: asyncio, httpx
 
+**안정성 패턴:**
+
+**Circuit Breaker 패턴 (장애 전파 차단):**
+
+외부 시스템(펌웨어 업로드 서비스, 프린터 등)과의 통신에서 Circuit Breaker 패턴을 적용하여 Cascade Failure를 방지합니다.
+
+**의존성:**
+```python
+# requirements.txt
+circuitbreaker==1.4.0
+```
+
+**구현 예시:**
+```python
+# backend/app/utils/circuit_breaker.py
+from circuitbreaker import circuit
+import httpx
+import logging
+
+logger = logging.getLogger(__name__)
+
+@circuit(failure_threshold=5, recovery_timeout=60, expected_exception=httpx.HTTPError)
+async def upload_firmware_to_device(serial_number: str, firmware_path: str) -> dict:
+    """
+    펌웨어 업로드 with Circuit Breaker
+
+    - failure_threshold=5: 5회 연속 실패 시 Circuit Open
+    - recovery_timeout=60: 60초 후 Half-Open 상태로 전환
+    - expected_exception: HTTPError 발생 시만 실패로 카운트
+    """
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"http://firmware-uploader/upload",
+            json={"serial": serial_number, "file": firmware_path}
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+@circuit(failure_threshold=3, recovery_timeout=30)
+async def print_label(printer_id: str, label_data: dict) -> dict:
+    """
+    라벨 프린터 출력 with Circuit Breaker
+
+    - failure_threshold=3: 3회 연속 실패 시 Circuit Open
+    - recovery_timeout=30: 30초 후 재시도
+    """
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"http://printer-service/{printer_id}/print",
+            json=label_data
+        )
+        response.raise_for_status()
+        return response.json()
+```
+
+**FastAPI 엔드포인트에서 사용:**
+```python
+# backend/app/api/v1/endpoints/firmware.py
+from fastapi import HTTPException
+from circuitbreaker import CircuitBreakerError
+from app.utils.circuit_breaker import upload_firmware_to_device
+
+@router.post("/firmware/upload")
+async def upload_firmware(serial_number: str, firmware_path: str):
+    try:
+        result = await upload_firmware_to_device(serial_number, firmware_path)
+        return {"status": "success", "data": result}
+
+    except CircuitBreakerError:
+        # Circuit Open 상태 - 즉시 거부하여 불필요한 부하 방지
+        logger.warning(f"Circuit breaker opened for firmware upload service")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "SERVICE_UNAVAILABLE",
+                "message": "펌웨어 업로드 서비스가 일시적으로 불가능합니다. 잠시 후 다시 시도하세요.",
+                "retry_after": 60  # seconds
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Firmware upload failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="펌웨어 업로드 실패"
+        )
+```
+
+**Circuit Breaker 상태:**
+1. **Closed (정상):** 모든 요청이 정상 처리됨
+2. **Open (차단):** failure_threshold 초과 시, 모든 요청 즉시 거부
+3. **Half-Open (반개방):** recovery_timeout 후, 제한적 요청 허용하여 복구 여부 확인
+
+**모니터링:**
+```python
+# backend/app/api/v1/endpoints/health.py
+from app.utils.circuit_breaker import upload_firmware_to_device, print_label
+
+@router.get("/health/circuit-breakers")
+async def circuit_breaker_status():
+    """Circuit Breaker 상태 모니터링 엔드포인트"""
+    return {
+        "firmware_uploader": {
+            "state": upload_firmware_to_device._circuit_breaker.current_state,
+            "failure_count": upload_firmware_to_device._circuit_breaker.failure_count,
+            "last_failure": upload_firmware_to_device._circuit_breaker.last_failure_time
+        },
+        "printer_service": {
+            "state": print_label._circuit_breaker.current_state,
+            "failure_count": print_label._circuit_breaker.failure_count,
+            "last_failure": print_label._circuit_breaker.last_failure_time
+        }
+    }
+```
+
+**알림 설정:**
+- Circuit Open 발생 시 Slack/Email 알림
+- 복구 시 알림
+- 메트릭 수집 (Prometheus + Grafana)
+
+---
+
+**Health Check 엔드포인트 (종합 상태 확인):**
+
+시스템의 전반적인 건강 상태를 확인하는 엔드포인트를 제공합니다.
+
+**구현:**
+```python
+# backend/app/api/v1/endpoints/health.py
+from fastapi import APIRouter, status
+from sqlalchemy import text
+from app.db.session import engine
+from app.core.redis import redis_client
+import psutil
+from datetime import datetime
+
+router = APIRouter()
+
+@router.get("/health", tags=["Health"])
+async def health_check():
+    """
+    종합 Health Check 엔드포인트
+
+    - Database 연결 확인
+    - Redis 연결 확인
+    - 디스크 사용률 확인
+    - 메모리 사용률 확인
+    """
+    checks = {}
+    overall_healthy = True
+
+    # 1. Database Health
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["database"] = {
+            "status": "healthy",
+            "message": "Database connection successful"
+        }
+    except Exception as e:
+        checks["database"] = {
+            "status": "unhealthy",
+            "message": f"Database connection failed: {str(e)}"
+        }
+        overall_healthy = False
+
+    # 2. Redis Health
+    try:
+        await redis_client.ping()
+        checks["redis"] = {
+            "status": "healthy",
+            "message": "Redis connection successful"
+        }
+    except Exception as e:
+        checks["redis"] = {
+            "status": "unhealthy",
+            "message": f"Redis connection failed: {str(e)}"
+        }
+        overall_healthy = False
+
+    # 3. Disk Usage
+    disk = psutil.disk_usage('/')
+    if disk.percent < 90:
+        checks["disk"] = {
+            "status": "healthy",
+            "usage_percent": disk.percent,
+            "message": f"Disk usage: {disk.percent}%"
+        }
+    else:
+        checks["disk"] = {
+            "status": "warning",
+            "usage_percent": disk.percent,
+            "message": f"Disk usage high: {disk.percent}%"
+        }
+        # Warning은 overall에 영향 없음 (Critical 수준 아님)
+
+    # 4. Memory Usage
+    memory = psutil.virtual_memory()
+    if memory.percent < 90:
+        checks["memory"] = {
+            "status": "healthy",
+            "usage_percent": memory.percent,
+            "message": f"Memory usage: {memory.percent}%"
+        }
+    else:
+        checks["memory"] = {
+            "status": "warning",
+            "usage_percent": memory.percent,
+            "message": f"Memory usage high: {memory.percent}%"
+        }
+
+    # 5. Circuit Breaker Status (선택사항)
+    try:
+        from app.utils.circuit_breaker import upload_firmware_to_device, print_label
+        checks["circuit_breakers"] = {
+            "firmware_uploader": upload_firmware_to_device._circuit_breaker.current_state,
+            "printer_service": print_label._circuit_breaker.current_state
+        }
+    except Exception:
+        pass  # Circuit Breaker 정보 없어도 전체 Health에는 영향 없음
+
+    # 전체 상태 판정
+    response = {
+        "status": "healthy" if overall_healthy else "unhealthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "checks": checks,
+        "version": "1.0.0"  # API 버전
+    }
+
+    # HTTP 상태 코드 설정
+    status_code = status.HTTP_200_OK if overall_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return response, status_code
+
+
+@router.get("/health/liveness", tags=["Health"])
+async def liveness_probe():
+    """
+    Liveness Probe (Kubernetes/Docker 용)
+
+    - 서버가 실행 중인지만 확인
+    - 외부 의존성 확인 없음
+    """
+    return {
+        "status": "alive",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.get("/health/readiness", tags=["Health"])
+async def readiness_probe():
+    """
+    Readiness Probe (Kubernetes/Docker 용)
+
+    - 트래픽 받을 준비가 되었는지 확인
+    - Database, Redis 연결 확인
+    """
+    try:
+        # DB 연결 확인
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+
+        # Redis 연결 확인
+        await redis_client.ping()
+
+        return {
+            "status": "ready",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "not_ready",
+            "message": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }, status.HTTP_503_SERVICE_UNAVAILABLE
+```
+
+**ALB/로드 밸런서 설정 (배포 옵션별):**
+
+**온프레미스 (Nginx):**
+```nginx
+# /etc/nginx/conf.d/mes.conf
+upstream backend {
+    server 127.0.0.1:8000 max_fails=3 fail_timeout=30s;
+    server 127.0.0.1:8001 max_fails=3 fail_timeout=30s;
+
+    # Health Check
+    check interval=10000 rise=2 fall=3 timeout=5000 type=http;
+    check_http_send "GET /api/v1/health/liveness HTTP/1.0\r\n\r\n";
+    check_http_expect_alive http_2xx;
+}
+```
+
+**AWS (Terraform):**
+```hcl
+# infrastructure/aws/alb.tf
+resource "aws_lb_target_group" "neurohub_backend" {
+  name     = "neurohub-backend-tg"
+  port     = 8000
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main.id
+
+  health_check {
+    enabled             = true
+    path                = "/api/v1/health/readiness"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+  }
+
+  deregistration_delay = 30
+}
+```
+
+**Railway:**
+Railway는 자동 Health Check를 수행하므로, `/api/v1/health/liveness` 경로만 제공하면 됩니다.
+
+```yaml
+# railway.toml
+[deploy]
+healthcheckPath = "/api/v1/health/liveness"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+```
+
+**모니터링 대시보드 연동:**
+
+Prometheus + Grafana를 사용하는 경우:
+
+```python
+# backend/app/api/v1/endpoints/metrics.py
+from prometheus_client import Counter, Gauge, generate_latest
+
+# Health Check 메트릭
+health_check_total = Counter(
+    'health_check_total',
+    'Total health check requests',
+    ['status']
+)
+health_check_duration = Gauge(
+    'health_check_duration_seconds',
+    'Health check duration in seconds'
+)
+
+@router.get("/metrics")
+async def metrics():
+    """Prometheus 메트릭 엔드포인트"""
+    return Response(generate_latest(), media_type="text/plain")
+```
+
 #### 4.3.2 Database (배포 옵션별)
 
 **공통 사양:**

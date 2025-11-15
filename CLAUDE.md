@@ -4,320 +4,273 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**F2X NeuroHub MES** is a Manufacturing Execution System (MES) for Withforce, a Korean manufacturer of wearable robots. This repository is currently in the **pre-development phase** - it contains comprehensive user specifications and an AI-driven TDD automation framework, but no application code has been generated yet.
+This is a Python project optimized for modern Python development. The project uses industry-standard tools and follows best practices for scalable application development.
 
-**Key Characteristics**:
-- Documentation-first approach with approved, production-ready specifications
-- AI-driven development using specialized Claude agents
-- Test-Driven Development (TDD) methodology with RED → GREEN → Verification phases
-- Clean Architecture pattern with clear layer separation
-- All documentation in Korean
+## Development Commands
 
-## Repository Structure
+### Environment Management
+- `python -m venv venv` - Create virtual environment
+- `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows) - Activate virtual environment
+- `deactivate` - Deactivate virtual environment
+- `pip install -r requirements.txt` - Install dependencies
+- `pip install -r requirements-dev.txt` - Install development dependencies
 
-```
-F2X_NeuroHub/
-├── .claude/
-│   ├── agents/              # 7 specialized development agents
-│   │   ├── requirements-agent.md    # Interactive requirements gathering
-│   │   ├── design-agent.md          # System architecture & design
-│   │   ├── implementation-agent.md  # Code generation (GREEN phase)
-│   │   ├── testing-agent.md         # Test generation (RED phase)
-│   │   ├── verification-agent.md    # Document-code traceability
-│   │   └── deployment-agent.md      # Docker, CI/CD, deployment configs
-│   └── commands/            # 4 automation commands
-│       ├── full.md          # Complete TDD pipeline (design → code → tests → verification)
-│       ├── tdd.md           # TDD workflow execution
-│       ├── deploy.md        # Deployment configuration generation
-│       └── implement-tdd.md # Module-specific TDD implementation
-│
-├── user-specification/      # Complete project specifications (APPROVED)
-│   ├── 1.0 프로젝트 개요.md
-│   ├── 2.0 요구사항 분석.md
-│   ├── 3.0 아키텍처 설계.md
-│   ├── 4.0 데이터베이스 설계.md
-│   └── ...
-│
-├── docs/
-│   ├── _utils/              # Python utilities for ID generation and manifest management
-│   ├── requirements/        # Will contain FR and AC documents (not created yet)
-│   ├── design/              # Will contain architecture, API, DB, class designs
-│   ├── verification/        # Will contain traceability matrices and verification reports
-│   └── progress/            # Session tracking documents from all agents
-│
-├── app/                     # Application code (EMPTY - to be generated)
-│   ├── domain/              # Business entities, value objects, domain services
-│   ├── application/         # Use cases, DTOs, application interfaces
-│   ├── infrastructure/      # Database, external APIs, infrastructure services
-│   └── presentation/        # REST API controllers, UI
-│
-└── tests/                   # Test code (EMPTY - to be generated)
-    ├── unit/
-    ├── integration/
-    └── e2e/
-```
+### Package Management
+- `pip install <package>` - Install a package
+- `pip install -e .` - Install project in development mode
+- `pip freeze > requirements.txt` - Generate requirements file
+- `pip-tools compile requirements.in` - Compile requirements with pip-tools
+
+### Testing Commands
+- `pytest` - Run all tests
+- `pytest -v` - Run tests with verbose output
+- `pytest --cov` - Run tests with coverage report
+- `pytest --cov-report=html` - Generate HTML coverage report
+- `pytest -x` - Stop on first failure
+- `pytest -k "test_name"` - Run specific test by name
+- `python -m unittest` - Run tests with unittest
+
+### Code Quality Commands
+- `black .` - Format code with Black
+- `black --check .` - Check code formatting without changes
+- `isort .` - Sort imports
+- `isort --check-only .` - Check import sorting
+- `flake8` - Run linting with Flake8
+- `pylint src/` - Run linting with Pylint
+- `mypy src/` - Run type checking with MyPy
+
+### Development Tools
+- `python -m pip install --upgrade pip` - Upgrade pip
+- `python -c "import sys; print(sys.version)"` - Check Python version
+- `python -m site` - Show Python site information
+- `python -m pdb script.py` - Debug with pdb
 
 ## Technology Stack
 
-**Backend**:
-- Python 3.11+
-- FastAPI (REST API framework)
-- SQLAlchemy (ORM)
-- PostgreSQL (primary database)
-- pytest (testing framework)
+### Core Technologies
+- **Python** - Primary programming language (3.8+)
+- **pip** - Package management
+- **venv** - Virtual environment management
 
-**Frontend**:
-- React (web UI)
-- PyQt5 (desktop client - optional)
+### Common Frameworks
+- **Django** - High-level web framework
+- **Flask** - Micro web framework
+- **FastAPI** - Modern API framework with automatic documentation
+- **SQLAlchemy** - SQL toolkit and ORM
+- **Pydantic** - Data validation using Python type hints
 
-**Infrastructure**:
-- Docker & Docker Compose
-- GitHub Actions (CI/CD)
-- Deployment options: On-premise, Railway, AWS
+### Data Science & ML
+- **NumPy** - Numerical computing
+- **Pandas** - Data manipulation and analysis
+- **Matplotlib/Seaborn** - Data visualization
+- **Scikit-learn** - Machine learning library
+- **TensorFlow/PyTorch** - Deep learning frameworks
+
+### Testing Frameworks
+- **pytest** - Testing framework
+- **unittest** - Built-in testing framework
+- **pytest-cov** - Coverage plugin for pytest
+- **factory-boy** - Test fixtures
+- **responses** - Mock HTTP requests
+
+### Code Quality Tools
+- **Black** - Code formatter
+- **isort** - Import sorter
+- **flake8** - Style guide enforcement
+- **pylint** - Code analysis
+- **mypy** - Static type checker
+- **pre-commit** - Git hooks framework
+
+## Project Structure Guidelines
+
+### File Organization
+```
+src/
+├── package_name/
+│   ├── __init__.py
+│   ├── main.py          # Application entry point
+│   ├── models/          # Data models
+│   ├── views/           # Web views (Django/Flask)
+│   ├── api/             # API endpoints
+│   ├── services/        # Business logic
+│   ├── utils/           # Utility functions
+│   └── config/          # Configuration files
+tests/
+├── __init__.py
+├── conftest.py          # pytest configuration
+├── test_models.py
+├── test_views.py
+└── test_utils.py
+requirements/
+├── base.txt            # Base requirements
+├── dev.txt             # Development requirements
+└── prod.txt            # Production requirements
+```
+
+### Naming Conventions
+- **Files/Modules**: Use snake_case (`user_profile.py`)
+- **Classes**: Use PascalCase (`UserProfile`)
+- **Functions/Variables**: Use snake_case (`get_user_data`)
+- **Constants**: Use UPPER_SNAKE_CASE (`API_BASE_URL`)
+- **Private methods**: Prefix with underscore (`_private_method`)
+
+## Python Guidelines
+
+### Type Hints
+- Use type hints for function parameters and return values
+- Import types from `typing` module when needed
+- Use `Optional` for nullable values
+- Use `Union` for multiple possible types
+- Document complex types with comments
+
+### Code Style
+- Follow PEP 8 style guide
+- Use meaningful variable and function names
+- Keep functions focused and single-purpose
+- Use docstrings for modules, classes, and functions
+- Limit line length to 88 characters (Black default)
+
+### Best Practices
+- Use list comprehensions for simple transformations
+- Prefer `pathlib` over `os.path` for file operations
+- Use context managers (`with` statements) for resource management
+- Handle exceptions appropriately with try/except blocks
+- Use `logging` module instead of print statements
+
+## Testing Standards
+
+### Test Structure
+- Organize tests to mirror source code structure
+- Use descriptive test names that explain the behavior
+- Follow AAA pattern (Arrange, Act, Assert)
+- Use fixtures for common test data
+- Group related tests in classes
+
+### Coverage Goals
+- Aim for 90%+ test coverage
+- Write unit tests for business logic
+- Use integration tests for external dependencies
+- Mock external services in tests
+- Test error conditions and edge cases
+
+### pytest Configuration
+```python
+# pytest.ini or pyproject.toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src --cov-report=term-missing"
+```
+
+## Virtual Environment Setup
+
+### Creation and Activation
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate (Linux/Mac)
+source venv/bin/activate
+
+# Activate (Windows)
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+### Requirements Management
+- Use `requirements.txt` for production dependencies
+- Use `requirements-dev.txt` for development dependencies
+- Consider using `pip-tools` for dependency resolution
+- Pin versions for reproducible builds
+
+## Django-Specific Guidelines
+
+### Project Structure
+```
+project_name/
+├── manage.py
+├── project_name/
+│   ├── __init__.py
+│   ├── settings/
+│   ├── urls.py
+│   └── wsgi.py
+├── apps/
+│   ├── users/
+│   ├── products/
+│   └── orders/
+└── requirements/
+```
+
+### Common Commands
+- `python manage.py runserver` - Start development server
+- `python manage.py migrate` - Apply database migrations
+- `python manage.py makemigrations` - Create new migrations
+- `python manage.py createsuperuser` - Create admin user
+- `python manage.py collectstatic` - Collect static files
+- `python manage.py test` - Run Django tests
+
+## FastAPI-Specific Guidelines
+
+### Project Structure
+```
+src/
+├── main.py              # FastAPI application
+├── api/
+│   ├── __init__.py
+│   ├── dependencies.py  # Dependency injection
+│   └── v1/
+│       ├── __init__.py
+│       └── endpoints/
+├── core/
+│   ├── __init__.py
+│   ├── config.py       # Settings
+│   └── security.py    # Authentication
+├── models/
+├── schemas/            # Pydantic models
+└── services/
+```
+
+### Common Commands
+- `uvicorn main:app --reload` - Start development server
+- `uvicorn main:app --host 0.0.0.0 --port 8000` - Start production server
+
+## Security Guidelines
+
+### Dependencies
+- Regularly update dependencies with `pip list --outdated`
+- Use `safety` package to check for known vulnerabilities
+- Pin dependency versions in requirements files
+- Use virtual environments to isolate dependencies
+
+### Code Security
+- Validate input data with Pydantic or similar
+- Use environment variables for sensitive configuration
+- Implement proper authentication and authorization
+- Sanitize data before database operations
+- Use HTTPS for production deployments
 
 ## Development Workflow
 
-### Phase 1: Interactive Requirements Gathering
+### Before Starting
+1. Check Python version compatibility
+2. Create and activate virtual environment
+3. Install dependencies from requirements files
+4. Run type checking with `mypy`
 
-**CRITICAL**: All features start with interactive requirements gathering.
+### During Development
+1. Use type hints for better code documentation
+2. Run tests frequently to catch issues early
+3. Use meaningful commit messages
+4. Format code with Black before committing
 
-```bash
-# DO NOT use /full command first!
-# Start by invoking the requirements-agent directly
-```
-
-The `requirements-agent` conducts a 6-stage dialogue with you:
-1. **Initial Understanding**: Purpose, users, value proposition
-2. **Entity & Data Exploration**: Data structures, relationships
-3. **Operations & Workflows**: User actions, scenarios
-4. **Business Rules & Constraints**: Validation, authorization, performance
-5. **Edge Cases & Errors**: Error scenarios, boundary conditions
-6. **Confirmation & Documentation**: Review and confirm requirements
-
-**Output**:
-- `docs/requirements/modules/{module}/FR-{MOD}-{SEQ}-{feature}.md` (Functional Requirements)
-- `docs/requirements/modules/{module}/AC-{MOD}-{SEQ}-test-plan.md` (Acceptance Criteria)
-- `docs/progress/requirements/{module}/session-{timestamp}.md` (Progress log)
-
-### Phase 2: Automated Development Pipeline
-
-**After requirements exist**, run the `/full` command:
-
-```bash
-/full --module {module_name}
-```
-
-This executes 4 automated phases:
-
-**Phase 1 - Design** (`design-agent`):
-- Selects architecture pattern (Clean Architecture, Layered, DDD)
-- Designs project folder structure
-- Creates class diagrams with inheritance relationships (text-based UML)
-- Defines RESTful API endpoints
-- Designs normalized database schema (3NF)
-- Creates component architecture
-- Output: `docs/design/` + progress tracking
-
-**Phase 2 - TDD Red** (`testing-agent`):
-- Generates unit tests (70% coverage)
-- Generates integration tests (20%)
-- Generates E2E tests (10%)
-- Runs pytest → **ALL TESTS MUST FAIL** (RED phase ✅)
-- Output: `tests/` + progress tracking
-
-**Phase 3 - TDD Green** (`implementation-agent`):
-- Implements domain entities
-- Implements application services
-- Implements infrastructure repositories
-- Implements API controllers
-- Runs pytest → **ALL TESTS MUST PASS** (GREEN phase ✅)
-- Output: `app/` + progress tracking
-
-**Phase 4 - Verification** (`verification-agent`):
-- Parses FR documents with AST
-- Analyzes code with AST
-- Analyzes tests with AST
-- Generates traceability matrix (FR → Code → Test)
-- Identifies gaps (missing implementation, missing tests, orphaned code)
-- Output: `docs/verification/{module}/` + progress tracking
-
-### Phase 3: Deployment Configuration (Separate)
-
-```bash
-/deploy
-```
-
-Generates deployment configurations:
-- Dockerfile (backend, frontend)
-- docker-compose.yml
-- CI/CD pipelines (GitHub Actions)
-- Nginx configuration
-- Environment variable templates
-- Deployment scripts
-
-## Available Commands
-
-### `/full` - Complete TDD Automation Pipeline
-
-Executes Design → TDD Red → TDD Green → Verification phases.
-
-**Prerequisites**: Requirements documents must exist in `docs/requirements/modules/{module}/`
-
-**Usage**:
-```bash
-/full --module inventory
-```
-
-**Output**: Complete module implementation with design docs, tests, code, and verification reports.
-
-### `/tdd` - TDD Workflow Execution
-
-Analyzes your prompt and runs appropriate agents to implement features using TDD methodology.
-
-**Usage**:
-```bash
-/tdd 주문 생성 기능 구현
-```
-
-### `/implement-tdd` - Module-Specific TDD Implementation
-
-Implements code using TDD for a specific module or document ID.
-
-**Usage**:
-```bash
-/implement-tdd --module inventory
-/implement-tdd --id FR-INV-001
-```
-
-### `/deploy` - Deployment Configuration Generation
-
-Generates all deployment configurations (Docker, CI/CD, Nginx).
-
-**Usage**:
-```bash
-/deploy
-```
-
-## Progress Tracking System
-
-**Every agent** creates progress tracking documents in `docs/progress/{agent-name}/{module}/session-{timestamp}.md`.
-
-Progress documents include:
-- Session metadata (date, module, status)
-- Stage-by-stage progress with emoji indicators (✅ Done, 🔄 In Progress, ⏳ Pending)
-- Detailed logs of actions taken
-- Checklists of deliverables
-- Next steps
-
-**Example locations**:
-- `docs/progress/requirements/inventory/session-2025-01-15-10-30.md`
-- `docs/progress/design/inventory/design-session-2025-01-15-11-00.md`
-- `docs/progress/testing/inventory/testing-session-2025-01-15-12-00.md`
-- `docs/progress/implementation/inventory/implementation-session-2025-01-15-13-00.md`
-- `docs/progress/verification/inventory/verification-session-2025-01-15-14-00.md`
-
-## Architecture Pattern
-
-**Clean Architecture** (preferred for this project):
-
-```
-┌─────────────────────────────────────────────────────┐
-│                 Presentation Layer                  │
-│              (FastAPI Controllers, UI)              │
-├─────────────────────────────────────────────────────┤
-│                Application Layer                    │
-│           (Use Cases, DTOs, Interfaces)             │
-├─────────────────────────────────────────────────────┤
-│                  Domain Layer                       │
-│      (Entities, Value Objects, Domain Services)     │
-├─────────────────────────────────────────────────────┤
-│              Infrastructure Layer                   │
-│    (Database, External APIs, Infrastructure Services)│
-└─────────────────────────────────────────────────────┘
-```
-
-**Dependency Rule**: Dependencies point inward. Domain layer has no dependencies on outer layers.
-
-## Document ID System
-
-All documents use standardized IDs:
-
-- **FR-{MOD}-{SEQ}**: Functional Requirements (e.g., FR-INV-001)
-- **AC-{MOD}-{SEQ}**: Acceptance Criteria (e.g., AC-INV-001)
-- **API-{MOD}-{SEQ}**: API Specifications (e.g., API-INV-001)
-- **DB-{MOD}-{SEQ}**: Database Schemas (e.g., DB-INV-001)
-- **CLASS-{MOD}-{SEQ}**: Class Diagrams (e.g., CLASS-INV-001)
-- **STRUCT-{APP}-{SEQ}**: Project Structure (e.g., STRUCT-APP-001)
-
-**Module Codes** (3 letters):
-- INV: Inventory
-- ORD: Order
-- PRD: Production
-- QLT: Quality
-- USR: User Management
-
-## Key Principles
-
-1. **Documentation-First**: All features start with requirements documentation through interactive dialogue
-2. **TDD Methodology**: RED (failing tests) → GREEN (passing implementation) → Refactor
-3. **Traceability**: Every piece of code must reference an FR document ID in docstrings
-4. **Progress Tracking**: Every agent creates session tracking documents
-5. **Clean Architecture**: Clear separation of concerns with dependency inversion
-6. **Testability**: Target 80%+ test coverage with unit, integration, and E2E tests
-
-## Common Workflows
-
-### Scenario 1: Implementing a New Feature
-
-```bash
-# Step 1: Gather requirements interactively
-# (Invoke requirements-agent directly, answer questions)
-
-# Step 2: Run full automation pipeline
-/full --module {module_name}
-
-# Step 3: (Optional) Generate deployment configs
-/deploy
-```
-
-### Scenario 2: Quick TDD Implementation
-
-```bash
-# For smaller features where requirements are already clear
-/tdd 재고 조회 기능 구현
-```
-
-### Scenario 3: Implementing from Existing Requirements
-
-```bash
-# If FR documents already exist
-/implement-tdd --module inventory
-```
-
-## Important Notes
-
-- **No Application Code Yet**: This repository is in pre-development phase. The `app/` and `tests/` directories are empty.
-- **Requirements First**: Never run `/full` without creating requirements documents first through interactive dialogue with `requirements-agent`.
-- **Korean Language**: All user specifications and documentation are in Korean.
-- **Progress History**: Always check `docs/progress/` directories to understand what has been done previously.
-- **Verification**: After implementation, always check `docs/verification/` for traceability reports and gaps.
-
-## Getting Started
-
-If this is your first time working on a feature:
-
-1. **Understand the project**: Read `user-specification/1.0 프로젝트 개요.md`
-2. **Invoke requirements-agent**: Start interactive dialogue to define your feature
-3. **Run `/full`**: Execute automated development pipeline
-4. **Review progress**: Check `docs/progress/` to see what was generated
-5. **Run tests**: `pytest tests/ -v --cov=app`
-6. **Review verification**: Check `docs/verification/` for traceability and gaps
-
-## Utilities
-
-- **ID Generator**: `docs/_utils/id_generator.py` - Generates document IDs and filenames
-- **Manifest Manager**: `docs/_utils/manifest_manager.py` - Updates manifest.json with document metadata
-
-## Contact & Support
-
-For questions about this AI-driven development system, refer to the agent documentation in `.claude/agents/`.
+### Before Committing
+1. Run full test suite: `pytest`
+2. Check code formatting: `black --check .`
+3. Sort imports: `isort --check-only .`
+4. Run linting: `flake8`
+5. Run type checking: `mypy src/`
