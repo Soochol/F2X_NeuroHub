@@ -1,11 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tree:*)",
-      "Bash(dir:*)",
-      "SlashCommand(/sc:spec-panel user-specification 폴더의 모든 md 파일들을 검토해주세요. 프로젝트 개요, 요구사항, 아키텍처, 데이터 설계, 투자 계획 등이 포함되어 있습니다. 각 문서가 적절하게 작성되었는지, 일관성이 있는지, 누락된 부분은 없는지 종합적으로 검토해주세요.)",
-      "SlashCommand(/sc:spec-panel:*)",
-      "Bash(cat:*)"
+      "SlashCommand(/sc:implement:*)"
     ],
     "deny": [],
     "ask": []
