@@ -1,0 +1,216 @@
+"""
+User model for authentication and authorization.
+
+This module defines the User ORM model that represents the users table in the
+F2X NeuroHub database. It includes user credentials, profile information, role-based
+access control, and audit timestamps.
+
+Provides:
+    - User: SQLAlchemy ORM model for the users table
+    - UserRole: Enumeration for user roles (ADMIN, MANAGER, OPERATOR)
+
+Database Table: users
+    - Primary Key: id (BIGSERIAL)
+    - Unique Constraints: username, email
+    - Role Enum: ADMIN, MANAGER, OPERATOR
+    - Audit Fields: created_at, updated_at
+"""
+
+from datetime import datetime
+from typing import Optional
+import enum
+
+from sqlalchemy import (
+    Index,
+    String,
+    Boolean,
+    DateTime,
+    Enum,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database import Base
+
+
+class UserRole(str, enum.Enum):
+    """
+    User role enumeration for role-based access control.
+
+    Roles:
+        ADMIN: Full system access, user management, master data modification
+        MANAGER: Production management, approval authority, report generation
+        OPERATOR: Process execution, data recording, limited access
+    """
+    ADMIN = "ADMIN"
+    MANAGER = "MANAGER"
+    OPERATOR = "OPERATOR"
+
+
+class User(Base):
+    """
+    User model for authentication and authorization.
+
+    Represents a system user with credentials, profile information, and role-based
+    access control. Includes audit timestamps for tracking account changes.
+
+    Attributes:
+        id: Unique identifier (auto-incrementing primary key)
+        username: Unique login username (3-50 characters)
+        email: Unique email address with format validation
+        password_hash: Bcrypt hashed password (cost factor 12)
+        full_name: User's full name (Korean or English)
+        role: User role (ADMIN, MANAGER, OPERATOR)
+        department: Department or team assignment
+        is_active: Account active status (True/False)
+        last_login_at: Timestamp of last successful login
+        created_at: Account creation timestamp
+        updated_at: Last update timestamp
+
+    Table Name: users
+
+    Constraints:
+        - PK: pk_users on id
+        - UK: uk_users_username on username
+        - UK: uk_users_email on email
+        - CHK: chk_users_role (role IN ['ADMIN', 'MANAGER', 'OPERATOR'])
+        - CHK: chk_users_email_format (valid email format)
+        - CHK: chk_users_username_length (username >= 3 characters)
+
+    Indexes:
+        - idx_users_active: (is_active, role) WHERE is_active = TRUE
+        - idx_users_role: (role)
+        - idx_users_department: (department) WHERE department IS NOT NULL
+        - idx_users_last_login: (last_login_at DESC) WHERE last_login_at IS NOT NULL
+    """
+
+    __tablename__ = "users"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+        doc="Primary key, auto-incrementing BIGSERIAL"
+    )
+
+    # Core columns
+    username: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        unique=True,
+        doc="Unique login username (minimum 3 characters)"
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+        doc="Unique email address with format validation"
+    )
+
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Bcrypt hashed password (cost factor 12)"
+    )
+
+    full_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="User's full name (Korean or English)"
+    )
+
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, native_enum=False, length=20),
+        nullable=False,
+        default=UserRole.OPERATOR,
+        doc="User role: ADMIN (full access), MANAGER (production management), OPERATOR (operators)"
+    )
+
+    department: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        default=None,
+        doc="Department or team assignment"
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        doc="Account active status (false for disabled accounts)"
+    )
+
+    # Activity tracking
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        doc="Last successful login timestamp"
+    )
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        doc="Account creation timestamp"
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        doc="Last update timestamp"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index(
+            "idx_users_active",
+            "is_active",
+            "role",
+            sqlite_where="is_active = TRUE",
+            doc="Index for active users lookup"
+        ),
+        Index(
+            "idx_users_role",
+            "role",
+            doc="Index for role-based queries"
+        ),
+        Index(
+            "idx_users_department",
+            "department",
+            sqlite_where="department IS NOT NULL",
+            doc="Index for department filtering"
+        ),
+        Index(
+            "idx_users_last_login",
+            "last_login_at",
+            doc="Index for last login analysis"
+        ),
+    )
+
+    def __repr__(self) -> str:
+        """Return string representation of User instance."""
+        return f"<User(id={self.id}, username='{self.username}', email='{self.email}', role={self.role.value})>"
+
+    def to_dict(self) -> dict:
+        """
+        Convert User instance to dictionary.
+
+        Returns:
+            Dictionary representation of user (password_hash excluded)
+        """
+        return {
+            "id": self.id,
+            "username": self.username,
+            "email": self.email,
+            "full_name": self.full_name,
+            "role": self.role.value,
+            "department": self.department,
+            "is_active": self.is_active,
+            "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

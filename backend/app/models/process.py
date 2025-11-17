@@ -1,0 +1,213 @@
+"""
+SQLAlchemy ORM model for the Process entity.
+
+Represents manufacturing processes in the F2X NeuroHub production line.
+Each process is a step in the manufacturing workflow (8 total processes).
+
+Database table: processes
+Primary key: id (BIGSERIAL)
+"""
+
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import (
+    CheckConstraint,
+    Index,
+    String,
+    Integer,
+    Boolean,
+    Text,
+    DateTime,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database import Base
+
+
+class Process(Base):
+    """
+    SQLAlchemy ORM model for manufacturing processes.
+
+    Represents one of the 8 manufacturing processes in the F2X production line.
+    Each process has a unique sequence number (1-8), a code identifier, and
+    quality criteria in JSONB format.
+
+    Attributes:
+        id: Primary key, auto-incrementing BIGSERIAL
+        process_number: Process sequence number (1-8), unique and required
+        process_code: Unique code identifier (e.g., 'LASER_MARKING')
+        process_name_ko: Process name in Korean
+        process_name_en: Process name in English
+        description: Detailed description of the process
+        estimated_duration_seconds: Expected duration in seconds (optional, positive if set)
+        quality_criteria: JSONB field storing quality standards and acceptance criteria
+        is_active: Whether this process is currently in use (default: True)
+        sort_order: Display order (required, must be > 0)
+        created_at: Record creation timestamp
+        updated_at: Last update timestamp
+
+    Constraints:
+        - process_number must be between 1 and 8 (inclusive)
+        - process_code must be unique
+        - process_number must be unique
+        - estimated_duration_seconds must be positive (if specified)
+        - sort_order must be positive (> 0)
+
+    Indexes:
+        - idx_processes_active: On (is_active, sort_order) for active processes
+        - idx_processes_quality_criteria: GIN index on quality_criteria JSONB
+        - idx_processes_sort_order: On sort_order for UI display
+    """
+
+    __tablename__ = "processes"
+
+    # Primary Key
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Core Columns
+    process_number: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        unique=True,
+        doc="Process sequence number (1-8), unique identifier for process order",
+    )
+
+    process_code: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        unique=True,
+        doc="Unique process code identifier (e.g., LASER_MARKING)",
+    )
+
+    process_name_ko: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Process name in Korean",
+    )
+
+    process_name_en: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Process name in English",
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Detailed process description and operational details",
+    )
+
+    estimated_duration_seconds: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Expected duration in seconds (must be positive if specified)",
+    )
+
+    quality_criteria: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+        doc="JSONB field containing quality standards and acceptance criteria",
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
+        doc="Whether this process is currently active and in use",
+    )
+
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        doc="Display sort order for UI presentation (usually same as process_number)",
+    )
+
+    # Timestamp Columns
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=text("NOW()"),
+        doc="Record creation timestamp",
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        server_default=text("NOW()"),
+        doc="Last update timestamp",
+    )
+
+    # Table Arguments: Constraints and Indexes
+    __table_args__ = (
+        # CHECK CONSTRAINTS
+        CheckConstraint(
+            "process_number >= 1 AND process_number <= 8",
+            name="chk_processes_process_number",
+        ),
+        CheckConstraint(
+            "estimated_duration_seconds IS NULL OR estimated_duration_seconds > 0",
+            name="chk_processes_duration",
+        ),
+        CheckConstraint(
+            "sort_order > 0",
+            name="chk_processes_sort_order",
+        ),
+        # INDEXES
+        Index(
+            "idx_processes_active",
+            is_active,
+            sort_order,
+            postgresql_where=text("is_active = TRUE"),
+        ),
+        Index(
+            "idx_processes_quality_criteria",
+            quality_criteria,
+            postgresql_using="gin",
+        ),
+        Index(
+            "idx_processes_sort_order",
+            sort_order,
+        ),
+    )
+
+    def __repr__(self) -> str:
+        """Return string representation of Process instance."""
+        return (
+            f"<Process(id={self.id}, number={self.process_number}, "
+            f"code='{self.process_code}', name_en='{self.process_name_en}')>"
+        )
+
+    def __str__(self) -> str:
+        """Return human-readable string representation."""
+        return f"{self.process_number}. {self.process_name_en} ({self.process_code})"
+
+    def to_dict(self) -> dict:
+        """
+        Convert Process instance to dictionary.
+
+        Returns:
+            dict: Dictionary representation of the process
+        """
+        return {
+            "id": self.id,
+            "process_number": self.process_number,
+            "process_code": self.process_code,
+            "process_name_ko": self.process_name_ko,
+            "process_name_en": self.process_name_en,
+            "description": self.description,
+            "estimated_duration_seconds": self.estimated_duration_seconds,
+            "quality_criteria": self.quality_criteria,
+            "is_active": self.is_active,
+            "sort_order": self.sort_order,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }

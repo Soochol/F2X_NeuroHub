@@ -73,6 +73,30 @@
       "command": "mcp-code-graph",
       "args": [],
       "env": {}
+    },
+    "git": {
+      "name": "Git MCP",
+      "description": "Local git repository operations and version control",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-git"
+      ],
+      "env": {
+        "GIT_REPOSITORY_PATH": "c:\\myCode\\F2X_NeuroHub"
+      }
+    },
+    "github": {
+      "name": "GitHub MCP",
+      "description": "Official GitHub integration for repository and issue management",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_TOKEN_HERE"
+      }
     }
   }
 }

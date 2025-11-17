@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "SlashCommand(/sc:implement:*)"
+      "SlashCommand(/sc:implement:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)",
+      "Bash(psql:*)",
+      "Bash(backend/app/models/__init__.py)",
+      "Bash(backend/app/schemas/__init__.py)",
+      "Bash(backend/app/crud/__init__.py)",
+      "Bash(python -m py_compile:*)",
+      "Bash(backend/app/api/v1/__init__.py)",
+      "Bash(backend/app/core/__init__.py)"
     ],
     "deny": [],
     "ask": []

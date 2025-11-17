@@ -1,0 +1,271 @@
+"""
+Authentication API endpoints.
+
+Provides:
+    - User login (JWT token generation)
+    - Token refresh
+    - Current user profile retrieval
+"""
+
+from datetime import timedelta
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+
+from app.api import deps
+from app.core import security
+from app.crud import user as user_crud
+from app.models import User
+from app.schemas import UserInDB, UserLogin
+from app.config import settings
+
+
+router = APIRouter()
+
+
+@router.post("/login", response_model=dict[str, Any])
+def login(
+    db: Session = Depends(deps.get_db),
+    form_data: OAuth2PasswordRequestForm = Depends(),
+) -> Any:
+    """
+    OAuth2 compatible token login.
+
+    Get an access token for future requests using username and password.
+
+    **Request Body (form-data):**
+    - username: User's username
+    - password: User's password
+
+    **Response:**
+    - access_token: JWT token string
+    - token_type: "bearer"
+    - expires_in: Token expiration time in seconds
+
+    **Example:**
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/auth/login" \\
+         -H "Content-Type: application/x-www-form-urlencoded" \\
+         -d "username=operator1&password=SecurePass123"
+    ```
+
+    **Response:**
+    ```json
+    {
+        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+        "token_type": "bearer",
+        "expires_in": 1800
+    }
+    ```
+
+    Raises:
+        HTTPException 401: Invalid credentials
+        HTTPException 400: Inactive user account
+    """
+    # Authenticate user
+    user = user_crud.authenticate(
+        db,
+        username=form_data.username,
+        password=form_data.password
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account"
+        )
+
+    # Update last login timestamp
+    user_crud.update_last_login(db, user_id=user.id)
+
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        subject=user.id,
+        expires_delta=access_token_expires,
+        additional_claims={
+            "role": user.role.value,
+            "username": user.username,
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # seconds
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role.value,
+        }
+    }
+
+
+@router.post("/login/json", response_model=dict[str, Any])
+def login_json(
+    db: Session = Depends(deps.get_db),
+    credentials: UserLogin = None,
+) -> Any:
+    """
+    JSON-based login endpoint (alternative to OAuth2 form).
+
+    **Request Body (JSON):**
+    ```json
+    {
+        "username": "operator1",
+        "password": "SecurePass123"
+    }
+    ```
+
+    **Response:**
+    Same as /login endpoint
+
+    Raises:
+        HTTPException 401: Invalid credentials
+        HTTPException 400: Inactive user account
+    """
+    # Authenticate user
+    user = user_crud.authenticate(
+        db,
+        username=credentials.username,
+        password=credentials.password
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password"
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account"
+        )
+
+    # Update last login timestamp
+    user_crud.update_last_login(db, user_id=user.id)
+
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        subject=user.id,
+        expires_delta=access_token_expires,
+        additional_claims={
+            "role": user.role.value,
+            "username": user.username,
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role.value,
+        }
+    }
+
+
+@router.get("/me", response_model=UserInDB)
+def read_current_user(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get current authenticated user profile.
+
+    **Headers:**
+    - Authorization: Bearer {access_token}
+
+    **Response:**
+    Complete user profile (excluding password_hash)
+
+    **Example:**
+    ```bash
+    curl -X GET "http://localhost:8000/api/v1/auth/me" \\
+         -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..."
+    ```
+
+    Raises:
+        HTTPException 401: Missing or invalid token
+        HTTPException 400: Inactive user account
+    """
+    return current_user
+
+
+@router.post("/refresh", response_model=dict[str, Any])
+def refresh_token(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Refresh access token.
+
+    Get a new access token using an existing valid token.
+    Useful for extending session without re-authentication.
+
+    **Headers:**
+    - Authorization: Bearer {access_token}
+
+    **Response:**
+    New access token with refreshed expiration time
+
+    Raises:
+        HTTPException 401: Missing or invalid token
+    """
+    # Create new access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        subject=current_user.id,
+        expires_delta=access_token_expires,
+        additional_claims={
+            "role": current_user.role.value,
+            "username": current_user.username,
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
+
+@router.post("/logout")
+def logout(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Logout current user.
+
+    Note: Since we're using stateless JWT tokens, logout is handled
+    client-side by discarding the token. This endpoint is provided
+    for API consistency and future enhancements (e.g., token blacklisting).
+
+    **Headers:**
+    - Authorization: Bearer {access_token}
+
+    **Response:**
+    Logout confirmation message
+
+    **Client Implementation:**
+    After calling this endpoint, the client should delete the stored token.
+    """
+    return {
+        "message": "Successfully logged out",
+        "detail": "Please discard your access token"
+    }
