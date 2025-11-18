@@ -1,0 +1,495 @@
+{
+  "theme_name": "Supabase Inspired - F2X NeuroHub MES",
+  "version": "1.0.0",
+  "description": "Supabase 스타일 다크 테마 - 현대적이고 세련된 디자인",
+
+  "colors": {
+    "brand": {
+      "main": "#3ECF8E",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
+      "contrast": "#ffffff"
+    },
+    "primary": {
+      "main": "#3ECF8E",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
+      "contrast": "#ffffff"
+    },
+    "success": {
+      "main": "#3ECF8E",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
+      "contrast": "#ffffff"
+    },
+    "completed": {
+      "main": "#F97316",
+      "dark": "#EA580C",
+      "light": "#FB923C",
+      "contrast": "#ffffff"
+    },
+    "danger": {
+      "main": "#F04438",
+      "dark": "#D92D20",
+      "light": "#F97066",
+      "contrast": "#ffffff"
+    },
+    "inProgress": {
+      "main": "#3B82F6",
+      "dark": "#2563EB",
+      "light": "#60A5FA",
+      "contrast": "#ffffff"
+    },
+    "grey": {
+      "50": "#f9fafb",
+      "100": "#f3f4f6",
+      "200": "#e5e7eb",
+      "300": "#d1d5db",
+      "400": "#9ca3af",
+      "500": "#6b7280",
+      "600": "#4b5563",
+      "700": "#374151",
+      "800": "#1f2937",
+      "900": "#111827"
+    },
+    "background": {
+      "default": "#0f0f0f",
+      "paper": "#0f0f0f",
+      "elevated": "#1f1f1f",
+      "hover": "#252525",
+      "sidebar": "#0f0f0f",
+      "sidebarHover": "#0d0d0d",
+      "header": "#0f0f0f"
+    },
+    "text": {
+      "primary": "#ededed",
+      "secondary": "#a8a8a8",
+      "disabled": "#6b7280",
+      "onDark": "#ffffff",
+      "onBrand": "#000000"
+    },
+    "border": {
+      "default": "#1a1a1a",
+      "light": "#2a2a2a",
+      "brandGlow": "#3ECF8E80"
+    },
+    "glow": {
+      "brand": "#3ECF8E",
+      "brandSoft": "#3ECF8E40",
+      "brandMedium": "#3ECF8E60",
+      "brandStrong": "#3ECF8E80",
+      "brandIntense": "#3ECF8ECC"
+    }
+  },
+
+  "typography": {
+    "fontFamily": "'Noto Sans KR', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+    "fontSize": {
+      "tiny": 10,
+      "small": 12,
+      "normal": 14,
+      "medium": 15,
+      "large": 18,
+      "xlarge": 22,
+      "xxlarge": 28,
+      "huge": 36
+    },
+    "fontWeight": {
+      "light": 300,
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.2,
+      "normal": 1.5,
+      "relaxed": 1.75
+    }
+  },
+
+  "spacing": {
+    "none": 0,
+    "xxsmall": 2,
+    "xsmall": 4,
+    "small": 8,
+    "normal": 12,
+    "medium": 16,
+    "large": 24,
+    "xlarge": 32,
+    "xxlarge": 48,
+    "xxxlarge": 64
+  },
+
+  "borderRadius": {
+    "none": 0,
+    "small": 4,
+    "normal": 8,
+    "medium": 12,
+    "large": 16,
+    "xlarge": 20,
+    "round": 9999
+  },
+
+  "shadows": {
+    "none": "none",
+    "small": "0 2px 8px rgba(0, 0, 0, 0.6)",
+    "medium": "0 4px 16px rgba(0, 0, 0, 0.7)",
+    "large": "0 8px 32px rgba(0, 0, 0, 0.8)",
+    "brandGlow": "0 0 24px rgba(62, 207, 142, 0.5), 0 0 12px rgba(62, 207, 142, 0.3)",
+    "brandGlowStrong": "0 0 40px rgba(62, 207, 142, 0.7), 0 0 20px rgba(62, 207, 142, 0.5)",
+    "brandGlowIntense": "0 0 60px rgba(62, 207, 142, 0.9), 0 0 30px rgba(62, 207, 142, 0.7)"
+  },
+
+  "layout": {
+    "sidebarWidth": 240,
+    "headerHeight": 64,
+    "footerHeight": 32,
+    "contentMaxWidth": 1400
+  },
+
+  "components": {
+    "button": {
+      "default": {
+        "background": "{colors.background.elevated}",
+        "color": "{colors.text.primary}",
+        "border": "1px solid {colors.border.default}",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.background.hover}",
+        "pressedBackground": "{colors.grey.700}",
+        "shadow": "{shadows.small}"
+      },
+      "primary": {
+        "background": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3ECF8E, stop:1 #2DB87C)",
+        "color": "#000000",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "hoverBackground": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4FFFA1, stop:1 #3ECF8E)",
+        "pressedBackground": "{colors.brand.dark}",
+        "shadow": "{shadows.brandGlowStrong}"
+      },
+      "success": {
+        "background": "{colors.success.main}",
+        "color": "{colors.text.onBrand}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "hoverBackground": "{colors.success.dark}",
+        "pressedBackground": "{colors.success.dark}",
+        "shadow": "{shadows.brandGlow}"
+      },
+      "danger": {
+        "background": "{colors.danger.main}",
+        "color": "{colors.danger.contrast}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "hoverBackground": "{colors.danger.dark}",
+        "pressedBackground": "{colors.danger.dark}",
+        "shadow": "0 0 20px rgba(240, 68, 56, 0.3)"
+      },
+      "outline": {
+        "background": "transparent",
+        "color": "{colors.brand.main}",
+        "border": "1px solid {colors.brand.main}",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.glow.brandSoft}",
+        "pressedBackground": "{colors.glow.brandMedium}",
+        "shadow": "none"
+      }
+    },
+
+    "label": {
+      "title": {
+        "fontSize": "{typography.fontSize.huge}",
+        "fontWeight": "{typography.fontWeight.bold}",
+        "color": "{colors.text.primary}"
+      },
+      "heading": {
+        "fontSize": "{typography.fontSize.xxlarge}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "color": "{colors.text.primary}"
+      },
+      "normal": {
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "color": "{colors.text.primary}"
+      },
+      "small": {
+        "fontSize": "{typography.fontSize.small}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "color": "{colors.text.secondary}"
+      }
+    },
+
+    "card": {
+      "default": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "boxShadow": "{shadows.medium}"
+      },
+      "elevated": {
+        "background": "{colors.background.elevated}",
+        "border": "1px solid {colors.border.light}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "boxShadow": "{shadows.large}"
+      },
+      "glow": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.brandGlow}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "boxShadow": "{shadows.brandGlow}"
+      }
+    },
+
+    "statCard": {
+      "default": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "3px solid {colors.grey.600}",
+        "borderRadius": "{borderRadius.medium}",
+        "padding": "{spacing.large}",
+        "minHeight": 140,
+        "boxShadow": "{shadows.medium}"
+      },
+      "success": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.brandGlow}",
+        "borderLeft": "4px solid {colors.success.main}",
+        "borderRadius": "{borderRadius.medium}",
+        "padding": "{spacing.large}",
+        "minHeight": 140,
+        "boxShadow": "{shadows.brandGlowStrong}"
+      },
+      "completed": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "3px solid {colors.completed.main}",
+        "borderRadius": "{borderRadius.medium}",
+        "padding": "{spacing.large}",
+        "minHeight": 140,
+        "boxShadow": "0 0 20px rgba(249, 115, 22, 0.2)"
+      },
+      "danger": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "3px solid {colors.danger.main}",
+        "borderRadius": "{borderRadius.medium}",
+        "padding": "{spacing.large}",
+        "minHeight": 140,
+        "boxShadow": "0 0 20px rgba(240, 68, 56, 0.2)"
+      },
+      "inProgress": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "3px solid {colors.inProgress.main}",
+        "borderRadius": "{borderRadius.medium}",
+        "padding": "{spacing.large}",
+        "minHeight": 140,
+        "boxShadow": "0 0 20px rgba(59, 130, 246, 0.2)"
+      }
+    },
+
+    "sidebarButton": {
+      "default": {
+        "background": "transparent",
+        "color": "{colors.text.secondary}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.normal} {spacing.medium}",
+        "fontSize": "{typography.fontSize.medium}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "hoverBackground": "{colors.background.sidebarHover}",
+        "textAlign": "left"
+      },
+      "active": {
+        "background": "{colors.glow.brandMedium}",
+        "color": "{colors.brand.light}",
+        "border": "1px solid {colors.border.brandGlow}",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.normal} {spacing.medium}",
+        "fontSize": "{typography.fontSize.medium}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "hoverBackground": "{colors.glow.brandStrong}",
+        "textAlign": "left",
+        "boxShadow": "{shadows.brandGlow}"
+      }
+    }
+  },
+
+  "globalStyles": {
+    "QWidget": {
+      "font-family": "{typography.fontFamily}",
+      "font-size": "{typography.fontSize.normal}px",
+      "color": "{colors.text.primary}"
+    },
+    "QMainWindow": {
+      "background-color": "{colors.background.default}"
+    },
+    "QStatusBar": {
+      "background-color": "{colors.background.paper}",
+      "border-top": "1px solid {colors.border.default}",
+      "color": "{colors.text.secondary}",
+      "font-size": "{typography.fontSize.small}px"
+    },
+    "QMenuBar": {
+      "background-color": "{colors.background.paper}",
+      "border-bottom": "1px solid {colors.border.default}",
+      "color": "{colors.text.primary}",
+      "padding": "4px"
+    },
+    "QMenuBar::item": {
+      "padding": "6px 12px",
+      "border-radius": "{borderRadius.small}px"
+    },
+    "QMenuBar::item:selected": {
+      "background-color": "{colors.background.hover}",
+      "color": "{colors.brand.main}"
+    },
+    "QMenu": {
+      "background-color": "{colors.background.elevated}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "color": "{colors.text.primary}",
+      "padding": "4px"
+    },
+    "QMenu::item": {
+      "padding": "8px 16px",
+      "border-radius": "{borderRadius.small}px"
+    },
+    "QMenu::item:selected": {
+      "background-color": "{colors.glow.brandSoft}",
+      "color": "{colors.brand.main}"
+    },
+    "QLineEdit": {
+      "background-color": "{colors.background.elevated}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "color": "{colors.text.primary}",
+      "selection-background-color": "{colors.brand.main}"
+    },
+    "QLineEdit:focus": {
+      "border": "1px solid {colors.brand.main}"
+    },
+    "QTextEdit": {
+      "background-color": "{colors.background.elevated}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px",
+      "color": "{colors.text.primary}",
+      "selection-background-color": "{colors.brand.main}"
+    },
+    "QComboBox": {
+      "background-color": "{colors.background.elevated}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "color": "{colors.text.primary}"
+    },
+    "QTableWidget": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "gridline-color": "{colors.border.default}",
+      "color": "{colors.text.primary}",
+      "border-radius": "{borderRadius.normal}px"
+    },
+    "QTableWidget::item:selected": {
+      "background-color": "{colors.glow.brandMedium}",
+      "color": "{colors.brand.main}"
+    },
+    "QHeaderView::section": {
+      "background-color": "{colors.background.elevated}",
+      "border": "none",
+      "border-bottom": "1px solid {colors.border.default}",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "font-weight": "{typography.fontWeight.semibold}",
+      "color": "{colors.text.primary}"
+    },
+    "QScrollBar:vertical": {
+      "background": "{colors.background.paper}",
+      "width": "12px",
+      "border-radius": "6px"
+    },
+    "QScrollBar::handle:vertical": {
+      "background": "{colors.grey.700}",
+      "border-radius": "6px",
+      "min-height": "30px"
+    },
+    "QScrollBar::handle:vertical:hover": {
+      "background": "{colors.grey.600}"
+    },
+    "QMessageBox": {
+      "background-color": "{colors.background.paper}",
+      "color": "{colors.text.primary}",
+      "border": "1px solid {colors.border.brandGlow}",
+      "border-radius": "{borderRadius.large}px"
+    },
+    "QMessageBox QLabel": {
+      "color": "{colors.text.primary}",
+      "font-size": "{typography.fontSize.normal}px"
+    },
+    "QMessageBox QPushButton": {
+      "background-color": "{colors.background.elevated}",
+      "color": "{colors.text.primary}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.medium}px",
+      "min-width": "80px",
+      "font-weight": "{typography.fontWeight.medium}"
+    },
+    "QMessageBox QPushButton:hover": {
+      "background-color": "{colors.background.hover}",
+      "border": "1px solid {colors.brand.main}"
+    },
+    "QMessageBox QPushButton:pressed": {
+      "background-color": "{colors.glow.brandSoft}"
+    },
+    "QMessageBox QPushButton:default": {
+      "background-color": "{colors.brand.main}",
+      "color": "{colors.text.onBrand}",
+      "border": "none"
+    },
+    "QMessageBox QPushButton:default:hover": {
+      "background-color": "{colors.brand.dark}"
+    },
+    "QDialog": {
+      "background-color": "{colors.background.paper}",
+      "color": "{colors.text.primary}",
+      "border": "1px solid {colors.border.brandGlow}",
+      "border-radius": "{borderRadius.large}px"
+    },
+    "QDialog QLabel": {
+      "color": "{colors.text.primary}"
+    },
+    "QDialog QPushButton": {
+      "background-color": "{colors.background.elevated}",
+      "color": "{colors.text.primary}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.medium}px",
+      "min-width": "80px"
+    },
+    "QDialog QPushButton:hover": {
+      "background-color": "{colors.background.hover}",
+      "border": "1px solid {colors.brand.main}"
+    }
+  }
+}

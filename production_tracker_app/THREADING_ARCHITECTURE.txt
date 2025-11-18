@@ -1,0 +1,295 @@
+================================================================================
+THREADING ARCHITECTURE - Production Tracker App
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              UI LAYER (Main Thread)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐              │
+│  │ MainWindow   │     │ LoginDialog  │     │ Other Widgets│              │
+│  │              │     │              │     │              │              │
+│  │ - UI Updates │     │ - UI Updates │     │ - UI Updates │              │
+│  │ - User Input │     │ - Buttons    │     │ - Display    │              │
+│  └──────┬───────┘     └──────┬───────┘     └──────────────┘              │
+│         │                     │                                            │
+│         │ Signals             │ Signals                                    │
+│         ▼                     ▼                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │                     │
+         │                     │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          VIEWMODEL LAYER (Main Thread)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      MainViewModel                                  │   │
+│  │                                                                     │   │
+│  │  State Management:                                                 │   │
+│  │  - current_lot                                                     │   │
+│  │  - current_worker                                                  │   │
+│  │  - is_online                                                       │   │
+│  │                                                                     │   │
+│  │  Signal Handlers:                                                  │   │
+│  │  - on_barcode_scanned()       → Triggers threaded work_start      │   │
+│  │  - on_completion_detected()   → Triggers threaded completion      │   │
+│  │  - refresh_stats()            → Triggers threaded stats fetch     │   │
+│  │  - on_work_started_success()  ← Result from thread                │   │
+│  │  - on_work_completed_success()← Result from thread                │   │
+│  │  - on_stats_ready()           ← Result from thread                │   │
+│  │  - on_work_service_error()    ← Error from thread                 │   │
+│  │                                                                     │   │
+│  │  Cleanup:                                                          │   │
+│  │  - cleanup() → Cancels all threads, stops timers                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│         │                     │                     │                       │
+│         │ Calls               │ Calls               │ Receives              │
+│         ▼                     ▼                     ▲                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │                     │                     │
+         │                     │                     │ Signals
+         │                     │                     │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          SERVICE LAYER (Main Thread)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────┐          ┌─────────────────────────┐         │
+│  │   WorkService           │          │   AuthService           │         │
+│  │   (QObject)             │          │   (QObject)             │         │
+│  ├─────────────────────────┤          ├─────────────────────────┤         │
+│  │                         │          │                         │         │
+│  │ start_work()            │          │ login()                 │         │
+│  │  → Creates worker       │          │  → Creates worker       │         │
+│  │  → Starts thread        │          │  → Starts thread        │         │
+│  │                         │          │                         │         │
+│  │ complete_work()         │          │ validate_token()        │         │
+│  │  → Creates worker       │          │  → Creates worker       │         │
+│  │  → Starts thread        │          │  → Starts thread        │         │
+│  │                         │          │                         │         │
+│  │ get_today_stats()       │          │ cancel_all_operations() │         │
+│  │  → Creates worker       │          │  → Stops all threads    │         │
+│  │  → Starts thread        │          │                         │         │
+│  │                         │          │ Signals:                │         │
+│  │ Signals:                │          │ - login_success         │         │
+│  │ - work_started          │          │ - auth_error            │         │
+│  │ - work_completed        │          │ - token_validated       │         │
+│  │ - stats_ready           │          │                         │         │
+│  │ - error_occurred        │          │ _active_workers: [...]  │         │
+│  │                         │          │                         │         │
+│  │ _active_workers: [...]  │          └─────────┬───────────────┘         │
+│  │                         │                     │                         │
+│  └─────────┬───────────────┘                     │                         │
+│            │                                     │                         │
+│            │ Creates & Manages                   │ Creates & Manages       │
+│            ▼                                     ▼                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                                     │
+            │                                     │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          WORKER LAYER (Background Threads)                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐        │
+│  │ StartWorkWorker  │  │CompleteWorkWorker│  │  StatsWorker     │        │
+│  │   (QThread)      │  │   (QThread)      │  │   (QThread)      │        │
+│  ├──────────────────┤  ├──────────────────┤  ├──────────────────┤        │
+│  │                  │  │                  │  │                  │        │
+│  │ run():           │  │ run():           │  │ run():           │        │
+│  │  1. Build data   │  │  1. Get data     │  │  1. Build params │        │
+│  │  2. POST request │  │  2. POST request │  │  2. GET request  │        │
+│  │  3. Emit signal  │  │  3. Emit signal  │  │  3. Emit signal  │        │
+│  │                  │  │                  │  │                  │        │
+│  │ Signals:         │  │ Signals:         │  │ Signals:         │        │
+│  │ - work_started   │  │ - work_completed │  │ - stats_ready    │        │
+│  │ - work_failed    │  │ - work_failed    │  │                  │        │
+│  │                  │  │                  │  │ (no failure)     │        │
+│  │ cancel()         │  │ cancel()         │  │ cancel()         │        │
+│  │                  │  │                  │  │                  │        │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘        │
+│                                                                             │
+│  ┌──────────────────┐  ┌──────────────────────────┐                       │
+│  │  LoginWorker     │  │ TokenValidationWorker    │                       │
+│  │   (QThread)      │  │   (QThread)              │                       │
+│  ├──────────────────┤  ├──────────────────────────┤                       │
+│  │                  │  │                          │                       │
+│  │ run():           │  │ run():                   │                       │
+│  │  1. Build data   │  │  1. GET /auth/me         │                       │
+│  │  2. POST login   │  │  2. Emit signal          │                       │
+│  │  3. Emit signal  │  │                          │                       │
+│  │                  │  │ Signals:                 │                       │
+│  │ Signals:         │  │ - validation_success     │                       │
+│  │ - login_success  │  │ - validation_failed      │                       │
+│  │ - login_failed   │  │                          │                       │
+│  │                  │  │ cancel()                 │                       │
+│  │ cancel()         │  │                          │                       │
+│  │                  │  │                          │                       │
+│  └──────────────────┘  └──────────────────────────┘                       │
+│                                                                             │
+│            ▲                    ▲                    ▲                      │
+│            │ Uses               │ Uses               │ Uses                │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                    │                    │
+            │                    │                    │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          NETWORK LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        APIClient                                    │   │
+│  │                                                                     │   │
+│  │  get(endpoint, params)                                             │   │
+│  │  post(endpoint, data)                                              │   │
+│  │                                                                     │   │
+│  │  - Session with retry logic (3 retries)                           │   │
+│  │  - JWT token management                                            │   │
+│  │  - 10 second timeout                                               │   │
+│  │  - Error handling & friendly messages                              │   │
+│  │                                                                     │   │
+│  │  ⚠️  BLOCKING OPERATIONS - Must run in worker threads!            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│            │                                                                │
+│            ▼                                                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Backend API (FastAPI)                            │   │
+│  │                    http://localhost:8000                            │   │
+│  │                                                                     │   │
+│  │  - POST /api/v1/auth/login                                         │   │
+│  │  - GET  /api/v1/auth/me                                            │   │
+│  │  - POST /api/v1/process/start                                      │   │
+│  │  - POST /api/v1/process/complete                                   │   │
+│  │  - GET  /api/v1/analytics/daily                                    │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+THREAD LIFECYCLE
+================================================================================
+
+1. CREATE
+   ┌────────────────────────────────────────┐
+   │ Service creates worker instance        │
+   │ worker = StartWorkWorker(...)          │
+   │                                        │
+   │ Connects signals                       │
+   │ worker.work_started.connect(handler)   │
+   │ worker.finished.connect(cleanup)       │
+   │                                        │
+   │ Adds to active workers list            │
+   │ self._active_workers.append(worker)    │
+   └────────────────────────────────────────┘
+                  │
+                  ▼
+
+2. START
+   ┌────────────────────────────────────────┐
+   │ Service starts worker                  │
+   │ worker.start()                         │
+   │                                        │
+   │ Qt creates background thread           │
+   │ Calls worker.run() in thread           │
+   └────────────────────────────────────────┘
+                  │
+                  ▼
+
+3. EXECUTE
+   ┌────────────────────────────────────────┐
+   │ Worker.run() executes                  │
+   │ [BACKGROUND THREAD]                    │
+   │                                        │
+   │ try:                                   │
+   │   result = api_call()                  │
+   │   self.result_ready.emit(result)       │
+   │ except Exception as e:                 │
+   │   self.error_occurred.emit(str(e))     │
+   └────────────────────────────────────────┘
+                  │
+                  ▼
+
+4. COMPLETE
+   ┌────────────────────────────────────────┐
+   │ Signal emitted                         │
+   │ [Qt routes to main thread]             │
+   │                                        │
+   │ Service handler called                 │
+   │ [MAIN THREAD]                          │
+   │                                        │
+   │ worker.finished emitted                │
+   └────────────────────────────────────────┘
+                  │
+                  ▼
+
+5. CLEANUP
+   ┌────────────────────────────────────────┐
+   │ Cleanup handler called                 │
+   │ _cleanup_worker(worker)                │
+   │                                        │
+   │ Remove from active list                │
+   │ self._active_workers.remove(worker)    │
+   │                                        │
+   │ Schedule deletion                      │
+   │ worker.deleteLater()                   │
+   │                                        │
+   │ Qt deletes when safe                   │
+   └────────────────────────────────────────┘
+
+================================================================================
+SIGNAL FLOW EXAMPLE: Barcode Scan → Work Start
+================================================================================
+
+ USER                    UI                 VIEWMODEL          SERVICE          WORKER
+  │                      │                     │                 │                │
+  │  Scan Barcode        │                     │                 │                │
+  ├──────────────────────►                     │                 │                │
+  │                      │                     │                 │                │
+  │                      │  barcode_valid      │                 │                │
+  │                      │     signal          │                 │                │
+  │                      ├─────────────────────►                 │                │
+  │                      │                     │                 │                │
+  │                      │                     │  start_work()   │                │
+  │                      │                     ├─────────────────►                │
+  │                      │                     │                 │                │
+  │                      │                     │                 │  worker.start()│
+  │                      │                     │                 ├────────────────►
+  │                      │                     │                 │                │
+  │  UI REMAINS          │                     │                 │  [BACKGROUND]  │
+  │  RESPONSIVE!         │                     │                 │  API call...   │
+  │                      │                     │                 │                │
+  │                      │                     │                 │  work_started  │
+  │                      │                     │                 │     signal     │
+  │                      │                     │                 ◄────────────────┤
+  │                      │                     │                 │                │
+  │                      │                     │  work_started   │                │
+  │                      │                     │     signal      │                │
+  │                      │                     ◄─────────────────┤                │
+  │                      │                     │                 │                │
+  │                      │  work_started       │                 │                │
+  │                      │     signal          │                 │                │
+  │                      ◄─────────────────────┤                 │                │
+  │                      │                     │                 │                │
+  │  See success         │  Update UI          │                 │                │
+  │  message!            │  (lot info, stats)  │                 │                │
+  ◄──────────────────────┤                     │                 │                │
+  │                      │                     │                 │                │
+
+================================================================================
+KEY POINTS
+================================================================================
+
+✅ All blocking operations run in background threads (QThread workers)
+✅ UI thread only handles UI updates and event processing
+✅ Thread-safe communication via Qt signals/slots
+✅ Proper lifecycle management (create → start → execute → cleanup)
+✅ Graceful cancellation support
+✅ No zombie threads (proper cleanup on app close)
+✅ Services track active workers and can cancel all
+✅ Workers emit signals before thread terminates
+✅ Qt automatically routes signals to main thread
+
+⚠️  NEVER:
+   - Update UI directly from worker threads
+   - Store references to UI objects in workers
+   - Block the main thread with synchronous operations
+   - Forget to connect finished signal to cleanup
+
+================================================================================

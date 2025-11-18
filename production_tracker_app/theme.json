@@ -1,0 +1,225 @@
+{
+  "name": "F2X Production Tracker - Modern Dark Theme",
+  "version": "2.0.0",
+  "description": "현대적인 다크 테마 - Production Tracker 전용",
+  "colors": {
+    "brand": {
+      "main": "#3ECF8E",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
+      "contrast": "#000000"
+    },
+    "primary": "#3b82f6",
+    "secondary": "#10b981",
+    "success": "#22c55e",
+    "warning": "#f59e0b",
+    "error": "#ef4444",
+    "info": "#06b6d4",
+    "grey": {
+      "50": "#f9fafb",
+      "100": "#f3f4f6",
+      "200": "#e5e7eb",
+      "300": "#d1d5db",
+      "400": "#9ca3af",
+      "500": "#6b7280",
+      "600": "#4b5563",
+      "700": "#374151",
+      "800": "#1f2937",
+      "900": "#111827"
+    },
+    "background": {
+      "main": "#0f0f0f",
+      "card": "#1a1a1a",
+      "elevated": "#1f1f1f",
+      "hover": "#252525",
+      "overlay": "rgba(0, 0, 0, 0.7)"
+    },
+    "text": {
+      "primary": "#ededed",
+      "secondary": "#d1d5db",
+      "tertiary": "#9ca3af",
+      "disabled": "#6b7280",
+      "onDark": "#ffffff",
+      "onBrand": "#000000"
+    },
+    "border": {
+      "default": "#2a2a2a",
+      "light": "#3a3a3a",
+      "focus": "#3b82f6",
+      "error": "#ef4444",
+      "brandGlow": "#3ECF8E80"
+    },
+    "status": {
+      "online": "#10b981",
+      "offline": "#ef4444",
+      "idle": "#f59e0b"
+    },
+    "glow": {
+      "brand": "#3ECF8E",
+      "brandSoft": "#3ECF8E20",
+      "brandMedium": "#3ECF8E40",
+      "brandStrong": "#3ECF8E60"
+    }
+  },
+  "typography": {
+    "fontFamily": "'Malgun Gothic', '맑은 고딕', 'Segoe UI', Arial, sans-serif",
+    "fontSize": {
+      "xs": "10px",
+      "sm": "12px",
+      "base": "14px",
+      "md": "15px",
+      "lg": "18px",
+      "xl": "22px",
+      "xxl": "28px"
+    },
+    "fontWeight": {
+      "light": "300",
+      "normal": "400",
+      "medium": "500",
+      "semibold": "600",
+      "bold": "700"
+    },
+    "lineHeight": {
+      "tight": "1.2",
+      "normal": "1.5",
+      "relaxed": "1.75"
+    }
+  },
+  "spacing": {
+    "none": "0px",
+    "xs": "4px",
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px",
+    "xxl": "32px"
+  },
+  "borderRadius": {
+    "none": "0px",
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "xl": "16px",
+    "full": "9999px"
+  },
+  "shadows": {
+    "none": "none",
+    "sm": "0 2px 8px rgba(0, 0, 0, 0.6)",
+    "md": "0 4px 16px rgba(0, 0, 0, 0.7)",
+    "lg": "0 8px 32px rgba(0, 0, 0, 0.8)",
+    "brandGlow": "0 0 20px rgba(62, 207, 142, 0.4)",
+    "brandGlowStrong": "0 0 30px rgba(62, 207, 142, 0.6)"
+  },
+  "components": {
+    "card": {
+      "backgroundColor": "#1a1a1a",
+      "border": "1px solid #2a2a2a",
+      "borderRadius": "12px",
+      "padding": "20px",
+      "minHeight": "120px",
+      "boxShadow": "0 6px 24px rgba(0, 0, 0, 0.8)"
+    },
+    "lotCard": {
+      "title": {
+        "fontSize": "18px",
+        "fontWeight": "600",
+        "color": "#ededed",
+        "paddingBottom": "12px"
+      },
+      "lotLabel": {
+        "fontSize": "26px",
+        "color": "#3ECF8E",
+        "fontWeight": "700",
+        "padding": "12px",
+        "textShadow": "0 0 15px rgba(62, 207, 142, 0.7)",
+        "backgroundColor": "rgba(62, 207, 142, 0.1)",
+        "borderRadius": "8px"
+      },
+      "infoLabel": {
+        "fontSize": "14px",
+        "color": "#d1d5db"
+      }
+    },
+    "statsCard": {
+      "title": {
+        "fontSize": "18px",
+        "fontWeight": "600",
+        "color": "#ededed",
+        "paddingBottom": "12px"
+      },
+      "statLabel": {
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "padding": "12px 16px",
+        "backgroundColor": "rgba(31, 31, 31, 0.9)",
+        "borderRadius": "8px",
+        "textAlign": "center",
+        "border": "1px solid rgba(62, 207, 142, 0.4)",
+        "minHeight": "50px"
+      },
+      "gridSpacing": "16px"
+    },
+    "statusLabel": {
+      "fontSize": "15px",
+      "padding": "14px",
+      "backgroundColor": "#1f1f1f",
+      "borderRadius": "10px",
+      "textAlign": "center",
+      "border": "1px solid rgba(62, 207, 142, 0.3)"
+    },
+    "button": {
+      "primary": {
+        "backgroundColor": "#3ECF8E",
+        "color": "#000000",
+        "padding": "10px 16px",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "borderRadius": "8px",
+        "border": "none",
+        "hoverBackgroundColor": "#57D9A0",
+        "boxShadow": "0 0 20px rgba(62, 207, 142, 0.5)"
+      },
+      "secondary": {
+        "backgroundColor": "#1f1f1f",
+        "color": "#ededed",
+        "padding": "10px 16px",
+        "fontSize": "14px",
+        "fontWeight": "500",
+        "borderRadius": "8px",
+        "border": "1px solid #2a2a2a",
+        "hoverBackgroundColor": "#252525"
+      }
+    },
+    "statusBar": {
+      "backgroundColor": "#1a1a1a",
+      "color": "#d1d5db",
+      "borderTop": "1px solid #2a2a2a"
+    }
+  },
+  "window": {
+    "backgroundColor": "#0f0f0f",
+    "defaultSize": {
+      "width": 800,
+      "height": 700
+    },
+    "contentMargins": {
+      "top": 20,
+      "right": 20,
+      "bottom": 20,
+      "left": 20
+    },
+    "spacing": 20
+  },
+  "animations": {
+    "duration": {
+      "fast": "150ms",
+      "normal": "250ms",
+      "slow": "350ms"
+    },
+    "easing": {
+      "easeInOut": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "easeOut": "cubic-bezier(0.0, 0, 0.2, 1)",
+      "easeIn": "cubic-bezier(0.4, 0, 1, 1)"
+    }
+  }
+}

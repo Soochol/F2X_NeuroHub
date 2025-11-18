@@ -1,0 +1,364 @@
+{
+  "theme_name": "F2X NeuroHub MES Theme",
+  "version": "1.0.0",
+  "description": "공정 관리 시스템 테마 - 사이드바 레이아웃",
+
+  "colors": {
+    "primary": {
+      "main": "#1976d2",
+      "dark": "#1565c0",
+      "light": "#42a5f5",
+      "contrast": "#ffffff"
+    },
+    "success": {
+      "main": "#2e7d32",
+      "dark": "#1b5e20",
+      "light": "#4caf50",
+      "contrast": "#ffffff"
+    },
+    "completed": {
+      "main": "#f57c00",
+      "dark": "#e65100",
+      "light": "#ff9800",
+      "contrast": "#ffffff"
+    },
+    "danger": {
+      "main": "#d32f2f",
+      "dark": "#c62828",
+      "light": "#f44336",
+      "contrast": "#ffffff"
+    },
+    "inProgress": {
+      "main": "#0288d1",
+      "dark": "#01579b",
+      "light": "#03a9f4",
+      "contrast": "#ffffff"
+    },
+    "grey": {
+      "50": "#fafafa",
+      "100": "#f5f5f5",
+      "200": "#eeeeee",
+      "300": "#e0e0e0",
+      "400": "#bdbdbd",
+      "500": "#9e9e9e",
+      "600": "#757575",
+      "700": "#616161",
+      "800": "#424242",
+      "900": "#212121"
+    },
+    "background": {
+      "default": "#f5f5f5",
+      "paper": "#ffffff",
+      "hover": "#eeeeee",
+      "sidebar": "#263238",
+      "sidebarHover": "#37474f",
+      "header": "#181818"
+    },
+    "text": {
+      "primary": "#212121",
+      "secondary": "#757575",
+      "disabled": "#bdbdbd",
+      "onDark": "#ffffff",
+      "placeholder": "#999999",
+      "sidebarSecondary": "#b0bec5",
+      "sidebarTertiary": "#90a4ae"
+    },
+    "border": {
+      "default": "#e0e0e0",
+      "dark": "#bdbdbd",
+      "sidebar": "#1a1a1a"
+    },
+    "brand": {
+      "main": "#3ECF8E",
+      "dark": "#2db574",
+      "light": "#5ed9a3"
+    }
+  },
+
+  "typography": {
+    "fontFamily": "맑은 고딕, Malgun Gothic, sans-serif",
+    "fontSize": {
+      "small": 11,
+      "normal": 13,
+      "medium": 14,
+      "large": 16,
+      "xlarge": 20,
+      "xxlarge": 24,
+      "huge": 32
+    },
+    "fontWeight": {
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+
+  "spacing": {
+    "none": 0,
+    "xxsmall": 2,
+    "xsmall": 4,
+    "small": 8,
+    "normal": 12,
+    "medium": 16,
+    "large": 24,
+    "xlarge": 32,
+    "xxlarge": 48
+  },
+
+  "borderRadius": {
+    "none": 0,
+    "small": 2,
+    "normal": 4,
+    "medium": 6,
+    "large": 8,
+    "xlarge": 12,
+    "round": 9999
+  },
+
+  "layout": {
+    "sidebarWidth": 220,
+    "headerHeight": 64,
+    "footerHeight": 32,
+    "contentMaxWidth": 1200
+  },
+
+  "components": {
+    "button": {
+      "default": {
+        "background": "{colors.grey.200}",
+        "color": "{colors.text.primary}",
+        "border": "1px solid {colors.border.default}",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.grey.300}",
+        "pressedBackground": "{colors.grey.400}"
+      },
+      "primary": {
+        "background": "{colors.primary.main}",
+        "color": "{colors.primary.contrast}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.primary.dark}",
+        "pressedBackground": "{colors.primary.dark}"
+      },
+      "success": {
+        "background": "{colors.success.main}",
+        "color": "{colors.success.contrast}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.success.dark}",
+        "pressedBackground": "{colors.success.dark}"
+      },
+      "danger": {
+        "background": "{colors.danger.main}",
+        "color": "{colors.danger.contrast}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.danger.dark}",
+        "pressedBackground": "{colors.danger.dark}"
+      },
+      "outline": {
+        "background": "transparent",
+        "color": "{colors.primary.main}",
+        "border": "1px solid {colors.primary.main}",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.small} {spacing.medium}",
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.primary.light}20",
+        "pressedBackground": "{colors.primary.light}40"
+      }
+    },
+
+    "label": {
+      "title": {
+        "fontSize": "{typography.fontSize.xxlarge}",
+        "fontWeight": "{typography.fontWeight.bold}",
+        "color": "{colors.text.primary}"
+      },
+      "heading": {
+        "fontSize": "{typography.fontSize.xlarge}",
+        "fontWeight": "{typography.fontWeight.semibold}",
+        "color": "{colors.text.primary}"
+      },
+      "normal": {
+        "fontSize": "{typography.fontSize.normal}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "color": "{colors.text.primary}"
+      },
+      "small": {
+        "fontSize": "{typography.fontSize.small}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "color": "{colors.text.secondary}"
+      }
+    },
+
+    "card": {
+      "default": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      }
+    },
+
+    "statCard": {
+      "default": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "4px solid {colors.grey.400}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "minHeight": 120,
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      },
+      "success": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "4px solid {colors.success.main}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "minHeight": 120,
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      },
+      "completed": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "4px solid {colors.completed.main}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "minHeight": 120,
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      },
+      "danger": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "4px solid {colors.danger.main}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "minHeight": 120,
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      },
+      "inProgress": {
+        "background": "{colors.background.paper}",
+        "border": "1px solid {colors.border.default}",
+        "borderLeft": "4px solid {colors.inProgress.main}",
+        "borderRadius": "{borderRadius.large}",
+        "padding": "{spacing.large}",
+        "minHeight": 120,
+        "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.1)"
+      }
+    },
+
+    "sidebarButton": {
+      "default": {
+        "background": "transparent",
+        "color": "{colors.text.onDark}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.normal} {spacing.medium}",
+        "fontSize": "{typography.fontSize.medium}",
+        "fontWeight": "{typography.fontWeight.normal}",
+        "hoverBackground": "{colors.background.sidebarHover}",
+        "textAlign": "left"
+      },
+      "active": {
+        "background": "{colors.primary.main}",
+        "color": "{colors.primary.contrast}",
+        "border": "none",
+        "borderRadius": "{borderRadius.normal}",
+        "padding": "{spacing.normal} {spacing.medium}",
+        "fontSize": "{typography.fontSize.medium}",
+        "fontWeight": "{typography.fontWeight.medium}",
+        "hoverBackground": "{colors.primary.dark}",
+        "textAlign": "left"
+      }
+    }
+  },
+
+  "globalStyles": {
+    "QWidget": {
+      "font-family": "{typography.fontFamily}",
+      "font-size": "{typography.fontSize.normal}px",
+      "color": "{colors.text.primary}"
+    },
+    "QMainWindow": {
+      "background-color": "{colors.background.default}"
+    },
+    "QStatusBar": {
+      "background-color": "{colors.background.paper}",
+      "border-top": "1px solid {colors.border.default}",
+      "color": "{colors.text.secondary}",
+      "font-size": "{typography.fontSize.small}px"
+    },
+    "QMenuBar": {
+      "background-color": "{colors.background.paper}",
+      "border-bottom": "1px solid {colors.border.default}",
+      "color": "{colors.text.primary}"
+    },
+    "QMenuBar::item:selected": {
+      "background-color": "{colors.background.hover}"
+    },
+    "QMenu": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "color": "{colors.text.primary}"
+    },
+    "QMenu::item:selected": {
+      "background-color": "{colors.primary.light}40"
+    },
+    "QLineEdit": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "color": "{colors.text.primary}"
+    },
+    "QLineEdit:focus": {
+      "border": "2px solid {colors.primary.main}"
+    },
+    "QTextEdit": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px",
+      "color": "{colors.text.primary}"
+    },
+    "QComboBox": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{borderRadius.normal}px",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "color": "{colors.text.primary}"
+    },
+    "QTableWidget": {
+      "background-color": "{colors.background.paper}",
+      "border": "1px solid {colors.border.default}",
+      "gridline-color": "{colors.border.default}",
+      "color": "{colors.text.primary}"
+    },
+    "QTableWidget::item:selected": {
+      "background-color": "{colors.primary.light}40"
+    },
+    "QHeaderView::section": {
+      "background-color": "{colors.grey.100}",
+      "border": "none",
+      "border-bottom": "1px solid {colors.border.default}",
+      "padding": "{spacing.small}px {spacing.normal}px",
+      "font-weight": "{typography.fontWeight.semibold}"
+    }
+  }
+}
