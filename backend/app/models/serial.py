@@ -194,6 +194,12 @@ class Serial(Base):
         cascade="all, delete-orphan"
     )
 
+    alerts: Mapped[list["Alert"]] = relationship(
+        "Alert",
+        back_populates="serial",
+        cascade="all, delete-orphan"
+    )
+
     # Indexes
     __table_args__ = (
         # Foreign key index for lot queries

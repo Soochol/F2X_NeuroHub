@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.models import User
 from app.crud import product_model as crud
 from app.schemas.product_model import (
     ProductModelCreate,
@@ -57,6 +58,7 @@ def list_product_models(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProductModelInDB]:
     """List all product models with pagination.
 
@@ -93,6 +95,67 @@ def list_product_models(
         limit: Query parameter, positive integer (1-10000)
     """
     return crud.get_multi(db, skip=skip, limit=limit)
+
+
+@router.get(
+    "/active",
+    response_model=List[ProductModelInDB],
+    summary="List active product models",
+    description="Retrieve paginated list of product models with ACTIVE status only",
+)
+def get_active_product_models(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> List[ProductModelInDB]:
+    """Get active product models with pagination.
+
+    Retrieves only product models with ACTIVE status, indicating they are currently
+    available for production operations. Supports pagination for managing large
+    result sets.
+
+    Args:
+        skip: Number of records to skip (offset) for pagination.
+            Defaults to 0. Must be non-negative.
+        limit: Maximum number of records to return.
+            Defaults to 100. Must be positive (1-10000).
+        db: SQLAlchemy database session (injected via dependency).
+
+    Returns:
+        List[ProductModelInDB]: List of active product model records.
+            Empty list if no active records exist.
+
+    Raises:
+        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
+
+    Examples:
+        Get all active product models:
+        >>> GET /api/v1/product-models/active
+
+        Paginate through active products (10 per page):
+        >>> GET /api/v1/product-models/active?skip=0&limit=10
+        >>> GET /api/v1/product-models/active?skip=10&limit=10
+
+    Response Example (200 OK):
+        [
+            {
+                "id": 1,
+                "model_code": "NH-F2X-001",
+                "model_name": "NeuroHub F2X Standard",
+                "status": "ACTIVE",
+                ...
+            },
+            {
+                "id": 2,
+                "model_code": "NH-F2X-002",
+                "model_name": "NeuroHub F2X Premium",
+                "status": "ACTIVE",
+                ...
+            }
+        ]
+    """
+    return crud.get_active(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -164,6 +227,7 @@ def get_product_model(
 def get_product_model_by_code(
     model_code: str,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> ProductModelInDB:
     """Get product model by unique model code.
 
@@ -207,66 +271,6 @@ def get_product_model_by_code(
 
 
 @router.get(
-    "/active",
-    response_model=List[ProductModelInDB],
-    summary="List active product models",
-    description="Retrieve paginated list of product models with ACTIVE status only",
-)
-def get_active_product_models(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(deps.get_db),
-) -> List[ProductModelInDB]:
-    """Get active product models with pagination.
-
-    Retrieves only product models with ACTIVE status, indicating they are currently
-    available for production operations. Supports pagination for managing large
-    result sets.
-
-    Args:
-        skip: Number of records to skip (offset) for pagination.
-            Defaults to 0. Must be non-negative.
-        limit: Maximum number of records to return.
-            Defaults to 100. Must be positive (1-10000).
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        List[ProductModelInDB]: List of active product model records.
-            Empty list if no active records exist.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get all active product models:
-        >>> GET /api/v1/product-models/active
-
-        Paginate through active products (10 per page):
-        >>> GET /api/v1/product-models/active?skip=0&limit=10
-        >>> GET /api/v1/product-models/active?skip=10&limit=10
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "model_code": "NH-F2X-001",
-                "model_name": "NeuroHub F2X Standard",
-                "status": "ACTIVE",
-                ...
-            },
-            {
-                "id": 2,
-                "model_code": "NH-F2X-002",
-                "model_name": "NeuroHub F2X Premium",
-                "status": "ACTIVE",
-                ...
-            }
-        ]
-    """
-    return crud.get_active(db, skip=skip, limit=limit)
-
-
-@router.get(
     "/category/{category}",
     response_model=List[ProductModelInDB],
     summary="List product models by category",
@@ -277,6 +281,7 @@ def get_product_models_by_category(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProductModelInDB]:
     """Get product models filtered by category with pagination.
 
@@ -498,7 +503,7 @@ def update_product_model(
 
 @router.delete(
     "/{id}",
-    response_model=ProductModelInDB,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete product model",
     description="Delete an existing product model",
     responses={404: {"description": "Product model not found"}},
@@ -506,19 +511,19 @@ def update_product_model(
 def delete_product_model(
     id: int = Path(..., gt=0, description="Primary key identifier of product model to delete"),
     db: Session = Depends(deps.get_db),
-) -> ProductModelInDB:
+):
     """Delete product model by ID.
 
-    Removes a ProductModel record from the database. Returns the deleted record
-    for confirmation. Note: If the product model has dependent records (via foreign
-    keys), deletion may fail with a constraint violation error.
+    Removes a ProductModel record from the database. Note: If the product model
+    has dependent records (via foreign keys), deletion may fail with a constraint
+    violation error.
 
     Args:
         id: Primary key identifier of product model to delete.
         db: SQLAlchemy database session (injected via dependency).
 
     Returns:
-        ProductModelInDB: Deleted product model record (as it was before deletion).
+        None (204 No Content)
 
     Raises:
         HTTPException: 404 Not Found if product model does not exist.
@@ -532,13 +537,7 @@ def delete_product_model(
         Delete product model with ID 42:
         >>> DELETE /api/v1/product-models/42
 
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "model_code": "NH-F2X-001",
-            "model_name": "NeuroHub F2X Standard",
-            ...
-        }
+    Response: 204 No Content
     """
     obj = crud.delete(db, id=id)
     if not obj:
@@ -546,4 +545,3 @@ def delete_product_model(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Product model with ID {id} not found",
         )
-    return obj

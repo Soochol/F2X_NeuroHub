@@ -141,6 +141,12 @@ class Process(Base):
         cascade="all, delete-orphan"
     )
 
+    alerts: Mapped[List["Alert"]] = relationship(
+        "Alert",
+        back_populates="process",
+        cascade="all, delete-orphan"
+    )
+
     # Table Arguments: Constraints and Indexes
     __table_args__ = (
         # CHECK CONSTRAINTS

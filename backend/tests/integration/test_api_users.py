@@ -412,7 +412,7 @@ class TestUsersWorkflow:
         """Test creating users with all possible roles."""
         user_data = {
             "username": f"test_{role.lower()}",
-            "email": f"{role.lower()}@role.test",
+            "email": f"{role.lower()}@role.example",
             "password": "Password123!",
             "full_name": f"Test {role}",
             "role": role,

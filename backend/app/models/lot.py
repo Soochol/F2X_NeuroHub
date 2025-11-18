@@ -211,6 +211,12 @@ class Lot(Base):
         cascade="all, delete-orphan"
     )
 
+    alerts: Mapped[List["Alert"]] = relationship(
+        "Alert",
+        back_populates="lot",
+        cascade="all, delete-orphan"
+    )
+
     process_data_records: Mapped[List["ProcessData"]] = relationship(
         "ProcessData",
         back_populates="lot",

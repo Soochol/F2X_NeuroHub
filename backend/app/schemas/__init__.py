@@ -54,6 +54,19 @@ from app.schemas.audit_log import (
     AuditLogInDB,
 )
 from app.models.audit_log import AuditAction
+from app.schemas.alert import (
+    AlertBase,
+    AlertCreate,
+    AlertUpdate,
+    AlertInDB,
+    AlertResponse,
+    AlertListResponse,
+    AlertMarkRead,
+    AlertBulkMarkRead,
+    AlertType,
+    AlertSeverity,
+    AlertStatus,
+)
 
 __all__ = [
     # ProductModel schemas
@@ -97,4 +110,16 @@ __all__ = [
     "AuditLogBase",
     "AuditLogInDB",
     "AuditAction",
+    # Alert schemas
+    "AlertBase",
+    "AlertCreate",
+    "AlertUpdate",
+    "AlertInDB",
+    "AlertResponse",
+    "AlertListResponse",
+    "AlertMarkRead",
+    "AlertBulkMarkRead",
+    "AlertType",
+    "AlertSeverity",
+    "AlertStatus",
 ]

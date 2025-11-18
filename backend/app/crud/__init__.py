@@ -5,7 +5,7 @@ This package contains all database CRUD (Create, Read, Update, Delete) operation
 Each entity has a dedicated CRUD module with standard and specialized operations.
 
 Usage:
-    from app.crud import product_model, process, user, lot, serial, process_data, audit_log
+    from app.crud import product_model, process, user, lot, serial, process_data, audit_log, alert
 """
 
 from app.crud import (
@@ -16,6 +16,7 @@ from app.crud import (
     serial,
     process_data,
     audit_log,
+    alert,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "serial",
     "process_data",
     "audit_log",
+    "alert",
 ]

@@ -46,7 +46,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         >>> verify_password("WrongPass", hashed)
         False
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    # Return False for empty passwords or invalid hashes
+    if not plain_password or not hashed_password:
+        return False
+
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        # Invalid hash format
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -61,11 +69,16 @@ def get_password_hash(password: str) -> str:
     Returns:
         Hashed password string
 
+    Raises:
+        ValueError: If password is empty or None
+
     Example:
         >>> hashed = get_password_hash("MySecurePassword123")
         >>> len(hashed) > 50
         True
     """
+    if not password or not password.strip():
+        raise ValueError("Password cannot be empty")
     return pwd_context.hash(password)
 
 

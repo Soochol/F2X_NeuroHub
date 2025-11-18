@@ -18,6 +18,7 @@ from app.config import settings
 from app.api.v1 import (
     auth,
     analytics,
+    dashboard,
     product_models,
     processes,
     users,
@@ -25,6 +26,7 @@ from app.api.v1 import (
     serials,
     process_data,
     audit_logs,
+    alerts,
 )
 
 
@@ -74,6 +76,7 @@ async def root():
 # Include API routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_PREFIX}/analytics", tags=["Analytics"])
+app.include_router(dashboard.router, prefix=f"{settings.API_V1_PREFIX}/dashboard", tags=["Dashboard"])
 app.include_router(product_models.router, prefix=settings.API_V1_PREFIX, tags=["Product Models"])
 app.include_router(processes.router, prefix=settings.API_V1_PREFIX, tags=["Processes"])
 app.include_router(users.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
@@ -81,6 +84,7 @@ app.include_router(lots.router, prefix=settings.API_V1_PREFIX, tags=["LOTs"])
 app.include_router(serials.router, prefix=settings.API_V1_PREFIX, tags=["Serials"])
 app.include_router(process_data.router, prefix=settings.API_V1_PREFIX, tags=["Process Data"])
 app.include_router(audit_logs.router, prefix=settings.API_V1_PREFIX, tags=["Audit Logs"])
+app.include_router(alerts.router, prefix=settings.API_V1_PREFIX, tags=["Alerts"])
 
 
 if __name__ == "__main__":

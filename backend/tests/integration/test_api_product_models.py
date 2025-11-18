@@ -26,7 +26,7 @@ class TestProductModelsAPI:
             "version": "1.0",
             "category": "Standard",
             "specifications": {"width": 100, "height": 50},
-            "status": "DRAFT",
+            "status": "ACTIVE",
             "production_cycle_days": 5
         }
         response = client.post(
@@ -51,7 +51,7 @@ class TestProductModelsAPI:
             "version": "1.0",
             "category": "Standard",
             "specifications": {},
-            "status": "DRAFT",
+            "status": "ACTIVE",
             "production_cycle_days": 3
         }
         # Create first product model
@@ -117,7 +117,7 @@ class TestProductModelsAPI:
             "version": "1.0",
             "category": "Standard",
             "specifications": {},
-            "status": "DRAFT",
+            "status": "ACTIVE",
             "production_cycle_days": 5
         }
         create_response = client.post(
@@ -152,7 +152,7 @@ class TestProductModelsAPI:
             "version": "1.0",
             "category": "Standard",
             "specifications": {},
-            "status": "DRAFT",
+            "status": "ACTIVE",
             "production_cycle_days": 2
         }
         create_response = client.post(
@@ -255,7 +255,7 @@ class TestProductModelsAPI:
             "version": "1.0",
             "category": "Standard",
             "specifications": {},
-            "status": "DRAFT",
+            "status": "ACTIVE",
             "production_cycle_days": 3
         }
         client.post("/api/v1/product-models/", json=active_data, headers=auth_headers_admin)
@@ -289,7 +289,7 @@ class TestProductModelsAPI:
         )
         assert response.status_code == 422
 
-    @pytest.mark.parametrize("status", ["DRAFT", "ACTIVE", "DEPRECATED"])
+    @pytest.mark.parametrize("status", ["ACTIVE", "INACTIVE", "DISCONTINUED"])
     def test_product_model_status_values(
         self, client: TestClient, auth_headers_admin: dict, status: str
     ):

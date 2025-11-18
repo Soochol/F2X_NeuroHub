@@ -128,11 +128,14 @@ class TestAnalyticsAPI:
         """Test retrieving process-specific statistics."""
         # Create a process first
         process_data = {
-            "process_name": "LASER_MARKING",
-            "process_order": 1,
+            "process_number": 1,
+            "process_code": "LASER_MARKING",
+            "process_name_ko": "레이저 마킹",
+            "process_name_en": "Laser Marking",
             "description": "Laser marking for analytics",
-            "standard_duration_seconds": 30,
-            "validation_rules": {}
+            "estimated_duration_seconds": 30,
+            "quality_criteria": {},
+            "sort_order": 1
         }
         proc_response = client.post(
             "/api/v1/processes/",

@@ -12,9 +12,10 @@ Models:
     - Serial: Individual unit tracking with rework support
     - ProcessData: Process execution records with JSONB measurements
     - AuditLog: Immutable audit trail (partitioned by month)
+    - Alert: System notifications and alarms
 
 Usage:
-    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog
+    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert
 """
 
 from app.models.product_model import ProductModel
@@ -24,6 +25,7 @@ from app.models.lot import Lot, LotStatus, Shift
 from app.models.serial import Serial, SerialStatus
 from app.models.process_data import ProcessData, DataLevel, ProcessResult
 from app.models.audit_log import AuditLog, AuditAction
+from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
 
 __all__ = [
     # Models
@@ -34,6 +36,7 @@ __all__ = [
     "Serial",
     "ProcessData",
     "AuditLog",
+    "Alert",
     # Enums
     "UserRole",
     "LotStatus",
@@ -42,4 +45,7 @@ __all__ = [
     "DataLevel",
     "ProcessResult",
     "AuditAction",
+    "AlertType",
+    "AlertSeverity",
+    "AlertStatus",
 ]

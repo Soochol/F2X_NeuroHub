@@ -105,6 +105,46 @@ Features:
 - Use "Issues" tab to find common problems
 - Export screenshots and reports
 
+### GUI Code Analyzer - Static Analysis (NEW!)
+Analyze UI code files without running the app:
+```bash
+cd .claude/skills/pyqt-pyside-gui/tools
+python gui_analyzer.py views/main_window.py
+```
+
+**What it does:**
+- 🌳 Automatically extracts widget tree from code
+- 🔍 Analyzes each widget's properties (geometry, visibility, styling)
+- ⚠️ Detects issues: overlapping widgets, hidden widgets, size problems
+- ✅ Validates skill.md best practices (theme usage, hardcoded colors, naming)
+- 📊 Generates comprehensive HTML report
+
+**Key Features:**
+1. **Overlapping Detection**: Finds widgets that may overlap based on geometry
+2. **Size Issues**: Detects too-small widgets (<10px) or min/max conflicts
+3. **Layout Problems**: Finds widgets without parents (memory leaks)
+4. **Best Practices Check**:
+   - Uses Theme Manager (`get_theme()`)
+   - Uses Themed Components
+   - No hardcoded colors (#RRGGBB)
+   - Object names set (`setObjectName`)
+   - Has docstrings
+
+**Output:** HTML report with:
+- Widget tree visualization
+- Property tables
+- Issues list (error/warning/info)
+- Best practices checklist
+- Widget type distribution
+
+**Use Cases:**
+- Code review before PR
+- Finding layout issues early
+- Validating theme system usage
+- Documentation generation
+
+See `README_GUI_ANALYZER.md` for full documentation.
+
 ### AI Coding Best Practices
 
 When requesting GUI changes from AI, use specific, component-based language:

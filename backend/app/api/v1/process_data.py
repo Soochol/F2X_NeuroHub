@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.api import deps
+from app.models import User
 from app.models.process_data import DataLevel, ProcessResult
 from app.schemas.process_data import (
     ProcessDataCreate,
@@ -60,6 +61,7 @@ def list_process_data(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     List all process data records with pagination.
@@ -604,8 +606,16 @@ def delete_process_data(
         )
 
     try:
-        crud.process_data.delete(db, db_obj=process_data_record)
-        db.commit()
+        success = crud.process_data.delete(db, process_data_id=process_data_id)
+        if success:
+            db.commit()
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Process data record with ID {process_data_id} not found"
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(

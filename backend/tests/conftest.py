@@ -35,13 +35,14 @@ from app.models import (
     Lot,
     Serial,
     ProcessData,
-    AuditLog
+    AuditLog,
+    Alert
 )
 from app.crud import user as user_crud
 from app.schemas import UserCreate
 
 
-# Test database URL (file-based SQLite for better isolation)
+# Test database URL (file-based SQLite for reliability)
 TEST_DATABASE_URL = "sqlite:///./test.db"
 
 # Create test engine
@@ -60,7 +61,7 @@ def setup_test_db():
     Create test database schema once per test session.
 
     This fixture runs automatically before all tests and creates
-    all tables in the in-memory SQLite database.
+    all tables in the test SQLite database.
     """
     # Drop all tables first to ensure clean state
     Base.metadata.drop_all(bind=test_engine)
@@ -76,24 +77,33 @@ def db() -> Generator[Session, None, None]:
     """
     Provide a clean database session for each test.
 
-    Creates a new database session and clears data
-    after the test completes, ensuring test isolation.
+    Creates a new database session and clears all data BEFORE and AFTER test execution.
+    This ensures each test starts with a clean database state.
 
     Yields:
         SQLAlchemy session for testing
     """
-    # Use a simple session without transaction
+    # Clear all data from tables BEFORE test runs
+    # This prevents 409 Conflict from previous test data
+    from sqlalchemy import text
+    with test_engine.begin() as conn:
+        # Disable foreign key constraints temporarily for SQLite
+        conn.execute(text("PRAGMA foreign_keys = OFF"))
+        # Delete all data from tables in reverse order (children first)
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.execute(text("PRAGMA foreign_keys = ON"))
+
+    # Create session
     session = TestSessionLocal()
 
     yield session
 
+    # Close session
     session.close()
 
-    # Clear all data from tables after each test
-    # Use raw connection to bypass session
-    from sqlalchemy import text
+    # Clear all data from tables AFTER test runs (redundant but safe)
     with test_engine.begin() as conn:
-        # Disable foreign key constraints temporarily for SQLite
         conn.execute(text("PRAGMA foreign_keys = OFF"))
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())

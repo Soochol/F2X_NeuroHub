@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.api import deps
+from app.models import User
 from app.crud import process as crud
 from app.schemas.process import (
     ProcessCreate,
@@ -61,6 +62,7 @@ def list_processes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProcessInDB]:
     """List all manufacturing processes with pagination.
 
@@ -171,6 +173,7 @@ def get_process(
 def get_process_by_number(
     process_number: int,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> ProcessInDB:
     """Get process by unique process number.
 
@@ -227,6 +230,7 @@ def get_process_by_number(
 def get_process_by_code(
     process_code: str,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> ProcessInDB:
     """Get process by unique process code.
 
@@ -282,6 +286,7 @@ def get_process_by_code(
 )
 def get_active_processes(
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProcessInDB]:
     """Get all active processes ordered by sort_order.
 
@@ -336,6 +341,7 @@ def get_active_processes(
 )
 def get_process_sequence(
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProcessInDB]:
     """Get all 8 manufacturing processes in sequential order (1-8).
 
@@ -612,10 +618,11 @@ def update_process(
 
 @router.delete(
     "/{id}",
-    response_model=ProcessInDB,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete process",
     description="Delete an existing manufacturing process",
     responses={
+        204: {"description": "Process deleted successfully"},
         404: {"description": "Process not found"},
         423: {"description": "Process deletion locked (has dependent data)"},
     },
@@ -623,7 +630,7 @@ def update_process(
 def delete_process(
     id: int = Path(..., gt=0, description="Primary key identifier of process to delete"),
     db: Session = Depends(deps.get_db),
-) -> ProcessInDB:
+) -> None:
     """Delete manufacturing process by ID.
 
     Removes a Process record from the database. Returns the deleted record
@@ -680,7 +687,6 @@ def delete_process(
 
     try:
         crud.delete(db, process_id=id)
-        return obj
     except IntegrityError as e:
         db.rollback()
         # Process deletion is protected by database trigger

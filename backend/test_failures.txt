@@ -1,0 +1,689 @@
+============================= test session starts =============================
+collected 256 items
+
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_dashboard_summary 
+------------------------------- live log setup --------------------------------
+2025-11-18 16:52:57 [ WARNING] (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\bless\AppData\Local\Programs\Python\Python313\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+FAILED                                                                   [  0%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_production_statistics 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:52:58 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/production "HTTP/1.1 404 Not Found"
+FAILED                                                                   [  0%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_quality_metrics 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:52:58 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/quality "HTTP/1.1 404 Not Found"
+FAILED                                                                   [  1%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_process_performance FAILED [  1%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_with_date_range FAILED [  1%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_operator_performance FAILED [  2%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_lot_statistics FAILED [  2%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_process_statistics 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:00 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [  3%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_require_authentication FAILED [  3%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_dashboard_with_empty_data FAILED [  3%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_real_time_metrics 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:00 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/real-time "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  4%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_shift_performance 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:00 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/shift-performance "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  4%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_shift_specific_analytics[DAY] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:01 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/shift-performance?shift=DAY "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_shift_specific_analytics[NIGHT] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:01 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/shift-performance?shift=NIGHT "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_shift_specific_analytics[EVENING] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:01 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/shift-performance?shift=EVENING "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_defect_analysis 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/defects "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_trend_analysis 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/trends "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_pagination FAILED [  7%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_export_analytics_report 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/analytics/export "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  7%]
+tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_product_model_analytics FAILED [  7%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_list_audit_logs FAILED [  8%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_get_audit_log_by_id FAILED [  8%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_list_audit_logs_with_pagination FAILED [  8%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_entity_type FAILED [  9%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[CREATE] FAILED [  9%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[UPDATE] FAILED [ 10%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[DELETE] FAILED [ 10%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_logs_require_authentication FAILED [ 10%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_immutability FAILED [ 11%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_contains_required_fields FAILED [ 11%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_user FAILED [ 12%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_time_range_filter FAILED [ 12%]
+tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_get_audit_log_not_found FAILED [ 12%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_valid_credentials_oauth2_form FAILED [ 13%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_valid_credentials_json FAILED [ 13%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_wrong_password FAILED [ 14%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_nonexistent_username FAILED [ 14%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_inactive_user FAILED [ 14%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_username_case_insensitive FAILED [ 15%]
+tests/integration/test_api_auth.py::TestAuthLogin::test_login_returns_user_info FAILED [ 15%]
+tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_with_valid_token FAILED [ 16%]
+tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_without_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:08 [    INFO] HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 16%]
+tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_with_invalid_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:08 [    INFO] HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 16%]
+tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_with_inactive_account FAILED [ 17%]
+tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_different_roles FAILED [ 17%]
+tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_with_valid_token FAILED [ 17%]
+tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_without_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:09 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/refresh "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 18%]
+tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_with_invalid_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:09 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/refresh "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 18%]
+tests/integration/test_api_auth.py::TestAuthRefresh::test_refreshed_token_is_valid FAILED [ 19%]
+tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_for_different_roles FAILED [ 19%]
+tests/integration/test_api_auth.py::TestAuthLogout::test_logout_with_valid_token FAILED [ 19%]
+tests/integration/test_api_auth.py::TestAuthLogout::test_logout_without_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:11 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/logout "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+tests/integration/test_api_auth.py::TestAuthLogout::test_logout_with_invalid_token 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:11 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/logout "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+tests/integration/test_api_auth.py::TestAuthFlow::test_complete_auth_flow FAILED [ 21%]
+tests/integration/test_api_auth.py::TestAuthFlow::test_multiple_concurrent_logins FAILED [ 21%]
+tests/integration/test_api_auth.py::TestAuthFlow::test_protected_endpoints_require_auth[/api/v1/auth/me] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:12 [    INFO] HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 21%]
+tests/integration/test_api_auth.py::TestAuthFlow::test_protected_endpoints_require_auth[/api/v1/auth/refresh] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:12 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/refresh "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 22%]
+tests/integration/test_api_auth.py::TestAuthFlow::test_protected_endpoints_require_auth[/api/v1/auth/logout] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:12 [    INFO] HTTP Request: POST http://testserver/api/v1/auth/logout "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 22%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_list_lots_empty FAILED [ 23%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_create_lot 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:12 [    INFO] HTTP Request: POST http://testserver/api/v1/lots/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 23%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_create_lot_with_product_model FAILED [ 23%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_get_lot_by_id FAILED [ 24%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_get_lot_not_found FAILED [ 24%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[PLANNED] FAILED [ 25%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[IN_PROGRESS] FAILED [ 25%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[COMPLETED] FAILED [ 25%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[CANCELLED] FAILED [ 26%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[DAY] FAILED [ 26%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[NIGHT] FAILED [ 26%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[EVENING] FAILED [ 27%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_update_lot_status FAILED [ 27%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_delete_lot FAILED  [ 28%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lot_quantity_validation FAILED [ 28%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_lots_require_authentication FAILED [ 28%]
+tests/integration/test_api_lots.py::TestLotsAPI::test_list_lots_with_pagination FAILED [ 29%]
+tests/integration/test_api_main.py::TestHealthCheck::test_health_check_returns_200 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/integration/test_api_main.py::TestHealthCheck::test_health_check_returns_correct_data 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/integration/test_api_main.py::TestHealthCheck::test_health_check_app_name 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/integration/test_api_main.py::TestHealthCheck::test_health_check_version_format 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/integration/test_api_main.py::TestRootEndpoint::test_root_endpoint_returns_200 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/integration/test_api_main.py::TestRootEndpoint::test_root_endpoint_returns_api_info 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/integration/test_api_main.py::TestRootEndpoint::test_root_endpoint_docs_url 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/integration/test_api_main.py::TestAPIDocumentation::test_openapi_json_accessible 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/integration/test_api_main.py::TestAPIDocumentation::test_openapi_schema_structure 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/integration/test_api_main.py::TestAPIDocumentation::test_swagger_docs_accessible 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/docs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/integration/test_api_main.py::TestAPIDocumentation::test_redoc_docs_accessible 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/redoc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/integration/test_api_main.py::TestCORS::test_cors_headers_present_on_valid_origin 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/integration/test_api_main.py::TestCORS::test_preflight_request 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: OPTIONS http://testserver/api/v1/users/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/integration/test_api_main.py::TestAPIVersioning::test_v1_prefix_required FAILED [ 34%]
+tests/integration/test_api_main.py::TestAPIVersioning::test_all_routers_under_v1 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/integration/test_api_main.py::TestApplicationMetadata::test_app_name_in_openapi 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/integration/test_api_main.py::TestApplicationMetadata::test_app_version_in_openapi 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/integration/test_api_main.py::TestApplicationMetadata::test_app_description_in_openapi 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/integration/test_api_main.py::TestAPITags::test_auth_endpoints_tagged 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/integration/test_api_main.py::TestAPITags::test_users_endpoints_tagged 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/integration/test_api_main.py::TestAPITags::test_all_tags_defined 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/api/v1/openapi.json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/integration/test_api_main.py::TestErrorHandling::test_404_for_nonexistent_endpoint 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/nonexistent/endpoint "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 37%]
+tests/integration/test_api_main.py::TestErrorHandling::test_404_error_format 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: GET http://testserver/nonexistent/endpoint "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 38%]
+tests/integration/test_api_main.py::TestErrorHandling::test_405_for_wrong_method 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:16 [    INFO] HTTP Request: DELETE http://testserver/api/v1/users/ "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 38%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_list_process_data_empty FAILED [ 39%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_create_process_data FAILED [ 39%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[PASS] FAILED [ 39%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[FAIL] FAILED [ 40%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[REWORK] FAILED [ 40%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_get_process_data_by_id FAILED [ 41%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_update_process_data FAILED [ 41%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_delete_process_data FAILED [ 41%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_requires_authentication FAILED [ 42%]
+tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_measurement_jsonb FAILED [ 42%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_list_processes_empty FAILED [ 42%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_process 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:19 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 43%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LASER_MARKING] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:19 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 43%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LMA_ASSEMBLY] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:20 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 44%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[SENSOR_INSPECTION] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:20 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 44%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[FIRMWARE_UPLOAD] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:20 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 44%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[ROBOT_ASSEMBLY] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:20 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 45%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[PERFORMANCE_TEST] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:21 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 45%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LABEL_PRINTING] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:21 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 46%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[PACKAGING_INSPECTION] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:21 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 46%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_by_id 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:21 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 46%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_not_found FAILED [ 47%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_update_process 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:22 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 47%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_delete_process 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:22 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 48%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_list_processes_ordered 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:22 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+2025-11-18 16:53:22 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+2025-11-18 16:53:22 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 48%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_process_requires_authentication FAILED [ 48%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_create_process_validation_fails 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:23 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 49%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_by_name 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:23 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+2025-11-18 16:53:23 [    INFO] HTTP Request: GET http://testserver/api/v1/processes/name/ROBOT_ASSEMBLY "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 49%]
+tests/integration/test_api_processes.py::TestProcessesAPI::test_process_statistics 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:23 [    INFO] HTTP Request: POST http://testserver/api/v1/processes/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 50%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_product_models_empty FAILED [ 50%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_create_product_model 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:24 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 50%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_create_product_model_duplicate_code 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:24 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 51%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_by_id FAILED [ 51%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_not_found FAILED [ 51%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_update_product_model 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:25 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 52%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_delete_product_model 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:25 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 52%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_product_models_with_pagination FAILED [ 53%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_by_code FAILED [ 53%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_active_product_models FAILED [ 53%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_requires_authentication FAILED [ 54%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_create_product_model_validation_fails 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:26 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 54%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[DRAFT] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:26 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 55%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[ACTIVE] FAILED [ 55%]
+tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[DEPRECATED] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:27 [    INFO] HTTP Request: POST http://testserver/api/v1/product-models/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 55%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_list_serials_empty 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:27 [    INFO] HTTP Request: GET http://testserver/api/v1/serials/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_create_serial_with_lot FAILED [ 56%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_get_serial_by_id FAILED [ 57%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[IN_PROGRESS] FAILED [ 57%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[PASS] FAILED [ 57%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[FAIL] FAILED [ 58%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[REWORK] FAILED [ 58%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[SCRAPPED] FAILED [ 58%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_update_serial_status FAILED [ 59%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_rework_handling FAILED [ 59%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_delete_serial FAILED [ 60%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_get_serial_by_number FAILED [ 60%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_serials_require_authentication 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:30 [    INFO] HTTP Request: GET http://testserver/api/v1/serials/ "HTTP/1.1 200 OK"
+FAILED                                                                   [ 60%]
+tests/integration/test_api_serials.py::TestSerialsAPI::test_list_serials_with_pagination FAILED [ 61%]
+tests/integration/test_api_users.py::TestListUsers::test_list_all_users FAILED [ 61%]
+tests/integration/test_api_users.py::TestListUsers::test_list_users_with_pagination FAILED [ 62%]
+tests/integration/test_api_users.py::TestListUsers::test_list_users_filter_by_role FAILED [ 62%]
+tests/integration/test_api_users.py::TestListUsers::test_list_users_filter_by_active_status FAILED [ 62%]
+tests/integration/test_api_users.py::TestGetUserById::test_get_user_by_id_success FAILED [ 63%]
+tests/integration/test_api_users.py::TestGetUserById::test_get_user_by_id_not_found FAILED [ 63%]
+tests/integration/test_api_users.py::TestGetUserByUsername::test_get_user_by_username_success FAILED [ 64%]
+tests/integration/test_api_users.py::TestGetUserByUsername::test_get_user_by_username_not_found FAILED [ 64%]
+tests/integration/test_api_users.py::TestGetUserByEmail::test_get_user_by_email_success FAILED [ 64%]
+tests/integration/test_api_users.py::TestGetUserByEmail::test_get_user_by_email_not_found FAILED [ 65%]
+tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_admin FAILED [ 65%]
+tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_manager FAILED [ 66%]
+tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_operator FAILED [ 66%]
+tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_with_pagination FAILED [ 66%]
+tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_valid_data FAILED [ 67%]
+tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_duplicate_username FAILED [ 67%]
+tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_duplicate_email FAILED [ 67%]
+tests/integration/test_api_users.py::TestCreateUser::test_create_admin_user FAILED [ 68%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_user_full_name FAILED [ 68%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_user_department FAILED [ 69%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_user_role FAILED [ 69%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_user_is_active FAILED [ 69%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_nonexistent_user FAILED [ 70%]
+tests/integration/test_api_users.py::TestUpdateUser::test_update_username_to_existing FAILED [ 70%]
+tests/integration/test_api_users.py::TestDeleteUser::test_delete_existing_user FAILED [ 71%]
+tests/integration/test_api_users.py::TestDeleteUser::test_delete_nonexistent_user FAILED [ 71%]
+tests/integration/test_api_users.py::TestUsersWorkflow::test_complete_user_lifecycle FAILED [ 71%]
+tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[ADMIN] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:36 [    INFO] HTTP Request: POST http://testserver/api/v1/users/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 72%]
+tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[MANAGER] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:36 [    INFO] HTTP Request: POST http://testserver/api/v1/users/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 72%]
+tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[OPERATOR] 
+-------------------------------- live log call --------------------------------
+2025-11-18 16:53:36 [    INFO] HTTP Request: POST http://testserver/api/v1/users/ "HTTP/1.1 422 Unprocessable Entity"
+FAILED                                                                   [ 73%]
+tests/unit/test_crud_user.py::TestUserCreate::test_create_user_with_valid_data PASSED [ 73%]
+tests/unit/test_crud_user.py::TestUserCreate::test_create_user_with_admin_role PASSED [ 73%]
+tests/unit/test_crud_user.py::TestUserCreate::test_create_user_without_department PASSED [ 74%]
+tests/unit/test_crud_user.py::TestUserCreate::test_create_inactive_user PASSED [ 74%]
+tests/unit/test_crud_user.py::TestUserCreate::test_username_normalized_to_lowercase PASSED [ 75%]
+tests/unit/test_crud_user.py::TestUserCreate::test_email_normalized_to_lowercase PASSED [ 75%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_user_by_id PASSED   [ 75%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_nonexistent_user_returns_none PASSED [ 76%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_user_by_username PASSED [ 76%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_user_by_username_case_insensitive PASSED [ 76%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_user_by_email PASSED [ 77%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_user_by_email_case_insensitive PASSED [ 77%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_multi_users PASSED  [ 78%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_multi_with_role_filter PASSED [ 78%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_multi_with_active_filter PASSED [ 78%]
+tests/unit/test_crud_user.py::TestUserRead::test_get_multi_pagination PASSED [ 79%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_update_user_full_name PASSED [ 79%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_update_user_department PASSED [ 80%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_update_user_role PASSED [ 80%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_update_user_is_active PASSED [ 80%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_update_nonexistent_user_returns_none PASSED [ 81%]
+tests/unit/test_crud_user.py::TestUserUpdate::test_partial_update PASSED [ 81%]
+tests/unit/test_crud_user.py::TestUserDelete::test_delete_existing_user PASSED [ 82%]
+tests/unit/test_crud_user.py::TestUserDelete::test_delete_nonexistent_user_returns_false PASSED [ 82%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_authenticate_with_correct_credentials PASSED [ 82%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_authenticate_with_wrong_password PASSED [ 83%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_authenticate_with_nonexistent_username PASSED [ 83%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_authenticate_username_case_insensitive PASSED [ 83%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_is_active_check_with_active_user PASSED [ 84%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_is_active_check_with_inactive_user PASSED [ 84%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_is_active_check_with_none PASSED [ 85%]
+tests/unit/test_crud_user.py::TestUserAuthentication::test_update_last_login PASSED [ 85%]
+tests/unit/test_crud_user.py::TestUserByRole::test_get_by_role_admin PASSED [ 85%]
+tests/unit/test_crud_user.py::TestUserByRole::test_get_by_role_manager PASSED [ 86%]
+tests/unit/test_crud_user.py::TestUserByRole::test_get_by_role_operator PASSED [ 86%]
+tests/unit/test_crud_user.py::TestUserByRole::test_get_by_role_with_pagination PASSED [ 87%]
+tests/unit/test_security.py::TestPasswordHashing::test_password_hash_creates_valid_hash PASSED [ 87%]
+tests/unit/test_security.py::TestPasswordHashing::test_password_verification_succeeds_with_correct_password PASSED [ 87%]
+tests/unit/test_security.py::TestPasswordHashing::test_password_verification_fails_with_wrong_password PASSED [ 88%]
+tests/unit/test_security.py::TestPasswordHashing::test_different_hashes_for_same_password PASSED [ 88%]
+tests/unit/test_security.py::TestPasswordHashing::test_empty_password_handling FAILED [ 89%]
+tests/unit/test_security.py::TestJWTTokens::test_create_access_token_with_subject PASSED [ 89%]
+tests/unit/test_security.py::TestJWTTokens::test_create_access_token_with_int_subject PASSED [ 89%]
+tests/unit/test_security.py::TestJWTTokens::test_decode_access_token_returns_valid_payload PASSED [ 90%]
+tests/unit/test_security.py::TestJWTTokens::test_token_contains_additional_claims PASSED [ 90%]
+tests/unit/test_security.py::TestJWTTokens::test_token_expiration_with_custom_delta PASSED [ 91%]
+tests/unit/test_security.py::TestJWTTokens::test_token_expiration_with_default_delta PASSED [ 91%]
+tests/unit/test_security.py::TestJWTTokens::test_decode_invalid_token_returns_none PASSED [ 91%]
+tests/unit/test_security.py::TestJWTTokens::test_decode_malformed_token_returns_none PASSED [ 92%]
+tests/unit/test_security.py::TestJWTTokens::test_decode_token_with_wrong_secret_returns_none PASSED [ 92%]
+tests/unit/test_security.py::TestJWTTokens::test_expired_token_returns_none PASSED [ 92%]
+tests/unit/test_security.py::TestRolePermissions::test_admin_has_admin_permission PASSED [ 93%]
+tests/unit/test_security.py::TestRolePermissions::test_manager_does_not_have_admin_permission PASSED [ 93%]
+tests/unit/test_security.py::TestRolePermissions::test_operator_does_not_have_admin_permission PASSED [ 94%]
+tests/unit/test_security.py::TestRolePermissions::test_admin_has_manager_permission PASSED [ 94%]
+tests/unit/test_security.py::TestRolePermissions::test_manager_has_manager_permission PASSED [ 94%]
+tests/unit/test_security.py::TestRolePermissions::test_operator_does_not_have_manager_permission PASSED [ 95%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_admin_over_manager PASSED [ 95%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_admin_over_operator PASSED [ 96%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_manager_over_operator PASSED [ 96%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_manager_under_admin PASSED [ 96%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_operator_under_manager PASSED [ 97%]
+tests/unit/test_security.py::TestRolePermissions::test_permission_hierarchy_operator_under_admin PASSED [ 97%]
+tests/unit/test_security.py::TestRolePermissions::test_same_role_has_permission PASSED [ 98%]
+tests/unit/test_security.py::TestTokenIntegration::test_create_and_decode_token_roundtrip PASSED [ 98%]
+tests/unit/test_security.py::TestTokenIntegration::test_multiple_tokens_for_different_users PASSED [ 98%]
+tests/unit/test_security.py::TestTokenIntegration::test_token_creation_for_all_roles[1-ADMIN] PASSED [ 99%]
+tests/unit/test_security.py::TestTokenIntegration::test_token_creation_for_all_roles[2-MANAGER] PASSED [ 99%]
+tests/unit/test_security.py::TestTokenIntegration::test_token_creation_for_all_roles[3-OPERATOR] PASSED [100%]
+ERROR: Coverage failure: total of 47 is less than fail-under=80
+
+
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.7-final-0 _______________
+
+Name                           Stmts   Miss Branch BrPart  Cover   Missing
+--------------------------------------------------------------------------
+app\__init__.py                    0      0      0      0   100%
+app\api\__init__.py                0      0      0      0   100%
+app\api\deps.py                    2      0      0      0   100%
+app\api\v1\__init__.py             2      0      0      0   100%
+app\api\v1\analytics.py           75     48      6      0    33%   78-158, 203-240, 278-325, 351-402, 464, 494-508
+app\api\v1\audit_logs.py          41     16      6      0    53%   254-259, 312, 364, 423-438, 499-505, 580
+app\api\v1\auth.py                45     21      8      0    45%   74-101, 145-171, 208, 231-241, 268
+app\api\v1\lots.py                99     63     26      0    29%   161-166, 219-225, 284, 348, 406, 463, 516-522, 598-614, 692-713, 767-777, 839-849, 911-934
+app\api\v1\process_data.py       106     68     14      0    32%   78, 103-109, 140-143, 174-177, 208-211, 243-249, 276-277, 308-311, 342-351, 378-386, 413-416, 484-505, 549-568, 599-611
+app\api\v1\processes.py           73     45     18      0    31%   156-161, 211-217, 268-274, 328, 406, 489-506, 583-607, 674-687
+app\api\v1\product_models.py      53     23     12      1    48%   149-154, 200-206, 266, 324, 403, 479-496, 543-549
+app\api\v1\serials.py            107     72     24      0    27%   72-73, 98-101, 126-132, 163-164, 196-200, 227-228, 261-267, 301-309, 349-368, 401-421, 456-470, 506-509
+app\api\v1\users.py              101     57     24      0    35%   97, 99, 129-134, 163-168, 197-202, 244, 246, 288-309, 346-377, 411-428, 461, 495, 536
+app\config.py                     20      0      0      0   100%
+app\core\__init__.py               0      0      0      0   100%
+app\core\deps.py                  51     19     16      1    55%   90, 96-104, 127-132, 159-164, 191-196, 218-226
+app\core\security.py              33      0      4      0   100%
+app\crud\__init__.py               2      0      0      0   100%
+app\crud\audit_log.py             24      9      2      0    58%   147, 195, 246-252, 304, 374, 439
+app\crud\lot.py                   96     74     10      0    21%   125-146, 182-201, 233-247, 269, 304, 349, 391, 431, 470-514, 542-557
+app\crud\process.py               64     46      8      1    26%   82, 119-142, 182-201, 234-248, 274, 303, 329, 362
+app\crud\process_data.py          66     36     10      0    39%   65, 142-157, 191-204, 230-235, 264, 300, 336, 379, 416, 453, 498, 540, 580, 627, 668, 702, 726, 751
+app\crud\product_model.py         35     17      4      0    46%   135, 180, 231, 284-285, 338-344, 383-387
+app\crud\serial.py               121    100     38      1    14%   51, 93-98, 140-159, 198-221, 249-263, 288, 327, 372-378, 419, 464-488, 540-581, 616-620
+app\crud\user.py                 121     38     50     13    65%   64, 89, 153, 157, 231-248, 295->294, 298, 300, 312-329, 376-378, 401, 428, 470, 537, 544-546, 592, 595
+app\database.py                   40     18      8      3    52%   26, 36, 53, 79-90, 105-109, 126-129
+app\main.py                       24      2      2      1    88%   87-88
+app\models\__init__.py             8      0      0      0   100%
+app\models\audit_log.py           61     24     10      0    52%   307, 315, 323, 328, 333, 338, 355-364, 378-396
+app\models\lot.py                 55     10      4      0    76%   249, 262, 271, 280-282, 291-293, 302
+app\models\process.py             28      3      0      0    89%   177, 184, 193
+app\models\process_data.py        60     12      2      0    77%   374-375, 383-384, 394, 404, 414, 424, 434-436, 445
+app\models\product_model.py       26      2      2      1    89%   149, 177
+app\models\serial.py              53     21     14      0    48%   254, 283, 319-340, 360, 377-381, 403
+app\models\user.py                29      2      0      0    93%   184, 193
+app\schemas\__init__.py           12      0      0      0   100%
+app\schemas\audit_log.py          53     14      8      0    64%   139-148, 165-167, 184-186
+app\schemas\lot.py               201    101     82      5    37%   132, 136, 141-145, 163, 167, 173, 190-196, 280-295, 309-322, 336-344, 358-364, 378-384, 398-404, 423-450, 539-550, 567-578
+app\schemas\process.py            63     20     16      0    54%   108-117, 136-140, 256-268, 285-287
+app\schemas\process_data.py      154     70     46      0    42%   155-164, 181-190, 207-211, 228-230, 247-257, 270-275, 329-340, 354-365, 379-381, 395-397, 449-461
+app\schemas\product_model.py      81     21     22      5    63%   159, 181, 204, 206, 233, 369-373, 394-398, 419-423, 512
+app\schemas\serial.py             59     22     16      0    49%   80-85, 101-105, 121-125, 193-201, 217-229
+app\schemas\user.py               58      6     12      6    83%   55, 83, 87, 91, 133, 135
+--------------------------------------------------------------------------
+TOTAL                           2402   1100    524     38    47%
+Coverage HTML written to dir htmlcov
+Coverage XML written to file coverage.xml
+FAIL Required test coverage of 80% not reached. Total coverage: 46.62%
+=========================== short test summary info ===========================
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_dashboard_summary
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_production_statistics
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_quality_metrics
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_process_performance
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_with_date_range
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_operator_performance
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_lot_statistics
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_process_statistics
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_require_authentication
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_dashboard_with_empty_data
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_analytics_pagination
+FAILED tests/integration/test_api_analytics.py::TestAnalyticsAPI::test_get_product_model_analytics
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_list_audit_logs
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_get_audit_log_by_id
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_list_audit_logs_with_pagination
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_entity_type
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[CREATE]
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[UPDATE]
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_action[DELETE]
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_logs_require_authentication
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_immutability
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_contains_required_fields
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_filter_audit_logs_by_user
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_audit_log_time_range_filter
+FAILED tests/integration/test_api_audit_logs.py::TestAuditLogsAPI::test_get_audit_log_not_found
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_valid_credentials_oauth2_form
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_valid_credentials_json
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_wrong_password
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_nonexistent_username
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_with_inactive_user
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_username_case_insensitive
+FAILED tests/integration/test_api_auth.py::TestAuthLogin::test_login_returns_user_info
+FAILED tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_with_valid_token
+FAILED tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_with_inactive_account
+FAILED tests/integration/test_api_auth.py::TestAuthMe::test_get_current_user_different_roles
+FAILED tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_with_valid_token
+FAILED tests/integration/test_api_auth.py::TestAuthRefresh::test_refreshed_token_is_valid
+FAILED tests/integration/test_api_auth.py::TestAuthRefresh::test_refresh_token_for_different_roles
+FAILED tests/integration/test_api_auth.py::TestAuthLogout::test_logout_with_valid_token
+FAILED tests/integration/test_api_auth.py::TestAuthFlow::test_complete_auth_flow
+FAILED tests/integration/test_api_auth.py::TestAuthFlow::test_multiple_concurrent_logins
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_list_lots_empty
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_create_lot - ass...
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_create_lot_with_product_model
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_get_lot_by_id - ...
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_get_lot_not_found
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[PLANNED]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[IN_PROGRESS]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[COMPLETED]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_status_transitions[CANCELLED]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[DAY]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[NIGHT]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_shift_values[EVENING]
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_update_lot_status
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_delete_lot - sql...
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lot_quantity_validation
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_lots_require_authentication
+FAILED tests/integration/test_api_lots.py::TestLotsAPI::test_list_lots_with_pagination
+FAILED tests/integration/test_api_main.py::TestAPIVersioning::test_v1_prefix_required
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_list_process_data_empty
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_create_process_data
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[PASS]
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[FAIL]
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_result_values[REWORK]
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_get_process_data_by_id
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_update_process_data
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_delete_process_data
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_requires_authentication
+FAILED tests/integration/test_api_process_data.py::TestProcessDataAPI::test_process_data_measurement_jsonb
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_list_processes_empty
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_process
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LASER_MARKING]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LMA_ASSEMBLY]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[SENSOR_INSPECTION]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[FIRMWARE_UPLOAD]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[ROBOT_ASSEMBLY]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[PERFORMANCE_TEST]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[LABEL_PRINTING]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_create_all_process_types[PACKAGING_INSPECTION]
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_by_id
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_not_found
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_update_process
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_delete_process
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_list_processes_ordered
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_process_requires_authentication
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_get_process_by_name
+FAILED tests/integration/test_api_processes.py::TestProcessesAPI::test_process_statistics
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_product_models_empty
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_create_product_model
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_create_product_model_duplicate_code
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_by_id
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_not_found
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_update_product_model
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_delete_product_model
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_product_models_with_pagination
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_get_product_model_by_code
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_list_active_product_models
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_requires_authentication
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[DRAFT]
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[ACTIVE]
+FAILED tests/integration/test_api_product_models.py::TestProductModelsAPI::test_product_model_status_values[DEPRECATED]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_create_serial_with_lot
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_get_serial_by_id
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[IN_PROGRESS]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[PASS]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[FAIL]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[REWORK]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_status_values[SCRAPPED]
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_update_serial_status
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serial_rework_handling
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_delete_serial
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_get_serial_by_number
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_serials_require_authentication
+FAILED tests/integration/test_api_serials.py::TestSerialsAPI::test_list_serials_with_pagination
+FAILED tests/integration/test_api_users.py::TestListUsers::test_list_all_users
+FAILED tests/integration/test_api_users.py::TestListUsers::test_list_users_with_pagination
+FAILED tests/integration/test_api_users.py::TestListUsers::test_list_users_filter_by_role
+FAILED tests/integration/test_api_users.py::TestListUsers::test_list_users_filter_by_active_status
+FAILED tests/integration/test_api_users.py::TestGetUserById::test_get_user_by_id_success
+FAILED tests/integration/test_api_users.py::TestGetUserById::test_get_user_by_id_not_found
+FAILED tests/integration/test_api_users.py::TestGetUserByUsername::test_get_user_by_username_success
+FAILED tests/integration/test_api_users.py::TestGetUserByUsername::test_get_user_by_username_not_found
+FAILED tests/integration/test_api_users.py::TestGetUserByEmail::test_get_user_by_email_success
+FAILED tests/integration/test_api_users.py::TestGetUserByEmail::test_get_user_by_email_not_found
+FAILED tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_admin
+FAILED tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_manager
+FAILED tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_operator
+FAILED tests/integration/test_api_users.py::TestGetUsersByRole::test_get_users_by_role_with_pagination
+FAILED tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_valid_data
+FAILED tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_duplicate_username
+FAILED tests/integration/test_api_users.py::TestCreateUser::test_create_user_with_duplicate_email
+FAILED tests/integration/test_api_users.py::TestCreateUser::test_create_admin_user
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_user_full_name
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_user_department
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_user_role
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_user_is_active
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_nonexistent_user
+FAILED tests/integration/test_api_users.py::TestUpdateUser::test_update_username_to_existing
+FAILED tests/integration/test_api_users.py::TestDeleteUser::test_delete_existing_user
+FAILED tests/integration/test_api_users.py::TestDeleteUser::test_delete_nonexistent_user
+FAILED tests/integration/test_api_users.py::TestUsersWorkflow::test_complete_user_lifecycle
+FAILED tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[ADMIN]
+FAILED tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[MANAGER]
+FAILED tests/integration/test_api_users.py::TestUsersWorkflow::test_create_users_with_all_roles[OPERATOR]
+FAILED tests/unit/test_security.py::TestPasswordHashing::test_empty_password_handling
+====================== 145 failed, 111 passed in 54.58s =======================

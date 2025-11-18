@@ -6,6 +6,7 @@ This package contains all version 1 API endpoint routers.
 Available routers:
     - auth: Authentication (login, logout, token refresh)
     - analytics: Dashboard metrics and reporting
+    - dashboard: Dashboard-specific aggregated endpoints
     - product_models: Product model management
     - processes: Manufacturing process definitions (8 processes)
     - users: User authentication and management
@@ -13,11 +14,13 @@ Available routers:
     - serials: Individual unit tracking
     - process_data: Process execution records
     - audit_logs: Immutable audit trail (read-only)
+    - alerts: System notifications and alarms
 """
 
 from app.api.v1 import (
     auth,
     analytics,
+    dashboard,
     product_models,
     processes,
     users,
@@ -25,11 +28,13 @@ from app.api.v1 import (
     serials,
     process_data,
     audit_logs,
+    alerts,
 )
 
 __all__ = [
     "auth",
     "analytics",
+    "dashboard",
     "product_models",
     "processes",
     "users",
@@ -37,4 +42,5 @@ __all__ = [
     "serials",
     "process_data",
     "audit_logs",
+    "alerts",
 ]

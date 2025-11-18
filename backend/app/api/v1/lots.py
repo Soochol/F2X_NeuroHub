@@ -34,6 +34,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.models import User
 from app.crud import lot as crud
 from app.schemas.lot import (
     LotCreate,
@@ -65,6 +66,7 @@ def list_lots(
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return"),
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[LotInDB]:
     """List all LOTs with pagination.
 
@@ -854,7 +856,7 @@ def recalculate_lot_quantities(
 
 @router.delete(
     "/{id}",
-    response_model=LotInDB,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete LOT",
     description="Delete an existing LOT (protected by database trigger)",
     responses={
@@ -865,7 +867,7 @@ def recalculate_lot_quantities(
 def delete_lot(
     id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
-) -> LotInDB:
+):
     """Delete LOT by ID.
 
     Removes a LOT record from the database. Note: LOT deletion is restricted
@@ -917,13 +919,13 @@ def delete_lot(
 
     try:
         deleted = crud.delete(db, lot_id=id)
-        if deleted:
-            return obj
-        else:
+        if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Lot with ID {id} not found",
             )
+    except HTTPException:
+        raise
     except Exception as e:
         error_str = str(e).lower()
         if "foreign key" in error_str or "constraint" in error_str:

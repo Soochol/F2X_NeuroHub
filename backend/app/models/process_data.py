@@ -145,7 +145,6 @@ class ProcessData(Base):
 
     # Primary Key
     id: Mapped[int] = mapped_column(
-        BIGINT,
         primary_key=True,
         autoincrement=True,
     )

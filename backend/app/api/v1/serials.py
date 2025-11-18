@@ -30,8 +30,12 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.database import get_db
+from app.models import User
 from app.models.serial import SerialStatus
+from app.models.process import Process
+from app.models.process_data import ProcessData, ProcessResult
 from app.schemas.serial import SerialCreate, SerialInDB, SerialUpdate
+from app.api import deps
 
 router = APIRouter(
     prefix="/serials",
@@ -50,6 +54,7 @@ def list_serials(
     limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
     status: Optional[str] = Query(None, description="Filter by status: CREATED, IN_PROGRESS, PASSED, FAILED"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     List all serials with optional filtering and pagination.
@@ -74,31 +79,31 @@ def list_serials(
 
 
 @router.get(
-    "/{serial_id}",
-    response_model=SerialInDB,
-    summary="Get serial by ID",
-    description="Retrieve a specific serial by its primary key.",
+    "/failed",
+    response_model=List[SerialInDB],
+    summary="Get failed serials available for rework",
+    description="Retrieve FAILED serials that have not exceeded maximum rework attempts (count < 3).",
 )
-def get_serial(
-    serial_id: int = Path(..., gt=0, description="Serial ID"),
+def get_failed_serials(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(get_db),
 ):
     """
-    Get a single serial by ID.
+    Get FAILED serials available for rework.
 
-    Path Parameters:
-        serial_id: Serial primary key
+    Query Parameters:
+        skip: Offset for pagination (default: 0)
+        limit: Number of serials to return (default: 50, max: 100)
 
     Returns:
-        Serial object with full details
+        List of FAILED Serial objects with rework_count < 3
 
     Raises:
-        HTTPException 404: If serial not found
+        HTTPException 422: If query parameters are invalid
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
-    return serial
+    serials = crud.serial.get_failed(db, skip=skip, limit=limit)
+    return serials
 
 
 @router.get(
@@ -201,31 +206,31 @@ def get_serials_by_status(
 
 
 @router.get(
-    "/failed",
-    response_model=List[SerialInDB],
-    summary="Get failed serials available for rework",
-    description="Retrieve FAILED serials that have not exceeded maximum rework attempts (count < 3).",
+    "/{serial_id}",
+    response_model=SerialInDB,
+    summary="Get serial by ID",
+    description="Retrieve a specific serial by its primary key.",
 )
-def get_failed_serials(
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
+def get_serial(
+    serial_id: int = Path(..., gt=0, description="Serial ID"),
     db: Session = Depends(get_db),
 ):
     """
-    Get FAILED serials available for rework.
+    Get a single serial by ID.
 
-    Query Parameters:
-        skip: Offset for pagination (default: 0)
-        limit: Number of serials to return (default: 50, max: 100)
+    Path Parameters:
+        serial_id: Serial primary key
 
     Returns:
-        List of FAILED Serial objects with rework_count < 3
+        Serial object with full details
 
     Raises:
-        HTTPException 422: If query parameters are invalid
+        HTTPException 404: If serial not found
     """
-    serials = crud.serial.get_failed(db, skip=skip, limit=limit)
-    return serials
+    serial = crud.serial.get(db, serial_id=serial_id)
+    if not serial:
+        raise HTTPException(status_code=404, detail="Serial not found")
+    return serial
 
 
 @router.post(
@@ -507,3 +512,175 @@ def delete_serial(
     if not deleted:
         raise HTTPException(status_code=404, detail="Serial not found")
     return None
+
+
+@router.get(
+    "/{serial_number}/trace",
+    response_model=dict,
+    summary="Get serial traceability",
+    description="Get complete traceability information for a serial including process history, measurements, rework, and component tracking.",
+)
+def get_serial_trace(
+    serial_number: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get complete traceability information for a serial.
+
+    Provides end-to-end tracking of a serial through all manufacturing processes:
+    - Complete process history with timestamps
+    - Process-specific measurement data (JSONB)
+    - Worker/operator information
+    - Rework history and approvals
+    - Component LOT tracking (if available)
+    - Defect information
+
+    Path Parameters:
+        serial_number: Serial number in format WF-KR-YYMMDDX-nnn-nnnn
+
+    Returns:
+        Complete traceability record with:
+        - Serial basic information
+        - LOT information
+        - Process history (chronological)
+        - Rework history
+        - Component LOTs
+
+    Raises:
+        HTTPException 404: If serial not found
+        HTTPException 422: If serial_number format is invalid
+
+    Example Response:
+        {
+            "serial_number": "WF-KR-251118D-001-0001",
+            "lot_number": "WF-KR-251118D-001",
+            "status": "PASSED",
+            "rework_count": 0,
+            "created_at": "2025-01-18T08:00:00Z",
+            "completed_at": "2025-01-18T16:30:00Z",
+            "lot_info": {
+                "lot_number": "WF-KR-251118D-001",
+                "product_model": "WF-A01",
+                "production_date": "2025-01-18",
+                "shift": "D"
+            },
+            "process_history": [
+                {
+                    "process_number": 1,
+                    "process_code": "PROC-001",
+                    "process_name": "레이저 마킹",
+                    "worker_id": "W001",
+                    "worker_name": "홍길동",
+                    "start_time": "2025-01-18T09:00:00Z",
+                    "complete_time": "2025-01-18T09:01:00Z",
+                    "duration_seconds": 60,
+                    "result": "PASS",
+                    "process_data": {
+                        "laser_power": 15,
+                        "marking_time": 60
+                    },
+                    "is_rework": false
+                },
+                ...
+            ],
+            "rework_history": [],
+            "component_lots": {
+                "busbar_lot": "BUSBAR-2025011801",
+                "sma_spring_lot": "SPRING-2025011802"
+            },
+            "total_cycle_time_seconds": 30600
+        }
+    """
+    # Get serial by serial_number
+    serial = crud.serial.get_by_serial_number(db, serial_number=serial_number)
+    if not serial:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Serial with serial_number '{serial_number}' not found"
+        )
+
+    # Get LOT information
+    lot_info = None
+    if serial.lot:
+        lot_info = {
+            "lot_number": serial.lot.lot_number,
+            "product_model": serial.lot.product_model.model_code if serial.lot.product_model else None,
+            "production_date": serial.lot.production_date.isoformat() if serial.lot.production_date else None,
+            "shift": serial.lot.shift,
+            "target_quantity": serial.lot.target_quantity,
+        }
+
+    # Get all process data for this serial (ordered by process sequence and timestamp)
+    process_data_records = (
+        db.query(ProcessData)
+        .filter(ProcessData.serial_id == serial.id)
+        .join(Process)
+        .order_by(Process.process_number, ProcessData.created_at)
+        .all()
+    )
+
+    # Build process history
+    process_history = []
+    rework_history = []
+    total_cycle_time = 0
+
+    for pd in process_data_records:
+        process_record = {
+            "process_number": pd.process.process_number if pd.process else None,
+            "process_code": pd.process.process_code if pd.process else None,
+            "process_name": pd.process.process_name if pd.process else None,
+            "worker_id": pd.operator.username if pd.operator else None,
+            "worker_name": pd.operator.full_name if pd.operator else None,
+            "start_time": pd.started_at.isoformat() if pd.started_at else None,
+            "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
+            "duration_seconds": pd.duration_seconds,
+            "result": pd.result.value if pd.result else None,
+            "process_data": pd.measurements if pd.measurements else {},
+            "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL else [],
+            "notes": pd.notes,
+            "is_rework": getattr(pd, 'is_rework', False)  # Assuming is_rework field exists
+        }
+
+        process_history.append(process_record)
+
+        # Accumulate cycle time
+        if pd.duration_seconds:
+            total_cycle_time += pd.duration_seconds
+
+        # Track rework attempts
+        if process_record["is_rework"]:
+            rework_history.append({
+                "process_code": process_record["process_code"],
+                "process_name": process_record["process_name"],
+                "attempt_time": process_record["complete_time"],
+                "result": process_record["result"],
+                "defects": process_record["defects"]
+            })
+
+    # Extract component LOTs from process data if available
+    # (Typically stored in specific process measurements like "LMA 조립")
+    component_lots = {}
+    for pd in process_data_records:
+        if pd.measurements and isinstance(pd.measurements, dict):
+            # Look for component tracking fields
+            if "busbar_lot" in pd.measurements:
+                component_lots["busbar_lot"] = pd.measurements["busbar_lot"]
+            if "sma_spring_lot" in pd.measurements:
+                component_lots["sma_spring_lot"] = pd.measurements["sma_spring_lot"]
+            if "component_lots" in pd.measurements:
+                component_lots.update(pd.measurements["component_lots"])
+
+    return {
+        "serial_number": serial.serial_number,
+        "lot_number": serial.lot.lot_number if serial.lot else None,
+        "sequence_in_lot": serial.sequence_in_lot,
+        "status": serial.status.value if serial.status else None,
+        "rework_count": serial.rework_count,
+        "created_at": serial.created_at.isoformat() if serial.created_at else None,
+        "completed_at": serial.completed_at.isoformat() if serial.completed_at else None,
+        "lot_info": lot_info,
+        "process_history": process_history,
+        "rework_history": rework_history,
+        "component_lots": component_lots if component_lots else None,
+        "total_cycle_time_seconds": total_cycle_time
+    }

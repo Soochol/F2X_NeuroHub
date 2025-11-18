@@ -153,6 +153,7 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.api import deps
+from app.models import User
 from app.models.audit_log import AuditAction
 from app.schemas.audit_log import AuditLogInDB
 
@@ -191,6 +192,7 @@ def list_audit_logs(
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return"),
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[AuditLogInDB]:
     """
     List all audit logs with pagination.
