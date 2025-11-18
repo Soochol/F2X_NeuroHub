@@ -19,7 +19,6 @@ from enum import Enum
 from typing import Optional, List
 
 from sqlalchemy import (
-    BIGINT,
     VARCHAR,
     DATE,
     INTEGER,
@@ -67,11 +66,11 @@ class Lot(Base):
     target, actual, passed, and failed units.
 
     Table: lots
-    Primary Key: id (BIGSERIAL)
+    Primary Key: id (INTEGER AUTOINCREMENT)
     Foreign Keys: product_model_id → product_models.id
 
     Attributes:
-        id: Primary key, auto-incrementing BIGINT
+        id: Primary key, auto-incrementing INTEGER
         lot_number: Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)
         product_model_id: Foreign key reference to product_models table
         production_date: Scheduled/actual production date
@@ -111,7 +110,7 @@ class Lot(Base):
     __tablename__ = "lots"
 
     # Primary Key
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     # Core Columns
     lot_number: Mapped[str] = mapped_column(
@@ -122,7 +121,6 @@ class Lot(Base):
     )
 
     product_model_id: Mapped[int] = mapped_column(
-        BIGINT,
         ForeignKey("product_models.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=False,
         comment="Foreign key reference to product_models table"
@@ -213,6 +211,12 @@ class Lot(Base):
         cascade="all, delete-orphan"
     )
 
+    process_data_records: Mapped[List["ProcessData"]] = relationship(
+        "ProcessData",
+        back_populates="lot",
+        cascade="all, delete-orphan"
+    )
+
     # Indexes
     __table_args__ = (
         # Foreign key index
@@ -225,18 +229,17 @@ class Lot(Base):
         Index(
             "idx_lots_active",
             "status",
-            "production_date",
-            postgresql_where="status IN ('CREATED', 'IN_PROGRESS')"
+            "production_date"
         ),
 
         # Date range queries
-        Index("idx_lots_production_date", production_date.desc()),
+        Index("idx_lots_production_date", "production_date"),
 
         # Composite index for filtering
         Index("idx_lots_model_date_shift", "product_model_id", "production_date", "shift"),
 
         # Closed LOTs index (for archival)
-        Index("idx_lots_closed_at", "closed_at", postgresql_where="closed_at IS NOT NULL"),
+        Index("idx_lots_closed_at", "closed_at"),
     )
 
     def __repr__(self) -> str:

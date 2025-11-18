@@ -33,29 +33,27 @@ from app.schemas.lot import (
     LotCreate,
     LotUpdate,
     LotInDB,
-    LotStatus,
-    Shift,
 )
+from app.models.lot import LotStatus, Shift
 from app.schemas.serial import (
     SerialBase,
     SerialCreate,
     SerialUpdate,
     SerialInDB,
-    SerialStatus,
 )
+from app.models.serial import SerialStatus
 from app.schemas.process_data import (
     ProcessDataBase,
     ProcessDataCreate,
     ProcessDataUpdate,
     ProcessDataInDB,
-    DataLevel,
-    ProcessResult,
 )
+from app.models.process_data import DataLevel, ProcessResult
 from app.schemas.audit_log import (
     AuditLogBase,
     AuditLogInDB,
-    AuditAction,
 )
+from app.models.audit_log import AuditAction
 
 __all__ = [
     # ProductModel schemas

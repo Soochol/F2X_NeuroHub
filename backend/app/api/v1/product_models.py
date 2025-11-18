@@ -24,7 +24,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -103,7 +103,7 @@ def list_product_models(
     responses={404: {"description": "Product model not found"}},
 )
 def get_product_model(
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of the product model"),
     db: Session = Depends(deps.get_db),
 ) -> ProductModelInDB:
     """Get product model by primary key ID.
@@ -421,7 +421,7 @@ def create_product_model(
 def update_product_model(
     *,
     db: Session = Depends(deps.get_db),
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of product model to update"),
     obj_in: ProductModelUpdate,
 ) -> ProductModelInDB:
     """Update existing product model.
@@ -504,7 +504,7 @@ def update_product_model(
     responses={404: {"description": "Product model not found"}},
 )
 def delete_product_model(
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of product model to delete"),
     db: Session = Depends(deps.get_db),
 ) -> ProductModelInDB:
     """Delete product model by ID.

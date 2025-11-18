@@ -67,8 +67,11 @@ database/
 │
 ├── views/                        # Optional analytics views
 │   └── process_views/           # 8 process-specific views (JSONB flattening)
-├── data/                         # Master data scripts (if needed)
-└── sql/                          # Utility scripts
+│
+├── scripts/                      # Deployment and utility scripts
+│   └── 01-deploy.sh             # Docker init script for PostgreSQL
+│
+└── test_data.sql                # Sample test data for development
 ```
 
 ## Database Schema Overview

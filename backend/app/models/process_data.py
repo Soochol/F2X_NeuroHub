@@ -34,10 +34,10 @@ from sqlalchemy import (
     Enum as SQLEnum,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, JSONB
 
 
 class DataLevel(str, Enum):
@@ -148,7 +148,6 @@ class ProcessData(Base):
         BIGINT,
         primary_key=True,
         autoincrement=True,
-        comment="Primary key, auto-incrementing BIGSERIAL"
     )
 
     # Foreign Keys
@@ -156,7 +155,6 @@ class ProcessData(Base):
         BIGINT,
         ForeignKey("lots.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=False,
-        comment="Foreign key to lots table (required)"
     )
 
     serial_id: Mapped[Optional[int]] = mapped_column(
@@ -164,34 +162,29 @@ class ProcessData(Base):
         ForeignKey("serials.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=True,
         default=None,
-        comment="Foreign key to serials table (NULL for LOT-level data)"
     )
 
     process_id: Mapped[int] = mapped_column(
         BIGINT,
         ForeignKey("processes.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=False,
-        comment="Foreign key to processes table"
     )
 
     operator_id: Mapped[int] = mapped_column(
         BIGINT,
         ForeignKey("users.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=False,
-        comment="Foreign key to users table (who performed the process)"
     )
 
     # Core Data Columns
     data_level: Mapped[str] = mapped_column(
         VARCHAR(10),
         nullable=False,
-        comment="Data granularity: LOT (LOT-level) or SERIAL (per-unit)"
     )
 
     result: Mapped[str] = mapped_column(
         VARCHAR(10),
         nullable=False,
-        comment="Process result: PASS (successful), FAIL (quality check failed), REWORK (retry)"
     )
 
     # JSONB Measurement and Defect Data
@@ -199,16 +192,12 @@ class ProcessData(Base):
         JSONB,
         nullable=True,
         default=dict,
-        server_default=text("'{}'::jsonb"),
-        comment="Process-specific measurement data in JSON format (indexed with GIN)"
     )
 
     defects: Mapped[Optional[list]] = mapped_column(
         JSONB,
         nullable=True,
         default=list,
-        server_default=text("'[]'::jsonb"),
-        comment="Array of defect information if result = FAIL (indexed with GIN)"
     )
 
     # Additional Information
@@ -216,28 +205,24 @@ class ProcessData(Base):
         TEXT,
         nullable=True,
         default=None,
-        comment="Additional comments or observations from operator"
     )
 
     # Timing Columns
     started_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        comment="Process start timestamp"
     )
 
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=True,
         default=None,
-        comment="Process completion timestamp"
     )
 
     duration_seconds: Mapped[Optional[int]] = mapped_column(
         INTEGER,
         nullable=True,
         default=None,
-        comment="Actual process duration in seconds (auto-calculated)"
     )
 
     # Timestamp Columns
@@ -246,7 +231,6 @@ class ProcessData(Base):
         nullable=False,
         default=datetime.utcnow,
         server_default=text("NOW()"),
-        comment="Record creation timestamp"
     )
 
     # Relationships
@@ -307,23 +291,18 @@ class ProcessData(Base):
         Index(
             "idx_process_data_lot",
             lot_id,
-            comment="Index for lot_id foreign key lookups"
         ),
         Index(
             "idx_process_data_serial",
             serial_id,
-            postgresql_where="serial_id IS NOT NULL",
-            comment="Partial index for serial_id lookups"
         ),
         Index(
             "idx_process_data_process",
             process_id,
-            comment="Index for process_id foreign key lookups"
         ),
         Index(
             "idx_process_data_operator",
             operator_id,
-            comment="Index for operator_id foreign key lookups"
         ),
 
         # COMPOSITE INDEXES FOR COMMON QUERIES
@@ -332,35 +311,28 @@ class ProcessData(Base):
             serial_id,
             process_id,
             result,
-            postgresql_where="serial_id IS NOT NULL",
-            comment="Composite index for serial-process query optimization"
         ),
         Index(
             "idx_process_data_lot_process",
             lot_id,
             process_id,
             result,
-            comment="Composite index for lot-process query optimization"
         ),
         Index(
             "idx_process_data_process_result",
             process_id,
             result,
             started_at,
-            comment="Composite index for process result analysis"
         ),
 
         # TIME-BASED INDEXES FOR ANALYTICS
         Index(
             "idx_process_data_started_at",
-            started_at.desc(),
-            comment="Index for time-based queries and analytics"
+            "started_at"
         ),
         Index(
             "idx_process_data_completed_at",
-            completed_at.desc(),
-            postgresql_where="completed_at IS NOT NULL",
-            comment="Partial index for completion timestamp queries"
+            "completed_at"
         ),
 
         # SPECIALIZED INDEXES
@@ -368,22 +340,16 @@ class ProcessData(Base):
             "idx_process_data_failed",
             process_id,
             started_at,
-            postgresql_where="result = 'FAIL'",
-            comment="Partial index for failed process analysis"
         ),
 
         # JSONB GIN INDEXES FOR EFFICIENT JSON QUERYING
         Index(
             "idx_process_data_measurements",
             measurements,
-            postgresql_using="gin",
-            comment="GIN index for efficient JSONB measurement queries"
         ),
         Index(
             "idx_process_data_defects",
             defects,
-            postgresql_using="gin",
-            comment="GIN index for efficient JSONB defect queries"
         ),
 
         # DATA LEVEL AND FILTERING INDEXES
@@ -391,7 +357,6 @@ class ProcessData(Base):
             "idx_process_data_data_level",
             data_level,
             lot_id,
-            comment="Index for data level filtering"
         ),
 
         # OPERATOR PERFORMANCE INDEX
@@ -401,7 +366,6 @@ class ProcessData(Base):
             process_id,
             result,
             started_at,
-            comment="Composite index for operator performance analysis"
         ),
     )
 

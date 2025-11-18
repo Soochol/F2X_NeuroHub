@@ -6,13 +6,12 @@ schema using SQLAlchemy 2.0 syntax.
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import Index, String, Text, CheckConstraint, func, text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, JSONB, is_postgresql
 
 
 class ProductModel(Base):
@@ -68,41 +67,34 @@ class ProductModel(Base):
     model_code: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        unique=True,
-        doc="Unique model identifier (e.g., NH-F2X-001)"
+        unique=True
     )
 
     model_name: Mapped[str] = mapped_column(
         String(255),
-        nullable=False,
-        doc="Product name (Korean/English)"
+        nullable=False
     )
 
     category: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=True,
-        doc="Product category or family"
+        nullable=True
     )
 
     production_cycle_days: Mapped[Optional[int]] = mapped_column(
-        nullable=True,
-        doc="Expected production cycle duration in days"
+        nullable=True
     )
 
     specifications: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
-        default=lambda: {},
-        server_default=text("'{}'::jsonb"),
-        doc="Technical specifications in JSON format"
+        default=lambda: {}
     )
 
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default="ACTIVE",
-        server_default="ACTIVE",
-        doc="Product lifecycle status (ACTIVE, INACTIVE, DISCONTINUED)"
+        server_default="ACTIVE"
     )
 
     # =========================================================================
@@ -111,58 +103,65 @@ class ProductModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         nullable=False,
         default=datetime.utcnow,
-        server_default=func.now(),
-        doc="Record creation timestamp with timezone awareness"
+        server_default=func.now()
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         nullable=False,
         default=datetime.utcnow,
         server_default=func.now(),
-        onupdate=datetime.utcnow,
-        doc="Last update timestamp with timezone awareness"
+        onupdate=datetime.utcnow
+    )
+
+    # =========================================================================
+    # Relationships
+    # =========================================================================
+    lots: Mapped[List["Lot"]] = relationship(  # noqa: F821
+        "Lot",
+        back_populates="product_model",
+        cascade="all, delete-orphan"
     )
 
     # =========================================================================
     # Constraints
     # =========================================================================
-    __table_args__ = (
-        # Status check constraint
-        CheckConstraint(
-            "status IN ('ACTIVE', 'INACTIVE', 'DISCONTINUED')",
-            name="chk_product_models_status"
-        ),
-        # Production cycle days positive check constraint
-        CheckConstraint(
-            "production_cycle_days IS NULL OR production_cycle_days > 0",
-            name="chk_product_models_cycle_days"
-        ),
-        # Indexes
-        Index(
-            "idx_product_models_status",
-            "status",
-            postgresql_where=text("status = 'ACTIVE'"),
-            doc="Partial index for active products query"
-        ),
-        Index(
-            "idx_product_models_name_search",
-            text("to_tsvector('simple', model_name)"),
-            postgresql_using="gin",
-            doc="Full-text search index on model name"
-        ),
-        Index(
-            "idx_product_models_specifications",
-            "specifications",
-            postgresql_using="gin",
-            doc="GIN index for JSONB specifications"
-        ),
-        Index(
-            "idx_product_models_category",
-            "category",
-            postgresql_where=text("category IS NOT NULL"),
-            doc="Category classification partial index"
-        ),
-    )
+    @staticmethod
+    def _get_table_args():
+        """Generate table arguments conditionally based on database dialect."""
+        args = [
+            # Status check constraint
+            CheckConstraint(
+                "status IN ('ACTIVE', 'INACTIVE', 'DISCONTINUED')",
+                name="chk_product_models_status"
+            ),
+            # Production cycle days positive check constraint
+            CheckConstraint(
+                "production_cycle_days IS NULL OR production_cycle_days > 0",
+                name="chk_product_models_cycle_days"
+            ),
+            # Basic indexes (SQLite compatible)
+            Index("idx_product_models_status", "status"),
+            Index("idx_product_models_category", "category"),
+        ]
+
+        # Add PostgreSQL-specific indexes
+        if is_postgresql():
+            args.extend([
+                Index(
+                    "idx_product_models_name_search",
+                    text("to_tsvector('simple', model_name)"),
+                    postgresql_using="gin"
+                ),
+                Index(
+                    "idx_product_models_specifications",
+                    "specifications",
+                    postgresql_using="gin"
+                ),
+            ])
+
+        return tuple(args)
+
+    __table_args__ = _get_table_args()
 
     def __repr__(self) -> str:
         """Return string representation of ProductModel.

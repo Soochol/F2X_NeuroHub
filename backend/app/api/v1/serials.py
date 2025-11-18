@@ -25,7 +25,7 @@ State Machine:
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app import crud
@@ -80,7 +80,7 @@ def list_serials(
     description="Retrieve a specific serial by its primary key.",
 )
 def get_serial(
-    serial_id: int = Query(..., gt=0, description="Serial ID"),
+    serial_id: int = Path(..., gt=0, description="Serial ID"),
     db: Session = Depends(get_db),
 ):
     """
@@ -108,7 +108,7 @@ def get_serial(
     description="Retrieve a serial by its unique serial number (e.g., WF-KR-251110D-001-0001).",
 )
 def get_serial_by_number(
-    serial_number: str = Query(..., min_length=1, description="Serial number (format: {LOT_NUMBER}-XXXX)"),
+    serial_number: str = Path(..., min_length=1, description="Serial number (format: {LOT_NUMBER}-XXXX)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -139,7 +139,7 @@ def get_serial_by_number(
     description="Retrieve all serials in a specific lot with pagination.",
 )
 def get_serials_by_lot(
-    lot_id: int = Query(..., gt=0, description="Lot ID"),
+    lot_id: int = Path(..., gt=0, description="Lot ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(get_db),
@@ -171,7 +171,7 @@ def get_serials_by_lot(
     description="Retrieve serials filtered by lifecycle status with pagination.",
 )
 def get_serials_by_status(
-    status_filter: str = Query(..., description="Status filter: CREATED, IN_PROGRESS, PASSED, FAILED"),
+    status_filter: str = Path(..., description="Status filter: CREATED, IN_PROGRESS, PASSED, FAILED"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(get_db),
@@ -274,7 +274,7 @@ def create_serial(
     description="Perform partial update of a serial. Only provided fields are updated.",
 )
 def update_serial(
-    serial_id: int = Query(..., gt=0, description="Serial ID"),
+    serial_id: int = Path(..., gt=0, description="Serial ID"),
     serial_in: SerialUpdate = None,
     db: Session = Depends(get_db),
 ):

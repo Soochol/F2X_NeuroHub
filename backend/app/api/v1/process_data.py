@@ -32,7 +32,7 @@ Key Features:
 
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app import crud
@@ -85,7 +85,7 @@ def list_process_data(
     description="Retrieve a specific process execution record by its primary key.",
 )
 def get_process_data(
-    process_data_id: int = Query(..., gt=0, description="Process data record ID"),
+    process_data_id: int = Path(..., gt=0, description="Process data record ID"),
     db: Session = Depends(deps.get_db),
 ):
     """
@@ -116,7 +116,7 @@ def get_process_data(
     description="Retrieve all process execution records for a specific serial with pagination.",
 )
 def get_process_data_by_serial(
-    serial_id: int = Query(..., gt=0, description="Serial ID"),
+    serial_id: int = Path(..., gt=0, description="Serial ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
@@ -150,7 +150,7 @@ def get_process_data_by_serial(
     description="Retrieve all process execution records for a specific LOT with pagination.",
 )
 def get_process_data_by_lot(
-    lot_id: int = Query(..., gt=0, description="LOT ID"),
+    lot_id: int = Path(..., gt=0, description="LOT ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
@@ -184,7 +184,7 @@ def get_process_data_by_lot(
     description="Retrieve all process execution records for a specific manufacturing process with pagination.",
 )
 def get_process_data_by_process(
-    process_id: int = Query(..., gt=0, description="Process ID"),
+    process_id: int = Path(..., gt=0, description="Process ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
@@ -218,7 +218,7 @@ def get_process_data_by_process(
     description="Retrieve process execution records filtered by result (PASS, FAIL, REWORK) with pagination.",
 )
 def get_process_data_by_result(
-    result: str = Query(..., description="Result filter: PASS, FAIL, or REWORK"),
+    result: str = Path(..., description="Result filter: PASS, FAIL, or REWORK"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
@@ -284,7 +284,7 @@ def get_failed_process_data(
     description="Retrieve all process execution records performed by a specific operator for performance analysis.",
 )
 def get_process_data_by_operator(
-    operator_id: int = Query(..., gt=0, description="Operator (User) ID"),
+    operator_id: int = Path(..., gt=0, description="Operator (User) ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
     db: Session = Depends(deps.get_db),
@@ -358,8 +358,8 @@ def get_process_data_by_date_range(
     description="Retrieve the process execution record for a specific serial executing a specific process.",
 )
 def get_process_data_by_serial_and_process(
-    serial_id: int = Query(..., gt=0, description="Serial ID"),
-    process_id: int = Query(..., gt=0, description="Process ID"),
+    serial_id: int = Path(..., gt=0, description="Serial ID"),
+    process_id: int = Path(..., gt=0, description="Process ID"),
     db: Session = Depends(deps.get_db),
 ):
     """
@@ -515,7 +515,7 @@ def create_process_data(
     description="Perform partial update of a process data record. Only provided fields are updated.",
 )
 def update_process_data(
-    process_data_id: int = Query(..., gt=0, description="Process data record ID"),
+    process_data_id: int = Path(..., gt=0, description="Process data record ID"),
     obj_in: ProcessDataUpdate = None,
     db: Session = Depends(deps.get_db),
 ):
@@ -578,7 +578,7 @@ def update_process_data(
     description="Delete a process execution record. Note: Database triggers may prevent deletion of completed records.",
 )
 def delete_process_data(
-    process_data_id: int = Query(..., gt=0, description="Process data record ID"),
+    process_data_id: int = Path(..., gt=0, description="Process data record ID"),
     db: Session = Depends(deps.get_db),
 ):
     """

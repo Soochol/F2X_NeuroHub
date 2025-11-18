@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, Integer
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -224,8 +224,8 @@ def get_production_statistics(
     serials_by_date = db.query(
         func.date(Serial.created_at).label('date'),
         func.count(Serial.id).label('count'),
-        func.sum(func.cast(Serial.status == SerialStatus.PASSED, db.Integer)).label('passed'),
-        func.sum(func.cast(Serial.status == SerialStatus.FAILED, db.Integer)).label('failed')
+        func.sum(func.cast(Serial.status == SerialStatus.PASSED, Integer)).label('passed'),
+        func.sum(func.cast(Serial.status == SerialStatus.FAILED, Integer)).label('failed')
     ).filter(
         and_(
             func.date(Serial.created_at) >= start_date,
@@ -387,7 +387,7 @@ def get_quality_metrics(
     quality_trend = db.query(
         func.date(Serial.completed_at).label('date'),
         func.count(Serial.id).label('total'),
-        func.sum(func.cast(Serial.status == SerialStatus.PASSED, db.Integer)).label('passed')
+        func.sum(func.cast(Serial.status == SerialStatus.PASSED, Integer)).label('passed')
     ).filter(
         and_(
             Serial.completed_at.isnot(None),
@@ -448,8 +448,8 @@ def get_operator_performance(
         User.full_name,
         User.username,
         func.count(ProcessData.id).label('total_operations'),
-        func.sum(func.cast(ProcessData.result == ProcessResult.PASS, db.Integer)).label('successful_operations'),
-        func.sum(func.cast(ProcessData.result == ProcessResult.FAIL, db.Integer)).label('failed_operations'),
+        func.sum(func.cast(ProcessData.result == ProcessResult.PASS, Integer)).label('successful_operations'),
+        func.sum(func.cast(ProcessData.result == ProcessResult.FAIL, Integer)).label('failed_operations'),
         func.avg(ProcessData.duration_seconds).label('avg_cycle_time')
     ).join(
         ProcessData, ProcessData.operator_id == User.id

@@ -120,8 +120,7 @@ class Serial(Base):
     # Primary key
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        autoincrement=True,
-        doc="Primary key, auto-incrementing BIGSERIAL"
+        autoincrement=True
     )
 
     # Serial identification
@@ -130,80 +129,69 @@ class Serial(Base):
         nullable=False,
         unique=True,
         index=False,  # Unique constraint provides index
-        doc="Auto-generated unique serial identifier in format: {LOT_NUMBER}-XXXX (e.g., WF-KR-251110D-001-0001)"
     )
 
     # LOT relationship
     lot_id: Mapped[int] = mapped_column(
         ForeignKey("lots.id", ondelete="RESTRICT", onupdate="CASCADE"),
-        nullable=False,
-        doc="Foreign key reference to parent LOT"
+        nullable=False
     )
 
     sequence_in_lot: Mapped[int] = mapped_column(
         Integer,
-        nullable=False,
-        doc="Sequence number within LOT (1-100, auto-assigned by trigger)"
+        nullable=False
     )
 
     # Status tracking
     status: Mapped[SerialStatus] = mapped_column(
         Enum(SerialStatus, native_enum=False, length=20),
         nullable=False,
-        default=SerialStatus.CREATED,
-        doc="Serial lifecycle status: CREATED (initial), IN_PROGRESS (processing), PASSED (success), FAILED (rejected)"
+        default=SerialStatus.CREATED
     )
 
     rework_count: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        default=0,
-        doc="Number of rework attempts performed (0-3 maximum)"
+        default=0
     )
 
     failure_reason: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
-        default=None,
-        doc="Reason for failure (required only when status = FAILED)"
+        default=None
     )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        doc="Serial creation timestamp (auto-set to current time)"
+        default=datetime.utcnow
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        doc="Last update timestamp (auto-updated on any change)"
+        onupdate=datetime.utcnow
     )
 
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        default=None,
-        doc="Timestamp when serial reached PASSED or FAILED status (terminal state)"
+        default=None
     )
 
     # Relationships
     lot: Mapped["Lot"] = relationship(
         "Lot",
         back_populates="serials",
-        foreign_keys=[lot_id],
-        doc="Reference to parent Lot (many-to-one relationship)"
+        foreign_keys=[lot_id]
     )
 
-    process_data: Mapped[list["ProcessData"]] = relationship(
+    process_data_records: Mapped[list["ProcessData"]] = relationship(
         "ProcessData",
         back_populates="serial",
-        cascade="all, delete-orphan",
-        doc="List of ProcessData records for this serial (one-to-many relationship)"
+        cascade="all, delete-orphan"
     )
 
     # Indexes
@@ -211,45 +199,32 @@ class Serial(Base):
         # Foreign key index for lot queries
         Index(
             "idx_serials_lot",
-            "lot_id",
-            doc="Index for foreign key lot_id queries"
+            "lot_id"
         ),
         # Status-based queries
         Index(
             "idx_serials_status",
-            "status",
-            doc="Index for status-based filtering"
+            "status"
         ),
         # Active serials (partial index for performance)
         Index(
             "idx_serials_active",
             "lot_id",
-            "status",
-            sqlite_where="status IN ('CREATED', 'IN_PROGRESS')",
-            doc="Partial index for active serials in LOT"
+            "status"
         ),
         # Failed serials analysis (partial index)
         Index(
             "idx_serials_failed",
             "lot_id",
-            "failure_reason",
-            sqlite_where="status = 'FAILED'",
-            doc="Partial index for failed serials analysis"
-        ),
+            "failure_reason"),
         # Rework tracking (partial index)
         Index(
             "idx_serials_rework",
-            "rework_count",
-            sqlite_where="rework_count > 0",
-            doc="Partial index for serials undergoing rework"
-        ),
+            "rework_count"),
         # Completion time analysis (partial index)
         Index(
             "idx_serials_completed_at",
-            "completed_at",
-            sqlite_where="completed_at IS NOT NULL",
-            doc="Partial index for completed serials analysis"
-        ),
+            "completed_at"),
         # Check constraints
         CheckConstraint(
             "rework_count >= 0 AND rework_count <= 3",

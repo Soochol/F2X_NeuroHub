@@ -31,7 +31,7 @@ Endpoints:
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -111,7 +111,7 @@ def list_users(
 def get_user(
     *,
     db: Session = Depends(deps.get_db),
-    user_id: int,
+    user_id: int = Path(..., gt=0, description="User ID to retrieve"),
 ):
     """
     Get a user by ID.
@@ -211,7 +211,7 @@ def get_user_by_email(
 def get_users_by_role(
     *,
     db: Session = Depends(deps.get_db),
-    role: UserRole,
+    role: UserRole = Path(..., description="User role: ADMIN, MANAGER, OPERATOR"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(
         100,
@@ -321,7 +321,7 @@ def create_user(
 def update_user(
     *,
     db: Session = Depends(deps.get_db),
-    user_id: int,
+    user_id: int = Path(..., gt=0, description="ID of user to update"),
     user_in: UserUpdate,
     # current_user: User = Depends(deps.get_current_active_superuser),  # Auth Phase
 ):
@@ -389,7 +389,7 @@ def update_user(
 def delete_user(
     *,
     db: Session = Depends(deps.get_db),
-    user_id: int,
+    user_id: int = Path(..., gt=0, description="ID of user to delete"),
     # current_user: User = Depends(deps.get_current_active_superuser),  # Auth Phase
 ):
     """
@@ -507,7 +507,7 @@ def update_current_user(
 def change_user_password(
     *,
     db: Session = Depends(deps.get_db),
-    user_id: int,
+    user_id: int = Path(..., gt=0, description="ID of user whose password to change"),
     old_password: str,
     new_password: str,
     # current_user: User = Depends(deps.get_current_active_user),  # Auth Phase

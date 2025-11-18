@@ -17,7 +17,7 @@ Database Table: users
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 import enum
 
 from sqlalchemy import (
@@ -27,7 +27,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -88,80 +88,76 @@ class User(Base):
     # Primary key
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        autoincrement=True,
-        doc="Primary key, auto-incrementing BIGSERIAL"
+        autoincrement=True
     )
 
     # Core columns
     username: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        unique=True,
-        doc="Unique login username (minimum 3 characters)"
+        unique=True
     )
 
     email: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        unique=True,
-        doc="Unique email address with format validation"
+        unique=True
     )
 
     password_hash: Mapped[str] = mapped_column(
         String(255),
-        nullable=False,
-        doc="Bcrypt hashed password (cost factor 12)"
+        nullable=False
     )
 
     full_name: Mapped[str] = mapped_column(
         String(255),
-        nullable=False,
-        doc="User's full name (Korean or English)"
+        nullable=False
     )
 
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, native_enum=False, length=20),
         nullable=False,
-        default=UserRole.OPERATOR,
-        doc="User role: ADMIN (full access), MANAGER (production management), OPERATOR (operators)"
+        default=UserRole.OPERATOR
     )
 
     department: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True,
-        default=None,
-        doc="Department or team assignment"
+        default=None
     )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=True,
-        doc="Account active status (false for disabled accounts)"
+        default=True
     )
 
     # Activity tracking
     last_login_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        default=None,
-        doc="Last successful login timestamp"
+        default=None
     )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        doc="Account creation timestamp"
+        default=datetime.utcnow
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        doc="Last update timestamp"
+        onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    process_data_records: Mapped[List["ProcessData"]] = relationship(
+        "ProcessData",
+        back_populates="operator",
+        cascade="all, delete-orphan"
     )
 
     # Indexes
@@ -169,25 +165,17 @@ class User(Base):
         Index(
             "idx_users_active",
             "is_active",
-            "role",
-            sqlite_where="is_active = TRUE",
-            doc="Index for active users lookup"
-        ),
+            "role"),
         Index(
             "idx_users_role",
-            "role",
-            doc="Index for role-based queries"
+            "role"
         ),
         Index(
             "idx_users_department",
-            "department",
-            sqlite_where="department IS NOT NULL",
-            doc="Index for department filtering"
-        ),
+            "department"),
         Index(
             "idx_users_last_login",
-            "last_login_at",
-            doc="Index for last login analysis"
+            "last_login_at"
         ),
     )
 

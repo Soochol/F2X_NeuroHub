@@ -9,7 +9,7 @@ Primary key: id (BIGSERIAL)
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import (
     CheckConstraint,
@@ -22,9 +22,9 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSON
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, JSONB, is_postgresql
 
 
 class Process(Base):
@@ -72,46 +72,38 @@ class Process(Base):
         Integer,
         nullable=False,
         unique=True,
-        doc="Process sequence number (1-8), unique identifier for process order",
     )
 
     process_code: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         unique=True,
-        doc="Unique process code identifier (e.g., LASER_MARKING)",
     )
 
     process_name_ko: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        doc="Process name in Korean",
     )
 
     process_name_en: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        doc="Process name in English",
     )
 
     description: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
-        doc="Detailed process description and operational details",
     )
 
     estimated_duration_seconds: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
-        doc="Expected duration in seconds (must be positive if specified)",
     )
 
     quality_criteria: Mapped[dict] = mapped_column(
-        JSON,
+        JSONB,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
-        doc="JSONB field containing quality standards and acceptance criteria",
     )
 
     is_active: Mapped[bool] = mapped_column(
@@ -119,13 +111,11 @@ class Process(Base):
         nullable=False,
         default=True,
         server_default=text("true"),
-        doc="Whether this process is currently active and in use",
     )
 
     sort_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        doc="Display sort order for UI presentation (usually same as process_number)",
     )
 
     # Timestamp Columns
@@ -134,7 +124,6 @@ class Process(Base):
         nullable=False,
         default=datetime.utcnow,
         server_default=text("NOW()"),
-        doc="Record creation timestamp",
     )
 
     updated_at: Mapped[datetime] = mapped_column(
@@ -143,7 +132,13 @@ class Process(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         server_default=text("NOW()"),
-        doc="Last update timestamp",
+    )
+
+    # Relationships
+    process_data_records: Mapped[List["ProcessData"]] = relationship(
+        "ProcessData",
+        back_populates="process",
+        cascade="all, delete-orphan"
     )
 
     # Table Arguments: Constraints and Indexes
@@ -165,17 +160,15 @@ class Process(Base):
         Index(
             "idx_processes_active",
             is_active,
-            sort_order,
-            postgresql_where=text("is_active = TRUE"),
+            sort_order
         ),
         Index(
             "idx_processes_quality_criteria",
-            quality_criteria,
-            postgresql_using="gin",
+            quality_criteria
         ),
         Index(
             "idx_processes_sort_order",
-            sort_order,
+            sort_order
         ),
     )
 

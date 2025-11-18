@@ -10,7 +10,15 @@
       "Bash(backend/app/crud/__init__.py)",
       "Bash(python -m py_compile:*)",
       "Bash(backend/app/api/v1/__init__.py)",
-      "Bash(backend/app/core/__init__.py)"
+      "Bash(backend/app/core/__init__.py)",
+      "Bash(python -m pytest:*)",
+      "Bash(tee:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

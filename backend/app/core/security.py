@@ -18,7 +18,12 @@ from app.schemas import UserRole
 
 
 # Password hashing context (bcrypt with cost factor 12)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# truncate_error=False allows passlib to handle bcrypt 72-byte limit automatically
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__truncate_error=False
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

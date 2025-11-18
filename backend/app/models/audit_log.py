@@ -45,10 +45,10 @@ from sqlalchemy import (
     Text,
     TIMESTAMP,
 )
-from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, JSONB
 
 
 class AuditAction(str, Enum):
@@ -130,8 +130,7 @@ class AuditLog(Base):
         BigInteger,
         primary_key=True,
         nullable=False,
-        autoincrement=True,
-        comment="Unique identifier for audit log entry",
+        autoincrement="auto",  # SQLite compatible: auto uses ROWID for single-column PKs
     )
 
     # =========================================================================
@@ -147,7 +146,6 @@ class AuditLog(Base):
         ),
         nullable=False,
         index=True,
-        comment="ID of user who performed the action (FK to users table)",
     )
 
     # =========================================================================
@@ -156,13 +154,11 @@ class AuditLog(Base):
     entity_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        comment="Name of the table/entity being audited",
     )
 
     entity_id: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False,
-        comment="Primary key of the affected record in entity_type table",
     )
 
     # =========================================================================
@@ -171,7 +167,6 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(
         String(10),
         nullable=False,
-        comment="Type of operation: CREATE, UPDATE, or DELETE",
     )
 
     # =========================================================================
@@ -180,13 +175,11 @@ class AuditLog(Base):
     old_values: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=True,
-        comment="Complete record snapshot before change (NULL for CREATE)",
     )
 
     new_values: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=True,
-        comment="Complete record snapshot after change (NULL for DELETE)",
     )
 
     # =========================================================================
@@ -195,13 +188,11 @@ class AuditLog(Base):
     ip_address: Mapped[Optional[str]] = mapped_column(
         String(45),
         nullable=True,
-        comment="Client IP address (IPv4 or IPv6 format)",
     )
 
     user_agent: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
-        comment="Client user agent string for security analysis",
     )
 
     # =========================================================================
@@ -210,9 +201,9 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        server_default="NOW()",
-        primary_key=True,
-        comment="Timestamp when audit entry was created (partitioning key)",
+        server_default="CURRENT_TIMESTAMP",
+        # Note: primary_key=True removed for SQLite compatibility
+        # PostgreSQL partitioning uses (id, created_at) composite key
     )
 
     # =========================================================================
@@ -223,7 +214,6 @@ class AuditLog(Base):
         foreign_keys=[user_id],
         uselist=False,
         lazy="select",
-        doc="Relationship to the User who performed the action",
     )
 
     # =========================================================================
@@ -240,41 +230,31 @@ class AuditLog(Base):
         Index(
             "idx_audit_logs_user",
             "user_id",
-            doc="User lookups - FK index for filtering by user",
         ),
         Index(
             "idx_audit_logs_entity",
             "entity_type",
             "entity_id",
-            doc="Entity tracking - specific record history queries",
         ),
         Index(
             "idx_audit_logs_action",
             "action",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
-            doc="Action filtering with time ordering",
         ),
         Index(
             "idx_audit_logs_created_at",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
-            doc="Time-based queries (most common access pattern)",
         ),
         Index(
             "idx_audit_logs_user_activity",
             "user_id",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
-            doc="User activity analysis - changes per user over time",
         ),
         Index(
             "idx_audit_logs_entity_history",
             "entity_type",
             "entity_id",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
-            doc="Complete entity history - full change history for entity",
         ),
 
         # =====================================================================
@@ -283,14 +263,10 @@ class AuditLog(Base):
         Index(
             "idx_audit_logs_old_values",
             "old_values",
-            postgresql_using="gin",
-            doc="GIN index for JSONB search on old_values - supports containment operators",
         ),
         Index(
             "idx_audit_logs_new_values",
             "new_values",
-            postgresql_using="gin",
-            doc="GIN index for JSONB search on new_values - supports containment operators",
         ),
 
         # =====================================================================
@@ -300,9 +276,6 @@ class AuditLog(Base):
             "idx_audit_logs_ip_address",
             "ip_address",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
-            postgresql_where="ip_address IS NOT NULL",
-            doc="IP-based security analysis (partial index for non-null IP)",
         ),
 
         # =====================================================================

@@ -30,7 +30,7 @@ All endpoints include:
 
 from datetime import date
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -111,7 +111,7 @@ def list_lots(
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot(
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get LOT by primary key ID.
@@ -174,7 +174,7 @@ def get_lot(
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot_by_number(
-    lot_number: str = Query(..., pattern="^WF-KR-[0-9]{6}[DN]-[0-9]{3}$", description="Unique LOT identifier"),
+    lot_number: str = Path(..., pattern="^WF-KR-[0-9]{6}[DN]-[0-9]{3}$", description="Unique LOT identifier"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get LOT by unique LOT number.
@@ -355,7 +355,7 @@ def get_lots_by_date_range(
     description="Retrieve paginated list of LOTs for a specific product model",
 )
 def get_lots_by_product_model(
-    product_model_id: int = Query(..., gt=0, description="Product model identifier"),
+    product_model_id: int = Path(..., gt=0, description="Product model identifier"),
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return"),
     db: Session = Depends(deps.get_db),
@@ -413,7 +413,7 @@ def get_lots_by_product_model(
     description="Retrieve paginated list of LOTs filtered by status",
 )
 def get_lots_by_status(
-    status: str = Query(..., description="LOT status: CREATED, IN_PROGRESS, COMPLETED, CLOSED"),
+    status: str = Path(..., description="LOT status: CREATED, IN_PROGRESS, COMPLETED, CLOSED"),
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return"),
     db: Session = Depends(deps.get_db),
@@ -471,7 +471,7 @@ def get_lots_by_status(
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot_quantities(
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get current quantities for a LOT.
@@ -627,7 +627,7 @@ def create_lot(
 def update_lot(
     *,
     db: Session = Depends(deps.get_db),
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     obj_in: LotUpdate,
 ) -> LotInDB:
     """Update existing LOT.
@@ -721,7 +721,7 @@ def update_lot(
     responses={404: {"description": "Lot not found"}},
 )
 def close_lot(
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Close a completed LOT.
@@ -788,7 +788,7 @@ def close_lot(
     responses={404: {"description": "Lot not found"}},
 )
 def recalculate_lot_quantities(
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Recalculate LOT quantities from serials.
@@ -863,7 +863,7 @@ def recalculate_lot_quantities(
     },
 )
 def delete_lot(
-    id: int = Query(..., gt=0, description="Primary key identifier of the LOT"),
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Delete LOT by ID.

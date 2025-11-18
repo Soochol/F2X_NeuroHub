@@ -91,7 +91,7 @@ def get_current_user(
 
     # Get user from database
     try:
-        user = user_crud.get(db, id=int(user_id))
+        user = user_crud.get(db, user_id=int(user_id))
     except ValueError:
         raise credentials_exception
 

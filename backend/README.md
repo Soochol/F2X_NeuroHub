@@ -63,51 +63,141 @@ F2X NeuroHub Manufacturing Execution System (MES) backend API built with FastAPI
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 14+
+- **Docker & Docker Compose** (Recommended - easiest setup)
+- OR PostgreSQL 14+ (if not using Docker)
 - pip or uv package manager
 
-### Installation
+### 🐳 Quick Start with Docker (Recommended)
 
-1. **Clone repository**
+**1. Start PostgreSQL Database**
+
+```bash
+# From project root (F2X_NeuroHub/)
+docker-compose up -d
+
+# Wait for initialization (~30 seconds)
+# Check logs for "✅ Database Initialization Completed Successfully!"
+docker-compose logs -f postgres
+```
+
+This automatically:
+- ✅ Starts PostgreSQL 14 + pgAdmin
+- ✅ Creates database `f2x_neurohub_mes`
+- ✅ Deploys full schema (14 functions, 7 tables, 50+ indexes, 20+ triggers)
+- ✅ Creates initial users (system, admin, operator1)
+- ✅ Sets up audit log partitions
+
+**2. Setup Python Environment**
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate
+venv\Scripts\activate     # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+**3. Configure Environment**
+
+```bash
+# Copy template
+cp .env.example .env
+
+# .env is already configured for Docker!
+# DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/f2x_neurohub_mes
+```
+
+**Optional: Generate Strong Secret Key**
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Update SECRET_KEY in .env
+```
+
+**4. Load Test Data (Optional)**
+
+```bash
+# From project root
+docker exec -it f2x-postgres psql -U postgres -d f2x_neurohub_mes -f /sql/test_data.sql
+```
+
+This loads:
+- 3 product models (PSA-1000, PSA-2000, PSA-3000)
+- 5 LOTs with various statuses
+- 50+ serials
+- 100+ process records
+
+**5. Start API Server**
+
+```bash
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**6. Access Services**
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **API Docs (Swagger)** | http://localhost:8000/docs | - |
+| **API Docs (ReDoc)** | http://localhost:8000/redoc | - |
+| **pgAdmin** | http://localhost:5050 | admin@f2x.com / admin123 |
+| **PostgreSQL** | localhost:5432 | postgres / postgres123 |
+
+**7. Test Login**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin&password=admin123"
+```
+
+### 💻 Manual Setup (Without Docker)
+
+1. **Install PostgreSQL 14+**
+
+2. **Create database**
    ```bash
-   cd F2X_NeuroHub/backend
+   createdb -U postgres f2x_neurohub_mes
    ```
 
-2. **Create virtual environment**
+3. **Deploy schema**
    ```bash
+   psql -U postgres -d f2x_neurohub_mes -f ../database/deploy.sql
+   ```
+
+4. **Create virtual environment**
+   ```bash
+   cd backend
    python -m venv venv
    source venv/bin/activate  # Linux/Mac
    venv\Scripts\activate     # Windows
    ```
 
-3. **Install dependencies**
+5. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Configure environment**
-
-   Create `.env` file in backend directory:
-   ```env
-   DATABASE_URL=postgresql://postgres:password@localhost:5432/f2x_neurohub_mes
-   SECRET_KEY=your-secret-key-min-32-characters
-   DEBUG=True
-   CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
-   ```
-
-5. **Deploy database schema**
+6. **Configure environment**
    ```bash
-   psql -U postgres -d f2x_neurohub_mes -f ../database/deploy.sql
+   cp .env.example .env
+   # Edit .env and update DATABASE_URL if needed
    ```
 
-6. **Run development server**
+7. **Run development server**
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-7. **Access API documentation**
-   - Swagger UI: http://localhost:8000/api/v1/docs
-   - ReDoc: http://localhost:8000/api/v1/redoc
+8. **Access API documentation**
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
 
 ## Security & Authentication
 
@@ -565,9 +655,18 @@ Solution: Add frontend URL to CORS_ORIGINS in .env
 
 ## Documentation
 
-- **Swagger UI**: http://localhost:8000/api/v1/docs
-- **ReDoc**: http://localhost:8000/api/v1/redoc
-- **Database Schema**: ../database/README.md
+### Interactive API Docs
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+
+### Documentation Files
+- **[API Endpoints](docs/api/API_ENDPOINTS.md)** - Complete API reference
+- **[Development Guide](docs/guides/DEVELOPMENT.md)** - Development workflow and best practices
+- **[Deployment Guide](docs/guides/DEPLOYMENT.md)** - Production deployment instructions
+- **[Test Plan](docs/testing/TEST_PLAN.md)** - Testing strategy and coverage
+- **[Test Report](docs/testing/BACKEND_TEST_COMPLETION_REPORT.md)** - Latest test results
+- **Database Schema**: [../database/README.md](../database/README.md)
 
 ## Support
 

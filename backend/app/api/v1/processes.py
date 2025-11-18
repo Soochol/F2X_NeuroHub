@@ -26,7 +26,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -107,7 +107,7 @@ def list_processes(
     responses={404: {"description": "Process not found"}},
 )
 def get_process(
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of the process"),
     db: Session = Depends(deps.get_db),
 ) -> ProcessInDB:
     """Get process by primary key ID.
@@ -522,7 +522,7 @@ def create_process(
 def update_process(
     *,
     db: Session = Depends(deps.get_db),
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of process to update"),
     obj_in: ProcessUpdate,
 ) -> ProcessInDB:
     """Update existing manufacturing process.
@@ -621,7 +621,7 @@ def update_process(
     },
 )
 def delete_process(
-    id: int,
+    id: int = Path(..., gt=0, description="Primary key identifier of process to delete"),
     db: Session = Depends(deps.get_db),
 ) -> ProcessInDB:
     """Delete manufacturing process by ID.
