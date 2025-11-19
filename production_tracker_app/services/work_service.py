@@ -1,11 +1,13 @@
 """
 Work Service for start/complete operations with threading support.
+
+Refactored to use single APIWorker instead of multiple specific workers.
 """
 from PySide6.QtCore import QObject, Signal
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime
 from .api_client import APIClient
-from .workers import StartWorkWorker, CompleteWorkWorker, StatsWorker
+from .workers import APIWorker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,20 +31,28 @@ class WorkService(QObject):
     def start_work(self, lot_number: str, worker_id: str):
         """
         Start work for LOT - POST /api/v1/process/start (non-blocking)
-
-        Args:
-            lot_number: LOT number from barcode
-            worker_id: Current worker ID
-
-        Emits:
-            work_started: On success with API response
-            error_occurred: On failure with error message
         """
-        logger.info(f"Starting work (threaded) for LOT: {lot_number}, Process: {self.config.process_name}")
+        logger.info(f"Starting work (threaded) for LOT: {lot_number}")
 
-        worker = StartWorkWorker(self.api_client, lot_number, worker_id, self.config)
-        worker.work_started.connect(self._on_work_started)
-        worker.work_failed.connect(self._on_work_failed)
+        data = {
+            "lot_number": lot_number,
+            "line_id": self.config.line_id,
+            "process_id": self.config.process_id,
+            "process_name": self.config.process_name,
+            "equipment_id": self.config.equipment_id,
+            "worker_id": worker_id,
+            "start_time": datetime.now().isoformat()
+        }
+
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="start_work",
+            method="POST",
+            endpoint="/api/v1/process/start",
+            data=data
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
 
         self._active_workers.append(worker)
@@ -51,20 +61,19 @@ class WorkService(QObject):
     def complete_work(self, json_data: Dict):
         """
         Complete work from JSON file - POST /api/v1/process/complete (non-blocking)
-
-        Args:
-            json_data: Completion data from JSON file
-
-        Emits:
-            work_completed: On success with API response
-            error_occurred: On failure with error message
         """
         lot_number = json_data.get('lot_number', 'UNKNOWN')
         logger.info(f"Completing work (threaded) for LOT: {lot_number}")
 
-        worker = CompleteWorkWorker(self.api_client, json_data)
-        worker.work_completed.connect(self._on_work_completed)
-        worker.work_failed.connect(self._on_completion_failed)
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="complete_work",
+            method="POST",
+            endpoint="/api/v1/process/complete",
+            data=json_data
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
 
         self._active_workers.append(worker)
@@ -73,50 +82,59 @@ class WorkService(QObject):
     def get_today_stats(self):
         """
         Get today's statistics for current process (non-blocking).
-
-        Emits:
-            stats_ready: Statistics data (always succeeds, returns defaults on error)
         """
         logger.debug(f"Fetching stats (threaded) for process: {self.config.process_id}")
 
-        worker = StatsWorker(self.api_client, self.config.process_id)
-        worker.stats_ready.connect(self._on_stats_ready)
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="get_stats",
+            method="GET",
+            endpoint="/api/v1/analytics/daily",
+            params={"process_id": self.config.process_id}
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
 
         self._active_workers.append(worker)
         worker.start()
 
-    def _on_work_started(self, response: dict):
-        """Handle successful work start."""
-        logger.info(f"Work started successfully: {response}")
-        self.work_started.emit(response)
+    def _on_api_success(self, operation: str, result: dict):
+        """Handle successful API call based on operation type."""
+        logger.info(f"API success [{operation}]: {result}")
 
-    def _on_work_failed(self, error_msg: str):
-        """Handle work start failure."""
-        logger.error(f"Work start failed: {error_msg}")
-        self.error_occurred.emit(f"착공 등록 실패: {error_msg}")
+        if operation == "start_work":
+            self.work_started.emit(result)
+        elif operation == "complete_work":
+            self.work_completed.emit(result)
+        elif operation == "get_stats":
+            self.stats_ready.emit(result)
 
-    def _on_work_completed(self, response: dict):
-        """Handle successful work completion."""
-        logger.info(f"Work completed successfully: {response}")
-        self.work_completed.emit(response)
+    def _on_api_error(self, operation: str, error_msg: str):
+        """Handle API error based on operation type."""
+        logger.error(f"API error [{operation}]: {error_msg}")
 
-    def _on_completion_failed(self, error_msg: str):
-        """Handle work completion failure."""
-        logger.error(f"Work completion failed: {error_msg}")
-        self.error_occurred.emit(f"완공 처리 실패: {error_msg}")
-
-    def _on_stats_ready(self, stats: dict):
-        """Handle statistics fetched."""
-        logger.debug(f"Stats ready: {stats}")
-        self.stats_ready.emit(stats)
+        if operation == "start_work":
+            self.error_occurred.emit(f"착공 등록 실패: {error_msg}")
+        elif operation == "complete_work":
+            self.error_occurred.emit(f"완공 처리 실패: {error_msg}")
+        elif operation == "get_stats":
+            # Stats failure is silent, return defaults
+            default_stats = {
+                "started": 0,
+                "completed": 0,
+                "passed": 0,
+                "failed": 0,
+                "in_progress": 0
+            }
+            self.stats_ready.emit(default_stats)
 
     def _cleanup_worker(self, worker):
         """Clean up finished worker."""
         if worker in self._active_workers:
             self._active_workers.remove(worker)
         worker.deleteLater()
-        logger.debug(f"Worker cleaned up: {type(worker).__name__}")
+        logger.debug(f"Worker cleaned up: {worker.operation}")
 
     def cancel_all_operations(self):
         """Cancel all active operations and clean up workers."""
@@ -126,6 +144,6 @@ class WorkService(QObject):
                 worker.cancel()
             if worker.isRunning():
                 worker.quit()
-                worker.wait(1000)  # Wait up to 1 second
+                worker.wait(1000)
         self._active_workers.clear()
         logger.info("All workers cancelled")

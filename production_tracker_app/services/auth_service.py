@@ -1,10 +1,12 @@
 """
 JWT Authentication Service with threading support.
+
+Refactored to use single APIWorker instead of multiple specific workers.
 """
 from PySide6.QtCore import QObject, Signal
 from typing import Optional
 from .api_client import APIClient
-from .workers import LoginWorker, TokenValidationWorker
+from .workers import APIWorker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 class AuthService(QObject):
     """Manages JWT authentication lifecycle with non-blocking threading."""
 
-    login_success = Signal(dict)  # Emit user data on successful login
+    login_success = Signal(dict)   # Emit user data on successful login
     auth_error = Signal(str)       # Emit on auth failure
     token_validated = Signal(dict) # Emit user data on token validation
 
@@ -27,20 +29,18 @@ class AuthService(QObject):
     def login(self, username: str, password: str):
         """
         Login and store JWT token (non-blocking).
-
-        Args:
-            username: Username
-            password: Password
-
-        Emits:
-            login_success: On success with user data
-            auth_error: On failure with error message
         """
         logger.info(f"Login (threaded) initiated for user: {username}")
 
-        worker = LoginWorker(self.api_client, username, password)
-        worker.login_success.connect(self._on_login_success)
-        worker.login_failed.connect(self._on_login_failed)
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="login",
+            method="POST",
+            endpoint="/api/v1/auth/login",
+            data={"username": username, "password": password}
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
 
         self._active_workers.append(worker)
@@ -57,16 +57,17 @@ class AuthService(QObject):
     def validate_token(self):
         """
         Validate current token by calling /me endpoint (non-blocking).
-
-        Emits:
-            token_validated: On success with user data
-            auth_error: On failure with error message
         """
         logger.info("Token validation (threaded) initiated")
 
-        worker = TokenValidationWorker(self.api_client)
-        worker.validation_success.connect(self._on_token_validated)
-        worker.validation_failed.connect(self._on_validation_failed)
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="validate_token",
+            method="GET",
+            endpoint="/api/v1/auth/me"
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
         worker.finished.connect(lambda: self._cleanup_worker(worker))
 
         self._active_workers.append(worker)
@@ -78,39 +79,35 @@ class AuthService(QObject):
             return self.current_user.get('username', 'UNKNOWN')
         return 'UNKNOWN'
 
-    def _on_login_success(self, response: dict):
-        """Handle successful login."""
-        self.access_token = response['access_token']
-        self.current_user = response.get('user', {})
+    def _on_api_success(self, operation: str, result: dict):
+        """Handle successful API call based on operation type."""
+        if operation == "login":
+            self.access_token = result['access_token']
+            self.current_user = result.get('user', {})
+            self.api_client.set_token(self.access_token)
+            logger.info(f"Login successful for user: {self.current_user.get('username')}")
+            self.login_success.emit(self.current_user)
 
-        # Store token in API client
-        self.api_client.set_token(self.access_token)
+        elif operation == "validate_token":
+            self.current_user = result
+            logger.info("Token validated successfully")
+            self.token_validated.emit(result)
 
-        logger.info(f"Login successful for user: {self.current_user.get('username')}")
-        self.login_success.emit(self.current_user)
+    def _on_api_error(self, operation: str, error_msg: str):
+        """Handle API error based on operation type."""
+        logger.error(f"Auth error [{operation}]: {error_msg}")
 
-    def _on_login_failed(self, error_msg: str):
-        """Handle login failure."""
-        logger.error(f"Login failed: {error_msg}")
-        self.auth_error.emit(f"로그인 실패: {error_msg}")
-
-    def _on_token_validated(self, user: dict):
-        """Handle successful token validation."""
-        self.current_user = user
-        logger.info("Token validated successfully")
-        self.token_validated.emit(user)
-
-    def _on_validation_failed(self, error_msg: str):
-        """Handle token validation failure."""
-        logger.error(f"Token validation failed: {error_msg}")
-        self.auth_error.emit(f"토큰 검증 실패: {error_msg}")
+        if operation == "login":
+            self.auth_error.emit(f"로그인 실패: {error_msg}")
+        elif operation == "validate_token":
+            self.auth_error.emit(f"토큰 검증 실패: {error_msg}")
 
     def _cleanup_worker(self, worker):
         """Clean up finished worker."""
         if worker in self._active_workers:
             self._active_workers.remove(worker)
         worker.deleteLater()
-        logger.debug(f"Worker cleaned up: {type(worker).__name__}")
+        logger.debug(f"Worker cleaned up: {worker.operation}")
 
     def cancel_all_operations(self):
         """Cancel all active operations and clean up workers."""
@@ -120,6 +117,6 @@ class AuthService(QObject):
                 worker.cancel()
             if worker.isRunning():
                 worker.quit()
-                worker.wait(1000)  # Wait up to 1 second
+                worker.wait(1000)
         self._active_workers.clear()
         logger.info("All auth workers cancelled")
