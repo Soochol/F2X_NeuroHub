@@ -6,10 +6,13 @@ from typing import Optional
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
                                 QComboBox, QLineEdit, QPushButton, QLabel,
-                                QFileDialog, QMessageBox, QScrollArea, QFrame)
+                                QFileDialog, QMessageBox, QFrame)
 from PySide6.QtCore import Signal
 
+from utils.theme_manager import get_theme
+
 logger = logging.getLogger(__name__)
+theme = get_theme()
 
 # Try to import PrintService for printer list
 try:
@@ -36,65 +39,35 @@ class SettingsPage(QWidget):
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(8)
 
         # Header
         header = QLabel("설정")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {theme.get('colors.text.primary')}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("앱 환경을 설정합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {theme.get('colors.grey.400')}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
-        # Scroll area for settings
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                background-color: transparent;
-                border: none;
-            }
-            QScrollBar:vertical {
-                background-color: #0a0a0a;
-                width: 8px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #2a2a2a;
-                border-radius: 4px;
-                min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #3a3a3a;
-            }
-        """)
-
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 8, 0)
-        content_layout.setSpacing(16)
-
         # Process settings
-        content_layout.addWidget(self._create_process_section())
+        layout.addWidget(self._create_process_section())
 
         # Folder settings
-        content_layout.addWidget(self._create_folder_section())
+        layout.addWidget(self._create_folder_section())
 
         # Equipment settings
-        content_layout.addWidget(self._create_equipment_section())
+        layout.addWidget(self._create_equipment_section())
 
         # API settings
-        content_layout.addWidget(self._create_api_section())
+        layout.addWidget(self._create_api_section())
 
         # Printer settings
-        content_layout.addWidget(self._create_printer_section())
+        layout.addWidget(self._create_printer_section())
 
-        content_layout.addStretch()
-
-        scroll.setWidget(content_widget)
-        layout.addWidget(scroll)
+        layout.addStretch()
 
         # Save button
         button_layout = QHBoxLayout()
@@ -109,91 +82,105 @@ class SettingsPage(QWidget):
 
     def _apply_styles(self):
         """Apply styles for the settings page."""
-        self.setStyleSheet("""
-            QLabel {
-                color: #d1d5db;
+        text_secondary = theme.get('colors.grey.300')
+        bg_elevated = theme.get('colors.background.elevated')
+        border_light = theme.get('colors.border.light')
+        text_primary = theme.get('colors.text.primary')
+        brand = theme.get('colors.brand.main')
+        grey_400 = theme.get('colors.grey.400')
+        text_on_brand = theme.get('colors.text.onBrand')
+        bg_hover = theme.get('colors.background.hover')
+        brand_light = theme.get('colors.brand.light')
+
+        self.setStyleSheet(f"""
+            QLabel {{
+                color: {text_secondary};
                 font-size: 13px;
-            }
+            }}
 
-            QLineEdit, QComboBox {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
-                border-radius: 6px;
-                padding: 8px 12px;
-                color: #ededed;
-                font-size: 13px;
-                min-height: 20px;
-            }
+            QLineEdit, QComboBox {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                border-radius: 4px;
+                padding: 6px 10px;
+                color: {text_primary};
+                font-size: 12px;
+                min-height: 16px;
+            }}
 
-            QLineEdit:focus, QComboBox:focus {
-                border-color: #3ECF8E;
-            }
+            QLineEdit:focus, QComboBox:focus {{
+                border-color: {brand};
+            }}
 
-            QComboBox::drop-down {
+            QComboBox::drop-down {{
                 border: none;
                 width: 30px;
-            }
+            }}
 
-            QComboBox::down-arrow {
+            QComboBox::down-arrow {{
                 image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
-                border-top: 6px solid #9ca3af;
+                border-top: 6px solid {grey_400};
                 margin-right: 8px;
-            }
+            }}
 
-            QComboBox QAbstractItemView {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
-                selection-background-color: #3ECF8E;
-                selection-color: #000000;
-            }
+            QComboBox QAbstractItemView {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                selection-background-color: {brand};
+                selection-color: {text_on_brand};
+            }}
 
-            QPushButton {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
-                border-radius: 6px;
-                padding: 8px 16px;
-                color: #ededed;
-                font-size: 13px;
+            QPushButton {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                border-radius: 4px;
+                padding: 6px 12px;
+                color: {text_primary};
+                font-size: 12px;
                 font-weight: 500;
-                min-width: 80px;
-            }
+                min-width: 60px;
+            }}
 
-            QPushButton:hover {
-                background-color: #252525;
-            }
+            QPushButton:hover {{
+                background-color: {bg_hover};
+            }}
 
-            #save_button {
-                background-color: #3ECF8E;
+            #save_button {{
+                background-color: {brand};
                 border: none;
-                color: #000000;
+                color: {text_on_brand};
                 font-weight: 600;
-                padding: 10px 24px;
-            }
+                padding: 8px 20px;
+            }}
 
-            #save_button:hover {
-                background-color: #57D9A0;
-            }
+            #save_button:hover {{
+                background-color: {brand_light};
+            }}
         """)
 
     def _create_section_frame(self, title: str) -> tuple:
         """Create a styled section frame with layout."""
+        bg_paper = theme.get('colors.background.paper')
+        border = theme.get('colors.border.default')
+        brand = theme.get('colors.brand.main')
+
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #0a0a0a;
-                border: 1px solid #1a1a1a;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_paper};
+                border: 1px solid {border};
                 border-radius: 8px;
-            }
+            }}
         """)
 
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet("color: #3ECF8E; font-size: 14px; font-weight: 600; border: none;")
+        title_label.setStyleSheet(f"color: {brand}; font-size: 14px; font-weight: 600; border: none;")
         layout.addWidget(title_label)
 
         return frame, layout

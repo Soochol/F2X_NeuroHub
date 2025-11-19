@@ -4,6 +4,9 @@ Complete Work Page - PASS/FAIL completion buttons.
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton,
                                 QFrame, QHBoxLayout)
 from PySide6.QtCore import Signal
+from utils.theme_manager import get_theme
+
+theme = get_theme()
 
 
 class CompleteWorkPage(QWidget):
@@ -24,39 +27,56 @@ class CompleteWorkPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        # Theme colors
+        text_primary = theme.get('colors.text.primary')
+        text_on_dark = theme.get('colors.text.onDark')
+        grey_300 = theme.get('colors.grey.300')
+        grey_400 = theme.get('colors.grey.400')
+        grey_600 = theme.get('colors.grey.600')
+        bg_default = theme.get('colors.background.default')
+        border_default = theme.get('colors.border.default')
+        border_light = theme.get('colors.border.light')
+        brand = theme.get('colors.brand.main')
+        success_main = theme.get('colors.success.main')
+        success_dark = theme.get('colors.success.dark')
+        danger_main = theme.get('colors.danger.main')
+        danger_dark = theme.get('colors.danger.dark')
+
         # Header
         header = QLabel("완공")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("작업 결과를 선택하여 완공 처리합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Current work info
         self.work_info_frame = QFrame()
         self.work_info_frame.setObjectName("work_info_frame")
-        self.work_info_frame.setStyleSheet("""
-            #work_info_frame {
-                background-color: #0a0a0a;
-                border: 1px solid #1a1a1a;
+        self.work_info_frame.setStyleSheet(f"""
+            #work_info_frame {{
+                background-color: {bg_default};
+                border: 1px solid {border_default};
                 border-radius: 8px;
-            }
+            }}
         """)
         work_info_layout = QVBoxLayout(self.work_info_frame)
         work_info_layout.setContentsMargins(16, 16, 16, 16)
         work_info_layout.setSpacing(8)
 
         work_title = QLabel("현재 작업")
-        work_title.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 600;")
+        work_title.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 600;")
         work_info_layout.addWidget(work_title)
 
         # LOT number display
         lot_layout = QHBoxLayout()
         lot_label = QLabel("LOT:")
-        lot_label.setStyleSheet("color: #9ca3af; font-size: 13px;")
+        lot_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
         self.lot_value = QLabel("-")
-        self.lot_value.setStyleSheet("color: #3ECF8E; font-size: 13px; font-weight: 600;")
+        self.lot_value.setStyleSheet(f"color: {brand}; font-size: 13px; font-weight: 600;")
         lot_layout.addWidget(lot_label)
         lot_layout.addWidget(self.lot_value)
         lot_layout.addStretch()
@@ -65,9 +85,9 @@ class CompleteWorkPage(QWidget):
         # Elapsed time display
         time_layout = QHBoxLayout()
         time_label = QLabel("경과 시간:")
-        time_label.setStyleSheet("color: #9ca3af; font-size: 13px;")
+        time_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
         self.time_value = QLabel("-")
-        self.time_value.setStyleSheet("color: #ededed; font-size: 13px;")
+        self.time_value.setStyleSheet(f"color: {text_primary}; font-size: 13px;")
         time_layout.addWidget(time_label)
         time_layout.addWidget(self.time_value)
         time_layout.addStretch()
@@ -78,19 +98,19 @@ class CompleteWorkPage(QWidget):
         # Completion buttons section
         button_group = QFrame()
         button_group.setObjectName("button_group_frame")
-        button_group.setStyleSheet("""
-            #button_group_frame {
-                background-color: #0a0a0a;
-                border: 1px solid #1a1a1a;
+        button_group.setStyleSheet(f"""
+            #button_group_frame {{
+                background-color: {bg_default};
+                border: 1px solid {border_default};
                 border-radius: 8px;
-            }
+            }}
         """)
         button_layout = QVBoxLayout(button_group)
         button_layout.setContentsMargins(16, 16, 16, 16)
         button_layout.setSpacing(12)
 
         button_title = QLabel("작업 결과")
-        button_title.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 600;")
+        button_title.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 600;")
         button_layout.addWidget(button_title)
 
         # PASS/FAIL buttons row
@@ -100,24 +120,24 @@ class CompleteWorkPage(QWidget):
         # PASS button
         self.pass_button = QPushButton("PASS 완공")
         self.pass_button.setObjectName("pass_button")
-        self.pass_button.setStyleSheet("""
-            QPushButton {
-                background-color: #10b981;
+        self.pass_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {success_main};
                 border: none;
                 border-radius: 6px;
                 padding: 16px 24px;
-                color: #ffffff;
+                color: {text_on_dark};
                 font-size: 14px;
                 font-weight: 600;
                 min-height: 32px;
-            }
-            QPushButton:hover {
-                background-color: #059669;
-            }
-            QPushButton:disabled {
-                background-color: #2a2a2a;
-                color: #6b7280;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {success_dark};
+            }}
+            QPushButton:disabled {{
+                background-color: {border_light};
+                color: {grey_600};
+            }}
         """)
         self.pass_button.clicked.connect(self._on_pass_clicked)
         self.pass_button.setEnabled(False)
@@ -126,24 +146,24 @@ class CompleteWorkPage(QWidget):
         # FAIL button
         self.fail_button = QPushButton("FAIL 완공")
         self.fail_button.setObjectName("fail_button")
-        self.fail_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ef4444;
+        self.fail_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {danger_main};
                 border: none;
                 border-radius: 6px;
                 padding: 16px 24px;
-                color: #ffffff;
+                color: {text_on_dark};
                 font-size: 14px;
                 font-weight: 600;
                 min-height: 32px;
-            }
-            QPushButton:hover {
-                background-color: #dc2626;
-            }
-            QPushButton:disabled {
-                background-color: #2a2a2a;
-                color: #6b7280;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {danger_dark};
+            }}
+            QPushButton:disabled {{
+                background-color: {border_light};
+                color: {grey_600};
+            }}
         """)
         self.fail_button.clicked.connect(self._on_fail_clicked)
         self.fail_button.setEnabled(False)
@@ -154,19 +174,19 @@ class CompleteWorkPage(QWidget):
 
         # Info section
         info_frame = QFrame()
-        info_frame.setStyleSheet("""
-            QFrame {
-                background-color: #0a0a0a;
-                border: 1px solid #1a1a1a;
+        info_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_default};
+                border: 1px solid {border_default};
                 border-radius: 8px;
-            }
+            }}
         """)
         info_layout = QVBoxLayout(info_frame)
         info_layout.setContentsMargins(16, 16, 16, 16)
         info_layout.setSpacing(8)
 
         info_title = QLabel("안내")
-        info_title.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 600;")
+        info_title.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 600;")
         info_layout.addWidget(info_title)
 
         info_text = QLabel(
@@ -175,7 +195,7 @@ class CompleteWorkPage(QWidget):
             "  불량 유형을 선택합니다.\n"
             "• 착공 후에만 완공 버튼이 활성화됩니다."
         )
-        info_text.setStyleSheet("color: #9ca3af; font-size: 12px; line-height: 1.5;")
+        info_text.setStyleSheet(f"color: {grey_400}; font-size: 12px; line-height: 1.5;")
         info_text.setWordWrap(True)
         info_layout.addWidget(info_text)
 

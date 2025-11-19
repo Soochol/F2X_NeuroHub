@@ -4,6 +4,9 @@ Help Page - Usage guide and information.
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame,
                                 QScrollArea)
 from PySide6.QtCore import Qt
+from utils.theme_manager import get_theme
+
+theme = get_theme()
 
 
 class HelpPage(QWidget):
@@ -20,37 +23,45 @@ class HelpPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        # Theme colors
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+        border_default = theme.get('colors.border.default')
+        border_light = theme.get('colors.border.light')
+
         # Header
         header = QLabel("도움말")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("Production Tracker 사용 가이드입니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Scroll area for content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("""
-            QScrollArea {
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
                 background-color: transparent;
                 border: none;
-            }
-            QScrollBar:vertical {
-                background-color: #1a1a1a;
+            }}
+            QScrollBar:vertical {{
+                background-color: {border_default};
                 width: 8px;
                 border-radius: 4px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #3a3a3a;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {border_light};
                 border-radius: 4px;
                 min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #4a4a4a;
-            }
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {grey_400};
+            }}
         """)
 
         content_widget = QWidget()
@@ -109,13 +120,19 @@ class HelpPage(QWidget):
 
     def _create_section(self, title: str, items: list) -> QFrame:
         """Create a help section with title and items."""
+        bg_default = theme.get('colors.background.default')
+        border_default = theme.get('colors.border.default')
+        brand = theme.get('colors.brand.main')
+        grey_300 = theme.get('colors.grey.300')
+        grey_400 = theme.get('colors.grey.400')
+
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #0a0a0a;
-                border: 1px solid #1a1a1a;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_default};
+                border: 1px solid {border_default};
                 border-radius: 8px;
-            }
+            }}
         """)
 
         layout = QVBoxLayout(frame)
@@ -124,7 +141,7 @@ class HelpPage(QWidget):
 
         # Section title
         title_label = QLabel(title)
-        title_label.setStyleSheet("color: #3ECF8E; font-size: 14px; font-weight: 600;")
+        title_label.setStyleSheet(f"color: {brand}; font-size: 14px; font-weight: 600;")
         layout.addWidget(title_label)
 
         # Items
@@ -135,11 +152,11 @@ class HelpPage(QWidget):
             item_layout.setSpacing(4)
 
             item_title_label = QLabel(item_title)
-            item_title_label.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 500;")
+            item_title_label.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 500;")
             item_layout.addWidget(item_title_label)
 
             item_desc_label = QLabel(item_desc)
-            item_desc_label.setStyleSheet("color: #9ca3af; font-size: 12px;")
+            item_desc_label.setStyleSheet(f"color: {grey_400}; font-size: 12px;")
             item_desc_label.setWordWrap(True)
             item_layout.addWidget(item_desc_label)
 

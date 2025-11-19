@@ -14,8 +14,8 @@ export const StatusBadge = ({ isActive }: StatusBadgeProps) => {
         borderRadius: '12px',
         fontSize: '12px',
         fontWeight: '500',
-        backgroundColor: isActive ? '#d5f4e6' : '#fee',
-        color: isActive ? '#27ae60' : '#e74c3c',
+        backgroundColor: isActive ? 'var(--color-badge-success-bg)' : 'var(--color-badge-error-bg)',
+        color: isActive ? 'var(--color-success)' : 'var(--color-error)',
       }}
     >
       {isActive ? 'Active' : 'Inactive'}

@@ -92,8 +92,8 @@ const getVariantStyles = (
       borderColor: isHovered ? 'var(--color-text-primary)' : 'var(--color-border-strong)',
     },
     danger: {
-      backgroundColor: isHovered ? '#e63946' : 'var(--color-error)',
-      filter: isHovered ? 'brightness(0.9)' : 'brightness(1)',
+      backgroundColor: 'var(--color-error)',
+      filter: isHovered ? 'brightness(0.85)' : 'brightness(1)',
     },
     ghost: {
       backgroundColor: isHovered ? 'var(--color-bg-tertiary)' : 'transparent',

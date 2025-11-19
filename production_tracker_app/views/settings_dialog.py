@@ -9,8 +9,10 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, Q
                                QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
+from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
+theme = get_theme()
 
 # Try to import PrintService for printer list
 try:
@@ -116,125 +118,138 @@ class SettingsDialog(QDialog):
 
     def _apply_styles(self):
         """Apply styles for sidebar navigation."""
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0f0f0f;
-            }
+        # Theme colors
+        bg_default = theme.get('colors.background.default')
+        bg_elevated = theme.get('colors.background.elevated')
+        bg_hover = theme.get('colors.background.hover')
+        border_default = theme.get('colors.border.default')
+        border_light = theme.get('colors.border.light')
+        text_primary = theme.get('colors.text.primary')
+        text_on_brand = theme.get('colors.text.onBrand')
+        grey_300 = theme.get('colors.grey.300')
+        grey_400 = theme.get('colors.grey.400')
+        brand = theme.get('colors.brand.main')
+        brand_light = theme.get('colors.brand.light')
 
-            #settings_sidebar {
-                background-color: #1a1a1a;
-                border-right: 1px solid #2a2a2a;
-            }
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_default};
+            }}
 
-            #settings_nav {
+            #settings_sidebar {{
+                background-color: {border_default};
+                border-right: 1px solid {border_light};
+            }}
+
+            #settings_nav {{
                 background-color: transparent;
                 border: none;
                 outline: none;
-            }
+            }}
 
-            #settings_nav::item {
+            #settings_nav::item {{
                 padding: 12px 16px;
                 border-left: 3px solid transparent;
-                color: #d1d5db;
+                color: {grey_300};
                 font-size: 13px;
-            }
+            }}
 
-            #settings_nav::item:selected {
-                background-color: #252525;
-                border-left: 3px solid #3ECF8E;
-                color: #3ECF8E;
+            #settings_nav::item:selected {{
+                background-color: {bg_hover};
+                border-left: 3px solid {brand};
+                color: {brand};
                 font-weight: 600;
-            }
+            }}
 
-            #settings_nav::item:hover:!selected {
-                background-color: #1f1f1f;
-            }
+            #settings_nav::item:hover:!selected {{
+                background-color: {bg_elevated};
+            }}
 
-            #settings_content {
-                background-color: #0f0f0f;
-            }
+            #settings_content {{
+                background-color: {bg_default};
+            }}
 
-            QGroupBox {
+            QGroupBox {{
                 font-size: 14px;
                 font-weight: 600;
-                color: #ededed;
-                border: 1px solid #2a2a2a;
+                color: {text_primary};
+                border: 1px solid {border_light};
                 border-radius: 8px;
                 margin-top: 12px;
                 padding-top: 12px;
-                background-color: #1a1a1a;
-            }
+                background-color: {border_default};
+            }}
 
-            QGroupBox::title {
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 8px;
-            }
+            }}
 
-            QLabel {
-                color: #d1d5db;
+            QLabel {{
+                color: {grey_300};
                 font-size: 13px;
-            }
+            }}
 
-            QLineEdit, QComboBox {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
+            QLineEdit, QComboBox {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
                 border-radius: 6px;
                 padding: 8px 12px;
-                color: #ededed;
+                color: {text_primary};
                 font-size: 13px;
                 min-height: 20px;
-            }
+            }}
 
-            QLineEdit:focus, QComboBox:focus {
-                border-color: #3ECF8E;
-            }
+            QLineEdit:focus, QComboBox:focus {{
+                border-color: {brand};
+            }}
 
-            QComboBox::drop-down {
+            QComboBox::drop-down {{
                 border: none;
                 width: 30px;
-            }
+            }}
 
-            QComboBox::down-arrow {
+            QComboBox::down-arrow {{
                 image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
-                border-top: 6px solid #9ca3af;
+                border-top: 6px solid {grey_400};
                 margin-right: 8px;
-            }
+            }}
 
-            QComboBox QAbstractItemView {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
-                selection-background-color: #3ECF8E;
-                selection-color: #000000;
-            }
+            QComboBox QAbstractItemView {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                selection-background-color: {brand};
+                selection-color: {text_on_brand};
+            }}
 
-            QPushButton {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
+            QPushButton {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
                 border-radius: 6px;
                 padding: 8px 16px;
-                color: #ededed;
+                color: {text_primary};
                 font-size: 13px;
                 font-weight: 500;
                 min-width: 80px;
-            }
+            }}
 
-            QPushButton:hover {
-                background-color: #252525;
-            }
+            QPushButton:hover {{
+                background-color: {bg_hover};
+            }}
 
-            QPushButton[variant="primary"] {
-                background-color: #3ECF8E;
+            QPushButton[variant="primary"] {{
+                background-color: {brand};
                 border: none;
-                color: #000000;
+                color: {text_on_brand};
                 font-weight: 600;
-            }
+            }}
 
-            QPushButton[variant="primary"]:hover {
-                background-color: #57D9A0;
-            }
+            QPushButton[variant="primary"]:hover {{
+                background-color: {brand_light};
+            }}
         """)
 
     def _on_nav_changed(self, index):
@@ -248,13 +263,18 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+
         # Header
         header = QLabel("공정 설정")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("현재 작업 공정을 선택합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Process selection
@@ -286,13 +306,18 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+
         # Header
         header = QLabel("파일 감시 폴더")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("작업 결과 파일이 생성되는 폴더를 지정합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Folder selection
@@ -321,13 +346,18 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+
         # Header
         header = QLabel("설비 설정")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("설비 및 라인 정보를 설정합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Equipment settings
@@ -353,13 +383,18 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+
         # Header
         header = QLabel("API 설정")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("백엔드 서버 연결 정보를 설정합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # API settings
@@ -382,13 +417,18 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        text_primary = theme.get('colors.text.primary')
+        grey_400 = theme.get('colors.grey.400')
+
         # Header
         header = QLabel("프린터 설정")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        header.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {text_primary}; margin-bottom: 8px;"
+        )
         layout.addWidget(header)
 
         desc = QLabel("라벨 프린터 및 템플릿을 설정합니다.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px; margin-bottom: 16px;")
         layout.addWidget(desc)
 
         # Printer settings

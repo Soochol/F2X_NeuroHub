@@ -52,6 +52,8 @@ const applyTheme = (theme: Theme) => {
   document.documentElement.setAttribute('data-theme', theme);
 
   // Also update meta theme-color for mobile browsers
+  // Note: Meta theme-color requires raw hex values (CSS variables not supported by browser API)
+  // These values match --color-bg-primary for each theme
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) {
     metaThemeColor.setAttribute('content', theme === 'dark' ? '#1c1c1c' : '#ffffff');

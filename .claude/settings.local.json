@@ -36,7 +36,15 @@
       "Bash(findstr:*)",
       "Bash(pip install:*)",
       "Bash(timeout /t 3 /nobreak)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(uv venv:*)",
+      "Bash(.venvScriptspython.exe production_tracker_appmain.py)",
+      "Bash(c:/myCode/F2X_NeuroHub/.venv/Scripts/python.exe:*)",
+      "Bash(c:/myCode/F2X_NeuroHub/.venv/Scripts/pip.exe install:*)",
+      "Bash(uv pip install:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(docker run:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QListWidgetItem, QStackedWidget
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction
 
 from views.pages.home_page import HomePage
 from views.pages.start_work_page import StartWorkPage
@@ -38,8 +37,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"F2X NeuroHub - {config.process_name}")
 
         # Window size for sidebar layout
-        self.setMinimumSize(800, 600)
-        self.resize(900, 700)
+        self.setMinimumSize(900, 700)
+        self.resize(1100, 800)
 
         # Work state tracking
         self.current_lot = None
@@ -50,7 +49,6 @@ class MainWindow(QMainWindow):
         self.elapsed_timer.timeout.connect(self._update_elapsed_time)
 
         self.setup_ui()
-        self.setup_menu()
         self.connect_signals()
 
         logger.info("MainWindow initialized with sidebar navigation")
@@ -138,7 +136,7 @@ class MainWindow(QMainWindow):
 
         # Process info in status bar
         process_label = QLabel(f"공정: {self.config.process_name}")
-        process_label.setStyleSheet("color: #9ca3af; font-size: 11px;")
+        process_label.setStyleSheet(f"color: {theme.get('colors.grey.400')}; font-size: 11px;")
         self.status_bar.addWidget(process_label)
 
         # Select first item (Home)
@@ -152,50 +150,57 @@ class MainWindow(QMainWindow):
 
     def _apply_styles(self):
         """Apply styles for sidebar navigation."""
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #0a0a0a;
-            }
+        bg_dark = theme.get('colors.background.dark')
+        bg_default = theme.get('colors.background.default')
+        border = theme.get('colors.border.default')
+        grey_400 = theme.get('colors.grey.400')
+        grey_600 = theme.get('colors.grey.600')
+        brand = theme.get('colors.brand.main')
 
-            #main_sidebar {
-                background-color: #0a0a0a;
-                border-right: 1px solid #1a1a1a;
-            }
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {bg_dark};
+            }}
 
-            #main_nav {
+            #main_sidebar {{
+                background-color: {bg_dark};
+                border-right: 1px solid {border};
+            }}
+
+            #main_nav {{
                 background-color: transparent;
                 border: none;
                 outline: none;
-            }
+            }}
 
-            #main_nav::item {
+            #main_nav::item {{
                 padding: 14px 16px;
                 border-left: 3px solid transparent;
-                color: #9ca3af;
+                color: {grey_400};
                 font-size: 13px;
-            }
+            }}
 
-            #main_nav::item:selected {
-                background-color: #1a1a1a;
-                border-left: 3px solid #3ECF8E;
-                color: #3ECF8E;
+            #main_nav::item:selected {{
+                background-color: {border};
+                border-left: 3px solid {brand};
+                color: {brand};
                 font-weight: 600;
-            }
+            }}
 
-            #main_nav::item:hover:!selected {
-                background-color: #0f0f0f;
-            }
+            #main_nav::item:hover:!selected {{
+                background-color: {bg_default};
+            }}
 
-            #main_content {
-                background-color: #0a0a0a;
-            }
+            #main_content {{
+                background-color: {bg_dark};
+            }}
 
-            QStatusBar {
-                background-color: #0a0a0a;
-                border-top: 1px solid #1a1a1a;
-                color: #6b7280;
+            QStatusBar {{
+                background-color: {bg_dark};
+                border-top: 1px solid {border};
+                color: {grey_600};
                 font-size: 11px;
-            }
+            }}
         """)
 
     def _connect_page_signals(self):
@@ -206,24 +211,6 @@ class MainWindow(QMainWindow):
         # Complete page signals
         self.complete_page.pass_requested.connect(self._on_pass_requested)
         self.complete_page.fail_requested.connect(self._on_fail_requested)
-
-    def setup_menu(self):
-        """Setup menu bar."""
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("파일(&F)")
-
-        exit_action = QAction("종료(&X)", self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-        # Help menu
-        help_menu = menubar.addMenu("도움말(&H)")
-
-        about_action = QAction("정보(&A)", self)
-        about_action.triggered.connect(self._on_about_clicked)
-        help_menu.addAction(about_action)
 
     def connect_signals(self):
         """Connect ViewModel signals to UI updates."""
@@ -436,17 +423,6 @@ class MainWindow(QMainWindow):
 
             # Update complete page
             self.complete_page.update_elapsed_time(elapsed_str)
-
-    def _on_about_clicked(self):
-        """Show about dialog."""
-        QMessageBox.about(
-            self,
-            "F2X NeuroHub Production Tracker",
-            f"<h3>F2X NeuroHub 공정 추적 앱</h3>"
-            f"<p>공정: {self.config.process_name}</p>"
-            f"<p>Version: 1.0.0</p>"
-            f"<p>© 2025 F2X. All rights reserved.</p>"
-        )
 
     def closeEvent(self, event):
         """Handle window close event with proper cleanup."""

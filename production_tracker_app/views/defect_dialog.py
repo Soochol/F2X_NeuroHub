@@ -4,6 +4,9 @@ Defect Type Selection Dialog.
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QComboBox,
                                 QTextEdit, QPushButton, QHBoxLayout)
 from PySide6.QtCore import Qt
+from utils.theme_manager import get_theme
+
+theme = get_theme()
 
 
 class DefectDialog(QDialog):
@@ -26,51 +29,65 @@ class DefectDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
 
+        # Theme colors
+        text_primary = theme.get('colors.text.primary')
+        text_on_dark = theme.get('colors.text.onDark')
+        text_on_brand = theme.get('colors.text.onBrand')
+        grey_300 = theme.get('colors.grey.300')
+        grey_400 = theme.get('colors.grey.400')
+        bg_default = theme.get('colors.background.default')
+        bg_elevated = theme.get('colors.background.elevated')
+        bg_hover = theme.get('colors.background.hover')
+        border_light = theme.get('colors.border.light')
+        brand = theme.get('colors.brand.main')
+        danger_main = theme.get('colors.danger.main')
+        danger_dark = theme.get('colors.danger.dark')
+
         # Header
         header = QLabel("불량 유형 선택")
-        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed;")
+        header.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {text_primary};")
         layout.addWidget(header)
 
         desc = QLabel("발생한 불량의 유형을 선택하세요.")
-        desc.setStyleSheet("color: #9ca3af; font-size: 12px;")
+        desc.setStyleSheet(f"color: {grey_400}; font-size: 12px;")
         layout.addWidget(desc)
 
         # Defect type combo
         type_label = QLabel("불량 유형")
-        type_label.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 500;")
+        type_label.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 500;")
         layout.addWidget(type_label)
 
         self.defect_combo = QComboBox()
-        self.defect_combo.setStyleSheet("""
-            QComboBox {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
+        self.defect_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
                 border-radius: 6px;
                 padding: 8px 12px;
-                color: #ededed;
+                color: {text_primary};
                 font-size: 13px;
                 min-height: 20px;
-            }
-            QComboBox:focus {
-                border-color: #3ECF8E;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox:focus {{
+                border-color: {brand};
+            }}
+            QComboBox::drop-down {{
                 border: none;
                 width: 30px;
-            }
-            QComboBox::down-arrow {
+            }}
+            QComboBox::down-arrow {{
                 image: none;
                 border-left: 5px solid transparent;
                 border-right: 5px solid transparent;
-                border-top: 6px solid #9ca3af;
+                border-top: 6px solid {grey_400};
                 margin-right: 8px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
-                selection-background-color: #3ECF8E;
-                selection-color: #000000;
-            }
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                selection-background-color: {brand};
+                selection-color: {text_on_brand};
+            }}
         """)
 
         # Add defect types based on process
@@ -82,24 +99,24 @@ class DefectDialog(QDialog):
 
         # Description input
         desc_label = QLabel("불량 설명 (선택)")
-        desc_label.setStyleSheet("color: #d1d5db; font-size: 13px; font-weight: 500;")
+        desc_label.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 500;")
         layout.addWidget(desc_label)
 
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText("추가 설명을 입력하세요...")
         self.description_input.setMaximumHeight(80)
-        self.description_input.setStyleSheet("""
-            QTextEdit {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
+        self.description_input.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
                 border-radius: 6px;
                 padding: 8px 12px;
-                color: #ededed;
+                color: {text_primary};
                 font-size: 13px;
-            }
-            QTextEdit:focus {
-                border-color: #3ECF8E;
-            }
+            }}
+            QTextEdit:focus {{
+                border-color: {brand};
+            }}
         """)
         layout.addWidget(self.description_input)
 
@@ -108,38 +125,38 @@ class DefectDialog(QDialog):
         button_layout.setSpacing(12)
 
         cancel_button = QPushButton("취소")
-        cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: #1f1f1f;
-                border: 1px solid #2a2a2a;
+        cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
                 border-radius: 6px;
                 padding: 8px 16px;
-                color: #ededed;
+                color: {text_primary};
                 font-size: 13px;
                 font-weight: 500;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #252525;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {bg_hover};
+            }}
         """)
         cancel_button.clicked.connect(self.reject)
 
         confirm_button = QPushButton("확인")
-        confirm_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ef4444;
+        confirm_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {danger_main};
                 border: none;
                 border-radius: 6px;
                 padding: 8px 16px;
-                color: #ffffff;
+                color: {text_on_dark};
                 font-size: 13px;
                 font-weight: 600;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #dc2626;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {danger_dark};
+            }}
         """)
         confirm_button.clicked.connect(self._on_confirm)
 
@@ -149,10 +166,10 @@ class DefectDialog(QDialog):
         layout.addLayout(button_layout)
 
         # Apply dialog styles
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0f0f0f;
-            }
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_default};
+            }}
         """)
 
     def _get_defect_types(self) -> list:

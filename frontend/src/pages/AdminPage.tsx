@@ -35,7 +35,7 @@ const styles = {
 const getTabStyle = (isActive: boolean) => ({
   padding: '12px 24px',
   backgroundColor: isActive ? 'var(--color-brand)' : 'var(--color-bg-secondary)',
-  color: isActive ? '#ffffff' : 'var(--color-text-primary)',
+  color: isActive ? 'var(--color-text-inverse)' : 'var(--color-text-primary)',
   border: 'none',
   borderBottom: isActive ? '3px solid var(--color-brand-500)' : '3px solid transparent',
   borderRadius: '6px 6px 0 0',

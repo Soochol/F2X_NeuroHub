@@ -3,9 +3,9 @@ Production Tracker App - Main Entry Point.
 
 A dedicated work start/completion tracking application for manufacturing floor use.
 """
+
 import sys
 from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtCore import Qt
 
 # Import configuration
 from utils.config import AppConfig
@@ -44,9 +44,7 @@ def main():
     app.setApplicationName("F2X Production Tracker")
     app.setOrganizationName("F2X")
 
-    # High DPI support
-    app.setAttribute(Qt.AA_EnableHighDpiScaling)
-    app.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    # Note: High DPI scaling is enabled by default in Qt6/PySide6
 
     # Load theme and apply global styles
     try:
@@ -62,7 +60,9 @@ def main():
         # Set API URL to 8001 (backend port)
         config.api_base_url = "http://localhost:8001"
 
-        logger.info(f"Configuration loaded: Process {config.process_number} ({config.process_name})")
+        logger.info(
+            f"Configuration loaded: Process {config.process_number} ({config.process_name})"
+        )
         logger.info(f"API URL: {config.api_base_url}")
         logger.info(f"Watch Folder: {config.watch_folder}")
 
@@ -125,11 +125,15 @@ def main():
             logger.info("Print Service initialized (Process 7 - Label Printing)")
 
             # Create dummy completion watcher (not used but required by ViewModel)
-            completion_watcher = CompletionWatcher(config.watch_folder, config.process_id)
+            completion_watcher = CompletionWatcher(
+                config.watch_folder, config.process_id
+            )
             completion_watcher.stop()  # Stop immediately - not needed for Process 7
         else:
             # Other processes: Use CompletionWatcher
-            completion_watcher = CompletionWatcher(config.watch_folder, config.process_id)
+            completion_watcher = CompletionWatcher(
+                config.watch_folder, config.process_id
+            )
             logger.info("Completion Watcher initialized")
 
         # Create ViewModel
@@ -140,7 +144,7 @@ def main():
             work_service=work_service,
             barcode_service=barcode_service,
             completion_watcher=completion_watcher,
-            print_service=print_service
+            print_service=print_service,
         )
         logger.info("ViewModel created")
 
@@ -166,7 +170,7 @@ def main():
             None,
             "치명적 오류",
             f"애플리케이션 시작 중 오류가 발생했습니다:\n\n{str(e)}\n\n"
-            f"자세한 내용은 로그 파일을 확인하세요."
+            f"자세한 내용은 로그 파일을 확인하세요.",
         )
         return 1
 
