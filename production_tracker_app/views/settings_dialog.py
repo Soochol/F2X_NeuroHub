@@ -1,12 +1,14 @@
 """
-Settings Dialog for configuration.
+Settings Dialog with Sidebar Navigation.
 """
 import logging
 from typing import Optional
 
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QComboBox,
-                               QLineEdit, QPushButton, QHBoxLayout, QGroupBox,
-                               QFileDialog, QMessageBox, QLabel)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QComboBox,
+                               QLineEdit, QPushButton, QGroupBox, QWidget, QStackedWidget,
+                               QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ except ImportError:
 
 
 class SettingsDialog(QDialog):
-    """Settings dialog for process and folder configuration."""
+    """Settings dialog with sidebar navigation for configuration."""
 
     def __init__(self, config, print_service: Optional['PrintService'] = None, parent=None):
         super().__init__(parent)
@@ -27,97 +29,64 @@ class SettingsDialog(QDialog):
         self.print_service = print_service
         self.setWindowTitle("환경설정")
         self.setModal(True)
-        self.resize(450, 550)
+        self.resize(650, 500)
         self.setup_ui()
 
     def setup_ui(self):
-        """Setup UI components."""
-        layout = QVBoxLayout(self)
+        """Setup UI components with sidebar navigation."""
+        main_layout = QHBoxLayout(self)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Process selection
-        process_group = QGroupBox("공정 설정")
-        process_layout = QFormLayout(process_group)
+        # Sidebar
+        sidebar = QWidget()
+        sidebar.setObjectName("settings_sidebar")
+        sidebar.setFixedWidth(160)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
 
-        self.process_combo = QComboBox()
-        process_names = {
-            1: "1. 레이저 마킹", 2: "2. LMA 조립",
-            3: "3. 센서 검사", 4: "4. 펌웨어 업로드",
-            5: "5. 로봇 조립", 6: "6. 성능검사",
-            7: "7. 라벨 프린팅", 8: "8. 포장+외관검사"
-        }
-        for i in range(1, 9):
-            self.process_combo.addItem(process_names[i], i)
-        self.process_combo.setCurrentIndex(self.config.process_number - 1)
-        process_layout.addRow("공정 선택:", self.process_combo)
+        # Navigation list
+        self.nav_list = QListWidget()
+        self.nav_list.setObjectName("settings_nav")
+        self.nav_list.setFrameShape(QListWidget.NoFrame)
 
-        layout.addWidget(process_group)
+        # Add navigation items
+        nav_items = [
+            ("공정 설정", "process"),
+            ("파일 감시", "folder"),
+            ("설비 설정", "equipment"),
+            ("API 설정", "api"),
+            ("프린터 설정", "printer"),
+        ]
 
-        # Watch folder
-        folder_group = QGroupBox("파일 감시 폴더")
-        folder_layout = QVBoxLayout(folder_group)
+        for label, data in nav_items:
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, data)
+            self.nav_list.addItem(item)
 
-        folder_input_layout = QHBoxLayout()
-        self.folder_input = QLineEdit(self.config.watch_folder)
-        folder_input_layout.addWidget(self.folder_input)
+        self.nav_list.currentRowChanged.connect(self._on_nav_changed)
+        sidebar_layout.addWidget(self.nav_list)
+        sidebar_layout.addStretch()
 
-        browse_button = QPushButton("찾아보기")
-        browse_button.clicked.connect(self.browse_folder)
-        folder_input_layout.addWidget(browse_button)
+        main_layout.addWidget(sidebar)
 
-        folder_layout.addLayout(folder_input_layout)
-        layout.addWidget(folder_group)
+        # Content area
+        content_widget = QWidget()
+        content_widget.setObjectName("settings_content")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(16)
 
-        # Equipment settings
-        equipment_group = QGroupBox("설비 설정")
-        equipment_layout = QFormLayout(equipment_group)
+        # Stacked widget for pages
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self._create_process_page())
+        self.stack.addWidget(self._create_folder_page())
+        self.stack.addWidget(self._create_equipment_page())
+        self.stack.addWidget(self._create_api_page())
+        self.stack.addWidget(self._create_printer_page())
 
-        self.equipment_input = QLineEdit(self.config.equipment_id)
-        equipment_layout.addRow("설비 ID:", self.equipment_input)
-
-        self.line_input = QLineEdit(self.config.line_id)
-        equipment_layout.addRow("라인 ID:", self.line_input)
-
-        layout.addWidget(equipment_group)
-
-        # API settings
-        api_group = QGroupBox("API 설정")
-        api_layout = QFormLayout(api_group)
-
-        self.api_input = QLineEdit(self.config.api_base_url)
-        api_layout.addRow("백엔드 URL:", self.api_input)
-
-        layout.addWidget(api_group)
-
-        # Printer settings (for Process 7 - Label Printing)
-        printer_group = QGroupBox("프린터 설정 (라벨 프린팅)")
-        printer_layout = QFormLayout(printer_group)
-
-        # Printer selection
-        self.printer_combo = QComboBox()
-        self.printer_combo.addItem("(프린터 선택)", "")
-        self._populate_printers()
-        printer_layout.addRow("프린터:", self.printer_combo)
-
-        # ZPL template path
-        zpl_layout = QHBoxLayout()
-        self.zpl_input = QLineEdit(self.config.zpl_template_path)
-        self.zpl_input.setPlaceholderText("ZPL 템플릿 파일 경로 (선택)")
-        zpl_layout.addWidget(self.zpl_input)
-
-        zpl_browse_button = QPushButton("찾아보기")
-        zpl_browse_button.clicked.connect(self.browse_zpl_template)
-        zpl_layout.addWidget(zpl_browse_button)
-        printer_layout.addRow("ZPL 템플릿:", zpl_layout)
-
-        # Test print button
-        test_print_layout = QHBoxLayout()
-        test_print_button = QPushButton("테스트 출력")
-        test_print_button.clicked.connect(self.test_print)
-        test_print_layout.addStretch()
-        test_print_layout.addWidget(test_print_button)
-        printer_layout.addRow("", test_print_layout)
-
-        layout.addWidget(printer_group)
+        content_layout.addWidget(self.stack)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -132,9 +101,330 @@ class SettingsDialog(QDialog):
         cancel_button.setObjectName("cancel_button")
         cancel_button.clicked.connect(self.reject)
 
+        button_layout.addStretch()
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(save_button)
-        layout.addLayout(button_layout)
+        content_layout.addLayout(button_layout)
+
+        main_layout.addWidget(content_widget)
+
+        # Select first item
+        self.nav_list.setCurrentRow(0)
+
+        # Apply sidebar styles
+        self._apply_styles()
+
+    def _apply_styles(self):
+        """Apply styles for sidebar navigation."""
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #0f0f0f;
+            }
+
+            #settings_sidebar {
+                background-color: #1a1a1a;
+                border-right: 1px solid #2a2a2a;
+            }
+
+            #settings_nav {
+                background-color: transparent;
+                border: none;
+                outline: none;
+            }
+
+            #settings_nav::item {
+                padding: 12px 16px;
+                border-left: 3px solid transparent;
+                color: #d1d5db;
+                font-size: 13px;
+            }
+
+            #settings_nav::item:selected {
+                background-color: #252525;
+                border-left: 3px solid #3ECF8E;
+                color: #3ECF8E;
+                font-weight: 600;
+            }
+
+            #settings_nav::item:hover:!selected {
+                background-color: #1f1f1f;
+            }
+
+            #settings_content {
+                background-color: #0f0f0f;
+            }
+
+            QGroupBox {
+                font-size: 14px;
+                font-weight: 600;
+                color: #ededed;
+                border: 1px solid #2a2a2a;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 12px;
+                background-color: #1a1a1a;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 8px;
+            }
+
+            QLabel {
+                color: #d1d5db;
+                font-size: 13px;
+            }
+
+            QLineEdit, QComboBox {
+                background-color: #1f1f1f;
+                border: 1px solid #2a2a2a;
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: #ededed;
+                font-size: 13px;
+                min-height: 20px;
+            }
+
+            QLineEdit:focus, QComboBox:focus {
+                border-color: #3ECF8E;
+            }
+
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #9ca3af;
+                margin-right: 8px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: #1f1f1f;
+                border: 1px solid #2a2a2a;
+                selection-background-color: #3ECF8E;
+                selection-color: #000000;
+            }
+
+            QPushButton {
+                background-color: #1f1f1f;
+                border: 1px solid #2a2a2a;
+                border-radius: 6px;
+                padding: 8px 16px;
+                color: #ededed;
+                font-size: 13px;
+                font-weight: 500;
+                min-width: 80px;
+            }
+
+            QPushButton:hover {
+                background-color: #252525;
+            }
+
+            QPushButton[variant="primary"] {
+                background-color: #3ECF8E;
+                border: none;
+                color: #000000;
+                font-weight: 600;
+            }
+
+            QPushButton[variant="primary"]:hover {
+                background-color: #57D9A0;
+            }
+        """)
+
+    def _on_nav_changed(self, index):
+        """Handle navigation item change."""
+        self.stack.setCurrentIndex(index)
+
+    def _create_process_page(self):
+        """Create process settings page."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        # Header
+        header = QLabel("공정 설정")
+        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        layout.addWidget(header)
+
+        desc = QLabel("현재 작업 공정을 선택합니다.")
+        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        layout.addWidget(desc)
+
+        # Process selection
+        group = QGroupBox("공정 선택")
+        group_layout = QFormLayout(group)
+        group_layout.setContentsMargins(16, 20, 16, 16)
+        group_layout.setSpacing(12)
+
+        self.process_combo = QComboBox()
+        process_names = {
+            1: "1. 레이저 마킹", 2: "2. LMA 조립",
+            3: "3. 센서 검사", 4: "4. 펌웨어 업로드",
+            5: "5. 로봇 조립", 6: "6. 성능검사",
+            7: "7. 라벨 프린팅", 8: "8. 포장+외관검사"
+        }
+        for i in range(1, 9):
+            self.process_combo.addItem(process_names[i], i)
+        self.process_combo.setCurrentIndex(self.config.process_number - 1)
+        group_layout.addRow("공정:", self.process_combo)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
+
+    def _create_folder_page(self):
+        """Create folder settings page."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        # Header
+        header = QLabel("파일 감시 폴더")
+        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        layout.addWidget(header)
+
+        desc = QLabel("작업 결과 파일이 생성되는 폴더를 지정합니다.")
+        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        layout.addWidget(desc)
+
+        # Folder selection
+        group = QGroupBox("감시 폴더")
+        group_layout = QVBoxLayout(group)
+        group_layout.setContentsMargins(16, 20, 16, 16)
+        group_layout.setSpacing(12)
+
+        folder_input_layout = QHBoxLayout()
+        self.folder_input = QLineEdit(self.config.watch_folder)
+        folder_input_layout.addWidget(self.folder_input)
+
+        browse_button = QPushButton("찾아보기")
+        browse_button.clicked.connect(self.browse_folder)
+        folder_input_layout.addWidget(browse_button)
+
+        group_layout.addLayout(folder_input_layout)
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
+
+    def _create_equipment_page(self):
+        """Create equipment settings page."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        # Header
+        header = QLabel("설비 설정")
+        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        layout.addWidget(header)
+
+        desc = QLabel("설비 및 라인 정보를 설정합니다.")
+        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        layout.addWidget(desc)
+
+        # Equipment settings
+        group = QGroupBox("설비 정보")
+        group_layout = QFormLayout(group)
+        group_layout.setContentsMargins(16, 20, 16, 16)
+        group_layout.setSpacing(12)
+
+        self.equipment_input = QLineEdit(self.config.equipment_id)
+        group_layout.addRow("설비 ID:", self.equipment_input)
+
+        self.line_input = QLineEdit(self.config.line_id)
+        group_layout.addRow("라인 ID:", self.line_input)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
+
+    def _create_api_page(self):
+        """Create API settings page."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        # Header
+        header = QLabel("API 설정")
+        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        layout.addWidget(header)
+
+        desc = QLabel("백엔드 서버 연결 정보를 설정합니다.")
+        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        layout.addWidget(desc)
+
+        # API settings
+        group = QGroupBox("서버 연결")
+        group_layout = QFormLayout(group)
+        group_layout.setContentsMargins(16, 20, 16, 16)
+        group_layout.setSpacing(12)
+
+        self.api_input = QLineEdit(self.config.api_base_url)
+        group_layout.addRow("백엔드 URL:", self.api_input)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
+
+    def _create_printer_page(self):
+        """Create printer settings page."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        # Header
+        header = QLabel("프린터 설정")
+        header.setStyleSheet("font-size: 16px; font-weight: 600; color: #ededed; margin-bottom: 8px;")
+        layout.addWidget(header)
+
+        desc = QLabel("라벨 프린터 및 템플릿을 설정합니다.")
+        desc.setStyleSheet("color: #9ca3af; font-size: 12px; margin-bottom: 16px;")
+        layout.addWidget(desc)
+
+        # Printer settings
+        group = QGroupBox("프린터 설정 (라벨 프린팅)")
+        group_layout = QFormLayout(group)
+        group_layout.setContentsMargins(16, 20, 16, 16)
+        group_layout.setSpacing(12)
+
+        # Printer selection
+        self.printer_combo = QComboBox()
+        self.printer_combo.addItem("(프린터 선택)", "")
+        self._populate_printers()
+        group_layout.addRow("프린터:", self.printer_combo)
+
+        # ZPL template path
+        zpl_layout = QHBoxLayout()
+        self.zpl_input = QLineEdit(self.config.zpl_template_path)
+        self.zpl_input.setPlaceholderText("ZPL 템플릿 파일 경로 (선택)")
+        zpl_layout.addWidget(self.zpl_input)
+
+        zpl_browse_button = QPushButton("찾아보기")
+        zpl_browse_button.clicked.connect(self.browse_zpl_template)
+        zpl_layout.addWidget(zpl_browse_button)
+        group_layout.addRow("ZPL 템플릿:", zpl_layout)
+
+        # Test print button
+        test_print_layout = QHBoxLayout()
+        test_print_button = QPushButton("테스트 출력")
+        test_print_button.clicked.connect(self.test_print)
+        test_print_layout.addStretch()
+        test_print_layout.addWidget(test_print_button)
+        group_layout.addRow("", test_print_layout)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
 
     def browse_folder(self):
         """Open folder browser."""

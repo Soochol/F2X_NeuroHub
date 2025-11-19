@@ -82,6 +82,15 @@ class MainViewModel(QObject):
         Args:
             lot_number: LOT number from barcode
         """
+        self.start_work(lot_number)
+
+    def start_work(self, lot_number: str):
+        """
+        Start work for the given LOT number.
+
+        Args:
+            lot_number: LOT number to start work for
+        """
         # Get current user
         worker_id = self.auth_service.get_current_user_id()
 
@@ -93,6 +102,19 @@ class MainViewModel(QObject):
 
         # Start work (threaded - result will come via signal)
         self.work_service.start_work(lot_number, worker_id)
+
+    def complete_work(self, completion_data: dict):
+        """
+        Complete work with the given completion data.
+
+        Args:
+            completion_data: Completion data including result and process_data
+        """
+        lot_number = completion_data.get("lot_number", "UNKNOWN")
+        logger.info(f"Completing work for LOT: {lot_number}")
+
+        # Submit completion to backend (threaded - result will come via signal)
+        self.work_service.complete_work(completion_data)
 
     def on_barcode_invalid(self, barcode: str):
         """
