@@ -1185,3 +1185,510 @@ class TestSerialsAPI:
         data = response.json()
         assert data["status"] == "PASSED"
         assert data["rework_count"] == 2
+
+    # ============================================================================
+    # Additional Tests for Enhanced Coverage (60% -> 80%)
+    # ============================================================================
+
+    def test_rework_serial_not_in_failed_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test that rework fails when serial is not in FAILED status."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-REWORK-NOTFAILED",
+            "model_name": "Rework Not Failed Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-REWORK-NOTFAILED",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create serial in IN_PROGRESS status (not FAILED)
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "IN_PROGRESS"
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Attempt rework (should fail because not in FAILED status)
+        response = client.post(f"/api/v1/serials/{serial_id}/rework", headers=auth_headers_admin)
+        assert response.status_code == 400
+        assert "not in FAILED status" in response.json()["detail"]
+
+    def test_rework_serial_not_found(self, client: TestClient, auth_headers_admin: dict):
+        """Test rework for non-existent serial returns 404."""
+        response = client.post("/api/v1/serials/99999/rework", headers=auth_headers_admin)
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_check_can_rework_not_found(self, client: TestClient, auth_headers_admin: dict):
+        """Test can-rework check for non-existent serial returns 404."""
+        response = client.get("/api/v1/serials/99999/can-rework", headers=auth_headers_admin)
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_check_can_rework_exhausted_count(self, client: TestClient, auth_headers_admin: dict):
+        """Test can-rework returns false when max rework count exceeded."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-EXHAUSTED",
+            "model_name": "Exhausted Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-EXHAUSTED",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create failed serial with max rework count
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "FAILED",
+            "failure_reason": "Max attempts reached",
+            "rework_count": 3
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Check if can rework
+        response = client.get(f"/api/v1/serials/{serial_id}/can-rework", headers=auth_headers_admin)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["can_rework"] is False
+        assert "3/3" in data["reason"]
+        assert data["rework_count"] == 3
+
+    def test_check_can_rework_non_failed_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test can-rework returns false and correct reason for non-FAILED serial."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-NONFAILED",
+            "model_name": "Non Failed Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-NONFAILED",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create passed serial
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "PASSED"
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Check if can rework
+        response = client.get(f"/api/v1/serials/{serial_id}/can-rework", headers=auth_headers_admin)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["can_rework"] is False
+        assert "PASSED" in data["reason"]
+        assert "not FAILED" in data["reason"]
+
+    def test_update_status_missing_status_field(self, client: TestClient, auth_headers_admin: dict):
+        """Test status update fails when status field is missing."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-MISSING-STATUS",
+            "model_name": "Missing Status Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-MISSING-STATUS",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create serial
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "IN_PROGRESS"
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Try to update without status field
+        response = client.put(
+            f"/api/v1/serials/{serial_id}/status",
+            json={},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 400
+        assert "status field is required" in response.json()["detail"]
+
+    def test_update_status_not_found(self, client: TestClient, auth_headers_admin: dict):
+        """Test status update for non-existent serial returns 404."""
+        status_update = {"status": "IN_PROGRESS"}
+        response = client.put(
+            "/api/v1/serials/99999/status",
+            json=status_update,
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_get_serials_by_invalid_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test getting serials by invalid status returns 400."""
+        response = client.get(
+            "/api/v1/serials/status/INVALID_STATUS",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 400
+        assert "status must be one of" in response.json()["detail"]
+
+    def test_get_serials_by_lot_pagination(self, client: TestClient, auth_headers_admin: dict):
+        """Test pagination when getting serials by lot."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-LOT-PAGE",
+            "model_name": "Lot Page Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-PAGE-TEST",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 20,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create 10 serials
+        for i in range(10):
+            serial_data = {
+                "lot_id": lot_id,
+                "sequence_in_lot": i + 1,
+                "status": "IN_PROGRESS"
+            }
+            client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+
+        # Test pagination - first page
+        response = client.get(
+            f"/api/v1/serials/lot/{lot_id}?skip=0&limit=5",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        serials = response.json()
+        assert len(serials) == 5
+
+        # Test pagination - second page
+        response = client.get(
+            f"/api/v1/serials/lot/{lot_id}?skip=5&limit=5",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        serials = response.json()
+        assert len(serials) == 5
+
+    def test_get_failed_serials_pagination(self, client: TestClient, auth_headers_admin: dict):
+        """Test pagination for failed serials endpoint."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-FAILED-PAGE",
+            "model_name": "Failed Page Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 20,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create 5 failed serials
+        for i in range(5):
+            serial_data = {
+                "lot_id": lot_id,
+                "sequence_in_lot": i + 1,
+                "status": "FAILED",
+                "failure_reason": f"Failure reason {i+1}",
+                "rework_count": 0
+            }
+            client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+
+        # Test pagination
+        response = client.get("/api/v1/serials/failed?skip=0&limit=3", headers=auth_headers_admin)
+        assert response.status_code == 200
+        serials = response.json()
+        assert len(serials) <= 3
+
+    def test_rework_serial_passed_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test that rework fails for PASSED status serial."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-REWORK-PASSED",
+            "model_name": "Rework Passed Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-REWORK-PASSED",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create serial in PASSED status
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "PASSED"
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Attempt rework (should fail)
+        response = client.post(f"/api/v1/serials/{serial_id}/rework", headers=auth_headers_admin)
+        assert response.status_code == 400
+        assert "not in FAILED status" in response.json()["detail"]
+
+    def test_status_transition_created_to_passed_invalid(self, client: TestClient, auth_headers_admin: dict):
+        """Test that direct transition from CREATED to PASSED is invalid."""
+        # Create product model, LOT, and serial
+        product_data = {
+            "model_code": "PM-INVALID-TRANS",
+            "model_name": "Invalid Trans Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-INVALID-TRANS",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create serial in CREATED status
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "CREATED"
+        }
+        create_response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        serial_id = create_response.json()["id"]
+
+        # Try to transition directly to PASSED (should fail)
+        status_update = {"status": "PASSED"}
+        response = client.put(
+            f"/api/v1/serials/{serial_id}/status",
+            json=status_update,
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 400
+        assert "Invalid status transition" in response.json()["detail"]
+
+    def test_list_serials_invalid_status_filter(self, client: TestClient, auth_headers_admin: dict):
+        """Test listing serials with invalid status filter returns 400."""
+        response = client.get(
+            "/api/v1/serials/?status=INVALID",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 400
+        assert "status must be one of" in response.json()["detail"]
+
+    def test_create_serial_with_created_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating serial with CREATED status."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-CREATED-STATUS",
+            "model_name": "Created Status Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = {
+            "lot_number": "LOT-CREATED-STATUS",
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "target_quantity": 5,
+            "status": "IN_PROGRESS",
+            "shift": "D"
+        }
+        lot_response = client.post(
+            "/api/v1/lots/",
+            json=lot_data,
+            headers=auth_headers_admin
+        )
+        lot_id = lot_response.json()["id"]
+
+        # Create serial with CREATED status
+        serial_data = {
+            "lot_id": lot_id,
+            "sequence_in_lot": 1,
+            "status": "CREATED"
+        }
+        response = client.post("/api/v1/serials/", json=serial_data, headers=auth_headers_admin)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "CREATED"
+        assert data["rework_count"] == 0

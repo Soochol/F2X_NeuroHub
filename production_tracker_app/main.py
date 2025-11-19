@@ -47,10 +47,16 @@ def main():
     app.setAttribute(Qt.AA_EnableHighDpiScaling)
     app.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
-    # Load theme
+    # Load theme and apply global styles
     try:
         theme = ThemeLoader.load_theme("production_tracker")
         logger.info("Theme loaded: production_tracker")
+
+        # Apply globalStyles as QSS to entire application
+        qss = theme.to_qss()
+        if qss:
+            app.setStyleSheet(qss)
+            logger.info("Global styles applied to application")
     except Exception as e:
         logger.warning(f"Failed to load theme: {e}")
         theme = None

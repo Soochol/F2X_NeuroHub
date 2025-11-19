@@ -1,295 +1,249 @@
 {
-  "theme_name": "F2X Production Tracker Theme",
-  "version": "1.0.0",
-  "description": "생산 추적 시스템 테마 - 간결한 세로형 레이아웃",
-
+  "theme_name": "Supabase Inspired - Production Tracker",
+  "version": "2.0.0",
+  "description": "Supabase 스타일 다크 테마 - 현대적이고 세련된 디자인",
   "colors": {
+    "brand": {
+      "main": "#3ECF8E",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
+      "contrast": "#ffffff"
+    },
     "primary": {
       "main": "#3ECF8E",
-      "dark": "#2eb574",
-      "light": "#5dd9a3",
+      "dark": "#2FB574",
+      "light": "#57D9A0",
       "contrast": "#ffffff"
     },
     "success": {
-      "main": "#22c55e",
-      "dark": "#16a34a",
-      "light": "#4ade80",
-      "contrast": "#ffffff"
-    },
-    "successHover": {
-      "main": "#10b981",
-      "dark": "#059669",
-      "light": "#34d399",
-      "contrast": "#ffffff"
+      "main": "#3ECF8E",
+      "dark": "#2FB574"
     },
     "danger": {
-      "main": "#ef4444",
-      "dark": "#dc2626",
-      "light": "#f87171",
-      "contrast": "#ffffff"
+      "main": "#F04438",
+      "dark": "#D92D20"
     },
     "warning": {
-      "main": "#f59e0b",
-      "dark": "#d97706",
-      "light": "#fbbf24",
-      "contrast": "#ffffff"
-    },
-    "info": {
-      "main": "#3b82f6",
-      "dark": "#2563eb",
-      "light": "#60a5fa",
-      "contrast": "#ffffff"
+      "main": "#F97316",
+      "dark": "#EA580C"
     },
     "grey": {
-      "50": "#f9fafb",
-      "100": "#f3f4f6",
       "200": "#e5e7eb",
       "300": "#d1d5db",
       "400": "#9ca3af",
-      "500": "#6b7280",
       "600": "#4b5563",
-      "700": "#374151",
-      "800": "#1f2937",
-      "900": "#111827"
+      "700": "#374151"
     },
     "background": {
-      "default": "#ffffff",
-      "paper": "#f9fafb",
-      "dark": "#2a2a2a",
-      "darker": "#1a1a1a",
-      "hover": "#f3f4f6"
+      "default": "#0f0f0f",
+      "paper": "#0f0f0f",
+      "elevated": "#1f1f1f",
+      "hover": "#252525",
+      "dark": "#0f0f0f"
     },
     "text": {
-      "primary": "#111827",
-      "secondary": "#6b7280",
-      "disabled": "#9ca3af",
+      "primary": "#ededed",
+      "secondary": "#a8a8a8",
       "onDark": "#ffffff",
-      "onPrimary": "#ffffff"
+      "onBrand": "#000000"
     },
     "border": {
-      "default": "#e5e7eb",
-      "dark": "#d1d5db",
-      "light": "#f3f4f6"
+      "default": "#1a1a1a",
+      "light": "#2a2a2a",
+      "dark": "#1a1a1a"
     },
-    "statusBar": {
-      "background": "#2a2a2a",
-      "text": "#ffffff"
+    "glow": {
+      "brand": "#3ECF8E",
+      "brandSoft": "#3ECF8E40",
+      "brandMedium": "#3ECF8E60"
     }
   },
-
   "typography": {
-    "fontFamily": "맑은 고딕, Malgun Gothic, sans-serif",
-    "fontSize": {
-      "tiny": 10,
-      "small": 11,
-      "normal": 13,
-      "medium": 14,
-      "large": 16,
-      "xlarge": 18,
-      "xxlarge": 24,
-      "huge": 32
+    "fontFamily": {
+      "primary": "'Noto Sans KR', Inter, -apple-system, BlinkMacSystemFont, sans-serif"
     },
-    "fontWeight": {
-      "light": 300,
+    "size": {
+      "title": 18,
+      "body": 14,
+      "caption": 12
+    },
+    "weight": {
       "normal": 400,
       "medium": 500,
-      "semibold": 600,
       "bold": 700
     }
   },
-
   "spacing": {
-    "none": 0,
-    "xxsmall": 2,
-    "xsmall": 4,
-    "small": 8,
-    "normal": 12,
-    "medium": 16,
-    "large": 20,
-    "xlarge": 24,
-    "xxlarge": 32,
-    "huge": 48
+    "sm": 8,
+    "md": 16,
+    "lg": 24
   },
-
-  "borderRadius": {
-    "none": 0,
-    "small": 4,
-    "normal": 6,
-    "medium": 8,
-    "large": 12,
-    "xlarge": 16,
-    "round": 9999
+  "radius": {
+    "sm": 4,
+    "md": 8,
+    "lg": 16
   },
-
+  "shadows": {
+    "small": "0 2px 8px rgba(0, 0, 0, 0.6)",
+    "medium": "0 4px 16px rgba(0, 0, 0, 0.7)",
+    "brandGlow": "0 0 24px rgba(62, 207, 142, 0.5), 0 0 12px rgba(62, 207, 142, 0.3)"
+  },
   "layout": {
     "windowWidth": 400,
     "windowHeight": 600,
     "cardPadding": 16,
     "contentPadding": 20
   },
-
   "components": {
     "statusBar": {
       "default": {
-        "backgroundColor": "{colors.statusBar.background}",
-        "color": "{colors.statusBar.text}",
-        "fontSize": "{typography.fontSize.small}",
-        "padding": "{spacing.xsmall}"
+        "backgroundColor": "{colors.background.paper}",
+        "color": "{colors.text.secondary}",
+        "fontSize": "{typography.size.caption}",
+        "padding": "{spacing.sm}"
       }
     },
     "statusLabel": {
       "success": {
-        "fontSize": "{typography.fontSize.medium}",
+        "fontSize": "{typography.size.body}",
         "color": "{colors.success.main}",
-        "fontWeight": "{typography.fontWeight.normal}"
-      },
-      "successHover": {
-        "fontSize": "{typography.fontSize.medium}",
-        "color": "{colors.successHover.main}",
-        "fontWeight": "{typography.fontWeight.normal}"
+        "fontWeight": "{typography.weight.medium}"
       },
       "danger": {
-        "fontSize": "{typography.fontSize.medium}",
+        "fontSize": "{typography.size.body}",
         "color": "{colors.danger.main}",
-        "fontWeight": "{typography.fontWeight.normal}"
+        "fontWeight": "{typography.weight.medium}"
       }
     },
     "card": {
       "default": {
         "background": "{colors.background.paper}",
         "border": "1px solid {colors.border.default}",
-        "borderRadius": "{borderRadius.medium}",
-        "padding": "{spacing.medium}",
-        "boxShadow": "0 1px 3px rgba(0, 0, 0, 0.1)"
-      },
-      "primary": {
-        "background": "{colors.background.paper}",
-        "border": "2px solid {colors.primary.main}",
-        "borderRadius": "{borderRadius.medium}",
-        "padding": "{spacing.medium}",
-        "boxShadow": "0 1px 3px rgba(62, 207, 142, 0.2)"
+        "borderRadius": "{radius.lg}",
+        "padding": "{spacing.lg}",
+        "boxShadow": "{shadows.medium}"
       }
     },
     "button": {
       "default": {
-        "background": "{colors.grey.200}",
+        "background": "{colors.background.elevated}",
         "color": "{colors.text.primary}",
         "border": "1px solid {colors.border.default}",
-        "borderRadius": "{borderRadius.normal}",
-        "padding": "{spacing.small} {spacing.medium}",
-        "fontSize": "{typography.fontSize.normal}",
-        "fontWeight": "{typography.fontWeight.medium}",
-        "hoverBackground": "{colors.grey.300}",
-        "pressedBackground": "{colors.grey.400}"
+        "borderRadius": "{radius.md}",
+        "padding": "{spacing.sm} {spacing.md}",
+        "fontSize": "{typography.size.body}",
+        "fontWeight": "{typography.weight.medium}"
       },
       "primary": {
         "background": "{colors.primary.main}",
-        "color": "{colors.primary.contrast}",
+        "color": "{colors.text.onBrand}",
         "border": "none",
-        "borderRadius": "{borderRadius.normal}",
-        "padding": "{spacing.small} {spacing.medium}",
-        "fontSize": "{typography.fontSize.normal}",
-        "fontWeight": "{typography.fontWeight.medium}",
-        "hoverBackground": "{colors.primary.dark}",
-        "pressedBackground": "{colors.primary.dark}"
-      },
-      "success": {
-        "background": "{colors.success.main}",
-        "color": "{colors.success.contrast}",
-        "border": "none",
-        "borderRadius": "{borderRadius.normal}",
-        "padding": "{spacing.small} {spacing.medium}",
-        "fontSize": "{typography.fontSize.normal}",
-        "fontWeight": "{typography.fontWeight.medium}",
-        "hoverBackground": "{colors.success.dark}",
-        "pressedBackground": "{colors.success.dark}"
+        "borderRadius": "{radius.md}",
+        "padding": "{spacing.sm} {spacing.md}",
+        "fontSize": "{typography.size.body}",
+        "fontWeight": "{typography.weight.bold}"
       },
       "danger": {
         "background": "{colors.danger.main}",
-        "color": "{colors.danger.contrast}",
+        "color": "#ffffff",
         "border": "none",
-        "borderRadius": "{borderRadius.normal}",
-        "padding": "{spacing.small} {spacing.medium}",
-        "fontSize": "{typography.fontSize.normal}",
-        "fontWeight": "{typography.fontWeight.medium}",
-        "hoverBackground": "{colors.danger.dark}",
-        "pressedBackground": "{colors.danger.dark}"
+        "borderRadius": "{radius.md}",
+        "padding": "{spacing.sm} {spacing.md}",
+        "fontSize": "{typography.size.body}",
+        "fontWeight": "{typography.weight.bold}"
       }
     },
     "label": {
       "title": {
-        "fontSize": "{typography.fontSize.xxlarge}",
-        "fontWeight": "{typography.fontWeight.bold}",
+        "fontSize": "{typography.size.title}",
+        "fontWeight": "{typography.weight.bold}",
         "color": "{colors.text.primary}"
       },
-      "heading": {
-        "fontSize": "{typography.fontSize.large}",
-        "fontWeight": "{typography.fontWeight.semibold}",
+      "body": {
+        "fontSize": "{typography.size.body}",
+        "fontWeight": "{typography.weight.normal}",
         "color": "{colors.text.primary}"
-      },
-      "normal": {
-        "fontSize": "{typography.fontSize.normal}",
-        "fontWeight": "{typography.fontWeight.normal}",
-        "color": "{colors.text.primary}"
-      },
-      "small": {
-        "fontSize": "{typography.fontSize.small}",
-        "fontWeight": "{typography.fontWeight.normal}",
-        "color": "{colors.text.secondary}"
       },
       "caption": {
-        "fontSize": "{typography.fontSize.tiny}",
-        "fontWeight": "{typography.fontWeight.normal}",
+        "fontSize": "{typography.size.caption}",
+        "fontWeight": "{typography.weight.normal}",
         "color": "{colors.text.secondary}"
       }
     }
   },
-
   "globalStyles": {
     "QWidget": {
-      "font-family": "{typography.fontFamily}",
-      "font-size": "{typography.fontSize.normal}px",
+      "font-family": "{typography.fontFamily.primary}",
+      "font-size": "{typography.size.body}px",
       "color": "{colors.text.primary}"
     },
     "QMainWindow": {
       "background-color": "{colors.background.default}"
     },
     "QStatusBar": {
-      "background-color": "{colors.statusBar.background}",
-      "color": "{colors.statusBar.text}",
-      "font-size": "{typography.fontSize.small}px",
-      "border-top": "1px solid {colors.border.dark}"
+      "background-color": "{colors.background.paper}",
+      "border-top": "1px solid {colors.border.default}",
+      "color": "{colors.text.secondary}",
+      "font-size": "{typography.size.caption}px"
     },
     "QMenuBar": {
       "background-color": "{colors.background.paper}",
       "border-bottom": "1px solid {colors.border.default}",
       "color": "{colors.text.primary}",
-      "padding": "{spacing.xsmall}px"
+      "padding": "4px"
     },
     "QMenuBar::item:selected": {
-      "background-color": "{colors.background.hover}"
+      "background-color": "{colors.background.hover}",
+      "color": "{colors.brand.main}"
     },
     "QMenu": {
-      "background-color": "{colors.background.default}",
+      "background-color": "{colors.background.elevated}",
       "border": "1px solid {colors.border.default}",
-      "color": "{colors.text.primary}"
+      "border-radius": "{radius.md}px",
+      "color": "{colors.text.primary}",
+      "padding": "4px"
     },
     "QMenu::item:selected": {
-      "background-color": "{colors.primary.light}30"
+      "background-color": "{colors.glow.brandSoft}",
+      "color": "{colors.brand.main}"
+    },
+    "QLabel": {
+      "font-family": "{typography.fontFamily.primary}",
+      "font-size": "{typography.size.body}px",
+      "color": "{colors.text.primary}",
+      "background-color": "transparent"
     },
     "QLineEdit": {
-      "background-color": "{colors.background.default}",
+      "background-color": "{colors.background.elevated}",
       "border": "1px solid {colors.border.default}",
-      "border-radius": "{borderRadius.normal}px",
-      "padding": "{spacing.small}px {spacing.normal}px",
+      "border-radius": "{radius.md}px",
+      "padding": "{spacing.sm}px",
       "color": "{colors.text.primary}"
     },
     "QLineEdit:focus": {
-      "border": "2px solid {colors.primary.main}"
+      "border": "1px solid {colors.brand.main}"
     },
-    "QLabel": {
+    "QMessageBox": {
+      "background-color": "{colors.background.paper}",
+      "color": "{colors.text.primary}"
+    },
+    "QMessageBox QLabel": {
+      "color": "{colors.text.primary}"
+    },
+    "QMessageBox QPushButton": {
+      "background-color": "{colors.background.elevated}",
       "color": "{colors.text.primary}",
-      "background-color": "transparent"
+      "border": "1px solid {colors.border.default}",
+      "border-radius": "{radius.md}px",
+      "padding": "{spacing.sm}px {spacing.md}px",
+      "min-width": "80px"
+    },
+    "QMessageBox QPushButton:hover": {
+      "background-color": "{colors.background.hover}",
+      "border": "1px solid {colors.brand.main}"
+    },
+    "QFrame": {
+      "font-family": "{typography.fontFamily.primary}"
     }
   }
 }

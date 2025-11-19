@@ -52,13 +52,29 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central_widget)
         # Get margins and spacing from theme
         if theme:
-            margin = theme.get("spacing.medium", 16)
-            spacing = theme.get("spacing.normal", 12)
+            margin = theme.get("spacing.md", 16)
+            spacing = theme.get("spacing.sm", 8)
             layout.setContentsMargins(margin, margin, margin, margin)
             layout.setSpacing(spacing)
         else:
             layout.setContentsMargins(16, 16, 16, 16)
-            layout.setSpacing(12)
+            layout.setSpacing(8)
+
+        # Process name label (header)
+        self.process_label = QLabel(f"공정: {self.config.process_name}")
+        self.process_label.setObjectName("process_label")
+        self.process_label.setAlignment(Qt.AlignCenter)
+        if theme:
+            # Style as title with brand color
+            title_size = theme.get("typography.size.title", 18)
+            brand_color = theme.get("colors.brand.main", "#3ECF8E")
+            self.process_label.setStyleSheet(f"""
+                font-size: {title_size}px;
+                font-weight: bold;
+                color: {brand_color};
+                padding: 8px;
+            """)
+        layout.addWidget(self.process_label)
 
         # Current LOT card
         self.lot_card = LotDisplayCard()
@@ -66,7 +82,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.lot_card)
 
         # Status label (using theme)
-        self.status_label = QLabel("📱 바코드 스캔 대기중...")
+        self.status_label = QLabel("바코드 스캔 대기중...")
         self.status_label.setObjectName("status_label")
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
@@ -87,14 +103,10 @@ class MainWindow(QMainWindow):
 
         if theme:
             status_bar_style = theme.get_component_style('statusBar', 'default')
-            self.status_bar.setStyleSheet(f"""
-                QStatusBar {{
-                    background-color: {status_bar_style.get('backgroundColor', '#2a2a2a')};
-                    color: {status_bar_style.get('color', '#ffffff')};
-                }}
-            """)
+            qss = theme.component_to_qss(status_bar_style)
+            self.status_bar.setStyleSheet(f"QStatusBar {{ {qss} }}")
 
-        self.connection_indicator = StatusIndicator("🟢 온라인", status="online")
+        self.connection_indicator = StatusIndicator("온라인", status="online")
         self.connection_indicator.setObjectName("connection_indicator")
         self.status_bar.addPermanentWidget(self.connection_indicator)
 
@@ -153,46 +165,43 @@ class MainWindow(QMainWindow):
 
     def on_work_started(self, lot_number: str):
         """Handle work started event."""
-        self.status_label.setText(f"✅ 착공 완료: {lot_number}")
+        self.status_label.setText(f"착공 완료: {lot_number}")
         if theme:
             style = theme.get_component_style('statusLabel', 'success')
-            color = style.get('color', '#22c55e')
-            font_size = style.get('fontSize', 14)
-            self.status_label.setStyleSheet(f"font-size: {font_size}px; color: {color};")
+            qss = theme.component_to_qss(style)
+            self.status_label.setStyleSheet(qss)
         else:
-            self.status_label.setStyleSheet("font-size: 14px; color: #22c55e;")
+            self.status_label.setStyleSheet("font-size: 13px; color: #22c55e;")
 
     def on_work_completed(self, message: str):
         """Handle work completed event."""
-        self.status_label.setText(f"✅ {message}")
+        self.status_label.setText(message)
         if theme:
-            style = theme.get_component_style('statusLabel', 'successHover')
-            color = style.get('color', '#10b981')
-            font_size = style.get('fontSize', 14)
-            self.status_label.setStyleSheet(f"font-size: {font_size}px; color: {color};")
+            style = theme.get_component_style('statusLabel', 'success')
+            qss = theme.component_to_qss(style)
+            self.status_label.setStyleSheet(qss)
         else:
-            self.status_label.setStyleSheet("font-size: 14px; color: #10b981;")
+            self.status_label.setStyleSheet("font-size: 13px; color: #22c55e;")
         self.recent_label.setText(message)
 
     def on_error(self, error_msg: str):
         """Handle error event."""
         logger.error(error_msg)
-        self.status_label.setText(f"❌ {error_msg}")
+        self.status_label.setText(f"오류: {error_msg}")
         if theme:
             style = theme.get_component_style('statusLabel', 'danger')
-            color = style.get('color', '#ef4444')
-            font_size = style.get('fontSize', 14)
-            self.status_label.setStyleSheet(f"font-size: {font_size}px; color: {color};")
+            qss = theme.component_to_qss(style)
+            self.status_label.setStyleSheet(qss)
         else:
-            self.status_label.setStyleSheet("font-size: 14px; color: #ef4444;")
+            self.status_label.setStyleSheet("font-size: 13px; color: #ef4444;")
         QMessageBox.warning(self, "오류", error_msg)
 
     def on_connection_status_changed(self, is_online: bool):
         """Handle connection status change."""
         if is_online:
-            self.connection_indicator.set_status("online", "🟢 온라인")
+            self.connection_indicator.set_status("online", "온라인")
         else:
-            self.connection_indicator.set_status("offline", "🔴 오프라인")
+            self.connection_indicator.set_status("offline", "오프라인")
 
     def on_settings_clicked(self):
         """Open settings dialog."""

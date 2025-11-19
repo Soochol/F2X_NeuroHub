@@ -3,6 +3,7 @@
 JSON 기반 테마 시스템:
 - 변수 참조 자동 해결: {colors.primary.main} → #3ECF8E
 - 컴포넌트 스타일 자동 적용
+- globalStyles → QSS 변환
 """
 
 import json
@@ -72,14 +73,83 @@ class Theme:
         component_path = f"components.{component_type}.{variant}"
         component_styles = self.get(component_path, {})
 
+        if not isinstance(component_styles, dict):
+            return {}
+
         resolved_styles = {}
         for key, value in component_styles.items():
-            if isinstance(value, str) and value.startswith("{"):
-                resolved_styles[key] = self.get(value)
+            if isinstance(value, str):
+                resolved_styles[key] = self._resolve_variables(value)
             else:
                 resolved_styles[key] = value
 
         return resolved_styles
+
+    def to_qss(self) -> str:
+        """
+        globalStyles를 QSS 문자열로 변환
+
+        Returns:
+            QSS 스타일시트 문자열
+        """
+        global_styles = self._data.get("globalStyles", {})
+        qss_parts = []
+
+        for selector, properties in global_styles.items():
+            if not isinstance(properties, dict):
+                continue
+
+            resolved_props = []
+            for prop, value in properties.items():
+                if isinstance(value, str):
+                    resolved_value = self._resolve_variables(value)
+                else:
+                    resolved_value = str(value)
+                resolved_props.append(f"    {prop}: {resolved_value};")
+
+            if resolved_props:
+                qss_parts.append(f"{selector} {{\n" + "\n".join(resolved_props) + "\n}")
+
+        return "\n\n".join(qss_parts)
+
+    def component_to_qss(self, style: Dict[str, Any]) -> str:
+        """
+        컴포넌트 스타일 딕셔너리를 QSS 문자열로 변환
+
+        Args:
+            style: get_component_style()로 가져온 스타일 딕셔너리
+
+        Returns:
+            QSS 스타일 문자열 (선택자 없이)
+        """
+        qss_props = []
+
+        # camelCase를 kebab-case로 변환하는 매핑
+        prop_mapping = {
+            "backgroundColor": "background-color",
+            "fontSize": "font-size",
+            "fontWeight": "font-weight",
+            "fontFamily": "font-family",
+            "borderRadius": "border-radius",
+            "boxShadow": "box-shadow",
+            "hoverBackground": None,  # QSS에서 직접 지원 안 함
+            "pressedBackground": None,
+        }
+
+        for key, value in style.items():
+            # 매핑에 있으면 변환, 없으면 원본 사용
+            css_prop = prop_mapping.get(key, key)
+
+            if css_prop is None:  # 지원 안 되는 속성 스킵
+                continue
+
+            # 숫자 값에 px 추가 (폰트 크기, 패딩 등)
+            if isinstance(value, (int, float)) and key in ("fontSize", "padding", "borderRadius"):
+                value = f"{value}px"
+
+            qss_props.append(f"{css_prop}: {value};")
+
+        return " ".join(qss_props)
 
     def get_all(self) -> Dict[str, Any]:
         """전체 테마 데이터 반환"""

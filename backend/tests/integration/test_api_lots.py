@@ -927,3 +927,748 @@ class TestLotsAPI:
         )
         # May succeed if FK validation not enforced, or fail with 400/409
         assert response.status_code in [200, 400, 409, 422]
+
+    # ============================================================================
+    # Additional Tests for Enhanced Coverage (80%+ target)
+    # ============================================================================
+
+    def test_create_lot_target_quantity_zero(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT with target_quantity=0 fails validation."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-QTY-ZERO",
+            "model_name": "Qty Zero Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Try to create LOT with target_quantity=0
+        lot_data = {
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "shift": "D",
+            "target_quantity": 0,
+            "status": "CREATED"
+        }
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 422
+        # Pydantic v2 error for ge=1 constraint
+        error_detail = response.json()["detail"]
+        assert any("greater than or equal to 1" in str(err).lower() for err in error_detail)
+
+    def test_create_lot_target_quantity_exceeds_max(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT with target_quantity > 100 fails validation."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-QTY-MAX",
+            "model_name": "Qty Max Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Try to create LOT with target_quantity=101
+        lot_data = {
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "shift": "D",
+            "target_quantity": 101,
+            "status": "CREATED"
+        }
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_create_lot_invalid_shift(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT with invalid shift value fails validation."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-INVALID-SHIFT",
+            "model_name": "Invalid Shift Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Try to create LOT with invalid shift
+        lot_data = {
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "shift": "X",
+            "target_quantity": 50,
+            "status": "CREATED"
+        }
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_create_lot_invalid_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT with invalid status value fails validation."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-INVALID-STATUS",
+            "model_name": "Invalid Status Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Try to create LOT with invalid status
+        lot_data = {
+            "product_model_id": product_model_id,
+            "production_date": date.today().isoformat(),
+            "shift": "D",
+            "target_quantity": 50,
+            "status": "INVALID_STATUS"
+        }
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_get_lot_by_number_not_found(self, client: TestClient, auth_headers_admin: dict):
+        """Test getting LOT by non-existent lot_number returns 404."""
+        response = client.get(
+            "/api/v1/lots/number/WF-KR-251119D-999",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_get_lot_by_number_invalid_format(self, client: TestClient, auth_headers_admin: dict):
+        """Test getting LOT with invalid lot_number format returns 422."""
+        response = client.get(
+            "/api/v1/lots/number/INVALID-FORMAT",
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 422
+
+    def test_get_lots_by_product_model(self, client: TestClient, auth_headers_admin: dict):
+        """Test filtering LOTs by product_model_id."""
+        # Create two product models
+        pm_data1 = {
+            "model_code": "PM-FILTER-1",
+            "model_name": "Filter Model 1",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response1 = client.post(
+            "/api/v1/product-models/",
+            json=pm_data1,
+            headers=auth_headers_admin
+        )
+        pm_id1 = pm_response1.json()["id"]
+
+        pm_data2 = {
+            "model_code": "PM-FILTER-2",
+            "model_name": "Filter Model 2",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response2 = client.post(
+            "/api/v1/product-models/",
+            json=pm_data2,
+            headers=auth_headers_admin
+        )
+        pm_id2 = pm_response2.json()["id"]
+
+        # Create LOTs for each product model
+        for _ in range(3):
+            lot_data = create_test_lot_data(pm_id1, target_qty=25)
+            client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+
+        for _ in range(2):
+            lot_data = create_test_lot_data(pm_id2, target_qty=30)
+            client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+
+        # Filter by first product model
+        response = client.get(f"/api/v1/lots/product/{pm_id1}", headers=auth_headers_admin)
+        assert response.status_code == 200
+        lots = response.json()
+        assert len(lots) == 3
+        for lot in lots:
+            assert lot["product_model_id"] == pm_id1
+
+    def test_get_lot_quantities(self, client: TestClient, auth_headers_admin: dict):
+        """Test getting LOT quantities endpoint."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-QUANTITIES",
+            "model_name": "Quantities Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Get quantities
+        response = client.get(f"/api/v1/lots/{lot_id}/quantities", headers=auth_headers_admin)
+        assert response.status_code == 200
+        data = response.json()
+        assert "actual_quantity" in data
+        assert "passed_quantity" in data
+        assert "failed_quantity" in data
+
+    def test_get_lot_quantities_not_found(self, client: TestClient, auth_headers_admin: dict):
+        """Test getting quantities for non-existent LOT returns 404."""
+        response = client.get("/api/v1/lots/99999/quantities", headers=auth_headers_admin)
+        assert response.status_code == 404
+
+    def test_update_lot_quantities_validation(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT with quantity consistency validation."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-UPDATE-QTY-VAL",
+            "model_name": "Update Qty Val Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with passed_quantity > actual_quantity
+        update_data = {
+            "actual_quantity": 10,
+            "passed_quantity": 15  # More than actual
+        }
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json=update_data,
+            headers=auth_headers_admin
+        )
+        # Should fail validation
+        assert response.status_code == 422
+
+    def test_update_lot_actual_exceeds_target(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT with actual_quantity > target_quantity fails."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-ACTUAL-EXCEED",
+            "model_name": "Actual Exceed Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with actual_quantity > target_quantity
+        update_data = {
+            "target_quantity": 50,
+            "actual_quantity": 60
+        }
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json=update_data,
+            headers=auth_headers_admin
+        )
+        # Should fail validation
+        assert response.status_code == 422
+
+    def test_update_lot_negative_quantities(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT with negative quantities fails validation."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-NEG-QTY",
+            "model_name": "Negative Qty Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with negative actual_quantity
+        update_data = {"actual_quantity": -5}
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json=update_data,
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 422
+
+    def test_lot_lifecycle_complete_flow(self, client: TestClient, auth_headers_admin: dict):
+        """Test complete LOT lifecycle: CREATED -> IN_PROGRESS -> COMPLETED -> CLOSED."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-LIFECYCLE",
+            "model_name": "Lifecycle Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Create LOT
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+        assert create_response.json()["status"] == "CREATED"
+
+        # Transition to IN_PROGRESS
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "IN_PROGRESS"
+
+        # Transition to COMPLETED
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json={"status": "COMPLETED"},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "COMPLETED"
+
+        # Close the LOT
+        response = client.post(f"/api/v1/lots/{lot_id}/close", headers=auth_headers_admin)
+        assert response.status_code == 200
+        assert response.json()["status"] == "CLOSED"
+        assert response.json()["closed_at"] is not None
+
+    def test_pagination_skip_limit_edge_cases(self, client: TestClient, auth_headers_admin: dict):
+        """Test pagination with various skip and limit values."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-PAGINATION",
+            "model_name": "Pagination Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Create 10 LOTs
+        for _ in range(10):
+            lot_data = create_test_lot_data(product_model_id, target_qty=20)
+            client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+
+        # Test skip=5, limit=3
+        response = client.get("/api/v1/lots/?skip=5&limit=3", headers=auth_headers_admin)
+        assert response.status_code == 200
+        assert len(response.json()) == 3
+
+        # Test skip beyond count
+        response = client.get("/api/v1/lots/?skip=100&limit=10", headers=auth_headers_admin)
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+    def test_create_lot_missing_required_fields(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT without required fields fails validation."""
+        # Missing product_model_id
+        lot_data = {
+            "production_date": date.today().isoformat(),
+            "shift": "D",
+            "target_quantity": 50
+        }
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_create_lot_boundary_target_quantity(self, client: TestClient, auth_headers_admin: dict):
+        """Test creating LOT with boundary values for target_quantity (1 and 100)."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-BOUNDARY",
+            "model_name": "Boundary Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Test minimum boundary (1)
+        lot_data = create_test_lot_data(product_model_id, target_qty=1)
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 201
+        assert response.json()["target_quantity"] == 1
+
+        # Test maximum boundary (100)
+        lot_data = create_test_lot_data(product_model_id, target_qty=100)
+        response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        assert response.status_code == 201
+        assert response.json()["target_quantity"] == 100
+
+    def test_update_lot_shift(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT shift value."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-UPDATE-SHIFT",
+            "model_name": "Update Shift Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50, shift="D")
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+        assert create_response.json()["shift"] == "D"
+
+        # Update to night shift
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json={"shift": "N"},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        assert response.json()["shift"] == "N"
+
+    def test_lot_defect_and_pass_rate_calculation(self, client: TestClient, auth_headers_admin: dict):
+        """Test that defect_rate and pass_rate are correctly calculated."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-RATE-CALC",
+            "model_name": "Rate Calc Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=100)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Update quantities
+        update_data = {
+            "actual_quantity": 100,
+            "passed_quantity": 90,
+            "failed_quantity": 10
+        }
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json=update_data,
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Check rates are calculated correctly
+        # defect_rate = (10/100) * 100 = 10%
+        # pass_rate = (90/100) * 100 = 90%
+        assert data["defect_rate"] == 10.0
+        assert data["pass_rate"] == 90.0
+
+    def test_get_lots_by_status_pagination(self, client: TestClient, auth_headers_admin: dict):
+        """Test pagination on status filter endpoint."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-STATUS-PAGE",
+            "model_name": "Status Page Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Create 5 COMPLETED LOTs
+        for _ in range(5):
+            lot_data = {
+                "product_model_id": product_model_id,
+                "production_date": date.today().isoformat(),
+                "shift": "D",
+                "target_quantity": 25,
+                "status": "COMPLETED"
+            }
+            client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+
+        # Test pagination
+        response = client.get("/api/v1/lots/status/COMPLETED?skip=1&limit=2", headers=auth_headers_admin)
+        assert response.status_code == 200
+        lots = response.json()
+        assert len(lots) == 2
+        for lot in lots:
+            assert lot["status"] == "COMPLETED"
+
+    def test_update_lot_invalid_shift(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT with invalid shift value fails."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-UPD-INV-SHIFT",
+            "model_name": "Update Invalid Shift Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with invalid shift
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json={"shift": "Z"},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 422
+
+    def test_update_lot_invalid_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT with invalid status value fails."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-UPD-INV-STATUS",
+            "model_name": "Update Invalid Status Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with invalid status
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json={"status": "UNKNOWN_STATUS"},
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 422
+
+    def test_get_lot_with_zero_actual_quantity(self, client: TestClient, auth_headers_admin: dict):
+        """Test LOT with zero actual_quantity has null rates."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-ZERO-ACTUAL",
+            "model_name": "Zero Actual Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Get LOT (should have zero quantities)
+        response = client.get(f"/api/v1/lots/{lot_id}", headers=auth_headers_admin)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["actual_quantity"] == 0
+        # Rates should be None when actual_quantity is 0
+        assert data["defect_rate"] is None
+        assert data["pass_rate"] is None
+
+    def test_get_lot_id_validation(self, client: TestClient, auth_headers_admin: dict):
+        """Test that negative or zero LOT ID returns 422."""
+        # Test ID = 0
+        response = client.get("/api/v1/lots/0", headers=auth_headers_admin)
+        assert response.status_code == 422
+
+        # Test negative ID
+        response = client.get("/api/v1/lots/-1", headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_close_lot_from_created_status(self, client: TestClient, auth_headers_admin: dict):
+        """Test closing LOT directly from CREATED status."""
+        # Create product model
+        product_data = {
+            "model_code": "PM-CLOSE-CREATED",
+            "model_name": "Close Created Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        # Create LOT with CREATED status
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+        assert create_response.json()["status"] == "CREATED"
+
+        # Close directly (any status can transition to CLOSED)
+        response = client.post(f"/api/v1/lots/{lot_id}/close", headers=auth_headers_admin)
+        assert response.status_code == 200
+        assert response.json()["status"] == "CLOSED"
+        assert response.json()["closed_at"] is not None
+
+    def test_update_lot_passed_plus_failed_exceeds_actual(self, client: TestClient, auth_headers_admin: dict):
+        """Test updating LOT where passed + failed > actual fails."""
+        # Create product model and LOT
+        product_data = {
+            "model_code": "PM-SUM-EXCEED",
+            "model_name": "Sum Exceed Model",
+            "version": "1.0",
+            "category": "Standard",
+            "specifications": {},
+            "status": "ACTIVE",
+            "production_cycle_days": 3
+        }
+        pm_response = client.post(
+            "/api/v1/product-models/",
+            json=product_data,
+            headers=auth_headers_admin
+        )
+        product_model_id = pm_response.json()["id"]
+
+        lot_data = create_test_lot_data(product_model_id, target_qty=50)
+        create_response = client.post("/api/v1/lots/", json=lot_data, headers=auth_headers_admin)
+        lot_id = create_response.json()["id"]
+
+        # Try to update with passed + failed > actual
+        update_data = {
+            "actual_quantity": 10,
+            "passed_quantity": 7,
+            "failed_quantity": 5  # 7 + 5 = 12 > 10
+        }
+        response = client.put(
+            f"/api/v1/lots/{lot_id}",
+            json=update_data,
+            headers=auth_headers_admin
+        )
+        assert response.status_code == 422
