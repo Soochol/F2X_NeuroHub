@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
 
 # Import configuration
-from config import AppConfig
+from utils.config import AppConfig
 
 # Import services
 from services.api_client import APIClient
@@ -16,6 +16,7 @@ from services.auth_service import AuthService
 from services.work_service import WorkService
 from services.barcode_service import BarcodeService
 from services.completion_watcher import CompletionWatcher
+from services.print_service import PrintService
 
 # Import viewmodels
 from viewmodels.main_viewmodel import MainViewModel
@@ -26,7 +27,7 @@ from views.login_dialog import LoginDialog
 
 # Import utilities
 from utils.logger import setup_logger
-from utils.theme_loader import ThemeLoader
+from utils.theme_manager import load_theme
 
 # Setup logger
 logger = setup_logger()
@@ -49,21 +50,18 @@ def main():
 
     # Load theme and apply global styles
     try:
-        theme = ThemeLoader.load_theme("production_tracker")
-        logger.info("Theme loaded: production_tracker")
-
-        # Apply globalStyles as QSS to entire application
-        qss = theme.to_qss()
-        if qss:
-            app.setStyleSheet(qss)
-            logger.info("Global styles applied to application")
+        load_theme(app, "production_tracker")
+        logger.info("Theme loaded and applied: production_tracker")
     except Exception as e:
-        logger.warning(f"Failed to load theme: {e}")
-        theme = None
+        logger.warning("Failed to load theme: %s", e)
 
     try:
         # Load configuration
         config = AppConfig()
+
+        # Set API URL to 8001 (backend port)
+        config.api_base_url = "http://localhost:8001"
+
         logger.info(f"Configuration loaded: Process {config.process_number} ({config.process_name})")
         logger.info(f"API URL: {config.api_base_url}")
         logger.info(f"Watch Folder: {config.watch_folder}")
@@ -76,42 +74,38 @@ def main():
         auth_service = AuthService(api_client)
         logger.info("Auth Service initialized")
 
-        # BYPASS LOGIN - FOR DEVELOPMENT/TESTING ONLY
-        # Mock authentication without requiring login dialog
-        logger.info("Bypassing login authentication (development mode)")
+        # Authentication flow
+        authenticated = False
 
-        # Set mock token
-        api_client.set_token("mock-token-for-development")
+        # Check for auto-login
+        if config.auto_login_enabled and config.saved_token:
+            logger.info("Attempting auto-login...")
+            api_client.set_token(config.saved_token)
 
-        # Set mock user data
-        auth_service.current_user = {
-            "username": "test",
-            "id": 1,
-            "full_name": "Test User"
-        }
-        logger.info("Mock authentication completed")
+            # Synchronous token validation
+            try:
+                response = api_client.get("/api/v1/auth/me")
+                if response:
+                    auth_service.current_user = response
+                    logger.info("Auto-login successful")
+                    authenticated = True
+                else:
+                    logger.info("Auto-login failed: Invalid response")
+            except Exception as e:
+                logger.info(f"Auto-login failed: {e}")
 
-        # COMMENTED OUT - Original login flow
-        # # Check for auto-login
-        # if config.auto_login_enabled and config.saved_token:
-        #     logger.info("Attempting auto-login...")
-        #     api_client.set_token(config.saved_token)
-        #     if auth_service.validate_token():
-        #         logger.info("Auto-login successful")
-        #     else:
-        #         logger.info("Auto-login failed, showing login dialog")
-        #         config.clear_auth()
-        #         login_dialog = LoginDialog(auth_service, config)
-        #         if login_dialog.exec() != LoginDialog.Accepted:
-        #             logger.info("Login cancelled by user")
-        #             return 0
-        # else:
-        #     # Show login dialog
-        #     logger.info("Showing login dialog")
-        #     login_dialog = LoginDialog(auth_service, config)
-        #     if login_dialog.exec() != LoginDialog.Accepted:
-        #         logger.info("Login cancelled by user")
-        #         return 0
+            if not authenticated:
+                config.clear_auth()
+                api_client.clear_token()
+
+        # Show login dialog if not authenticated
+        if not authenticated:
+            logger.info("Showing login dialog")
+            login_dialog = LoginDialog(auth_service, config)
+            if login_dialog.exec() != LoginDialog.DialogCode.Accepted:
+                logger.info("Login cancelled by user")
+                return 0
+            logger.info("Login successful")
 
         # Initialize Work Service
         work_service = WorkService(api_client, config)
@@ -121,9 +115,22 @@ def main():
         barcode_service = BarcodeService()
         logger.info("Barcode Service initialized")
 
-        # Initialize Completion Watcher
-        completion_watcher = CompletionWatcher(config.watch_folder, config.process_id)
-        logger.info("Completion Watcher initialized")
+        # Initialize services based on process type
+        print_service = None
+        completion_watcher = None
+
+        if config.is_label_printing_process:
+            # Process 7: Use PrintService instead of CompletionWatcher
+            print_service = PrintService(config)
+            logger.info("Print Service initialized (Process 7 - Label Printing)")
+
+            # Create dummy completion watcher (not used but required by ViewModel)
+            completion_watcher = CompletionWatcher(config.watch_folder, config.process_id)
+            completion_watcher.stop()  # Stop immediately - not needed for Process 7
+        else:
+            # Other processes: Use CompletionWatcher
+            completion_watcher = CompletionWatcher(config.watch_folder, config.process_id)
+            logger.info("Completion Watcher initialized")
 
         # Create ViewModel
         viewmodel = MainViewModel(
@@ -132,7 +139,8 @@ def main():
             auth_service=auth_service,
             work_service=work_service,
             barcode_service=barcode_service,
-            completion_watcher=completion_watcher
+            completion_watcher=completion_watcher,
+            print_service=print_service
         )
         logger.info("ViewModel created")
 

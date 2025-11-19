@@ -13,14 +13,18 @@ Models:
     - ProcessData: Process execution records with JSONB measurements
     - AuditLog: Immutable audit trail (partitioned by month)
     - Alert: System notifications and alarms
+    - ProductionLine: Production line definitions and capacity
+    - Equipment: Manufacturing equipment tracking and maintenance
 
 Usage:
-    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert
+    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert, ProductionLine, Equipment
 """
 
 from app.models.product_model import ProductModel
 from app.models.process import Process
 from app.models.user import User, UserRole
+from app.models.production_line import ProductionLine
+from app.models.equipment import Equipment
 from app.models.lot import Lot, LotStatus, Shift
 from app.models.serial import Serial, SerialStatus
 from app.models.process_data import ProcessData, DataLevel, ProcessResult
@@ -37,6 +41,8 @@ __all__ = [
     "ProcessData",
     "AuditLog",
     "Alert",
+    "ProductionLine",
+    "Equipment",
     # Enums
     "UserRole",
     "LotStatus",

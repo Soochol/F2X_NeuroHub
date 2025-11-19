@@ -78,12 +78,33 @@ class ProductModelSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProductionLineSchema(BaseModel):
+    """
+    Nested ProductionLine schema for relationship data.
+
+    Attributes:
+        id: Production line identifier
+        line_code: Unique line identifier (e.g., 'LINE-A')
+        line_name: Display name for the line (e.g., '조립라인 A')
+        capacity_per_shift: Production capacity per 8-hour shift
+        is_active: Whether this line is currently operational
+    """
+    id: int
+    line_code: str
+    line_name: str
+    capacity_per_shift: int
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class LotBase(BaseModel):
     """
     Base schema for Lot with core fields and validation.
 
     Attributes:
         product_model_id: Foreign key to product_models table (required)
+        production_line_id: Foreign key to production_lines table (optional)
         production_date: Scheduled/actual production date (required)
         shift: Production shift (D for Day, N for Night)
         target_quantity: Target production quantity (max 100 units per LOT)
@@ -96,6 +117,9 @@ class LotBase(BaseModel):
     """
 
     product_model_id: int = Field(..., gt=0, description="Product model identifier")
+    production_line_id: Optional[int] = Field(
+        None, gt=0, description="Production line identifier"
+    )
     production_date: date = Field(..., description="Scheduled/actual production date")
     shift: str = Field(
         ...,
@@ -214,6 +238,7 @@ class LotUpdate(BaseModel):
     Validators ensure consistency when fields are provided.
 
     Attributes:
+        production_line_id: Updated production line (optional)
         production_date: Updated production date (optional)
         shift: Updated shift (optional)
         target_quantity: Updated target quantity (optional)
@@ -224,6 +249,11 @@ class LotUpdate(BaseModel):
         closed_at: Closure timestamp (optional)
     """
 
+    production_line_id: Optional[int] = Field(
+        None,
+        gt=0,
+        description="Production line identifier"
+    )
     production_date: Optional[date] = Field(
         None,
         description="Scheduled/actual production date"
@@ -505,6 +535,10 @@ class LotInDB(LotBase):
     product_model: Optional[ProductModelSchema] = Field(
         None,
         description="Nested ProductModel relationship data"
+    )
+    production_line: Optional[ProductionLineSchema] = Field(
+        None,
+        description="Nested ProductionLine relationship data"
     )
     defect_rate: Optional[float] = Field(
         None,

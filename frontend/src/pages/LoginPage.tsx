@@ -5,6 +5,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { getErrorMessage } from '@/types/api';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -22,8 +23,8 @@ export const LoginPage = () => {
     try {
       await login({ username, password });
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Login failed. Please check your credentials.'));
     } finally {
       setIsLoading(false);
     }
@@ -35,21 +36,22 @@ export const LoginPage = () => {
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      backgroundColor: '#f5f5f5',
+      backgroundColor: 'var(--color-bg-secondary)',
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--color-bg-primary)',
         padding: '40px',
         borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        boxShadow: 'var(--shadow-lg)',
+        border: '1px solid var(--color-border)',
         width: '100%',
         maxWidth: '400px',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#2c3e50', margin: 0 }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--color-brand)', margin: 0 }}>
             F2X NeuroHub
           </h1>
-          <p style={{ color: '#7f8c8d', marginTop: '10px' }}>Manufacturing Execution System</p>
+          <p style={{ color: 'var(--color-text-secondary)', marginTop: '10px' }}>Manufacturing Execution System</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -58,7 +60,7 @@ export const LoginPage = () => {
               display: 'block',
               marginBottom: '5px',
               fontWeight: '500',
-              color: '#2c3e50',
+              color: 'var(--color-text-primary)',
             }}>
               Username
             </label>
@@ -71,10 +73,12 @@ export const LoginPage = () => {
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--color-border-strong)',
                 borderRadius: '4px',
                 fontSize: '16px',
                 boxSizing: 'border-box',
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
               }}
             />
           </div>
@@ -84,7 +88,7 @@ export const LoginPage = () => {
               display: 'block',
               marginBottom: '5px',
               fontWeight: '500',
-              color: '#2c3e50',
+              color: 'var(--color-text-primary)',
             }}>
               Password
             </label>
@@ -96,18 +100,20 @@ export const LoginPage = () => {
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--color-border-strong)',
                 borderRadius: '4px',
                 fontSize: '16px',
                 boxSizing: 'border-box',
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
               }}
             />
           </div>
 
           {error && (
             <div style={{
-              backgroundColor: '#fee',
-              color: '#c33',
+              backgroundColor: 'var(--color-badge-error-bg)',
+              color: 'var(--color-error)',
               padding: '10px',
               borderRadius: '4px',
               marginBottom: '20px',
@@ -123,8 +129,8 @@ export const LoginPage = () => {
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: isLoading ? '#95a5a6' : '#3498db',
-              color: 'white',
+              backgroundColor: isLoading ? 'var(--color-text-tertiary)' : 'var(--color-brand)',
+              color: isLoading ? 'var(--color-text-secondary)' : 'var(--color-text-inverse)',
               border: 'none',
               borderRadius: '4px',
               fontSize: '16px',
@@ -140,9 +146,9 @@ export const LoginPage = () => {
         <div style={{
           marginTop: '30px',
           paddingTop: '20px',
-          borderTop: '1px solid #eee',
+          borderTop: '1px solid var(--color-border)',
           fontSize: '14px',
-          color: '#7f8c8d',
+          color: 'var(--color-text-secondary)',
           textAlign: 'center',
         }}>
           <p style={{ margin: 0 }}>Default credentials:</p>

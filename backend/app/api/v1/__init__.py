@@ -15,6 +15,8 @@ Available routers:
     - process_data: Process execution records
     - audit_logs: Immutable audit trail (read-only)
     - alerts: System notifications and alarms
+    - production_lines: Production line management
+    - equipment: Manufacturing equipment management
 """
 
 from app.api.v1 import (
@@ -29,6 +31,8 @@ from app.api.v1 import (
     process_data,
     audit_logs,
     alerts,
+    production_lines,
+    equipment,
 )
 
 __all__ = [
@@ -43,4 +47,6 @@ __all__ = [
     "process_data",
     "audit_logs",
     "alerts",
+    "production_lines",
+    "equipment",
 ]

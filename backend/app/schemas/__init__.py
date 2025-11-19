@@ -67,6 +67,20 @@ from app.schemas.alert import (
     AlertSeverity,
     AlertStatus,
 )
+from app.schemas.production_line import (
+    ProductionLineBase,
+    ProductionLineCreate,
+    ProductionLineUpdate,
+    ProductionLineInDB,
+    ProductionLineResponse,
+)
+from app.schemas.equipment import (
+    EquipmentBase,
+    EquipmentCreate,
+    EquipmentUpdate,
+    EquipmentInDB,
+    EquipmentResponse,
+)
 
 __all__ = [
     # ProductModel schemas
@@ -122,4 +136,16 @@ __all__ = [
     "AlertType",
     "AlertSeverity",
     "AlertStatus",
+    # ProductionLine schemas
+    "ProductionLineBase",
+    "ProductionLineCreate",
+    "ProductionLineUpdate",
+    "ProductionLineInDB",
+    "ProductionLineResponse",
+    # Equipment schemas
+    "EquipmentBase",
+    "EquipmentCreate",
+    "EquipmentUpdate",
+    "EquipmentInDB",
+    "EquipmentResponse",
 ]

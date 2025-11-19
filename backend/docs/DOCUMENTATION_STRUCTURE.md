@@ -13,6 +13,7 @@ backend/
 │
 ├── docs/                          # 📚 Documentation (organized)
 │   ├── README.md                 # Documentation index
+│   ├── DOCUMENTATION_STRUCTURE.md # This file
 │   │
 │   ├── api/                      # API Documentation
 │   │   └── API_ENDPOINTS.md     # Complete API reference
@@ -23,7 +24,19 @@ backend/
 │   │
 │   ├── testing/                  # Testing Documentation
 │   │   ├── TEST_PLAN.md         # Test strategy
-│   │   └── BACKEND_TEST_COMPLETION_REPORT.md
+│   │   ├── BACKEND_TEST_COMPLETION_REPORT.md
+│   │   ├── TEST_COMPLETION_REPORT.md
+│   │   ├── TEST_FIX_PROGRESS.md
+│   │   ├── TEST_SUCCESS_REPORT.md
+│   │   ├── SERIAL_PROCESSDATA_FIX_REPORT.md
+│   │   ├── COVERAGE_IMPROVEMENT_REPORT.md
+│   │   ├── PROCESS_DATA_TEST_SUCCESS.md
+│   │   ├── PHASE3_FINAL_REPORT.md
+│   │   ├── PHASE3_COVERAGE_PROGRESS.md
+│   │   ├── PHASE3_DATABASE_AUDIT_TEST_REPORT.md
+│   │   ├── PHASE3_PARALLEL_COMPLETION_REPORT.md
+│   │   ├── LOT_SCHEMA_TEST_COVERAGE_REPORT.md
+│   │   └── LOT_SCHEMA_TESTS_SUMMARY.md
 │   │
 │   └── database/                 # Legacy database docs
 │       ├── 02-entity-definitions.md
@@ -65,14 +78,23 @@ backend/
 ├── README.md (updated with doc links)
 └── docs/
     ├── README.md (documentation index)
+    ├── DOCUMENTATION_STRUCTURE.md
     ├── api/
-    │   └── API_ENDPOINTS.md (NEW)
+    │   └── API_ENDPOINTS.md
     ├── guides/
-    │   ├── DEVELOPMENT.md (NEW)
-    │   └── DEPLOYMENT.md (NEW)
+    │   ├── DEVELOPMENT.md
+    │   └── DEPLOYMENT.md
     ├── testing/
-    │   ├── TEST_PLAN.md (moved)
-    │   └── BACKEND_TEST_COMPLETION_REPORT.md (moved)
+    │   ├── TEST_PLAN.md
+    │   ├── BACKEND_TEST_COMPLETION_REPORT.md
+    │   ├── TEST_COMPLETION_REPORT.md
+    │   ├── TEST_FIX_PROGRESS.md
+    │   ├── TEST_SUCCESS_REPORT.md
+    │   ├── SERIAL_PROCESSDATA_FIX_REPORT.md
+    │   ├── COVERAGE_IMPROVEMENT_REPORT.md
+    │   ├── PROCESS_DATA_TEST_SUCCESS.md
+    │   ├── PHASE3_*.md (multiple phase 3 reports)
+    │   └── LOT_SCHEMA_*.md (lot schema test reports)
     └── database/ (existing)
 ```
 

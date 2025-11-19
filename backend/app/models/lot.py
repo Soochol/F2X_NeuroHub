@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Optional, List
 
 from sqlalchemy import (
+    BIGINT,
     VARCHAR,
     DATE,
     INTEGER,
@@ -126,6 +127,12 @@ class Lot(Base):
         comment="Foreign key reference to product_models table"
     )
 
+    production_line_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("production_lines.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+        comment="Foreign key reference to production_lines table"
+    )
+
     production_date: Mapped[date] = mapped_column(
         DATE,
         nullable=False,
@@ -205,6 +212,12 @@ class Lot(Base):
         foreign_keys=[product_model_id]
     )
 
+    production_line: Mapped[Optional["ProductionLine"]] = relationship(
+        "ProductionLine",
+        back_populates="lots",
+        foreign_keys=[production_line_id]
+    )
+
     serials: Mapped[List["Serial"]] = relationship(
         "Serial",
         back_populates="lot",
@@ -227,6 +240,7 @@ class Lot(Base):
     __table_args__ = (
         # Foreign key index
         Index("idx_lots_product_model", "product_model_id"),
+        Index("idx_lots_production_line", "production_line_id"),
 
         # Status-based queries
         Index("idx_lots_status", "status"),
@@ -311,4 +325,5 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.product_model import ProductModel
+    from app.models.production_line import ProductionLine
     from app.models.serial import Serial

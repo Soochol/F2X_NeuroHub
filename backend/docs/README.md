@@ -7,6 +7,7 @@ Welcome to the F2X NeuroHub Backend documentation!
 ```
 docs/
 ├── README.md                  # This file - Documentation index
+├── DOCUMENTATION_STRUCTURE.md # Documentation organization details
 │
 ├── api/                       # API Documentation
 │   └── API_ENDPOINTS.md      # Complete API reference
@@ -17,7 +18,15 @@ docs/
 │
 ├── testing/                   # Testing Documentation
 │   ├── TEST_PLAN.md          # Test strategy
-│   └── BACKEND_TEST_COMPLETION_REPORT.md  # Test results
+│   ├── BACKEND_TEST_COMPLETION_REPORT.md  # Test results
+│   ├── TEST_COMPLETION_REPORT.md
+│   ├── TEST_FIX_PROGRESS.md
+│   ├── TEST_SUCCESS_REPORT.md
+│   ├── SERIAL_PROCESSDATA_FIX_REPORT.md
+│   ├── COVERAGE_IMPROVEMENT_REPORT.md
+│   ├── PROCESS_DATA_TEST_SUCCESS.md
+│   ├── PHASE3_*.md           # Phase 3 coverage reports
+│   └── LOT_SCHEMA_*.md       # LOT schema test reports
 │
 └── database/                  # Database-specific docs
     └── (legacy database docs)
@@ -96,6 +105,15 @@ Latest test execution results:
 - Coverage metrics
 - Known issues
 - Fixed bugs
+
+#### Additional Test Reports
+
+The testing folder contains additional reports documenting the test coverage improvement journey:
+
+- **Coverage Progress Reports**: COVERAGE_IMPROVEMENT_REPORT.md, PHASE3_*.md
+- **Schema Test Reports**: LOT_SCHEMA_*.md
+- **Fix Reports**: TEST_FIX_PROGRESS.md, SERIAL_PROCESSDATA_FIX_REPORT.md
+- **Success Reports**: TEST_SUCCESS_REPORT.md, PROCESS_DATA_TEST_SUCCESS.md
 
 ## 🔍 How to Use This Documentation
 

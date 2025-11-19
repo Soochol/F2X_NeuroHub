@@ -1,6 +1,11 @@
 /**
- * F2X NeuroHub MES - Global Styles
+ * F2X NeuroHub MES - Additional Global Styles
+ *
+ * Note: Core theme variables and base styles are in theme.css
  */
+
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 * {
   margin: 0;
@@ -8,18 +13,8 @@
   box-sizing: border-box;
 }
 
-:root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color: #2c3e50;
-  background-color: #f5f5f5;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+html {
+  font-size: 16px;
 }
 
 body {
@@ -29,15 +24,6 @@ body {
 
 #root {
   min-height: 100vh;
-}
-
-a {
-  color: #3498db;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
 }
 
 button {

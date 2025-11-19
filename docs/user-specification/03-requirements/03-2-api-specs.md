@@ -867,5 +867,167 @@ Authorization: Bearer {JWT_TOKEN}
 
 ---
 
+## 3.4.6 생산 라인 관리 인터페이스
+
+**개요:** 생산 라인 마스터 데이터를 관리하는 인터페이스
+
+**통신 방식:** HTTP REST API
+
+### 생산 라인 목록 조회
+
+**API 엔드포인트:** `GET /api/v1/production-lines`
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| is_active | boolean | N | true | 활성 라인만 조회 |
+| skip | number | N | 0 | 페이징 오프셋 |
+| limit | number | N | 100 | 조회 개수 |
+
+**응답:**
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": 1,
+      "line_code": "LINE-A",
+      "line_name": "조립라인 A",
+      "description": "메인 생산 라인",
+      "capacity_per_shift": 100,
+      "location": "Building 1, Zone A",
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00+09:00",
+      "updated_at": "2025-01-01T00:00:00+09:00"
+    }
+  ],
+  "total": 3
+}
+```
+
+### 생산 라인 생성
+
+**API 엔드포인트:** `POST /api/v1/production-lines`
+
+**요청:**
+
+```json
+{
+  "line_code": "LINE-C",
+  "line_name": "테스트 라인",
+  "description": "테스트용 생산 라인",
+  "capacity_per_shift": 50,
+  "location": "Building 2, Zone B",
+  "is_active": true
+}
+```
+
+### 생산 라인 수정
+
+**API 엔드포인트:** `PUT /api/v1/production-lines/{id}`
+
+### 생산 라인 삭제
+
+**API 엔드포인트:** `DELETE /api/v1/production-lines/{id}`
+
+---
+
+## 3.4.7 설비 관리 인터페이스
+
+**개요:** 설비(장비) 마스터 데이터를 관리하는 인터페이스
+
+**통신 방식:** HTTP REST API
+
+### 설비 목록 조회
+
+**API 엔드포인트:** `GET /api/v1/equipment`
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| is_active | boolean | N | true | 활성 설비만 조회 |
+| equipment_type | string | N | - | 설비 유형 필터 |
+| production_line_id | number | N | - | 생산 라인 ID 필터 |
+| process_id | number | N | - | 공정 ID 필터 |
+| skip | number | N | 0 | 페이징 오프셋 |
+| limit | number | N | 100 | 조회 개수 |
+
+**응답:**
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": 1,
+      "equipment_code": "LASER-001",
+      "equipment_name": "레이저마킹기-001",
+      "equipment_type": "LASER_MARKER",
+      "process_id": 1,
+      "production_line_id": 1,
+      "location": "Building 1, Zone A",
+      "manufacturer": "Keyence",
+      "model_number": "MD-X1000",
+      "serial_number": "KY-2024-001",
+      "install_date": "2024-01-15",
+      "last_maintenance_date": "2025-01-01T00:00:00+09:00",
+      "next_maintenance_date": "2025-04-01T00:00:00+09:00",
+      "is_active": true,
+      "needs_maintenance": false,
+      "process": {
+        "id": 1,
+        "process_name": "레이저 마킹"
+      },
+      "production_line": {
+        "id": 1,
+        "line_code": "LINE-A"
+      }
+    }
+  ],
+  "total": 8
+}
+```
+
+### 설비 생성
+
+**API 엔드포인트:** `POST /api/v1/equipment`
+
+**요청:**
+
+```json
+{
+  "equipment_code": "SENSOR-002",
+  "equipment_name": "센서검사기-002",
+  "equipment_type": "SENSOR",
+  "process_id": 3,
+  "production_line_id": 1,
+  "location": "Building 1, Zone A",
+  "manufacturer": "Keyence",
+  "model_number": "IV-HG500",
+  "serial_number": "KY-2024-002",
+  "install_date": "2024-03-01",
+  "is_active": true
+}
+```
+
+### 설비 수정
+
+**API 엔드포인트:** `PUT /api/v1/equipment/{id}`
+
+### 설비 삭제
+
+**API 엔드포인트:** `DELETE /api/v1/equipment/{id}`
+
+### 정비 필요 설비 조회
+
+**API 엔드포인트:** `GET /api/v1/equipment/needs-maintenance`
+
+**응답:** 정비 예정일이 지났거나 7일 이내인 설비 목록 반환
+
+---
+
 **이전 섹션:** [3.1-3.3 기능 요구사항](03-1-functional.md)
 **다음 섹션:** [3.5 기능 검수 항목](03-3-acceptance.md)

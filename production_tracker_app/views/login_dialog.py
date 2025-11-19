@@ -4,6 +4,7 @@ Login Dialog for authentication.
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
                                QPushButton, QCheckBox, QMessageBox)
 from PySide6.QtCore import Qt
+from widgets.base_components import ThemedLabel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,24 +30,25 @@ class LoginDialog(QDialog):
         layout.setContentsMargins(30, 30, 30, 30)
 
         # Title
-        title = QLabel("F2X NeuroHub 공정 추적")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title = ThemedLabel("F2X NeuroHub 공정 추적", variant="heading")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
         # Username
-        username_label = QLabel("사용자명:")
+        username_label = ThemedLabel("사용자명:", variant="body")
         layout.addWidget(username_label)
         self.username_input = QLineEdit()
+        self.username_input.setObjectName("username_input")
         self.username_input.setPlaceholderText("사용자명을 입력하세요")
         if self.config.saved_username:
             self.username_input.setText(self.config.saved_username)
         layout.addWidget(self.username_input)
 
         # Password
-        password_label = QLabel("비밀번호:")
+        password_label = ThemedLabel("비밀번호:", variant="body")
         layout.addWidget(password_label)
         self.password_input = QLineEdit()
+        self.password_input.setObjectName("password_input")
         self.password_input.setPlaceholderText("비밀번호를 입력하세요")
         self.password_input.setEchoMode(QLineEdit.Password)
         layout.addWidget(self.password_input)
@@ -58,20 +60,9 @@ class LoginDialog(QDialog):
 
         # Login button
         self.login_button = QPushButton("로그인")
+        self.login_button.setObjectName("login_button")
+        self.login_button.setProperty("variant", "primary")
         self.login_button.clicked.connect(self.on_login)
-        self.login_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3b82f6;
-                color: white;
-                padding: 10px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #2563eb;
-            }
-        """)
         layout.addWidget(self.login_button)
 
         # Connect Enter key to login

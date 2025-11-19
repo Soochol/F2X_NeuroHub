@@ -3,10 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/common/Card';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
-import { Select } from '@/components/common/Select';
+import { Card, Button, Input, Select } from '@/components/common';
 import { alertsApi } from '@/api';
 import { AlertSeverity, AlertStatus, type Alert } from '@/types/api';
 import { format } from 'date-fns';
@@ -98,11 +95,11 @@ export const AlertsPage = () => {
   const getSeverityColor = (severity: AlertSeverity) => {
     switch (severity) {
       case AlertSeverity.HIGH:
-        return { bg: '#fee', color: '#c33', icon: '🚨', label: 'High' };
+        return { bg: 'var(--color-error)', color: '#c33', icon: '=�', label: 'High' };
       case AlertSeverity.MEDIUM:
-        return { bg: '#fff3cd', color: '#e67e22', icon: '⚠️', label: 'Medium' };
+        return { bg: 'var(--color-warning)', color: 'var(--color-warning)', icon: '�', label: 'Medium' };
       case AlertSeverity.LOW:
-        return { bg: '#e3f2fd', color: '#3498db', icon: 'ℹ️', label: 'Low' };
+        return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-brand)', icon: '9', label: 'Low' };
     }
   };
 
@@ -124,13 +121,13 @@ export const AlertsPage = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>System Alerts & Notifications</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>System Alerts & Notifications</h1>
         {unreadCount > 0 && (
           <span
             style={{
               padding: '6px 12px',
-              backgroundColor: '#e74c3c',
-              color: 'white',
+              backgroundColor: 'var(--color-error)',
+              color: 'var(--color-text-inverse)',
               borderRadius: '20px',
               fontSize: '14px',
               fontWeight: 'bold',
@@ -200,9 +197,9 @@ export const AlertsPage = () => {
 
       {/* Bulk Actions Bar */}
       {selectedAlertIds.size > 0 && (
-        <Card style={{ marginBottom: '20px', backgroundColor: '#e3f2fd' }}>
+        <Card style={{ marginBottom: '20px', backgroundColor: 'var(--color-bg-tertiary)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--color-text-primary)' }}>
               {selectedAlertIds.size} alert(s) selected
             </span>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -220,12 +217,12 @@ export const AlertsPage = () => {
       {/* Alerts List */}
       <Card>
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>Loading alerts...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Loading alerts...</div>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e74c3c' }}>{error}</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>{error}</div>
         ) : filteredAlerts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-            No alerts found. System is running smoothly! 🎉
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+            No alerts found. System is running smoothly!
           </div>
         ) : (
           <>
@@ -233,11 +230,11 @@ export const AlertsPage = () => {
             <div
               style={{
                 padding: '12px 20px',
-                borderBottom: '2px solid #e0e0e0',
+                borderBottom: `2px solid var(--color-border)`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'var(--color-bg-secondary)',
               }}
             >
               <input
@@ -246,7 +243,7 @@ export const AlertsPage = () => {
                 onChange={handleSelectAll}
                 style={{ cursor: 'pointer', width: '16px', height: '16px' }}
               />
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#7f8c8d' }}>Select All</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--color-text-secondary)' }}>Select All</span>
             </div>
 
             {/* Alerts */}
@@ -261,8 +258,8 @@ export const AlertsPage = () => {
                     key={alert.id}
                     style={{
                       padding: '15px 20px',
-                      borderBottom: '1px solid #f0f0f0',
-                      backgroundColor: isUnread ? '#f9f9f9' : 'white',
+                      borderBottom: `1px solid var(--color-border)`,
+                      backgroundColor: isUnread ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
                       opacity: isUnread ? 1 : 0.85,
                     }}
                   >
@@ -302,7 +299,7 @@ export const AlertsPage = () => {
                                   width: '8px',
                                   height: '8px',
                                   borderRadius: '50%',
-                                  backgroundColor: '#3498db',
+                                  backgroundColor: 'var(--color-brand)',
                                 }}
                               />
                             )}
@@ -327,7 +324,7 @@ export const AlertsPage = () => {
                                 fontWeight: isUnread ? 'bold' : '500',
                                 fontSize: '15px',
                                 cursor: 'pointer',
-                                color: isUnread ? '#2c3e50' : '#7f8c8d',
+                                color: isUnread ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                               }}
                               onClick={() => toggleExpand(alert.id)}
                             >
@@ -342,16 +339,16 @@ export const AlertsPage = () => {
                                 border: 'none',
                                 cursor: 'pointer',
                                 fontSize: '12px',
-                                color: '#7f8c8d',
+                                color: 'var(--color-text-secondary)',
                               }}
                             >
-                              {isExpanded ? '▼' : '▶'}
+                              {isExpanded ? '�' : '�'}
                             </button>
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {/* Timestamp */}
-                            <span style={{ fontSize: '13px', color: '#7f8c8d', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
                               {format(new Date(alert.created_at), 'MMM dd, HH:mm')}
                             </span>
 
@@ -369,7 +366,7 @@ export const AlertsPage = () => {
                           <div
                             style={{
                               fontSize: '14px',
-                              color: '#7f8c8d',
+                              color: 'var(--color-text-secondary)',
                               marginLeft: isUnread ? '18px' : '0',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -387,12 +384,12 @@ export const AlertsPage = () => {
                               marginTop: '10px',
                               marginLeft: isUnread ? '18px' : '0',
                               padding: '15px',
-                              backgroundColor: '#f8f9fa',
+                              backgroundColor: 'var(--color-bg-secondary)',
                               borderRadius: '6px',
                               fontSize: '14px',
                             }}
                           >
-                            <div style={{ marginBottom: '10px', lineHeight: '1.6' }}>{alert.message}</div>
+                            <div style={{ marginBottom: '10px', lineHeight: '1.6', color: 'var(--color-text-primary)' }}>{alert.message}</div>
 
                             {/* Metadata */}
                             <div
@@ -402,35 +399,35 @@ export const AlertsPage = () => {
                                 gap: '10px',
                                 marginTop: '15px',
                                 paddingTop: '15px',
-                                borderTop: '1px solid #e0e0e0',
+                                borderTop: `1px solid var(--color-border)`,
                               }}
                             >
                               <div>
-                                <span style={{ fontSize: '12px', color: '#7f8c8d' }}>Type: </span>
-                                <span style={{ fontSize: '13px', fontWeight: '500' }}>{alert.alert_type}</span>
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Type: </span>
+                                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{alert.alert_type}</span>
                               </div>
                               {alert.serial_number && (
                                 <div>
-                                  <span style={{ fontSize: '12px', color: '#7f8c8d' }}>Serial: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '500' }}>{alert.serial_number}</span>
+                                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Serial: </span>
+                                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{alert.serial_number}</span>
                                 </div>
                               )}
                               {alert.lot_number && (
                                 <div>
-                                  <span style={{ fontSize: '12px', color: '#7f8c8d' }}>LOT: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '500' }}>{alert.lot_number}</span>
+                                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>LOT: </span>
+                                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{alert.lot_number}</span>
                                 </div>
                               )}
                               {alert.process_name && (
                                 <div>
-                                  <span style={{ fontSize: '12px', color: '#7f8c8d' }}>Process: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '500' }}>{alert.process_name}</span>
+                                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Process: </span>
+                                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{alert.process_name}</span>
                                 </div>
                               )}
                               {alert.read_at && (
                                 <div>
-                                  <span style={{ fontSize: '12px', color: '#7f8c8d' }}>Read at: </span>
-                                  <span style={{ fontSize: '13px' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Read at: </span>
+                                  <span style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>
                                     {format(new Date(alert.read_at), 'yyyy-MM-dd HH:mm:ss')}
                                   </span>
                                 </div>
@@ -464,7 +461,7 @@ export const AlertsPage = () => {
                 >
                   Previous
                 </Button>
-                <span style={{ fontSize: '14px', color: '#7f8c8d' }}>
+                <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                   {currentPage + 1} / {totalPages}
                 </span>
                 <Button

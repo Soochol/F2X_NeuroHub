@@ -466,3 +466,41 @@ export interface PaginatedResponse<T> {
 export interface APIError {
   detail: string;
 }
+
+/**
+ * Type-safe error type for catch blocks
+ * Use instead of `any` in error handlers
+ */
+export type ApiCatchError = Error & {
+  message?: string;
+  response?: {
+    data?: APIError;
+  };
+};
+
+/**
+ * Helper function to extract error message from API errors
+ */
+export const getErrorMessage = (err: unknown, defaultMessage: string): string => {
+  const error = err as ApiCatchError;
+  return error.message || error?.response?.data?.detail || defaultMessage;
+};
+
+// ============================================================================
+// Query Parameters
+// ============================================================================
+
+export interface BaseQueryParams {
+  skip: number;
+  limit: number;
+}
+
+export interface AlertQueryParams extends BaseQueryParams {
+  severity?: AlertSeverity;
+  status?: AlertStatus;
+}
+
+export interface LotQueryParams extends BaseQueryParams {
+  status?: LotStatus;
+  product_model_id?: number;
+}

@@ -35,7 +35,8 @@
       "Bash(python:*)",
       "Bash(findstr:*)",
       "Bash(pip install:*)",
-      "Bash(timeout /t 3 /nobreak)"
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

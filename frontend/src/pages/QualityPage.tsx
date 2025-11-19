@@ -3,11 +3,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/common/Card';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
+import { Card, Button, Input } from '@/components/common';
 import { analyticsApi } from '@/api';
 import type { QualityMetrics, DefectAnalysis } from '@/types/api';
+import { getErrorMessage } from '@/types/api';
 import { format, subDays } from 'date-fns';
 
 export const QualityPage = () => {
@@ -34,8 +33,8 @@ export const QualityPage = () => {
       ]);
       setQualityMetrics(quality);
       setDefectAnalysis(defects);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load quality data');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load quality data'));
     } finally {
       setIsLoading(false);
     }
@@ -46,15 +45,15 @@ export const QualityPage = () => {
   };
 
   const getPassRateColor = (rate: number) => {
-    if (rate >= 95) return { bg: '#d5f4e6', color: '#27ae60', icon: '✅' };
-    if (rate >= 85) return { bg: '#fff3cd', color: '#f39c12', icon: '⚠️' };
-    return { bg: '#fee', color: '#e74c3c', icon: '❌' };
+    if (rate >= 95) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
+    if (rate >= 85) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '�' };
+    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: 'L' };
   };
 
   const getDefectRateColor = (rate: number) => {
-    if (rate <= 5) return { bg: '#d5f4e6', color: '#27ae60', icon: '✅' };
-    if (rate <= 15) return { bg: '#fff3cd', color: '#f39c12', icon: '⚠️' };
-    return { bg: '#fee', color: '#e74c3c', icon: '❌' };
+    if (rate <= 5) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
+    if (rate <= 15) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '�' };
+    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: 'L' };
   };
 
   return (
@@ -65,8 +64,8 @@ export const QualityPage = () => {
 
       {/* Date Range Filter */}
       <Card style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-          <div style={{ width: '200px' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ width: '180px' }}>
             <Input
               label="Start Date"
               type="date"
@@ -74,29 +73,31 @@ export const QualityPage = () => {
               onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
-          <div style={{ width: '200px' }}>
+          <div style={{ width: '180px' }}>
             <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
-          <Button onClick={handleApplyFilter}>Apply</Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setStartDate(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-              setEndDate(format(new Date(), 'yyyy-MM-dd'));
-            }}
-          >
-            Reset (Last 30 Days)
-          </Button>
+          <div style={{ display: 'flex', gap: '10px', paddingBottom: '2px' }}>
+            <Button onClick={handleApplyFilter}>Apply</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStartDate(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         </div>
       </Card>
 
       {isLoading ? (
         <Card>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>Loading quality metrics...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Loading quality metrics...</div>
         </Card>
       ) : error ? (
         <Card>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e74c3c' }}>{error}</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>{error}</div>
         </Card>
       ) : (
         <>
@@ -107,18 +108,18 @@ export const QualityPage = () => {
                 {/* Total Inspected */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Total Inspected</div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#3498db', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Total Inspected</div>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-brand-500)', marginBottom: '5px' }}>
                       {qualityMetrics.total_inspected}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Units</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Units</div>
                   </div>
                 </Card>
 
                 {/* Pass Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Pass Rate</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Pass Rate</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -133,7 +134,7 @@ export const QualityPage = () => {
                       <span>{getPassRateColor(qualityMetrics.pass_rate).icon}</span>
                       <span>{qualityMetrics.pass_rate.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {qualityMetrics.pass_count} / {qualityMetrics.total_inspected} passed
                     </div>
                   </div>
@@ -142,7 +143,7 @@ export const QualityPage = () => {
                 {/* Defect Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Defect Rate</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Defect Rate</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -157,7 +158,7 @@ export const QualityPage = () => {
                       <span>{getDefectRateColor(qualityMetrics.defect_rate).icon}</span>
                       <span>{qualityMetrics.defect_rate.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {qualityMetrics.fail_count} defects found
                     </div>
                   </div>
@@ -166,11 +167,11 @@ export const QualityPage = () => {
                 {/* Rework Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Rework Rate</div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f39c12', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Rework Rate</div>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-warning)', marginBottom: '5px' }}>
                       {qualityMetrics.rework_rate.toFixed(1)}%
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {qualityMetrics.rework_count} units reworked
                     </div>
                   </div>
@@ -182,7 +183,7 @@ export const QualityPage = () => {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                      <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Process</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Total</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Pass</th>
@@ -198,19 +199,19 @@ export const QualityPage = () => {
                           <tr
                             key={idx}
                             style={{
-                              borderBottom: '1px solid #f0f0f0',
-                              backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9',
+                              borderBottom: '1px solid var(--color-border)',
+                              backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'var(--color-bg-secondary)',
                             }}
                           >
                             <td style={{ padding: '12px', fontWeight: '500' }}>{process.process_name}</td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>{process.total}</td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#27ae60' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-success)' }}>
                               {process.pass}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#e74c3c' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-error)' }}>
                               {process.fail}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#f39c12' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-warning)' }}>
                               {process.rework}
                             </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
@@ -244,8 +245,8 @@ export const QualityPage = () => {
                 {/* Defects by Process */}
                 <Card title="Defects by Process">
                   {defectAnalysis.by_process.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#7f8c8d' }}>
-                      No defects found in this period 🎉
+                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
+                      No defects found in this period
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -257,14 +258,14 @@ export const QualityPage = () => {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '12px',
-                            backgroundColor: '#f8f9fa',
+                            backgroundColor: 'var(--color-bg-secondary)',
                             borderRadius: '6px',
-                            border: '1px solid #e0e0e0',
+                            border: '1px solid var(--color-border)',
                           }}
                         >
                           <div>
                             <div style={{ fontWeight: '500', marginBottom: '4px' }}>{process.process_name}</div>
-                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                               {process.defect_count} defects ({process.defect_rate.toFixed(1)}% rate)
                             </div>
                           </div>
@@ -273,8 +274,8 @@ export const QualityPage = () => {
                               width: '60px',
                               height: '60px',
                               borderRadius: '50%',
-                              backgroundColor: '#fee',
-                              color: '#e74c3c',
+                              backgroundColor: 'var(--color-error-light)',
+                              color: 'var(--color-error)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -293,8 +294,8 @@ export const QualityPage = () => {
                 {/* Top Defect Types */}
                 <Card title="Top Defect Types">
                   {defectAnalysis.top_defects.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#7f8c8d' }}>
-                      No defects recorded 🎉
+                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
+                      No defects recorded
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -307,7 +308,7 @@ export const QualityPage = () => {
                           <div key={idx}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                               <span style={{ fontSize: '14px', fontWeight: '500' }}>{defect.defect_code}</span>
-                              <span style={{ fontSize: '14px', color: '#7f8c8d' }}>
+                              <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                                 {defect.count} ({percentage.toFixed(1)}%)
                               </span>
                             </div>
@@ -315,7 +316,7 @@ export const QualityPage = () => {
                               style={{
                                 width: '100%',
                                 height: '8px',
-                                backgroundColor: '#e0e0e0',
+                                backgroundColor: 'var(--color-border)',
                                 borderRadius: '4px',
                                 overflow: 'hidden',
                               }}
@@ -324,7 +325,7 @@ export const QualityPage = () => {
                                 style={{
                                   width: `${percentage}%`,
                                   height: '100%',
-                                  backgroundColor: idx === 0 ? '#e74c3c' : idx === 1 ? '#e67e22' : '#f39c12',
+                                  backgroundColor: idx === 0 ? 'var(--color-error)' : idx === 1 ? 'var(--color-warning)' : 'var(--color-warning)',
                                   borderRadius: '4px',
                                 }}
                               />

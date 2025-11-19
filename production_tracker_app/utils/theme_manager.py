@@ -1,13 +1,16 @@
 """
-Theme Manager - Centralized theme and styling system.
+Theme Manager - Centralized theme and styling system with QSS generation.
 
-This module provides a centralized way to manage application themes
-and styles loaded from JSON configuration.
+Provides JSON-based theming with Property Variant pattern support.
+Single source of truth for all application styling.
 """
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+from PySide6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,7 @@ class ThemeManager:
 
     _instance: Optional['ThemeManager'] = None
     _theme_data: Dict[str, Any] = {}
+    _resolved_cache: Dict[str, str] = {}
 
     def __new__(cls):
         """Singleton pattern to ensure only one theme manager exists."""
@@ -26,56 +30,65 @@ class ThemeManager:
 
     def __init__(self):
         """Initialize theme manager."""
-        if not self._theme_data:
-            self.load_theme()
+        pass
 
-    def load_theme(self, theme_path: Optional[str] = None):
+    def load_theme(self, theme_name: str) -> 'ThemeManager':
         """
         Load theme from JSON file.
 
         Args:
-            theme_path: Path to theme JSON file. If None, uses default theme.json
+            theme_name: Theme name (e.g., "production_tracker")
+
+        Returns:
+            ThemeManager instance for chaining
         """
-        if theme_path is None:
-            # Default theme path
-            app_dir = Path(__file__).parent.parent
-            theme_path = app_dir / "theme.json"
-        else:
-            theme_path = Path(theme_path)
+        theme_dir = Path(__file__).parent.parent / "themes"
+        theme_path = theme_dir / f"{theme_name}.json"
+
+        if not theme_path.exists():
+            logger.error("Theme file not found: %s", theme_path)
+            self._theme_data = self._get_fallback_theme()
+            return self
 
         try:
             with open(theme_path, 'r', encoding='utf-8') as f:
                 self._theme_data = json.load(f)
-            logger.info(f"Theme loaded: {self._theme_data.get('name', 'Unknown')}")
-        except Exception as e:
-            logger.error(f"Failed to load theme: {e}")
+            self._resolved_cache = {}
+            loaded_name = self._theme_data.get('theme_name', theme_name)
+            logger.info("Theme loaded: %s", loaded_name)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.error("Failed to load theme: %s", e)
             self._theme_data = self._get_fallback_theme()
+
+        return self
 
     def _get_fallback_theme(self) -> Dict[str, Any]:
         """Return fallback theme if JSON loading fails."""
         return {
             "colors": {
-                "primary": "#3b82f6",
-                "background": {"main": "#1a1a1a"},
-                "text": {"primary": "#ffffff"}
-            }
+                "brand": {"main": "#3ECF8E"},
+                "primary": {"main": "#3ECF8E"},
+                "background": {"default": "#0f0f0f", "elevated": "#1f1f1f"},
+                "text": {"primary": "#ededed", "secondary": "#a8a8a8"},
+                "border": {"default": "#1a1a1a"}
+            },
+            "typography": {
+                "size": {"title": 18, "body": 14, "caption": 12}
+            },
+            "spacing": {"sm": 8, "md": 16, "lg": 24},
+            "radius": {"sm": 4, "md": 8, "lg": 16}
         }
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
-        Get theme value by dot-notation path.
+        Get theme value by dot-notation path with variable resolution.
 
         Args:
-            key_path: Dot-separated path to theme value (e.g., 'colors.primary')
+            key_path: Dot-separated path (e.g., 'colors.primary.main')
             default: Default value if key not found
 
         Returns:
-            Theme value or default
-
-        Example:
-            >>> theme = ThemeManager()
-            >>> primary_color = theme.get('colors.primary')
-            >>> font_size = theme.get('typography.fontSize.base')
+            Theme value with variables resolved
         """
         keys = key_path.split('.')
         value = self._theme_data
@@ -86,205 +99,573 @@ class ThemeManager:
             else:
                 return default
 
+        if isinstance(value, str):
+            return self._resolve_variables(value)
+
         return value
 
-    def get_color(self, color_key: str) -> str:
+    def _resolve_variables(self, value: str) -> str:
         """
-        Get color value.
+        Resolve variable references: {variable} -> actual value.
+
+        Example: "{colors.primary.main}" -> "#3ECF8E"
+        """
+        if value in self._resolved_cache:
+            return self._resolved_cache[value]
+
+        pattern = r'\{([^}]+)\}'
+        matches = re.findall(pattern, value)
+
+        result = value
+        for match in matches:
+            var_value = self.get(match)
+            if var_value is not None:
+                result = result.replace(f'{{{match}}}', str(var_value))
+
+        self._resolved_cache[value] = result
+        return result
+
+    def get_component_style(self, component_path: str) -> Dict[str, Any]:
+        """
+        Get component style dictionary with variables resolved.
 
         Args:
-            color_key: Color key (e.g., 'primary', 'background.main')
+            component_path: Path like "button.primary" or "card.default"
 
         Returns:
-            Color hex string
+            Dictionary of resolved style properties
         """
-        return self.get(f'colors.{color_key}', '#ffffff')
+        style = self.get(f'components.{component_path}', {})
 
-    def get_spacing(self, size: str) -> str:
+        if not isinstance(style, dict):
+            return {}
+
+        resolved = {}
+        for key, value in style.items():
+            if isinstance(value, str):
+                resolved[key] = self._resolve_variables(value)
+            else:
+                resolved[key] = value
+
+        return resolved
+
+    def generate_qss(self) -> str:
         """
-        Get spacing value.
+        Generate complete QSS stylesheet from theme with Property Variant support.
+
+        Returns:
+            Complete QSS stylesheet string
+        """
+        colors = self._theme_data.get('colors', {})
+        typography = self._theme_data.get('typography', {})
+        spacing = self._theme_data.get('spacing', {})
+        radius = self._theme_data.get('radius', {})
+        components = self._theme_data.get('components', {})
+
+        # Resolve all values
+        bg_default = self.get('colors.background.default', '#0f0f0f')
+        bg_elevated = self.get('colors.background.elevated', '#1f1f1f')
+        bg_hover = self.get('colors.background.hover', '#252525')
+
+        text_primary = self.get('colors.text.primary', '#ededed')
+        text_secondary = self.get('colors.text.secondary', '#a8a8a8')
+        text_on_brand = self.get('colors.text.onBrand', '#000000')
+
+        border_default = self.get('colors.border.default', '#1a1a1a')
+        border_light = self.get('colors.border.light', '#2a2a2a')
+
+        brand_main = self.get('colors.brand.main', '#3ECF8E')
+        brand_dark = self.get('colors.brand.dark', '#2FB574')
+
+        primary_main = self.get('colors.primary.main', '#3ECF8E')
+        primary_dark = self.get('colors.primary.dark', '#2FB574')
+
+        danger_main = self.get('colors.danger.main', '#F04438')
+        danger_dark = self.get('colors.danger.dark', '#D92D20')
+
+        success_main = self.get('colors.success.main', '#3ECF8E')
+        warning_main = self.get('colors.warning.main', '#F97316')
+
+        font_family = self.get('typography.fontFamily.primary', 'sans-serif')
+        font_title = self.get('typography.size.title', 18)
+        font_body = self.get('typography.size.body', 14)
+        font_caption = self.get('typography.size.caption', 12)
+
+        radius_sm = self.get('radius.sm', 4)
+        radius_md = self.get('radius.md', 8)
+        radius_lg = self.get('radius.lg', 16)
+
+        spacing_sm = self.get('spacing.sm', 8)
+        spacing_md = self.get('spacing.md', 16)
+        spacing_lg = self.get('spacing.lg', 24)
+
+        qss = f"""
+/* ========== Global Styles ========== */
+QMainWindow, QDialog {{
+    background-color: {bg_default};
+    color: {text_primary};
+    font-family: {font_family};
+    font-size: {font_body}px;
+}}
+
+QWidget {{
+    color: {text_primary};
+    font-family: {font_family};
+}}
+
+/* ========== QLabel Variants ========== */
+QLabel {{
+    color: {text_primary};
+    font-size: {font_body}px;
+}}
+
+QLabel[variant="title"] {{
+    font-size: {font_title}px;
+    font-weight: bold;
+    color: {text_primary};
+}}
+
+QLabel[variant="body"] {{
+    font-size: {font_body}px;
+    color: {text_primary};
+}}
+
+QLabel[variant="caption"] {{
+    font-size: {font_caption}px;
+    color: {text_secondary};
+}}
+
+QLabel[variant="success"] {{
+    color: {success_main};
+    font-weight: 500;
+}}
+
+QLabel[variant="danger"] {{
+    color: {danger_main};
+    font-weight: 500;
+}}
+
+QLabel[variant="warning"] {{
+    color: {warning_main};
+    font-weight: 500;
+}}
+
+QLabel[variant="brand"] {{
+    color: {brand_main};
+    font-weight: bold;
+}}
+
+/* ========== QPushButton Variants ========== */
+QPushButton {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    padding: {spacing_sm}px {spacing_md}px;
+    font-size: {font_body}px;
+    font-weight: 500;
+    min-height: 32px;
+}}
+
+QPushButton:hover {{
+    background-color: {bg_hover};
+    border-color: {border_light};
+}}
+
+QPushButton:pressed {{
+    background-color: {border_default};
+}}
+
+QPushButton:disabled {{
+    background-color: {border_default};
+    color: {text_secondary};
+}}
+
+QPushButton[variant="primary"] {{
+    background-color: {primary_main};
+    color: {text_on_brand};
+    border: none;
+    font-weight: bold;
+}}
+
+QPushButton[variant="primary"]:hover {{
+    background-color: {primary_dark};
+}}
+
+QPushButton[variant="primary"]:pressed {{
+    background-color: {brand_dark};
+}}
+
+QPushButton[variant="danger"] {{
+    background-color: {danger_main};
+    color: #ffffff;
+    border: none;
+    font-weight: bold;
+}}
+
+QPushButton[variant="danger"]:hover {{
+    background-color: {danger_dark};
+}}
+
+QPushButton[variant="secondary"] {{
+    background-color: transparent;
+    color: {text_primary};
+    border: 1px solid {border_default};
+}}
+
+QPushButton[variant="secondary"]:hover {{
+    background-color: {bg_elevated};
+}}
+
+QPushButton[variant="ghost"] {{
+    background-color: transparent;
+    border: none;
+    color: {text_secondary};
+}}
+
+QPushButton[variant="ghost"]:hover {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+}}
+
+/* ========== QFrame Card Variants ========== */
+QFrame[variant="card"] {{
+    background-color: {bg_default};
+    border: 1px solid {border_default};
+    border-radius: {radius_lg}px;
+}}
+
+QFrame[variant="elevated"] {{
+    background-color: {bg_elevated};
+    border: 1px solid {border_default};
+    border-radius: {radius_lg}px;
+}}
+
+/* ========== QLineEdit ========== */
+QLineEdit {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    padding: {spacing_sm}px {spacing_md}px;
+    font-size: {font_body}px;
+    min-height: 36px;
+}}
+
+QLineEdit:focus {{
+    border-color: {brand_main};
+}}
+
+QLineEdit:disabled {{
+    background-color: {border_default};
+    color: {text_secondary};
+}}
+
+/* ========== QComboBox ========== */
+QComboBox {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    padding: {spacing_sm}px {spacing_md}px;
+    font-size: {font_body}px;
+    min-height: 36px;
+}}
+
+QComboBox:hover {{
+    border-color: {border_light};
+}}
+
+QComboBox:focus {{
+    border-color: {brand_main};
+}}
+
+QComboBox::drop-down {{
+    border: none;
+    width: 24px;
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    selection-background-color: {brand_main};
+    selection-color: {text_on_brand};
+}}
+
+/* ========== QScrollArea ========== */
+QScrollArea {{
+    border: none;
+    background-color: transparent;
+}}
+
+QScrollBar:vertical {{
+    background-color: {bg_default};
+    width: 8px;
+    border-radius: 4px;
+}}
+
+QScrollBar::handle:vertical {{
+    background-color: {border_default};
+    border-radius: 4px;
+    min-height: 20px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background-color: {border_light};
+}}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+
+QScrollBar:horizontal {{
+    background-color: {bg_default};
+    height: 8px;
+    border-radius: 4px;
+}}
+
+QScrollBar::handle:horizontal {{
+    background-color: {border_default};
+    border-radius: 4px;
+    min-width: 20px;
+}}
+
+/* ========== QGroupBox ========== */
+QGroupBox {{
+    font-weight: bold;
+    border: 1px solid {border_default};
+    border-radius: {radius_lg}px;
+    margin-top: 16px;
+    padding: 16px;
+    padding-top: 28px;
+    color: {text_primary};
+}}
+
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 4px 12px;
+    background-color: {bg_elevated};
+    border-radius: {radius_md}px;
+    color: {brand_main};
+}}
+
+/* ========== QCheckBox ========== */
+QCheckBox {{
+    color: {text_primary};
+    spacing: 8px;
+}}
+
+QCheckBox::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {border_default};
+    border-radius: {radius_sm}px;
+    background-color: {bg_elevated};
+}}
+
+QCheckBox::indicator:checked {{
+    background-color: {brand_main};
+    border-color: {brand_main};
+}}
+
+/* ========== QRadioButton ========== */
+QRadioButton {{
+    color: {text_primary};
+    spacing: 8px;
+}}
+
+QRadioButton::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {border_default};
+    border-radius: 9px;
+    background-color: {bg_elevated};
+}}
+
+QRadioButton::indicator:checked {{
+    background-color: {brand_main};
+    border-color: {brand_main};
+}}
+
+/* ========== QTabWidget ========== */
+QTabWidget::pane {{
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    background-color: {bg_default};
+}}
+
+QTabBar::tab {{
+    background-color: {bg_elevated};
+    color: {text_secondary};
+    padding: {spacing_sm}px {spacing_md}px;
+    border: 1px solid {border_default};
+    border-bottom: none;
+    border-top-left-radius: {radius_md}px;
+    border-top-right-radius: {radius_md}px;
+}}
+
+QTabBar::tab:selected {{
+    background-color: {bg_default};
+    color: {text_primary};
+}}
+
+QTabBar::tab:hover:!selected {{
+    background-color: {bg_hover};
+}}
+
+/* ========== QProgressBar ========== */
+QProgressBar {{
+    background-color: {bg_elevated};
+    border: 1px solid {border_default};
+    border-radius: {radius_sm}px;
+    text-align: center;
+    color: {text_primary};
+    height: 20px;
+}}
+
+QProgressBar::chunk {{
+    background-color: {brand_main};
+    border-radius: {radius_sm}px;
+}}
+
+/* ========== QSlider ========== */
+QSlider::groove:horizontal {{
+    height: 4px;
+    background-color: {border_default};
+    border-radius: 2px;
+}}
+
+QSlider::handle:horizontal {{
+    background-color: {brand_main};
+    width: 16px;
+    height: 16px;
+    margin: -6px 0;
+    border-radius: 8px;
+}}
+
+QSlider::sub-page:horizontal {{
+    background-color: {brand_main};
+    border-radius: 2px;
+}}
+
+/* ========== QToolTip ========== */
+QToolTip {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_sm}px;
+    padding: 4px 8px;
+}}
+
+/* ========== QMenu ========== */
+QMenu {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    padding: 4px;
+}}
+
+QMenu::item {{
+    padding: 8px 24px;
+    border-radius: {radius_sm}px;
+}}
+
+QMenu::item:selected {{
+    background-color: {brand_main};
+    color: {text_on_brand};
+}}
+
+QMenu::separator {{
+    height: 1px;
+    background-color: {border_default};
+    margin: 4px 8px;
+}}
+
+/* ========== QStatusBar ========== */
+QStatusBar {{
+    background-color: {bg_default};
+    color: {text_secondary};
+    font-size: {font_caption}px;
+    border-top: 1px solid {border_default};
+}}
+
+/* ========== Toast Notification ========== */
+QFrame[variant="toast"] {{
+    background-color: {bg_elevated};
+    color: {text_primary};
+    border: 1px solid {border_default};
+    border-radius: {radius_md}px;
+    padding: 12px 16px;
+}}
+
+QFrame[variant="toast-success"] {{
+    background-color: {success_main};
+    color: #ffffff;
+    border: none;
+    border-radius: {radius_md}px;
+    padding: 12px 16px;
+}}
+
+QFrame[variant="toast-danger"] {{
+    background-color: {danger_main};
+    color: #ffffff;
+    border: none;
+    border-radius: {radius_md}px;
+    padding: 12px 16px;
+}}
+
+QFrame[variant="toast-warning"] {{
+    background-color: {warning_main};
+    color: #000000;
+    border: none;
+    border-radius: {radius_md}px;
+    padding: 12px 16px;
+}}
+
+QFrame[variant="toast-info"] {{
+    background-color: {brand_main};
+    color: #000000;
+    border: none;
+    border-radius: {radius_md}px;
+    padding: 12px 16px;
+}}
+"""
+        return qss
+
+    def apply_to_app(self, app: QApplication) -> None:
+        """
+        Apply generated QSS to the application.
 
         Args:
-            size: Size key (xs, sm, md, lg, xl, xxl)
-
-        Returns:
-            Spacing value (e.g., '10px')
+            app: QApplication instance
         """
-        return self.get(f'spacing.{size}', '10px')
-
-    def get_font_size(self, size: str) -> str:
-        """
-        Get font size.
-
-        Args:
-            size: Size key (xs, sm, base, md, lg, xl, xxl)
-
-        Returns:
-            Font size (e.g., '14px')
-        """
-        return self.get(f'typography.fontSize.{size}', '14px')
-
-    def get_border_radius(self, size: str) -> str:
-        """
-        Get border radius.
-
-        Args:
-            size: Size key (sm, md, lg, full)
-
-        Returns:
-            Border radius (e.g., '6px')
-        """
-        return self.get(f'borderRadius.{size}', '4px')
-
-    def get_component_style(self, component_name: str) -> Dict[str, Any]:
-        """
-        Get complete component style configuration.
-
-        Args:
-            component_name: Component name (e.g., 'card', 'button.primary')
-
-        Returns:
-            Dictionary of style properties
-        """
-        return self.get(f'components.{component_name}', {})
-
-    def build_stylesheet(self, style_dict: Dict[str, Any]) -> str:
-        """
-        Build Qt stylesheet string from style dictionary.
-
-        Args:
-            style_dict: Dictionary of CSS properties
-
-        Returns:
-            Qt stylesheet string
-
-        Example:
-            >>> style = {'fontSize': '14px', 'color': '#ffffff'}
-            >>> theme.build_stylesheet(style)
-            'font-size: 14px; color: #ffffff;'
-        """
-        css_rules = []
-
-        for key, value in style_dict.items():
-            if isinstance(value, dict):
-                # Skip nested dicts (handled separately)
-                continue
-
-            # Convert camelCase to kebab-case
-            css_key = self._camel_to_kebab(key)
-            css_rules.append(f"{css_key}: {value}")
-
-        return '; '.join(css_rules) + ';'
-
-    def _camel_to_kebab(self, text: str) -> str:
-        """
-        Convert camelCase to kebab-case.
-
-        Args:
-            text: camelCase text
-
-        Returns:
-            kebab-case text
-        """
-        result = []
-        for i, char in enumerate(text):
-            if char.isupper() and i > 0:
-                result.append('-')
-            result.append(char.lower())
-        return ''.join(result)
-
-    def get_card_style(self) -> str:
-        """Get default card stylesheet."""
-        card_style = self.get_component_style('card')
-        return self.build_stylesheet(card_style)
-
-    def get_lot_card_title_style(self) -> str:
-        """Get LOT card title stylesheet."""
-        style = self.get_component_style('lotCard.title')
-        return self.build_stylesheet(style)
-
-    def get_lot_card_lot_label_style(self) -> str:
-        """Get LOT card LOT label stylesheet."""
-        style = self.get_component_style('lotCard.lotLabel')
-        return self.build_stylesheet(style)
-
-    def get_lot_card_info_label_style(self) -> str:
-        """Get LOT card info label stylesheet."""
-        style = self.get_component_style('lotCard.infoLabel')
-        return self.build_stylesheet(style)
-
-    def get_stats_card_title_style(self) -> str:
-        """Get stats card title stylesheet."""
-        style = self.get_component_style('statsCard.title')
-        return self.build_stylesheet(style)
-
-    def get_stats_card_stat_label_style(self, color: str) -> str:
-        """
-        Get stats card stat label stylesheet.
-
-        Args:
-            color: Text color
-
-        Returns:
-            Stylesheet string
-        """
-        style = self.get_component_style('statsCard.statLabel').copy()
-        style['color'] = color
-        return self.build_stylesheet(style)
-
-    def get_button_style(self, button_type: str = 'primary') -> str:
-        """
-        Get button stylesheet.
-
-        Args:
-            button_type: Button type ('primary', 'secondary')
-
-        Returns:
-            Stylesheet string
-        """
-        style = self.get_component_style(f'button.{button_type}')
-        return self.build_stylesheet(style)
-
-    def get_status_label_style(self, color: Optional[str] = None) -> str:
-        """
-        Get status label stylesheet.
-
-        Args:
-            color: Optional text color override
-
-        Returns:
-            Stylesheet string
-        """
-        style = self.get_component_style('statusLabel').copy()
-        if color:
-            style['color'] = color
-        return self.build_stylesheet(style)
-
-    def get_window_background_color(self) -> str:
-        """Get main window background color."""
-        return self.get('window.backgroundColor', '#1a1a1a')
-
-    def get_window_size(self) -> tuple:
-        """Get default window size."""
-        width = self.get('window.defaultSize.width', 400)
-        height = self.get('window.defaultSize.height', 600)
-        return (width, height)
-
-    def get_window_margins(self) -> tuple:
-        """Get window content margins."""
-        top = self.get('window.contentMargins.top', 15)
-        right = self.get('window.contentMargins.right', 15)
-        bottom = self.get('window.contentMargins.bottom', 15)
-        left = self.get('window.contentMargins.left', 15)
-        return (left, top, right, bottom)
-
-    def get_window_spacing(self) -> int:
-        """Get window layout spacing."""
-        return self.get('window.spacing', 15)
+        qss = self.generate_qss()
+        app.setStyleSheet(qss)
+        logger.info("Theme QSS applied to application")
 
 
 # Global theme instance
-_theme = ThemeManager()
+_theme_manager = ThemeManager()
+
+
+def load_theme(app: QApplication, theme_name: str) -> ThemeManager:
+    """
+    Load theme and apply to application.
+
+    Args:
+        app: QApplication instance
+        theme_name: Theme name (e.g., "production_tracker")
+
+    Returns:
+        ThemeManager instance
+    """
+    _theme_manager.load_theme(theme_name)
+    _theme_manager.apply_to_app(app)
+    return _theme_manager
 
 
 def get_theme() -> ThemeManager:
@@ -294,4 +675,4 @@ def get_theme() -> ThemeManager:
     Returns:
         ThemeManager instance
     """
-    return _theme
+    return _theme_manager

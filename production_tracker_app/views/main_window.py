@@ -1,17 +1,22 @@
 """
 Main Window for Production Tracker App.
 """
-from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel,
-                               QStatusBar, QMenuBar, QMenu, QMessageBox)
-from PySide6.QtCore import Qt, QEvent
-from PySide6.QtGui import QAction, QKeyEvent
-from widgets.lot_display_card import LotDisplayCard
-from widgets.base_components import StatusIndicator, ThemedLabel
-from utils.theme_loader import get_current_theme
 import logging
 
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QStatusBar, QMessageBox, QPushButton, QFrame
+)
+from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QAction
+from widgets.process_info_card import ProcessInfoCard
+from widgets.work_status_card import WorkStatusCard
+from widgets.base_components import StatusIndicator, ThemedLabel
+from widgets.toast_notification import Toast
+from utils.theme_manager import get_theme
+
 logger = logging.getLogger(__name__)
-theme = get_current_theme()
+theme = get_theme()
 
 
 class MainWindow(QMainWindow):
@@ -25,14 +30,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"F2X NeuroHub - {config.process_name}")
 
         # Get window size from theme
-        if theme:
-            width = theme.get("layout.windowWidth", 400)
-            height = theme.get("layout.windowHeight", 600)
-            self.setMinimumSize(width, height)
-            self.resize(width, height)
-        else:
-            self.setMinimumSize(400, 600)
-            self.resize(400, 600)
+        width = theme.get("layout.windowWidth", 400)
+        height = theme.get("layout.windowHeight", 600)
+        self.setMinimumSize(width, height)
+        self.resize(width, height)
 
         self.setup_ui()
         self.setup_menu()
@@ -51,62 +52,85 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(central_widget)
         # Get margins and spacing from theme
-        if theme:
-            margin = theme.get("spacing.md", 16)
-            spacing = theme.get("spacing.sm", 8)
-            layout.setContentsMargins(margin, margin, margin, margin)
-            layout.setSpacing(spacing)
-        else:
-            layout.setContentsMargins(16, 16, 16, 16)
-            layout.setSpacing(8)
+        margin = theme.get("spacing.md", 16)
+        spacing = theme.get("spacing.sm", 8)
+        layout.setContentsMargins(margin, margin, margin, margin)
+        layout.setSpacing(spacing)
 
-        # Process name label (header)
-        self.process_label = QLabel(f"공정: {self.config.process_name}")
-        self.process_label.setObjectName("process_label")
-        self.process_label.setAlignment(Qt.AlignCenter)
-        if theme:
-            # Style as title with brand color
-            title_size = theme.get("typography.size.title", 18)
-            brand_color = theme.get("colors.brand.main", "#3ECF8E")
-            self.process_label.setStyleSheet(f"""
-                font-size: {title_size}px;
-                font-weight: bold;
-                color: {brand_color};
-                padding: 8px;
-            """)
-        layout.addWidget(self.process_label)
+        # Process info card
+        self.process_card = ProcessInfoCard(self.config)
+        layout.addWidget(self.process_card)
 
-        # Current LOT card
-        self.lot_card = LotDisplayCard()
-        self.lot_card.setObjectName("lot_card")
-        layout.addWidget(self.lot_card)
+        # Work status card
+        self.work_card = WorkStatusCard()
+        layout.addWidget(self.work_card)
 
-        # Status label (using theme)
+        # Status label (using Property Variant)
         self.status_label = QLabel("바코드 스캔 대기중...")
         self.status_label.setObjectName("status_label")
+        self.status_label.setProperty("variant", "body")
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
 
-        # Recent completion label (using themed component)
-        self.recent_label = ThemedLabel("", style_type="tertiary")
+        # Recent completion label (using Property Variant)
+        self.recent_label = ThemedLabel("", variant="caption")
         self.recent_label.setObjectName("recent_label")
         self.recent_label.setAlignment(Qt.AlignCenter)
         self.recent_label.setWordWrap(True)
         layout.addWidget(self.recent_label)
 
+        # Label printing section (Process 7 only)
+        self.label_print_section = QFrame()
+        self.label_print_section.setObjectName("label_print_section")
+        self.label_print_section.setProperty("variant", "card")
+        label_print_layout = QVBoxLayout(self.label_print_section)
+        label_print_layout.setContentsMargins(12, 12, 12, 12)
+        label_print_layout.setSpacing(8)
+
+        # Current serial display
+        serial_layout = QHBoxLayout()
+        serial_title = ThemedLabel("현재 시리얼:", variant="body")
+        self.serial_display = ThemedLabel("-", variant="heading")
+        self.serial_display.setObjectName("serial_display")
+        serial_layout.addWidget(serial_title)
+        serial_layout.addWidget(self.serial_display)
+        serial_layout.addStretch()
+        label_print_layout.addLayout(serial_layout)
+
+        # Print buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+
+        self.print_button = QPushButton("라벨 출력")
+        self.print_button.setObjectName("print_button")
+        self.print_button.setProperty("variant", "primary")
+        self.print_button.clicked.connect(self.on_print_clicked)
+
+        self.reprint_button = QPushButton("재출력")
+        self.reprint_button.setObjectName("reprint_button")
+        self.reprint_button.setProperty("variant", "secondary")
+        self.reprint_button.clicked.connect(self.on_reprint_clicked)
+        self.reprint_button.setEnabled(False)  # Disabled until first print
+
+        button_layout.addWidget(self.print_button)
+        button_layout.addWidget(self.reprint_button)
+        label_print_layout.addLayout(button_layout)
+
+        layout.addWidget(self.label_print_section)
+
+        # Show/hide based on process
+        if not self.config.is_label_printing_process:
+            self.label_print_section.hide()
+
         layout.addStretch()
 
-        # Status bar (using theme)
+        # Status bar
         self.status_bar = QStatusBar()
         self.status_bar.setObjectName("status_bar")
         self.setStatusBar(self.status_bar)
 
-        if theme:
-            status_bar_style = theme.get_component_style('statusBar', 'default')
-            qss = theme.component_to_qss(status_bar_style)
-            self.status_bar.setStyleSheet(f"QStatusBar {{ {qss} }}")
-
-        self.connection_indicator = StatusIndicator("온라인", status="online")
+        # Connection indicator using Property Variant
+        self.connection_indicator = StatusIndicator("온라인", status="success")
         self.connection_indicator.setObjectName("connection_indicator")
         self.status_bar.addPermanentWidget(self.connection_indicator)
 
@@ -141,7 +165,15 @@ class MainWindow(QMainWindow):
         self.viewmodel.work_started.connect(self.on_work_started)
         self.viewmodel.work_completed.connect(self.on_work_completed)
         self.viewmodel.error_occurred.connect(self.on_error)
-        self.viewmodel.connection_status_changed.connect(self.on_connection_status_changed)
+        self.viewmodel.connection_status_changed.connect(
+            self.on_connection_status_changed
+        )
+
+        # Label printing signals (Process 7)
+        if hasattr(self.viewmodel, 'serial_received'):
+            self.viewmodel.serial_received.connect(self.on_serial_received)
+        if hasattr(self.viewmodel, 'label_printed'):
+            self.viewmodel.label_printed.connect(self.on_label_printed)
 
     def eventFilter(self, obj, event):
         """Capture keyboard events for barcode scanner."""
@@ -155,60 +187,95 @@ class MainWindow(QMainWindow):
     def on_lot_updated(self, lot_data: dict):
         """Handle LOT information update."""
         if lot_data:
-            self.lot_card.update_lot(
-                lot_data.get("lot_number", "-"),
-                lot_data.get("worker_id", "-"),
-                lot_data.get("start_time", "-")
-            )
+            worker_id = lot_data.get("worker_id", "-")
+            self.process_card.set_worker(worker_id)
+            self.work_card.set_lot(lot_data.get("lot_number", "-"))
         else:
-            self.lot_card.clear()
+            self.process_card.set_worker("-")
+            self.work_card.reset()
 
     def on_work_started(self, lot_number: str):
         """Handle work started event."""
+        from datetime import datetime
+        start_time = datetime.now().strftime("%H:%M:%S")
+        self.work_card.start_work(lot_number, start_time)
         self.status_label.setText(f"착공 완료: {lot_number}")
-        if theme:
-            style = theme.get_component_style('statusLabel', 'success')
-            qss = theme.component_to_qss(style)
-            self.status_label.setStyleSheet(qss)
-        else:
-            self.status_label.setStyleSheet("font-size: 13px; color: #22c55e;")
+        # Use Property Variant for styling
+        self.status_label.setProperty("variant", "success")
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
+        # Show success toast
+        Toast.success(self, f"착공 완료: {lot_number}")
 
     def on_work_completed(self, message: str):
         """Handle work completed event."""
+        from datetime import datetime
+        complete_time = datetime.now().strftime("%H:%M:%S")
+        self.work_card.complete_work(complete_time)
         self.status_label.setText(message)
-        if theme:
-            style = theme.get_component_style('statusLabel', 'success')
-            qss = theme.component_to_qss(style)
-            self.status_label.setStyleSheet(qss)
-        else:
-            self.status_label.setStyleSheet("font-size: 13px; color: #22c55e;")
+        # Use Property Variant for styling
+        self.status_label.setProperty("variant", "success")
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
         self.recent_label.setText(message)
+        # Show success toast
+        Toast.success(self, f"완공 완료: {message}")
 
     def on_error(self, error_msg: str):
         """Handle error event."""
         logger.error(error_msg)
         self.status_label.setText(f"오류: {error_msg}")
-        if theme:
-            style = theme.get_component_style('statusLabel', 'danger')
-            qss = theme.component_to_qss(style)
-            self.status_label.setStyleSheet(qss)
-        else:
-            self.status_label.setStyleSheet("font-size: 13px; color: #ef4444;")
-        QMessageBox.warning(self, "오류", error_msg)
+        # Use Property Variant for styling
+        self.status_label.setProperty("variant", "danger")
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
+        # Show danger toast (replaces QMessageBox for non-blocking UX)
+        Toast.danger(self, f"오류: {error_msg}")
 
     def on_connection_status_changed(self, is_online: bool):
         """Handle connection status change."""
         if is_online:
-            self.connection_indicator.set_status("online", "온라인")
+            self.connection_indicator.set_status("success", "온라인")
         else:
-            self.connection_indicator.set_status("offline", "오프라인")
+            self.connection_indicator.set_status("danger", "오프라인")
+
+    def on_print_clicked(self):
+        """Handle print button click."""
+        if not self.viewmodel.current_lot:
+            Toast.warning(self, "먼저 LOT 바코드를 스캔하세요.")
+            return
+
+        self.print_button.setEnabled(False)
+        self.status_label.setText("라벨 출력 중...")
+        self.viewmodel.request_serial_and_print()
+
+    def on_reprint_clicked(self):
+        """Handle reprint button click."""
+        self.reprint_button.setEnabled(False)
+        self.status_label.setText("재출력 중...")
+        self.viewmodel.reprint_label()
+
+    def on_serial_received(self, serial_number: str):
+        """Handle serial number received from server."""
+        self.serial_display.setText(serial_number)
+        self.reprint_button.setEnabled(True)
+
+    def on_label_printed(self, serial_number: str):
+        """Handle successful label print."""
+        self.print_button.setEnabled(True)
+        self.reprint_button.setEnabled(True)
+        self.serial_display.setText(serial_number)
+        self.status_label.setText(f"라벨 출력 완료: {serial_number}")
+        Toast.success(self, f"라벨 출력 완료: {serial_number}")
 
     def on_settings_clicked(self):
         """Open settings dialog."""
         from views.settings_dialog import SettingsDialog
-        dialog = SettingsDialog(self.config, self)
+        # Pass print_service if available (Process 7)
+        print_service = getattr(self.viewmodel, 'print_service', None)
+        dialog = SettingsDialog(self.config, print_service, self)
         if dialog.exec():
-            QMessageBox.information(self, "설정 저장", "설정이 저장되었습니다.\n변경사항을 적용하려면 앱을 재시작해주세요.")
+            Toast.info(self, "설정이 저장되었습니다. 재시작하면 적용됩니다.")
 
     def on_about_clicked(self):
         """Show about dialog."""
@@ -233,6 +300,12 @@ class MainWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             logger.info("Application closing - initiating cleanup")
+
+            # Clear all active toasts
+            Toast.clear_all()
+
+            # Clean up work card timer
+            self.work_card.cleanup()
 
             # Clean up ViewModel resources (stops timers, cancels threads)
             self.viewmodel.cleanup()

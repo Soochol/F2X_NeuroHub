@@ -175,6 +175,15 @@ class ProcessData(Base):
         nullable=False,
     )
 
+    # NOTE: equipment_id field disabled until equipment table is created
+    # To enable: uncomment this field and run database migration
+    # equipment_id: Mapped[Optional[int]] = mapped_column(
+    #     BIGINT,
+    #     ForeignKey("equipment.id", ondelete="SET NULL", onupdate="CASCADE"),
+    #     nullable=True,
+    #     default=None,
+    # )
+
     # Core Data Columns
     data_level: Mapped[str] = mapped_column(
         VARCHAR(10),
@@ -261,6 +270,14 @@ class ProcessData(Base):
         lazy="select",
     )
 
+    # NOTE: equipment relationship disabled until equipment table is created
+    # equipment: Mapped[Optional["Equipment"]] = relationship(
+    #     "Equipment",
+    #     back_populates="process_data",
+    #     foreign_keys=[equipment_id],
+    #     lazy="select",
+    # )
+
     # Table Arguments: Constraints and Indexes
     __table_args__ = (
         # CHECK CONSTRAINTS
@@ -303,6 +320,11 @@ class ProcessData(Base):
             "idx_process_data_operator",
             operator_id,
         ),
+        # NOTE: equipment index disabled until equipment table is created
+        # Index(
+        #     "idx_process_data_equipment",
+        #     equipment_id,
+        # ),
 
         # COMPOSITE INDEXES FOR COMMON QUERIES
         Index(
@@ -366,6 +388,14 @@ class ProcessData(Base):
             result,
             started_at,
         ),
+
+        # NOTE: equipment utilization index disabled until equipment table is created
+        # Index(
+        #     "idx_process_data_equipment_utilization",
+        #     equipment_id,
+        #     process_id,
+        #     started_at,
+        # ),
     )
 
     def __repr__(self) -> str:
@@ -463,6 +493,7 @@ class ProcessData(Base):
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # from app.models.equipment import Equipment  # Disabled until equipment table exists
     from app.models.lot import Lot
     from app.models.serial import Serial
     from app.models.process import Process

@@ -3,11 +3,12 @@
  */
 
 import { useState } from 'react';
-import { SerialSearch } from '@/components/serials/SerialSearch';
-import { SerialTraceView } from '@/components/serials/SerialTraceView';
-import { Card } from '@/components/common/Card';
+import { SerialSearch, SerialTraceView } from '@/components/serials';
+import { Card } from '@/components/common';
 import { serialsApi } from '@/api';
 import type { SerialTrace } from '@/types/api';
+import { getErrorMessage } from '@/types/api';
+import { Search, XCircle } from 'lucide-react';
 
 export const SerialsPage = () => {
   const [trace, setTrace] = useState<SerialTrace | null>(null);
@@ -22,8 +23,8 @@ export const SerialsPage = () => {
     try {
       const data = await serialsApi.getTrace(serialNumber);
       setTrace(data);
-    } catch (err: any) {
-      setError(err.message || `Serial 번호 "${serialNumber}"를 찾을 수 없습니다`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, `Serial 번호 "${serialNumber}"를 찾을 수 없습니다`));
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +42,10 @@ export const SerialsPage = () => {
       {/* Loading State */}
       {isLoading && (
         <Card style={{ marginTop: '20px' }}>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-            <div style={{ fontSize: '18px', marginBottom: '10px' }}>🔍 검색 중...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+            <div style={{ fontSize: '18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Search size={18} /> 검색 중...
+            </div>
             <div style={{ fontSize: '14px' }}>Serial 번호를 조회하고 있습니다.</div>
           </div>
         </Card>
@@ -51,9 +54,11 @@ export const SerialsPage = () => {
       {/* Error State */}
       {error && !isLoading && (
         <Card style={{ marginTop: '20px' }}>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e74c3c' }}>
-            <div style={{ fontSize: '18px', marginBottom: '10px' }}>❌ {error}</div>
-            <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
+            <div style={{ fontSize: '18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <XCircle size={18} /> {error}
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
               Serial 번호를 확인하고 다시 시도하세요.
             </div>
           </div>
@@ -70,8 +75,10 @@ export const SerialsPage = () => {
       {/* Empty State (Initial) */}
       {!trace && !isLoading && !error && (
         <Card style={{ marginTop: '20px' }}>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-            <div style={{ fontSize: '48px', marginBottom: '15px' }}>🔍</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+            <div style={{ marginBottom: '15px' }}>
+              <Search size={48} />
+            </div>
             <div style={{ fontSize: '16px', marginBottom: '10px' }}>
               Serial 번호를 입력하여 공정 이력을 조회하세요
             </div>

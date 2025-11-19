@@ -1,668 +1,332 @@
 ---
 name: pyqt-pyside-gui
-description: Comprehensive guide for building desktop GUI applications using PyQt6/PySide6. Use when the user requests to create, modify, or debug Qt-based desktop applications, needs GUI components like windows, dialogs, widgets, signals/slots, layouts, or asks about PyQt/PySide development patterns, MVC/MVP architecture, threading, or cross-platform desktop app development.
+description: PySide6 GUI 개발 가이드. 테마 시스템, 컴포넌트 라이브러리, QSS 스타일링, 스레딩 패턴 포함.
 ---
 
-# PyQt/PySide GUI Development
+# PySide6 GUI Development
 
-Build professional desktop applications using PyQt6 or PySide6 with proper architecture patterns, clean code structure, and best practices.
+PySide6를 사용한 프로덕션 수준의 데스크톱 앱 개발 가이드입니다.
 
-## Core Development Workflow
+## 핵심 원칙
 
-1. **Determine framework choice**: Use PySide6 (LGPL, official Qt) by default unless user specifies PyQt6
-2. **Set up development environment**: Use hot reload and visual debugger for instant feedback
-3. **Plan application structure**: Separate UI logic from business logic using MVC/MVP patterns
-4. **Design UI layout**: Choose appropriate layout managers (QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout)
-5. **Implement signal/slot connections**: Connect user interactions to application logic
-6. **Handle threading**: Keep UI responsive by moving long operations to QThread
-7. **Debug visually**: Use visual debugger to inspect widgets, layouts, and find issues
-8. **Test and refine**: Ensure proper cleanup and resource management
+1. **JSON 테마 시스템**: 모든 색상/간격을 JSON에서 정의
+2. **ThemeManager**: 테마 로드 및 QSS 자동 생성
+3. **Property Variant**: `setProperty("variant", "primary")`로 스타일링
+4. **컴포넌트 재사용**: 프로젝트별 테마 컴포넌트 구축
 
-## AI-Friendly Development Workflow
+---
 
-When developing with AI assistance, use these tools for better results:
+## Quick Start
 
-### JSON Theme System (RECOMMENDED)
-Define and customize your entire app theme in JSON:
+### 1. 테마 로드 (필수)
+
 ```python
-from ui_components import load_theme, list_themes
+from utils.theme_manager import load_theme, get_theme
 
 app = QApplication(sys.argv)
+load_theme(app, "themes/default.json")  # 앱 생성 직후!
 
-# Load theme from JSON file
-theme = load_theme(app, "default")  # or "dark"
-
-# List available themes
-print(list_themes())  # ['default', 'dark', ...]
-```
-
-**Benefits:**
-- ✅ Entire theme controlled by JSON file
-- ✅ Switch themes at runtime
-- ✅ AI can easily modify JSON structure
-- ✅ Variable references for consistency
-- ✅ Multiple theme management (light/dark/custom)
-
-See `references/json_theme_guide.md` for complete JSON theme documentation.
-
-### Component Library
-Use pre-built, themed components for consistent UI:
-```python
-from ui_components import Button, FormField, Card, ButtonGroup
-
-# Components automatically use loaded theme
-button = Button("Save", variant="primary")
-email = FormField("Email", required=True)
-card = Card(title="User Info")
-
-# Button group with multiple variants
-buttons = ButtonGroup([
-    {"text": "Submit", "variant": "success", "callback": submit},
-    {"text": "Cancel", "variant": "secondary", "callback": cancel}
-])
-```
-
-**Benefits:**
-- Consistent design across entire app
-- Built-in validation and error handling
-- Automatic theme application
-- AI can use components reliably
-- Reduces layout/styling issues
-
-See `references/component_library_guide.md` for complete documentation.
-
-### Hot Reload Preview
-Instantly see changes without restarting:
-```bash
-python hot_reload_preview.py your_app.py
-
-# With visual debugger
-python hot_reload_preview.py your_app.py --debug
-```
-
-### Visual Debugger
-Interactive GUI debugger that shows:
-- Widget tree with real-time status
-- Inspector panel with detailed widget information
-- Visual overlay highlighting selected widgets
-- Automatic issue detection
-- Layout problem diagnosis
-
-Usage:
-```python
-from visual_debugger import launch_with_debugger
-
-app = QApplication(sys.argv)
 window = MainWindow()
-debugger = launch_with_debugger(window)
-sys.exit(app.exec())
+window.show()
 ```
 
-Features:
-- Click widgets in tree to inspect them
-- See them highlighted in your app
-- Check "Show All Borders" to visualize all widgets
-- Use "Issues" tab to find common problems
-- Export screenshots and reports
-
-### GUI Code Analyzer - Static Analysis (NEW!)
-Analyze UI code files without running the app:
-```bash
-cd .claude/skills/pyqt-pyside-gui/tools
-python gui_analyzer.py views/main_window.py
-```
-
-**What it does:**
-- 🌳 Automatically extracts widget tree from code
-- 🔍 Analyzes each widget's properties (geometry, visibility, styling)
-- ⚠️ Detects issues: overlapping widgets, hidden widgets, size problems
-- ✅ Validates skill.md best practices (theme usage, hardcoded colors, naming)
-- 📊 Generates comprehensive HTML report
-
-**Key Features:**
-1. **Overlapping Detection**: Finds widgets that may overlap based on geometry
-2. **Size Issues**: Detects too-small widgets (<10px) or min/max conflicts
-3. **Layout Problems**: Finds widgets without parents (memory leaks)
-4. **Best Practices Check**:
-   - Uses Theme Manager (`get_theme()`)
-   - Uses Themed Components
-   - No hardcoded colors (#RRGGBB)
-   - Object names set (`setObjectName`)
-   - Has docstrings
-
-**Output:** HTML report with:
-- Widget tree visualization
-- Property tables
-- Issues list (error/warning/info)
-- Best practices checklist
-- Widget type distribution
-
-**Use Cases:**
-- Code review before PR
-- Finding layout issues early
-- Validating theme system usage
-- Documentation generation
-
-See `README_GUI_ANALYZER.md` for full documentation.
-
-### AI Coding Best Practices
-
-When requesting GUI changes from AI, use specific, component-based language:
-
-#### ❌ Bad Requests
-```
-"로그인 화면 만들어줘"
-"색상이 이상해"
-"버튼을 파란색으로 만들어줘"
-"폼이 이상해 보여"
-```
-
-#### ✅ Good Requests
-```python
-# Specific component-based request
-"PySide6로 로그인 화면 만들어줘:
-- ui_components 사용
-- load_theme(app, 'default')로 테마 로드
-- Card 안에 FormField 2개 (email, password)
-- ButtonGroup으로 버튼
-- 창 크기 400x350"
-
-# Theme modification request
-"scripts/ui_components/themes/default.json에서
-colors.primary.main을 #9C27B0 (보라색)으로 변경해줘"
-
-# Visual debugger feedback
-"비주얼 디버거를 보니 button의 색상이 #95a5a6로 표시됨.
-이것을 themes/default.json에서
-colors.primary.main으로 변경해줘."
-
-# Component variant change
-"Button의 variant를 'secondary'에서 'primary'로 변경해줘"
-
-# Layout spacing change
-"layout spacing을 Spacing.NORMAL에서 Spacing.LARGE로 변경해줘"
-```
-
-**Why This Works:**
-- ✅ Uses exact component names and APIs
-- ✅ References actual file paths
-- ✅ Specifies variant/color values precisely
-- ✅ Leverages visual debugger output
-- ✅ AI can make changes without guessing
-
-## Application Architecture
-
-### Project Structure
-
-```
-app_name/
-├── main.py              # Application entry point
-├── ui/
-│   ├── main_window.py   # Main window class
-│   ├── dialogs.py       # Custom dialogs
-│   └── widgets.py       # Custom widgets
-├── models/
-│   └── data_model.py    # Data models
-├── controllers/
-│   └── controller.py    # Business logic
-├── resources/
-│   ├── icons/           # Icon files
-│   └── styles.qss       # Qt stylesheets
-└── utils/
-    └── helpers.py       # Utility functions
-```
-
-### Clean Architecture Pattern
-
-Separate concerns into three layers:
-
-1. **View (UI)**: QMainWindow, QWidget subclasses - handle display only
-2. **Model**: Data structures and business logic
-3. **Controller/Presenter**: Mediate between View and Model
-
-## Essential Patterns
-
-### Basic Application Template
-
-See `scripts/basic_app.py` for a complete minimal application template.
-
-### Signal/Slot Best Practices
+### 2. 테마 값 사용
 
 ```python
-# Good: Use lambda for simple parameter passing
-button.clicked.connect(lambda: self.process_data(param))
-
-# Good: Use functools.partial for multiple parameters
-from functools import partial
-button.clicked.connect(partial(self.update_value, key, value))
-
-# Good: Custom signals for inter-widget communication
-class Worker(QObject):
-    progress = Signal(int)
-    finished = Signal(str)
+theme = get_theme()
+primary = theme.get("colors.brand.primary")
+spacing = theme.get("spacing.md", 12)
 ```
 
-### Layout Management
+### 3. Property Variant 적용
 
-- **QVBoxLayout/QHBoxLayout**: Linear layouts
-- **QGridLayout**: Grid-based positioning
-- **QFormLayout**: Label-field pairs
-- **Spacers**: Use `addStretch()` or `QSpacerItem` for flexible spacing
-- **Nested layouts**: Combine layouts for complex UIs
+```python
+button = QPushButton("저장")
+button.setProperty("variant", "primary")
 
-### Threading for Responsive UI
+label = QLabel("에러 메시지")
+label.setProperty("status", "error")
+```
+
+---
+
+## 프로젝트 구조
+
+```
+your_app/
+├── main.py
+├── themes/
+│   └── default.json        # 테마 정의
+├── utils/
+│   └── theme_manager.py    # ThemeManager 클래스
+├── widgets/
+│   └── themed_components.py # 테마 컴포넌트
+└── views/
+    └── main_window.py
+```
+
+---
+
+## JSON 테마 구조
+
+```json
+{
+  "colors": {
+    "brand": { "primary": "#3ECF8E", "secondary": "#1DB7B0" },
+    "background": { "primary": "#FFFFFF", "secondary": "#F5F5F5" },
+    "text": { "primary": "#171717", "secondary": "#737373" },
+    "semantic": { "success": "#10B981", "error": "#EF4444" }
+  },
+  "typography": {
+    "fontFamily": "Segoe UI",
+    "sizes": { "sm": 12, "base": 14, "lg": 16, "xl": 20 }
+  },
+  "spacing": { "sm": 8, "md": 12, "lg": 16, "xl": 24 },
+  "radius": { "sm": 4, "md": 8, "lg": 12 }
+}
+```
+
+---
+
+## 스타일링 패턴
+
+### QSS Variant Selectors
+
+```css
+/* 기본 버튼 */
+QPushButton {
+    background-color: #F5F5F5;
+    border: 1px solid #E5E5E5;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+/* Primary Variant */
+QPushButton[variant="primary"] {
+    background-color: #3ECF8E;
+    color: white;
+    border: none;
+}
+
+/* Status Labels */
+QLabel[status="success"] { color: #10B981; }
+QLabel[status="error"] { color: #EF4444; }
+```
+
+### 동적 스타일 변경
+
+```python
+# Property 변경 후 스타일 갱신
+button.setProperty("variant", "danger")
+button.style().unpolish(button)
+button.style().polish(button)
+```
+
+---
+
+## 스레딩
 
 ```python
 class Worker(QThread):
     progress = Signal(int)
     result = Signal(object)
-    
+
     def run(self):
-        # Long-running operation
         for i in range(100):
             time.sleep(0.1)
             self.progress.emit(i)
         self.result.emit(final_result)
 
-# In main window
+# 사용
 self.worker = Worker()
 self.worker.progress.connect(self.update_progress)
 self.worker.result.connect(self.handle_result)
 self.worker.start()
 ```
 
-## Common Components
+---
 
-### Widgets
+## Best Practices
 
-- **Input**: QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox
-- **Display**: QLabel, QTextBrowser, QTableWidget, QTreeWidget, QListWidget
-- **Buttons**: QPushButton, QRadioButton, QCheckBox, QToolButton
-- **Containers**: QGroupBox, QTabWidget, QStackedWidget, QScrollArea
-- **Advanced**: QTableView (with models), QTreeView, QListView
+### 필수
 
-### Dialogs
+- [ ] `QApplication` 생성 직후 `load_theme()` 호출
+- [ ] 모든 색상은 테마 JSON에서만 정의
+- [ ] Property variant로 스타일 변경
+- [ ] QGroupBox 자손 스타일은 MainWindow에서 적용
 
-```python
-# File dialogs
-filename, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
+### 금지
 
-# Message boxes
-QMessageBox.information(self, "Title", "Message")
-QMessageBox.warning(self, "Title", "Warning")
-QMessageBox.critical(self, "Title", "Error")
-result = QMessageBox.question(self, "Title", "Question?")
+- [ ] 하드코딩 색상 (`#3498db` 직접 사용)
+- [ ] 윈도우 생성 후 테마 로드
+- [ ] 개별 위젯에 전체 스타일시트 적용
 
-# Input dialog
-text, ok = QInputDialog.getText(self, "Input", "Enter name:")
-```
+---
 
-### Menus and Toolbars
+## 자주 하는 실수
+
+### 1. 테마 로드 순서
 
 ```python
-# Menu bar
-menu_bar = self.menuBar()
-file_menu = menu_bar.addMenu("&File")
-file_menu.addAction("&Open", self.open_file, "Ctrl+O")
+# ❌ Wrong
+window = MainWindow()
+load_theme(app, "theme.json")
 
-# Toolbar
-toolbar = self.addToolBar("Main Toolbar")
-toolbar.addAction(QIcon("icon.png"), "Action", self.action_handler)
+# ✅ Correct
+load_theme(app, "theme.json")
+window = MainWindow()
 ```
 
-## Styling
-
-### Qt Stylesheets (QSS)
-
-See `references/qss_guide.md` for comprehensive styling examples.
-
-Basic syntax:
-```css
-QPushButton {
-    background-color: #2196F3;
-    color: white;
-    border-radius: 5px;
-    padding: 8px 16px;
-}
-
-QPushButton:hover {
-    background-color: #1976D2;
-}
-```
-
-Apply styles:
-```python
-widget.setStyleSheet("QLabel { color: red; }")
-app.setStyleSheet(Path("styles.qss").read_text())
-```
-
-## Model/View Architecture
-
-For complex data display, use Model/View:
+### 2. Property 스타일 미적용
 
 ```python
-# Model
-model = QStandardItemModel()
-model.setHorizontalHeaderLabels(['Column 1', 'Column 2'])
+# ❌ Property만 설정
+button.setProperty("variant", "primary")
 
-# Add data
-item = QStandardItem("Data")
-model.appendRow([item, QStandardItem("More data")])
-
-# View
-table_view = QTableView()
-table_view.setModel(model)
+# ✅ 스타일 갱신 추가
+button.setProperty("variant", "primary")
+button.style().unpolish(button)
+button.style().polish(button)
 ```
 
-## Resource Management
-
-### Cleanup Pattern
+### 3. QGroupBox 내부 스타일
 
 ```python
-def closeEvent(self, event):
-    """Override to cleanup resources"""
-    if self.worker and self.worker.isRunning():
-        self.worker.terminate()
-        self.worker.wait()
-    event.accept()
+# ❌ GroupBox 내부에서 setStyleSheet
+class MyGroupBox(QGroupBox):
+    def __init__(self):
+        self.setStyleSheet("QPushButton { ... }")  # 작동 안함
+
+# ✅ MainWindow/부모에서 적용
+class MainWindow(QMainWindow):
+    def __init__(self):
+        # 전체 앱 스타일에서 정의
 ```
 
-### Qt Resource System
+---
 
-For embedding resources (icons, images):
+## AI 요청 가이드
+
+### 좋은 요청
+
 ```python
-# Create .qrc file, compile with pyside6-rcc
-# Use in code:
-icon = QIcon(":/icons/app_icon.png")
+"themes/default.json에서 colors.brand.primary를 #7C3AED로 변경해줘"
+
+"QPushButton에 variant='success' 스타일 추가해줘:
+- background: semantic.success 색상
+- hover 시 10% 어둡게"
+
+"FormField 컴포넌트 만들어줘:
+- QLabel + QLineEdit
+- required 시 라벨에 * 표시
+- error 상태에서 border 빨간색"
 ```
 
-## Common Pitfalls
+### 나쁜 요청
 
-1. **Blocking UI thread**: Always use QThread for long operations
-2. **Circular references**: Properly parent widgets to avoid memory leaks
-3. **Signal connection**: Use `connect()` not `emit()` for connections
-4. **Layout conflicts**: Don't mix manual positioning with layouts
-5. **Resource cleanup**: Override `closeEvent()` for proper shutdown
-
-## PyQt6 vs PySide6 Differences
-
-Key import differences:
-```python
-# PyQt6
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import pyqtSignal, pyqtSlot
-
-# PySide6
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Signal, Slot
+```
+"버튼을 파란색으로 만들어줘"  # 어떤 파란색? 테마 변수?
+"폼이 이상해 보여"  # 무엇이 어떻게 이상한지?
+"색상 수정해줘"  # 어느 파일? 어떤 색상?
 ```
 
-**Default recommendation**: Use PySide6 (official, LGPL license, better Qt compatibility)
+---
 
 ## References
 
-- **JSON Theme Guide**: `references/json_theme_guide.md` - JSON-based theme system (RECOMMENDED)
-- **Component Library Guide**: `references/component_library_guide.md` - Complete component library documentation
-- **AI-Friendly Patterns**: `references/ai_friendly_patterns.md` - Best practices for AI-assisted development
-- **QSS Styling Guide**: `references/qss_guide.md` - Complete stylesheet reference
-- **Widget Examples**: `references/widget_examples.md` - Common widget usage patterns
-- **Advanced Patterns**: `references/advanced_patterns.md` - Custom widgets, painting, animations
+### 핵심 가이드
 
-## Scripts
+- **[qss_systematic_guide.md](references/qss_systematic_guide.md)** - 체계적 QSS 적용 (셀렉터, Best Practices)
+- **[theme_manager_template.py](references/theme_manager_template.py)** - ThemeManager 전체 구현
+- **[theme_template.json](references/theme_template.json)** - JSON 테마 템플릿
 
-### Examples
-- **json_theme_example.py**: Complete example with JSON theme switching
-- **component_example.py**: Component library usage example
-- **basic_app.py**: Minimal application template
-- **threaded_app.py**: Background worker thread example
-- **table_model.py**: Custom model for QTableView
-- **dialog_examples.py**: Common dialog patterns
+### 추가 참조
 
-### Development Tools
-- **visual_debugger.py**: Interactive visual debugger with widget inspector
-- **hot_reload_preview.py**: Auto-reload system for rapid development
+- **[json_theme_guide.md](references/json_theme_guide.md)** - JSON 테마 상세 가이드
+- **[component_library_guide.md](references/component_library_guide.md)** - 컴포넌트 라이브러리 사용법
+- **[advanced_patterns.md](references/advanced_patterns.md)** - 고급 패턴 (애니메이션, D&D, 설정)
 
-### Component Library
-- **ui_components/**: Centralized component library with JSON theming
-  - `__init__.py`: Main exports (load_theme, Button, FormField, etc.)
-  - `theme_loader.py`: JSON theme loader and manager
-  - `components.py`: Reusable UI components
-  - `theme.py`: Legacy Python-based theme (for reference)
-  - `themes/default.json`: Default light theme
-  - `themes/dark.json`: Dark theme
+---
 
-## Practical Tips
-
-### 1. Always Load Theme First
+## 기본 템플릿
 
 ```python
-# ✅ Correct order
-app = QApplication(sys.argv)
-load_theme(app, "default")  # Load theme FIRST
-window = MainWindow()
-window.show()
-
-# ❌ Wrong order - theme won't apply properly
-app = QApplication(sys.argv)
-window = MainWindow()
-load_theme(app, "default")  # Too late!
-```
-
-### 2. Use Components, Not Raw Qt Widgets
-
-```python
-# ❌ Don't create widgets directly
-button = QPushButton("Click")
-button.setStyleSheet("background: #3498db")  # Hard to maintain
-
-# ✅ Use themed components
-button = Button("Click", variant="primary")  # Automatically themed
-```
-
-### 3. Manage Colors in JSON, Not Code
-
-```python
-# ❌ Hard-coded colors in code
-button.setStyleSheet("background: #3498db; color: white;")
-
-# ✅ Use JSON theme system
-# Edit themes/default.json:
-# "colors": { "primary": { "main": "#3498db" } }
-# Components use theme automatically
-```
-
-### 4. Leverage Hot Reload During Development
-
-```bash
-# Always use hot reload when developing
-python hot_reload_preview.py app.py --debug
-
-# Benefits:
-# - See changes instantly (no restart needed)
-# - Visual debugger shows widget info
-# - Saves time on every edit
-```
-
-### 5. Use Visual Debugger for Problem Solving
-
-```python
-# When something looks wrong:
-# 1. Open visual debugger
-# 2. Click the problematic widget in tree
-# 3. Check Inspector panel for exact values
-# 4. Report specific values to AI for fixing
-
-# Example feedback:
-"비주얼 디버거에서 보니:
-- Widget: QPushButton
-- Background: #95a5a6 (should be #3498db)
-- Font size: 12px (should be 14px)
-themes/default.json에서 수정해줘"
-```
-
-### 6. Component-First Development
-
-```python
-# ✅ Start with components
-card = Card(title="Settings")
-name_field = FormField("Name", required=True)
-card.add_component(name_field)
-
-# ❌ Don't mix raw widgets with components
-# This creates styling inconsistencies
-```
-
-### 7. Use Spacing Constants
-
-```python
-# ❌ Magic numbers
-layout.setSpacing(12)
-layout.setContentsMargins(16, 16, 16, 16)
-
-# ✅ Named constants
-layout.setSpacing(Spacing.NORMAL)
-layout.setContentsMargins(
-    Spacing.MEDIUM, Spacing.MEDIUM,
-    Spacing.MEDIUM, Spacing.MEDIUM
-)
-```
-
-### 8. Validate Forms Properly
-
-```python
-# ✅ Validate all fields before processing
-fields = [email_field, password_field, name_field]
-if all(field.validate() for field in fields):
-    # All valid - proceed
-    process_form()
-else:
-    # Some fields invalid - errors shown automatically
-    return
-```
-
-## Quick Reference
-
-### Complete Workflow Example (Component Library)
-
-```python
-# 1. Import
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from pathlib import Path
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget,
+    QVBoxLayout, QLabel, QPushButton
+)
 from PySide6.QtCore import Qt
 
-sys.path.insert(0, '/path/to/scripts')
-from ui_components import *
+PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
+from utils.theme_manager import load_theme, get_theme
 
-# 2. Create app and load theme
-app = QApplication(sys.argv)
-theme = load_theme(app, "default")  # IMPORTANT: Load theme first!
 
-# 3. Build UI with components
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setup_ui()
+        self.setWindowTitle("My App")
+        self.setMinimumSize(800, 600)
+        self._setup_ui()
 
-    def setup_ui(self):
-        self.setWindowTitle("My Application")
-        self.setGeometry(100, 100, 500, 400)
-
+    def _setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
+
+        theme = get_theme()
+        spacing = theme.get("spacing.lg", 16)
+
         layout = QVBoxLayout(central)
-        layout.setSpacing(Spacing.LARGE)
-        layout.setContentsMargins(
-            Spacing.LARGE, Spacing.LARGE,
-            Spacing.LARGE, Spacing.LARGE
-        )
+        layout.setSpacing(spacing)
+        layout.setContentsMargins(spacing, spacing, spacing, spacing)
 
-        # Title
-        title = Label("Welcome", variant="title", alignment=Qt.AlignCenter)
-        layout.addWidget(title.get_widget())
+        # 헤더
+        header = QLabel("Welcome")
+        header.setProperty("variant", "title")
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(header)
 
-        # Form card
-        card = Card(title="Login Form")
+        # 버튼
+        btn = QPushButton("시작하기")
+        btn.setProperty("variant", "primary")
+        btn.clicked.connect(self._on_start)
+        layout.addWidget(btn)
 
-        self.email = FormField("Email", required=True)
-        card.add_component(self.email)
-
-        self.password = FormField("Password", input_type="password", required=True)
-        card.add_component(self.password)
-
-        layout.addWidget(card.get_widget())
         layout.addStretch()
 
-        # Buttons
-        buttons = ButtonGroup([
-            {"text": "Login", "variant": "primary", "callback": self.login},
-            {"text": "Cancel", "variant": "secondary", "callback": self.close}
-        ])
-        layout.addWidget(buttons.get_widget())
+    def _on_start(self):
+        print("시작!")
 
-    def login(self):
-        if self.email.validate() and self.password.validate():
-            print(f"Login: {self.email.get_value()}")
 
-# 4. Run app
-window = MainWindow()
-window.show()
-sys.exit(app.exec())
-```
-
-### Minimal Example (Component Library)
-
-```python
-import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
-
-sys.path.insert(0, '/path/to/scripts')
-from ui_components import load_theme, Button, FormField, Card
-
-app = QApplication(sys.argv)
-theme = load_theme(app, "default")  # Load theme first
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("App Name")
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-
-        # Use components
-        card = Card(title="User Info")
-        self.email = FormField("Email", required=True)
-        card.add_component(self.email)
-        layout.addWidget(card.get_widget())
-
-window = MainWindow()
-window.show()
-sys.exit(app.exec())
-```
-
-### Standard PySide6 Imports
-```python
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget
-from PySide6.QtCore import Qt, Signal, Slot, QThread
-from PySide6.QtGui import QIcon, QAction, QFont
-```
-
-### Basic Structure (Without Components)
-```python
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setup_ui()
-        
-    def setup_ui(self):
-        self.setWindowTitle("App Name")
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
+    load_theme(app, str(PROJECT_ROOT / "themes" / "default.json"))
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## 표준 Imports
+
+```python
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QDialog,
+    QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
+    QLabel, QPushButton, QLineEdit, QTextEdit,
+    QComboBox, QSpinBox, QCheckBox, QRadioButton,
+    QGroupBox, QTabWidget, QScrollArea, QStackedWidget,
+    QTableWidget, QListWidget, QTreeWidget,
+    QMessageBox, QFileDialog, QInputDialog
+)
+from PySide6.QtCore import Qt, Signal, Slot, QThread, QTimer
+from PySide6.QtGui import QIcon, QAction, QFont, QPixmap
 ```

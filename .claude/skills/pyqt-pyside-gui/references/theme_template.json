@@ -1,0 +1,184 @@
+{
+  "name": "App Theme",
+  "version": "1.0.0",
+  "description": "Default light theme for PySide6 application",
+
+  "colors": {
+    "brand": {
+      "primary": "#3ECF8E",
+      "secondary": "#1DB7B0",
+      "accent": "#7C3AED"
+    },
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F5F5F5",
+      "tertiary": "#EBEBEB"
+    },
+    "text": {
+      "primary": "#171717",
+      "secondary": "#737373",
+      "disabled": "#A3A3A3",
+      "inverse": "#FFFFFF"
+    },
+    "border": {
+      "default": "#E5E5E5",
+      "focus": "#3ECF8E",
+      "error": "#EF4444"
+    },
+    "semantic": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    },
+    "neutral": {
+      "50": "#FAFAFA",
+      "100": "#F5F5F5",
+      "200": "#E5E5E5",
+      "300": "#D4D4D4",
+      "400": "#A3A3A3",
+      "500": "#737373",
+      "600": "#525252",
+      "700": "#404040",
+      "800": "#262626",
+      "900": "#171717"
+    }
+  },
+
+  "typography": {
+    "fontFamily": "Segoe UI, -apple-system, BlinkMacSystemFont, sans-serif",
+    "sizes": {
+      "xs": 10,
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24,
+      "3xl": 30,
+      "4xl": 36
+    },
+    "weights": {
+      "light": 300,
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeights": {
+      "tight": 1.25,
+      "normal": 1.5,
+      "relaxed": 1.75
+    }
+  },
+
+  "spacing": {
+    "none": 0,
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48,
+    "4xl": 64
+  },
+
+  "radius": {
+    "none": 0,
+    "sm": 4,
+    "md": 8,
+    "lg": 12,
+    "xl": 16,
+    "2xl": 24,
+    "full": 9999
+  },
+
+  "shadows": {
+    "none": "none",
+    "sm": "0 1px 2px rgba(0, 0, 0, 0.05)",
+    "md": "0 4px 6px rgba(0, 0, 0, 0.1)",
+    "lg": "0 10px 15px rgba(0, 0, 0, 0.15)",
+    "xl": "0 20px 25px rgba(0, 0, 0, 0.2)"
+  },
+
+  "transitions": {
+    "fast": 150,
+    "normal": 250,
+    "slow": 500
+  },
+
+  "components": {
+    "button": {
+      "minHeight": 36,
+      "minWidth": 80,
+      "paddingX": 16,
+      "paddingY": 8,
+      "iconSize": 16,
+      "gap": 8
+    },
+    "input": {
+      "minHeight": 40,
+      "padding": 12,
+      "iconSize": 16
+    },
+    "card": {
+      "padding": 16,
+      "borderRadius": 12,
+      "gap": 12
+    },
+    "table": {
+      "headerHeight": 48,
+      "rowHeight": 44,
+      "cellPadding": 12
+    },
+    "dialog": {
+      "minWidth": 320,
+      "maxWidth": 560,
+      "padding": 24
+    },
+    "toast": {
+      "maxWidth": 360,
+      "padding": 12,
+      "duration": 3000
+    },
+    "tooltip": {
+      "padding": 8,
+      "maxWidth": 200
+    },
+    "badge": {
+      "paddingX": 8,
+      "paddingY": 2,
+      "fontSize": 12
+    },
+    "avatar": {
+      "sm": 32,
+      "md": 40,
+      "lg": 48,
+      "xl": 64
+    },
+    "icon": {
+      "xs": 12,
+      "sm": 16,
+      "md": 20,
+      "lg": 24,
+      "xl": 32
+    }
+  },
+
+  "breakpoints": {
+    "sm": 640,
+    "md": 768,
+    "lg": 1024,
+    "xl": 1280
+  },
+
+  "zIndex": {
+    "base": 0,
+    "dropdown": 1000,
+    "sticky": 1100,
+    "modal": 1300,
+    "popover": 1400,
+    "tooltip": 1500,
+    "toast": 1600
+  }
+}

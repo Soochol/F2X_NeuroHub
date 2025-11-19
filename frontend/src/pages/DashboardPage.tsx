@@ -1,10 +1,12 @@
 /**
- * Dashboard Page Component
+ * Dashboard Page Component with CSS variable theming and Recharts
  */
 
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '@/api';
 import type { DashboardSummary } from '@/types/api';
+import { getErrorMessage } from '@/types/api';
+import { ProductionBarChart, DefectPieChart, ProcessWipChart } from '@/components/charts';
 
 export const DashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -16,8 +18,8 @@ export const DashboardPage = () => {
       try {
         const data = await dashboardApi.getSummary();
         setSummary(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard data');
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'Failed to load dashboard data'));
       } finally {
         setIsLoading(false);
       }
@@ -25,26 +27,60 @@ export const DashboardPage = () => {
 
     fetchSummary();
 
-    // Poll every 10 seconds
     const interval = setInterval(fetchSummary, 10000);
     return () => clearInterval(interval);
   }, []);
 
   if (isLoading) {
-    return <div>Loading dashboard...</div>;
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '200px',
+        color: 'var(--color-text-secondary)',
+      }}>
+        Loading dashboard...
+      </div>
+    );
   }
 
   if (error) {
-    return <div style={{ color: '#e74c3c' }}>Error: {error}</div>;
+    return (
+      <div style={{
+        padding: '24px',
+        backgroundColor: 'var(--color-badge-error-bg)',
+        color: 'var(--color-error)',
+        borderRadius: '6px',
+      }}>
+        Error: {error}
+      </div>
+    );
   }
 
   if (!summary) {
-    return <div>No data available</div>;
+    return (
+      <div style={{ color: 'var(--color-text-secondary)', padding: '24px' }}>
+        No data available
+      </div>
+    );
   }
+
+  const productionChartData = summary.lots.slice(0, 5).map((lot) => ({
+    name: lot.lot_number.slice(-6),
+    started: lot.started_count,
+    completed: lot.completed_count,
+    defective: lot.defective_count,
+  }));
 
   return (
     <div>
-      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
+      <h1 style={{
+        fontSize: '1.5rem',
+        fontWeight: 700,
+        marginBottom: '24px',
+        color: 'var(--color-text-primary)',
+      }}>
         Production Dashboard
       </h1>
 
@@ -53,135 +89,207 @@ export const DashboardPage = () => {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '20px',
-        marginBottom: '30px',
+        marginBottom: '32px',
       }}>
         <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          textAlign: 'center',
         }}>
-          <div style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>Total Started</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#3498db' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '12px' }}>
+            Total Started
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-brand)' }}>
             {summary.total_started}
           </div>
         </div>
 
         <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          textAlign: 'center',
         }}>
-          <div style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>Total Completed</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#27ae60' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '12px' }}>
+            Total Completed
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-success)' }}>
             {summary.total_completed}
           </div>
         </div>
 
         <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          textAlign: 'center',
         }}>
-          <div style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>Total Defective</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#e74c3c' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '12px' }}>
+            Total Defective
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-error)' }}>
             {summary.total_defective}
           </div>
         </div>
 
         <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          padding: '20px',
+          textAlign: 'center',
         }}>
-          <div style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>Defect Rate</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: summary.defect_rate > 5 ? '#e74c3c' : '#f39c12' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '12px' }}>
+            Defect Rate
+          </div>
+          <div style={{
+            fontSize: '36px',
+            fontWeight: 700,
+            color: summary.defect_rate > 5 ? 'var(--color-error)' : 'var(--color-warning)',
+          }}>
             {summary.defect_rate.toFixed(1)}%
           </div>
         </div>
       </div>
 
-      {/* Active LOTs */}
+      {/* Charts Row */}
       <div style={{
-        backgroundColor: 'white',
-        padding: '20px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginBottom: '20px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: '20px',
+        marginBottom: '32px',
       }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>Active LOTs</h2>
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+        }}>
+          <h2 style={{
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            marginBottom: '16px',
+            color: 'var(--color-text-primary)',
+          }}>
+            Production by LOT
+          </h2>
+          <ProductionBarChart data={productionChartData} height={280} />
+        </div>
+
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+        }}>
+          <h2 style={{
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            marginBottom: '16px',
+            color: 'var(--color-text-primary)',
+          }}>
+            Pass/Fail Distribution
+          </h2>
+          <DefectPieChart
+            passed={summary.total_completed - summary.total_defective}
+            failed={summary.total_defective}
+            height={280}
+          />
+        </div>
+      </div>
+
+      {/* Process WIP Chart */}
+      <div style={{
+        backgroundColor: 'var(--color-bg-secondary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        padding: '20px',
+        marginBottom: '24px',
+      }}>
+        <h2 style={{
+          fontSize: '1.125rem',
+          fontWeight: 600,
+          marginBottom: '16px',
+          color: 'var(--color-text-primary)',
+        }}>
+          Work In Progress by Process
+        </h2>
+        <ProcessWipChart data={summary.process_wip} height={300} />
+      </div>
+
+      {/* Active LOTs Table */}
+      <div style={{
+        backgroundColor: 'var(--color-bg-secondary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        padding: '20px',
+      }}>
+        <h2 style={{
+          fontSize: '1.125rem',
+          fontWeight: 600,
+          marginBottom: '16px',
+          color: 'var(--color-text-primary)',
+        }}>
+          Active LOTs
+        </h2>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                <th style={{ padding: '10px', textAlign: 'left' }}>LOT Number</th>
-                <th style={{ padding: '10px', textAlign: 'left' }}>Product Model</th>
-                <th style={{ padding: '10px', textAlign: 'left' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Progress</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Started</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Completed</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Defective</th>
+              <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)' }}>LOT Number</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)' }}>Product Model</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)' }}>Status</th>
+                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)' }}>Progress</th>
+                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)' }}>Started</th>
+                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)' }}>Completed</th>
+                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)' }}>Defective</th>
               </tr>
             </thead>
             <tbody>
-              {summary.lots.map((lot) => (
-                <tr key={lot.lot_number} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '10px' }}>{lot.lot_number}</td>
-                  <td style={{ padding: '10px' }}>{lot.product_model_name}</td>
-                  <td style={{ padding: '10px' }}>
+              {summary.lots.map((lot, index) => (
+                <tr
+                  key={lot.lot_number}
+                  style={{
+                    borderBottom: '1px solid var(--color-border)',
+                    backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--color-bg-tertiary)',
+                  }}
+                >
+                  <td style={{ padding: '12px', color: 'var(--color-text-primary)' }}>{lot.lot_number}</td>
+                  <td style={{ padding: '12px', color: 'var(--color-text-primary)' }}>{lot.product_model_name}</td>
+                  <td style={{ padding: '12px' }}>
                     <span style={{
                       padding: '4px 8px',
                       borderRadius: '4px',
-                      fontSize: '12px',
-                      backgroundColor: lot.status === 'COMPLETED' ? '#d5f4e6' : '#e3f2fd',
-                      color: lot.status === 'COMPLETED' ? '#27ae60' : '#3498db',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      backgroundColor: lot.status === 'COMPLETED'
+                        ? 'var(--color-badge-success-bg)'
+                        : 'var(--color-brand-500)',
+                      color: lot.status === 'COMPLETED'
+                        ? 'var(--color-success)'
+                        : 'var(--color-text-primary)',
                     }}>
                       {lot.status}
                     </span>
                   </td>
-                  <td style={{ padding: '10px', textAlign: 'right' }}>{lot.progress.toFixed(0)}%</td>
-                  <td style={{ padding: '10px', textAlign: 'right' }}>{lot.started_count}</td>
-                  <td style={{ padding: '10px', textAlign: 'right' }}>{lot.completed_count}</td>
-                  <td style={{ padding: '10px', textAlign: 'right', color: lot.defective_count > 0 ? '#e74c3c' : 'inherit' }}>
+                  <td style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-primary)' }}>{lot.progress.toFixed(0)}%</td>
+                  <td style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-primary)' }}>{lot.started_count}</td>
+                  <td style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-primary)' }}>{lot.completed_count}</td>
+                  <td style={{
+                    padding: '12px',
+                    textAlign: 'right',
+                    color: lot.defective_count > 0 ? 'var(--color-error)' : 'var(--color-text-primary)',
+                  }}>
                     {lot.defective_count}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Process WIP */}
-      <div style={{
-        backgroundColor: 'white',
-        padding: '20px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>Process WIP</h2>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {summary.process_wip.map((process) => (
-            <div
-              key={process.process_name}
-              style={{
-                padding: '15px',
-                border: '1px solid #e0e0e0',
-                borderRadius: '4px',
-                minWidth: '150px',
-              }}
-            >
-              <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '5px' }}>
-                {process.process_name}
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3498db' }}>
-                {process.wip_count}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

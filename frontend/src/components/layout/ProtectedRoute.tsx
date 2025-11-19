@@ -10,7 +10,10 @@ import { useAuth } from '@/contexts/AuthContext';
 export const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
+  // TODO: Remove this bypass after testing
+  const BYPASS_AUTH = false;
+
+  if (isLoading && !BYPASS_AUTH) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div>Loading...</div>
@@ -18,5 +21,5 @@ export const ProtectedRoute = () => {
     );
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  return (isAuthenticated || BYPASS_AUTH) ? <Outlet /> : <Navigate to="/login" replace />;
 };

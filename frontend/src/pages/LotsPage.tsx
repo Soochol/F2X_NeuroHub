@@ -3,15 +3,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/common/Button';
-import { Select } from '@/components/common/Select';
-import { Input } from '@/components/common/Input';
-import { Card } from '@/components/common/Card';
-import { LotCreateModal } from '@/components/lots/LotCreateModal';
-import { LotDetailModal } from '@/components/lots/LotDetailModal';
+import { Button, Select, Input, Card } from '@/components/common';
+import { LotCreateModal, LotDetailModal } from '@/components/lots';
 import { lotsApi } from '@/api';
 import apiClient from '@/api/client';
-import { LotStatus, type Lot, type ProductModel } from '@/types/api';
+import { LotStatus, type Lot, type ProductModel, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 
 export const LotsPage = () => {
@@ -42,7 +38,7 @@ export const LotsPage = () => {
     try {
       const response = await apiClient.get<ProductModel[]>('/product-models/');
       setProductModels(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch product models:', err);
     }
   };
@@ -51,7 +47,7 @@ export const LotsPage = () => {
     setIsLoading(true);
     setError('');
     try {
-      const params: any = {
+      const params: { skip?: number; limit?: number; status?: LotStatus } = {
         skip: currentPage * lotsPerPage,
         limit: lotsPerPage,
       };
@@ -60,10 +56,16 @@ export const LotsPage = () => {
       }
 
       const response = await lotsApi.getLots(params);
-      setLots(response.items);
-      setTotalLots(response.total);
-    } catch (err: any) {
-      setError(err.message || 'LOT 목록을 불러오지 못했습니다');
+      // 백엔드는 배열을 직접 반환하거나 PaginatedResponse를 반환
+      if (Array.isArray(response)) {
+        setLots(response);
+        setTotalLots(response.length);
+      } else {
+        setLots(response.items);
+        setTotalLots(response.total);
+      }
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'LOT 목록을 불러오지 못했습니다'));
     } finally {
       setIsLoading(false);
     }
@@ -135,15 +137,15 @@ export const LotsPage = () => {
       {/* LOTs Table */}
       <Card>
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
             로딩 중...
           </div>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e74c3c' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
             {error}
           </div>
         ) : filteredLots.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
             LOT가 없습니다. 새 LOT를 생성하세요.
           </div>
         ) : (
@@ -151,7 +153,7 @@ export const LotsPage = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                  <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>LOT 번호</th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>제품 모델</th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>상태</th>
@@ -167,11 +169,11 @@ export const LotsPage = () => {
                       key={lot.id}
                       onClick={() => handleLotClick(lot.id)}
                       style={{
-                        borderBottom: '1px solid #f0f0f0',
+                        borderBottom: '1px solid var(--color-border)',
                         cursor: 'pointer',
                         transition: 'background-color 0.2s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <td style={{ padding: '12px', fontWeight: '500' }}>{lot.lot_number}</td>
@@ -179,7 +181,7 @@ export const LotsPage = () => {
                         {lot.product_model ? (
                           <div>
                             <div style={{ fontWeight: '500' }}>{lot.product_model.code}</div>
-                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>{lot.product_model.name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lot.product_model.name}</div>
                           </div>
                         ) : (
                           'N/A'
@@ -193,20 +195,20 @@ export const LotsPage = () => {
                             fontSize: '12px',
                             backgroundColor:
                               lot.status === LotStatus.COMPLETED
-                                ? '#d5f4e6'
+                                ? 'var(--color-success-bg, rgba(39, 174, 96, 0.15))'
                                 : lot.status === LotStatus.IN_PROGRESS
-                                ? '#e3f2fd'
+                                ? 'var(--color-info-bg, rgba(52, 152, 219, 0.15))'
                                 : lot.status === LotStatus.CLOSED
-                                ? '#f5f5f5'
-                                : '#fff3cd',
+                                ? 'var(--color-bg-tertiary)'
+                                : 'var(--color-warning-bg, rgba(243, 156, 18, 0.15))',
                             color:
                               lot.status === LotStatus.COMPLETED
-                                ? '#27ae60'
+                                ? 'var(--color-success)'
                                 : lot.status === LotStatus.IN_PROGRESS
-                                ? '#3498db'
+                                ? 'var(--color-info, var(--color-brand))'
                                 : lot.status === LotStatus.CLOSED
-                                ? '#7f8c8d'
-                                : '#f39c12',
+                                ? 'var(--color-text-tertiary)'
+                                : 'var(--color-warning)',
                           }}
                         >
                           {lot.status}
@@ -217,7 +219,7 @@ export const LotsPage = () => {
                         {format(new Date(lot.production_date), 'yyyy-MM-dd')}
                       </td>
                       <td style={{ padding: '12px' }}>{lot.shift}</td>
-                      <td style={{ padding: '12px', fontSize: '13px', color: '#7f8c8d' }}>
+                      <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                         {format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm')}
                       </td>
                     </tr>
@@ -245,7 +247,7 @@ export const LotsPage = () => {
                 >
                   이전
                 </Button>
-                <span style={{ fontSize: '14px', color: '#7f8c8d' }}>
+                <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                   {currentPage + 1} / {totalPages}
                 </span>
                 <Button

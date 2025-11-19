@@ -1,14 +1,14 @@
 /**
  * Analytics Page - Production Statistics and Cycle Time Analysis
+ * Uses CSS variables for theming support
  */
 
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/common/Card';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
+import { Card, Button, Input } from '@/components/common';
 import { analyticsApi } from '@/api';
 import type { ProductionStats, CycleTimeAnalysis } from '@/types/api';
 import { format, subDays } from 'date-fns';
+import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Lightbulb } from 'lucide-react';
 
 export const AnalyticsPage = () => {
   const [productionStats, setProductionStats] = useState<ProductionStats | null>(null);
@@ -53,9 +53,9 @@ export const AnalyticsPage = () => {
   };
 
   const getCompletionColor = (rate: number) => {
-    if (rate >= 95) return { bg: '#d5f4e6', color: '#27ae60', icon: '✅' };
-    if (rate >= 80) return { bg: '#fff3cd', color: '#f39c12', icon: '⚠️' };
-    return { bg: '#fee', color: '#e74c3c', icon: '❌' };
+    if (rate >= 95) return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', icon: <CheckCircle size={24} /> };
+    if (rate >= 80) return { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', icon: <AlertTriangle size={24} /> };
+    return { bg: 'var(--color-error-bg)', color: 'var(--color-error)', icon: <XCircle size={24} /> };
   };
 
   const completionRate =
@@ -66,13 +66,13 @@ export const AnalyticsPage = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Analytics & Reports</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>Analytics & Reports</h1>
       </div>
 
       {/* Date Range Filter */}
       <Card style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-          <div style={{ width: '200px' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ width: '180px' }}>
             <Input
               label="Start Date"
               type="date"
@@ -80,29 +80,31 @@ export const AnalyticsPage = () => {
               onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
-          <div style={{ width: '200px' }}>
+          <div style={{ width: '180px' }}>
             <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
-          <Button onClick={handleApplyFilter}>Apply</Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setStartDate(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-              setEndDate(format(new Date(), 'yyyy-MM-dd'));
-            }}
-          >
-            Reset (Last 30 Days)
-          </Button>
+          <div style={{ display: 'flex', gap: '10px', paddingBottom: '2px' }}>
+            <Button onClick={handleApplyFilter}>Apply</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStartDate(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         </div>
       </Card>
 
       {isLoading ? (
         <Card>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>Loading analytics data...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Loading analytics data...</div>
         </Card>
       ) : error ? (
         <Card>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#e74c3c' }}>{error}</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>{error}</div>
         </Card>
       ) : (
         <>
@@ -120,29 +122,29 @@ export const AnalyticsPage = () => {
                 {/* Total LOTs */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Total LOTs</div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#9b59b6', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Total LOTs</div>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-brand)', marginBottom: '5px' }}>
                       {productionStats.total_lots}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Batches</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Batches</div>
                   </div>
                 </Card>
 
                 {/* Total Serials */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Total Serials</div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#3498db', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Total Serials</div>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-brand-500)', marginBottom: '5px' }}>
                       {productionStats.total_serials}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Units Produced</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Units Produced</div>
                   </div>
                 </Card>
 
                 {/* Completion Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Completion Rate</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Completion Rate</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -157,7 +159,7 @@ export const AnalyticsPage = () => {
                       <span>{getCompletionColor(completionRate).icon}</span>
                       <span>{completionRate.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {productionStats.completed_serials} / {productionStats.total_serials} completed
                     </div>
                   </div>
@@ -166,7 +168,7 @@ export const AnalyticsPage = () => {
                 {/* Pass Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Pass Rate</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Pass Rate</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -174,14 +176,14 @@ export const AnalyticsPage = () => {
                         gap: '8px',
                         fontSize: '32px',
                         fontWeight: 'bold',
-                        color: '#27ae60',
+                        color: 'var(--color-success)',
                         marginBottom: '5px',
                       }}
                     >
-                      <span>✅</span>
+                      <CheckCircle size={24} />
                       <span>{productionStats.pass_rate.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {productionStats.pass_count} units passed
                     </div>
                   </div>
@@ -190,7 +192,7 @@ export const AnalyticsPage = () => {
                 {/* Defect Rate */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Defect Rate</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Defect Rate</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -198,14 +200,14 @@ export const AnalyticsPage = () => {
                         gap: '8px',
                         fontSize: '32px',
                         fontWeight: 'bold',
-                        color: '#e74c3c',
+                        color: 'var(--color-error)',
                         marginBottom: '5px',
                       }}
                     >
-                      <span>❌</span>
+                      <XCircle size={24} />
                       <span>{productionStats.defect_rate.toFixed(1)}%</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                       {productionStats.fail_count} units failed
                     </div>
                   </div>
@@ -214,7 +216,7 @@ export const AnalyticsPage = () => {
                 {/* Rework Count */}
                 <Card>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '10px' }}>Rework Count</div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '10px' }}>Rework Count</div>
                     <div
                       style={{
                         display: 'inline-flex',
@@ -222,14 +224,14 @@ export const AnalyticsPage = () => {
                         gap: '8px',
                         fontSize: '32px',
                         fontWeight: 'bold',
-                        color: '#f39c12',
+                        color: 'var(--color-warning)',
                         marginBottom: '5px',
                       }}
                     >
-                      <span>🔄</span>
+                      <RefreshCw size={24} />
                       <span>{productionStats.rework_count}</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Units reworked</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Units reworked</div>
                   </div>
                 </Card>
               </div>
@@ -243,7 +245,7 @@ export const AnalyticsPage = () => {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                      <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Process</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Avg Cycle Time</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Min</th>
@@ -258,8 +260,8 @@ export const AnalyticsPage = () => {
                           <tr
                             key={idx}
                             style={{
-                              borderBottom: '1px solid #f0f0f0',
-                              backgroundColor: idx % 2 === 0 ? 'white' : '#f9f9f9',
+                              borderBottom: '1px solid var(--color-border)',
+                              backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'var(--color-bg-secondary)',
                             }}
                           >
                             <td style={{ padding: '12px', fontWeight: '500' }}>{process.process_name}</td>
@@ -268,21 +270,21 @@ export const AnalyticsPage = () => {
                                 padding: '12px',
                                 textAlign: 'center',
                                 fontWeight: '600',
-                                color: '#3498db',
+                                color: 'var(--color-brand-500)',
                               }}
                             >
                               {formatCycleTime(process.avg_cycle_time)}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#27ae60' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-success)' }}>
                               {formatCycleTime(process.min_cycle_time)}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#e74c3c' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-error)' }}>
                               {formatCycleTime(process.max_cycle_time)}
                             </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
                               {formatCycleTime(process.median_cycle_time)}
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: '#7f8c8d' }}>
+                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                               {process.total_records}
                             </td>
                           </tr>
@@ -308,9 +310,9 @@ export const AnalyticsPage = () => {
                           key={idx}
                           style={{
                             padding: '15px',
-                            backgroundColor: '#fff3cd',
+                            backgroundColor: 'var(--color-warning-bg)',
                             borderRadius: '6px',
-                            border: '1px solid #f39c12',
+                            border: '1px solid var(--color-warning)',
                           }}
                         >
                           <div
@@ -322,10 +324,11 @@ export const AnalyticsPage = () => {
                             }}
                           >
                             <div>
-                              <div style={{ fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>
-                                ⚠️ {bottleneck.process_name}
+                              <div style={{ fontWeight: '600', fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <AlertTriangle size={16} />
+                                {bottleneck.process_name}
                               </div>
-                              <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
+                              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                                 WIP Count: {bottleneck.wip_count} units
                               </div>
                             </div>
@@ -333,7 +336,7 @@ export const AnalyticsPage = () => {
                               style={{
                                 fontSize: '20px',
                                 fontWeight: 'bold',
-                                color: '#e67e22',
+                                color: 'var(--color-warning)',
                               }}
                             >
                               {formatCycleTime(bottleneck.avg_cycle_time)}
@@ -345,7 +348,7 @@ export const AnalyticsPage = () => {
                             style={{
                               width: '100%',
                               height: '8px',
-                              backgroundColor: '#e0e0e0',
+                              backgroundColor: 'var(--color-border)',
                               borderRadius: '4px',
                               overflow: 'hidden',
                             }}
@@ -354,7 +357,7 @@ export const AnalyticsPage = () => {
                               style={{
                                 width: `${percentage}%`,
                                 height: '100%',
-                                backgroundColor: idx === 0 ? '#e74c3c' : idx === 1 ? '#e67e22' : '#f39c12',
+                                backgroundColor: idx === 0 ? 'var(--color-error)' : idx === 1 ? 'var(--color-warning)' : 'var(--color-warning)',
                                 borderRadius: '4px',
                               }}
                             />
@@ -367,13 +370,17 @@ export const AnalyticsPage = () => {
                     style={{
                       marginTop: '15px',
                       padding: '12px',
-                      backgroundColor: '#e3f2fd',
+                      backgroundColor: 'var(--color-bg-tertiary)',
                       borderRadius: '6px',
                       fontSize: '13px',
-                      color: '#2c3e50',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
-                    💡 <strong>Tip:</strong> Bottlenecks are processes with longer cycle times and higher WIP counts.
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Lightbulb size={16} />
+                      <strong>Tip:</strong>
+                    </span>{' '}
+                    Bottlenecks are processes with longer cycle times and higher WIP counts.
                     Focus improvement efforts on these areas to increase throughput.
                   </div>
                 </Card>

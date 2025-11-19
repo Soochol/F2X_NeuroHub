@@ -8,8 +8,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { alertsApi } from '@/api';
+import { ThemeToggleIcon } from '@/components/atoms';
+import { Bell, User, ChevronDown, Menu, PanelLeftClose } from 'lucide-react';
 
-export const Header = () => {
+interface HeaderProps {
+  onToggleSidebar: () => void;
+  isSidebarCollapsed: boolean;
+}
+
+export const Header = ({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -44,14 +51,40 @@ export const Header = () => {
   return (
     <header style={{
       height: '60px',
-      backgroundColor: 'white',
-      borderBottom: '1px solid #e0e0e0',
+      backgroundColor: 'var(--color-bg-primary)',
+      borderBottom: '1px solid var(--color-border)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'flex-end',
+      justifyContent: 'space-between',
       padding: '0 20px',
-      gap: '20px',
     }}>
+      {/* Hamburger Menu Button */}
+      <button
+        onClick={onToggleSidebar}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '8px',
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-primary)',
+          transition: 'background-color 0.2s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        title={isSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+      >
+        {isSidebarCollapsed ? <Menu size={24} /> : <PanelLeftClose size={24} />}
+      </button>
+
+      {/* Right side controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Theme Toggle */}
+        <ThemeToggleIcon />
+
       {/* Alerts Bell */}
       <button
         onClick={() => navigate('/alerts')}
@@ -62,15 +95,16 @@ export const Header = () => {
           fontSize: '24px',
           cursor: 'pointer',
           padding: '5px',
+          color: 'var(--color-text-primary)',
         }}
       >
-        🔔
+        <Bell size={24} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute',
             top: '0',
             right: '0',
-            backgroundColor: '#e74c3c',
+            backgroundColor: 'var(--color-error)',
             color: 'white',
             fontSize: '12px',
             fontWeight: 'bold',
@@ -92,18 +126,19 @@ export const Header = () => {
           onClick={() => setShowUserMenu(!showUserMenu)}
           style={{
             background: 'none',
-            border: '1px solid #e0e0e0',
+            border: '1px solid var(--color-border)',
             borderRadius: '4px',
             padding: '8px 12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            color: 'var(--color-text-primary)',
           }}
         >
-          <span>👤</span>
+          <User size={16} />
           <span>{user?.full_name}</span>
-          <span style={{ fontSize: '12px' }}>▼</span>
+          <ChevronDown size={12} />
         </button>
 
         {showUserMenu && (
@@ -112,10 +147,10 @@ export const Header = () => {
             top: '100%',
             right: 0,
             marginTop: '5px',
-            backgroundColor: 'white',
-            border: '1px solid #e0e0e0',
+            backgroundColor: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
             borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
             minWidth: '150px',
             zIndex: 1000,
           }}>
@@ -128,13 +163,14 @@ export const Header = () => {
                 border: 'none',
                 textAlign: 'left',
                 cursor: 'pointer',
-                color: '#e74c3c',
+                color: 'var(--color-error)',
               }}
             >
               Logout
             </button>
           </div>
         )}
+      </div>
       </div>
     </header>
   );

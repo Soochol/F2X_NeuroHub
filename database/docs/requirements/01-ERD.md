@@ -7,8 +7,8 @@ This document presents the Entity-Relationship Diagram for the F2X NeuroHub Manu
 
 ## Database Architecture Summary
 
-- **7 Core Entities**: Product Models, LOTs, Serials, Processes, Process Data, Users, Audit Logs
-- **5 Primary Relationships**: Hierarchical production tracking with process execution records
+- **9 Core Entities**: Product Models, LOTs, Serials, Processes, Process Data, Users, Audit Logs, Production Lines, Equipment
+- **7 Primary Relationships**: Hierarchical production tracking with process execution records, production line management, and equipment tracking
 - **Database Engine**: PostgreSQL 14+ (leveraging JSONB, advanced indexing, triggers)
 - **Design Principles**: ACID compliance, full traceability, audit trail, scalability
 
@@ -28,6 +28,9 @@ erDiagram
     product_models ||--o{ audit_logs : "references"
     lots ||--o{ audit_logs : "references"
     serials ||--o{ audit_logs : "references"
+    production_lines ||--o{ lots : "produces"
+    production_lines ||--o{ equipment : "contains"
+    equipment ||--o{ process_data : "executes_on"
 
     product_models {
         BIGSERIAL id PK
@@ -45,6 +48,7 @@ erDiagram
         BIGSERIAL id PK
         VARCHAR lot_number UK "WF-KR-251110D-001"
         BIGINT product_model_id FK
+        BIGINT production_line_id FK "생산라인"
         DATE production_date "생산일자"
         VARCHAR shift "D/N"
         INTEGER target_quantity "목표수량(100)"
@@ -91,6 +95,7 @@ erDiagram
         BIGINT serial_id FK
         BIGINT process_id FK
         BIGINT operator_id FK
+        BIGINT equipment_id FK "사용장비"
         VARCHAR data_level "LOT/SERIAL"
         VARCHAR result "PASS/FAIL/REWORK"
         JSONB measurements "측정데이터"
@@ -127,6 +132,32 @@ erDiagram
         VARCHAR ip_address "IP주소"
         VARCHAR user_agent "사용자에이전트"
         TIMESTAMP created_at
+    }
+
+    production_lines {
+        BIGSERIAL id PK
+        VARCHAR line_code UK "LINE-001"
+        VARCHAR line_name "생산라인명"
+        VARCHAR location "위치"
+        VARCHAR status "ACTIVE/INACTIVE/MAINTENANCE"
+        INTEGER capacity_per_shift "교대당생산능력"
+        JSONB configuration "라인설정"
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    equipment {
+        BIGSERIAL id PK
+        VARCHAR equipment_code UK "EQ-001"
+        VARCHAR equipment_name "장비명"
+        BIGINT production_line_id FK
+        VARCHAR equipment_type "MARKING/ASSEMBLY/INSPECTION"
+        VARCHAR status "ACTIVE/INACTIVE/MAINTENANCE"
+        JSONB specifications "장비사양"
+        DATE last_maintenance_date "최종정비일"
+        DATE next_maintenance_date "다음정비일"
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 ```
 

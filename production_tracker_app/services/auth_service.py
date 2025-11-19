@@ -36,7 +36,7 @@ class AuthService(QObject):
             api_client=self.api_client,
             operation="login",
             method="POST",
-            endpoint="/api/v1/auth/login",
+            endpoint="/api/v1/auth/login/json",
             data={"username": username, "password": password}
         )
         worker.success.connect(self._on_api_success)

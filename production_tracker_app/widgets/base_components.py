@@ -1,183 +1,120 @@
 """
-Base Components - Reusable themed UI components.
+Base Components - Reusable themed UI components using Property Variants.
 
-Centralized collection of styled components that use the theme system.
+Components use setProperty("variant", ...) for styling via app-level QSS.
 """
-from PySide6.QtWidgets import QFrame, QLabel, QPushButton
+import logging
+from typing import Optional
+
+from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 from PySide6.QtCore import Qt
 from utils.theme_manager import get_theme
-import logging
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
 
 
 class ThemedCard(QFrame):
-    """Base themed card component."""
+    """Base themed card component using Property Variant."""
 
-    def __init__(self, min_height: int = 120, parent=None):
+    def __init__(self, min_height: int = 120, variant: str = "card", parent=None):
         """
         Initialize themed card.
 
         Args:
             min_height: Minimum height in pixels
+            variant: Card variant ("card", "elevated")
             parent: Parent widget
         """
         super().__init__(parent)
         self.setFrameStyle(QFrame.Box | QFrame.Raised)
         self.setMinimumHeight(min_height)
-        self._apply_theme()
-
-    def _apply_theme(self):
-        """Apply theme styling to card."""
-        card_style = theme.get_component_style('card')
-        stylesheet = f"""
-            QFrame {{
-                background-color: {card_style.get('backgroundColor', '#2a2a2a')};
-                border: {card_style.get('border', '1px solid #3a3a3a')};
-                border-radius: {card_style.get('borderRadius', '8px')};
-                padding: {card_style.get('padding', '15px')};
-            }}
-        """
-        self.setStyleSheet(stylesheet)
+        self.setProperty("variant", variant)
 
 
 class ThemedLabel(QLabel):
-    """Base themed label component."""
+    """Base themed label component using Property Variant."""
 
-    def __init__(self, text: str = "", style_type: str = "base", parent=None):
+    def __init__(self, text: str = "", variant: str = "body", parent=None):
         """
         Initialize themed label.
 
         Args:
             text: Label text
-            style_type: Style type ('title', 'base', 'secondary', 'tertiary')
+            variant: Label variant ("title", "body", "caption",
+                     "success", "danger", "warning", "brand")
             parent: Parent widget
         """
         super().__init__(text, parent)
-        self.style_type = style_type
-        self._apply_theme()
+        self.setProperty("variant", variant)
 
-    def _apply_theme(self):
-        """Apply theme styling to label."""
-        if self.style_type == "title":
-            font_size = theme.get_font_size('lg')
-            color = theme.get_color('text.primary')
-            font_weight = theme.get('typography.fontWeight.bold', 'bold')
-            stylesheet = f"""
-                font-size: {font_size};
-                font-weight: {font_weight};
-                color: {color};
-                padding-bottom: 8px;
-            """
-        elif self.style_type == "secondary":
-            font_size = theme.get_font_size('base')
-            color = theme.get_color('text.secondary')
-            stylesheet = f"""
-                font-size: {font_size};
-                color: {color};
-            """
-        elif self.style_type == "tertiary":
-            font_size = theme.get_font_size('sm')
-            color = theme.get_color('text.tertiary')
-            stylesheet = f"""
-                font-size: {font_size};
-                color: {color};
-            """
-        else:  # base
-            font_size = theme.get_font_size('base')
-            color = theme.get_color('text.primary')
-            stylesheet = f"""
-                font-size: {font_size};
-                color: {color};
-            """
+    def set_variant(self, variant: str):
+        """
+        Update label variant dynamically.
 
-        self.setStyleSheet(stylesheet)
+        Args:
+            variant: New variant name
+        """
+        self.setProperty("variant", variant)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class ThemedButton(QPushButton):
-    """Base themed button component."""
+    """Base themed button component using Property Variant."""
 
-    def __init__(self, text: str = "", button_type: str = "primary", parent=None):
+    def __init__(self, text: str = "", variant: str = "primary", parent=None):
         """
         Initialize themed button.
 
         Args:
             text: Button text
-            button_type: Button type ('primary', 'secondary')
+            variant: Button variant ("primary", "secondary", "danger", "ghost")
             parent: Parent widget
         """
         super().__init__(text, parent)
-        self.button_type = button_type
-        self._apply_theme()
+        self.setProperty("variant", variant)
 
-    def _apply_theme(self):
-        """Apply theme styling to button."""
-        style = theme.get_component_style(f'button.{self.button_type}')
-
-        bg_color = style.get('backgroundColor', '#3b82f6')
-        hover_bg = style.get('hoverBackgroundColor', '#2563eb')
-        color = style.get('color', '#ffffff')
-        padding = style.get('padding', '10px')
-        font_size = style.get('fontSize', '14px')
-        font_weight = style.get('fontWeight', 'bold')
-        border_radius = style.get('borderRadius', '4px')
-
-        stylesheet = f"""
-            QPushButton {{
-                background-color: {bg_color};
-                color: {color};
-                padding: {padding};
-                font-size: {font_size};
-                font-weight: {font_weight};
-                border-radius: {border_radius};
-                border: none;
-            }}
-            QPushButton:hover {{
-                background-color: {hover_bg};
-            }}
+    def set_variant(self, variant: str):
         """
-        self.setStyleSheet(stylesheet)
+        Update button variant dynamically.
+
+        Args:
+            variant: New variant name
+        """
+        self.setProperty("variant", variant)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class StatusIndicator(QLabel):
-    """Status indicator component with color coding."""
+    """Status indicator component with color coding using Property Variant."""
 
-    def __init__(self, text: str = "", status: str = "idle", parent=None):
+    def __init__(self, text: str = "", status: str = "body", parent=None):
         """
         Initialize status indicator.
 
         Args:
             text: Status text
-            status: Status type ('online', 'offline', 'idle')
+            status: Status type ("success", "danger", "warning", "body")
             parent: Parent widget
         """
         super().__init__(text, parent)
-        self.status = status
-        self._apply_theme()
+        self.setProperty("variant", status)
 
-    def _apply_theme(self):
-        """Apply theme styling based on status."""
-        color = theme.get_color(f'status.{self.status}')
-        font_weight = theme.get('typography.fontWeight.bold', 'bold')
-        stylesheet = f"""
-            color: {color};
-            font-weight: {font_weight};
-        """
-        self.setStyleSheet(stylesheet)
-
-    def set_status(self, status: str, text: str = None):
+    def set_status(self, status: str, text: Optional[str] = None):
         """
         Update status.
 
         Args:
-            status: New status ('online', 'offline', 'idle')
+            status: New status ("success", "danger", "warning", "body")
             text: Optional new text
         """
-        self.status = status
         if text:
             self.setText(text)
-        self._apply_theme()
+        self.setProperty("variant", status)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class InfoCard(ThemedCard):
@@ -192,28 +129,22 @@ class InfoCard(ThemedCard):
             min_height: Minimum height in pixels
             parent: Parent widget
         """
-        super().__init__(min_height, parent)
+        super().__init__(min_height, "card", parent)
         self.title = title
         self._setup_ui()
 
     def _setup_ui(self):
         """Setup UI components."""
-        from PySide6.QtWidgets import QVBoxLayout
-
         layout = QVBoxLayout(self)
-        spacing = int(theme.get_spacing('lg').replace('px', ''))
+
+        spacing = theme.get('spacing.lg', 24)
         layout.setSpacing(spacing)
 
-        margins = (
-            int(theme.get_spacing('md').replace('px', '')),
-            int(theme.get_spacing('md').replace('px', '')),
-            int(theme.get_spacing('md').replace('px', '')),
-            int(theme.get_spacing('md').replace('px', ''))
-        )
-        layout.setContentsMargins(*margins)
+        margin = theme.get('spacing.md', 16)
+        layout.setContentsMargins(margin, margin, margin, margin)
 
         # Title
-        self.title_label = ThemedLabel(self.title, style_type="title")
+        self.title_label = ThemedLabel(self.title, variant="title")
         layout.addWidget(self.title_label)
 
         # Content area (to be populated by subclasses)
@@ -224,26 +155,20 @@ class InfoCard(ThemedCard):
 class StatBadge(QLabel):
     """Statistic display badge with background."""
 
-    def __init__(self, name: str, value: str, color: str, parent=None):
+    def __init__(self, name: str, value: str, variant: str = "body", parent=None):
         """
         Initialize stat badge.
 
         Args:
             name: Stat name
             value: Stat value
-            color: Badge color
+            variant: Badge variant ("success", "danger", "warning", "brand")
             parent: Parent widget
         """
         super().__init__(f"{name}: {value}", parent)
         self.stat_name = name
         self.stat_value = value
-        self.stat_color = color
-        self._apply_theme()
-
-    def _apply_theme(self):
-        """Apply theme styling to badge."""
-        stylesheet = theme.get_stats_card_stat_label_style(self.stat_color)
-        self.setStyleSheet(stylesheet)
+        self.setProperty("variant", variant)
         self.setAlignment(Qt.AlignCenter)
 
     def update_value(self, value: str):
@@ -255,3 +180,14 @@ class StatBadge(QLabel):
         """
         self.stat_value = value
         self.setText(f"{self.stat_name}: {value}")
+
+    def set_variant(self, variant: str):
+        """
+        Update badge variant.
+
+        Args:
+            variant: New variant name
+        """
+        self.setProperty("variant", variant)
+        self.style().unpolish(self)
+        self.style().polish(self)

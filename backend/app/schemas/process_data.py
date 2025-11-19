@@ -91,6 +91,26 @@ class UserSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class EquipmentSchema(BaseModel):
+    """
+    Nested Equipment schema for relationship data.
+
+    Attributes:
+        id: Equipment identifier
+        equipment_code: Unique equipment identifier
+        equipment_name: Display name
+        equipment_type: Type classification
+        is_active: Whether equipment is currently operational
+    """
+    id: int
+    equipment_code: str
+    equipment_name: str
+    equipment_type: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProcessDataBase(BaseModel):
     """
     Base schema for ProcessData with core fields and validation.
@@ -100,6 +120,7 @@ class ProcessDataBase(BaseModel):
         serial_id: Foreign key to serials table (optional for LOT-level)
         process_id: Foreign key to processes table (required)
         operator_id: Foreign key to users table (required)
+        equipment_id: Foreign key to equipment table (optional)
         data_level: Data granularity level (LOT or SERIAL)
         result: Process result (PASS, FAIL, REWORK)
         measurements: JSONB field with measurement data (dict, default empty)
@@ -119,6 +140,9 @@ class ProcessDataBase(BaseModel):
     )
     process_id: int = Field(..., gt=0, description="Process identifier")
     operator_id: int = Field(..., gt=0, description="Operator identifier")
+    equipment_id: Optional[int] = Field(
+        None, gt=0, description="Equipment identifier"
+    )
     data_level: DataLevel = Field(..., description="Data granularity level: LOT or SERIAL")
     result: ProcessResult = Field(
         default=ProcessResult.PASS, description="Process result: PASS, FAIL, or REWORK"
@@ -293,6 +317,7 @@ class ProcessDataUpdate(BaseModel):
     Validators ensure consistency when fields are provided.
 
     Attributes:
+        equipment_id: Equipment identifier (optional)
         data_level: Data granularity level (optional)
         result: Process result (optional)
         measurements: Process measurements (optional)
@@ -301,6 +326,9 @@ class ProcessDataUpdate(BaseModel):
         notes: Additional comments (optional)
     """
 
+    equipment_id: Optional[int] = Field(
+        None, gt=0, description="Equipment identifier"
+    )
     data_level: Optional[DataLevel] = Field(None, description="Data granularity level")
     result: Optional[ProcessResult] = Field(None, description="Process result")
     measurements: Optional[Dict[str, Any]] = Field(
@@ -427,6 +455,9 @@ class ProcessDataInDB(ProcessDataBase):
     )
     operator: Optional[UserSchema] = Field(
         None, description="Nested Operator (User) relationship data"
+    )
+    equipment: Optional[EquipmentSchema] = Field(
+        None, description="Nested Equipment relationship data"
     )
 
     model_config = ConfigDict(from_attributes=True)

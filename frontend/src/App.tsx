@@ -5,6 +5,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -30,30 +31,32 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/lots" element={<LotsPage />} />
-                <Route path="/serials" element={<SerialsPage />} />
-                <Route path="/quality" element={<QualityPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-                <Route path="/admin" element={<AdminPage />} />
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/lots" element={<LotsPage />} />
+                  <Route path="/serials" element={<SerialsPage />} />
+                  <Route path="/quality" element={<QualityPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Catch all - redirect to dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+              {/* Catch all - redirect to dashboard */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

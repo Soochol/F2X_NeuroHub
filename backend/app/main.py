@@ -27,6 +27,8 @@ from app.api.v1 import (
     process_data,
     audit_logs,
     alerts,
+    production_lines,
+    equipment,
 )
 
 
@@ -44,10 +46,15 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -85,6 +92,8 @@ app.include_router(serials.router, prefix=settings.API_V1_PREFIX, tags=["Serials
 app.include_router(process_data.router, prefix=settings.API_V1_PREFIX, tags=["Process Data"])
 app.include_router(audit_logs.router, prefix=settings.API_V1_PREFIX, tags=["Audit Logs"])
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX, tags=["Alerts"])
+app.include_router(production_lines.router, prefix=settings.API_V1_PREFIX, tags=["Production Lines"])
+app.include_router(equipment.router, prefix=settings.API_V1_PREFIX, tags=["Equipment"])
 
 
 if __name__ == "__main__":

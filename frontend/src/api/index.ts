@@ -11,4 +11,4 @@ export { serialsApi } from './endpoints/serials';
 export { lotsApi } from './endpoints/lots';
 export { usersApi } from './endpoints/users';
 export { processesApi } from './endpoints/processes';
-export { productModelsApi } from './endpoints/product_models';
+export { productModelsApi } from './endpoints/productModels';

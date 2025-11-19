@@ -3,19 +3,20 @@
  */
 
 import apiClient from '../client';
-import type { Lot, LotCreate, LotUpdate, LotStatus, PaginatedResponse } from '@/types/api';
+import type { Lot, LotCreate, LotUpdate, LotStatus } from '@/types/api';
 
 export const lotsApi = {
   /**
    * Get LOTs list with filters and pagination
+   * Note: Backend returns array directly, not PaginatedResponse
    */
   getLots: async (params?: {
     skip?: number;
     limit?: number;
     status?: LotStatus;
     product_model_id?: number;
-  }): Promise<PaginatedResponse<Lot>> => {
-    const response = await apiClient.get<PaginatedResponse<Lot>>('/lots/', { params });
+  }): Promise<Lot[]> => {
+    const response = await apiClient.get<Lot[]>('/lots/', { params });
     return response.data;
   },
 
