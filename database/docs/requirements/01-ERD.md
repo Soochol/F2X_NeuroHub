@@ -46,7 +46,7 @@ erDiagram
 
     lots {
         BIGSERIAL id PK
-        VARCHAR lot_number UK "WF-KR-251110D-001"
+        VARCHAR lot_number UK "PSA10-KR-251110D-001"
         BIGINT product_model_id FK
         BIGINT production_line_id FK "생산라인"
         DATE production_date "생산일자"
@@ -63,7 +63,7 @@ erDiagram
 
     serials {
         BIGSERIAL id PK
-        VARCHAR serial_number UK "WF-KR-251110D-001-0001"
+        VARCHAR serial_number UK "PSA10-KR-251110D-001-0001"
         BIGINT lot_id FK
         INTEGER sequence_in_lot "LOT내순번(1-100)"
         VARCHAR status "CREATED/IN_PROGRESS/PASSED/FAILED"
@@ -202,6 +202,10 @@ erDiagram
 - Processes cannot be deleted if they have associated data (ON DELETE RESTRICT)
 
 **Process Sequence**: 1→2→3→4→5→6→7→8 (enforced by trigger)
+
+**Special Rule for Process 7 (Label Printing)**:
+- 공정 7 착공 시 공정 1~6 모두 PASS 확인 필수
+- 모든 제조 공정이 완료된 제품에만 라벨 출력 허용
 
 ---
 

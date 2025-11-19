@@ -56,7 +56,7 @@ sequenceDiagram
 - 백엔드 서버에 LOT 생성 요청 전송
 
 **처리 결과:**
-- LOT 번호 자동 발급 (예: `WF-KR-251110D-001`, 상세 체계는 [2.6.1 LOT 번호 체계](../02-product-process.md#261-lot-번호-체계) 참조)
+- LOT 번호 자동 발급 (예: `PSA10-KR-251110D-001`, 상세 체계는 [2.6.1 LOT 번호 체계](../02-product-process.md#261-lot-번호-체계) 참조)
 - 생성 시 상태: CREATED
 - LOT 정보 데이터베이스 저장
 
@@ -76,7 +76,7 @@ sequenceDiagram
 **FR-SN-001: 시리얼 번호 생성**
 
 - Label Printing 공정 착공 시 자동 생성
-- 형식: `WF-KR-251110D-001-0001`
+- 형식: `PSA10-KR-251110D-001-0001`
 - LOT당 순차적으로 발급
 
 **FR-SN-002: 시리얼 라벨 출력**

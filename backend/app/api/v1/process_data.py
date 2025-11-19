@@ -461,6 +461,7 @@ def create_process_data(
         - completed_at must be >= started_at (if provided)
         - result must be one of: PASS, FAIL, REWORK
         - Process sequence 1→2→3→...→8 is enforced by database trigger
+        - Process 7 (Label Printing): Requires ALL processes 1-6 to be PASS
         - Duration is auto-calculated by database trigger
 
     Example Request:
@@ -504,10 +505,26 @@ def create_process_data(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Failed to create process data record. Check foreign key references and constraints."
-        )
+        error_message = str(e)
+
+        # Parse specific database trigger exceptions for better error messages
+        if "Process 7" in error_message and "requires all previous processes" in error_message:
+            # BR-007: Process 7 validation failure
+            raise HTTPException(
+                status_code=400,
+                detail="Process 7 (Label Printing) requires all previous processes (1-6) to be PASS. Please ensure all manufacturing processes are completed successfully before label printing."
+            )
+        elif "Process sequence violation" in error_message:
+            # Process sequence violation
+            raise HTTPException(
+                status_code=400,
+                detail=f"Process sequence violation: {error_message}"
+            )
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail="Failed to create process data record. Check foreign key references and constraints."
+            )
 
 
 @router.put(

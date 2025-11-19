@@ -233,6 +233,7 @@ COMMENT ON FUNCTION calculate_process_duration() IS 'Automatically calculates du
 -- -----------------------------------------------------------------------------
 -- Function: validate_process_sequence()
 -- Purpose: Enforce process sequence 1→2→3→4→5→6→7→8
+-- Special rule: Process 7 (Label Printing) requires ALL processes 1-6 to be PASS
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION validate_process_sequence()
 RETURNS TRIGGER AS $$
@@ -240,6 +241,7 @@ DECLARE
     v_current_process_number INTEGER;
     v_max_completed_process_number INTEGER;
     v_allow_skip BOOLEAN;
+    v_passed_count INTEGER;
 BEGIN
     -- Only validate for SERIAL-level data
     IF NEW.data_level != 'SERIAL' OR NEW.serial_id IS NULL THEN
@@ -271,6 +273,24 @@ BEGIN
         RAISE EXCEPTION 'Process sequence violation: cannot execute process % before completing process %',
             v_current_process_number, v_max_completed_process_number + 1
             USING HINT = 'Complete all required previous processes first';
+    END IF;
+
+    -- BR-007: Special validation for Process 7 (Label Printing)
+    -- All processes 1-6 must be PASS before starting Process 7
+    IF v_current_process_number = 7 THEN
+        SELECT COUNT(DISTINCT p.process_number)
+        INTO v_passed_count
+        FROM process_data pd
+        JOIN processes p ON pd.process_id = p.id
+        WHERE pd.serial_id = NEW.serial_id
+          AND p.process_number BETWEEN 1 AND 6
+          AND pd.result = 'PASS';
+
+        IF v_passed_count < 6 THEN
+            RAISE EXCEPTION 'Process 7 (Label Printing) requires all previous processes (1-6) to be PASS. Current PASS count: %',
+                v_passed_count
+                USING HINT = 'Ensure all manufacturing processes 1-6 are completed with PASS result';
+        END IF;
     END IF;
 
     RETURN NEW;

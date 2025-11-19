@@ -257,7 +257,7 @@ EXECUTE FUNCTION validate_lot_capacity();
 
 2. **Serial Number Generation**:
    - Serial number format: `{LOT_NUMBER}-{SEQUENCE}`
-   - Example: `WF-KR-251110D-001-0001`
+   - Example: `PSA10-KR-251110D-001-0001`
    - Sequence auto-increments within LOT (0001-0100)
    - Guaranteed uniqueness within LOT via unique constraint
 
@@ -556,6 +556,7 @@ ON UPDATE CASCADE;
    - Trigger validates process sequence before INSERT
    - Cannot execute process N+2 before process N+1 is complete
    - Example: Cannot do process 5 if process 4 not passed
+   - **특별 규칙: 공정 7 (라벨 프린팅)은 공정 1~6 모두 PASS 필수**
 
 ```sql
 -- Trigger to enforce process sequence
@@ -564,6 +565,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_current_process_number INTEGER;
     v_max_completed_process_number INTEGER;
+    v_passed_count INTEGER;
 BEGIN
     -- Only validate for SERIAL-level data
     IF NEW.data_level != 'SERIAL' OR NEW.serial_id IS NULL THEN
@@ -587,6 +589,21 @@ BEGIN
     IF v_current_process_number > v_max_completed_process_number + 1 THEN
         RAISE EXCEPTION 'Process sequence violation: cannot execute process % before completing process %',
             v_current_process_number, v_max_completed_process_number + 1;
+    END IF;
+
+    -- Special validation for Process 7 (Label Printing): All processes 1-6 must be PASS
+    IF v_current_process_number = 7 THEN
+        SELECT COUNT(DISTINCT p.process_number)
+        INTO v_passed_count
+        FROM process_data pd
+        JOIN processes p ON pd.process_id = p.id
+        WHERE pd.serial_id = NEW.serial_id
+          AND p.process_number BETWEEN 1 AND 6
+          AND pd.result = 'PASS';
+
+        IF v_passed_count < 6 THEN
+            RAISE EXCEPTION 'Process 7 (Label Printing) requires all previous processes (1-6) to be PASS. Current PASS count: %', v_passed_count;
+        END IF;
     END IF;
 
     RETURN NEW;
