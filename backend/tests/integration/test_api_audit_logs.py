@@ -228,3 +228,100 @@ class TestAuditLogsAPI:
         """Test getting non-existent audit log returns 404."""
         response = client.get("/api/v1/audit-logs/99999", headers=auth_headers_admin)
         assert response.status_code == 404
+
+    def test_get_entity_audit_logs(self, client: TestClient):
+        """Test getting audit logs for a specific entity."""
+        response = client.get("/api/v1/audit-logs/entity/lots/1")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_entity_audit_logs_with_pagination(self, client: TestClient):
+        """Test getting entity audit logs with pagination."""
+        response = client.get("/api/v1/audit-logs/entity/serials/1?skip=0&limit=50")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_user_activity_logs(self, client: TestClient):
+        """Test getting audit logs for user activity."""
+        response = client.get("/api/v1/audit-logs/user/1")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_user_activity_with_pagination(self, client: TestClient):
+        """Test getting user activity logs with pagination."""
+        response = client.get("/api/v1/audit-logs/user/1?skip=5&limit=25")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_logs_by_action_endpoint(self, client: TestClient):
+        """Test the /action/{action} endpoint directly."""
+        response = client.get("/api/v1/audit-logs/action/CREATE")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_logs_by_action_update(self, client: TestClient):
+        """Test getting UPDATE action logs."""
+        response = client.get("/api/v1/audit-logs/action/UPDATE")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_logs_by_action_delete(self, client: TestClient):
+        """Test getting DELETE action logs."""
+        response = client.get("/api/v1/audit-logs/action/DELETE")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_logs_by_action_invalid(self, client: TestClient):
+        """Test getting logs with invalid action returns 400."""
+        response = client.get("/api/v1/audit-logs/action/INVALID")
+        assert response.status_code == 400
+        assert "Invalid action" in response.json()["detail"]
+
+    def test_get_logs_by_action_lowercase(self, client: TestClient):
+        """Test getting logs with lowercase action still works."""
+        response = client.get("/api/v1/audit-logs/action/create")
+        assert response.status_code == 200
+
+
+    def test_get_entity_history(self, client: TestClient):
+        """Test getting complete change history for an entity."""
+        response = client.get("/api/v1/audit-logs/entity/lots/1/history")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_entity_history_with_pagination(self, client: TestClient):
+        """Test getting entity history with pagination."""
+        response = client.get("/api/v1/audit-logs/entity/serials/1/history?skip=0&limit=50")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_entity_history_nonexistent(self, client: TestClient):
+        """Test getting history for nonexistent entity returns empty list."""
+        response = client.get("/api/v1/audit-logs/entity/lots/999999/history")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_list_audit_logs_limit_exceeds_max(self, client: TestClient, auth_headers_admin: dict):
+        """Test that limit exceeding maximum returns 422."""
+        response = client.get("/api/v1/audit-logs/?skip=0&limit=101", headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_list_audit_logs_invalid_skip(self, client: TestClient, auth_headers_admin: dict):
+        """Test that negative skip returns 422."""
+        response = client.get("/api/v1/audit-logs/?skip=-1&limit=10", headers=auth_headers_admin)
+        assert response.status_code == 422
+
+    def test_get_audit_log_invalid_id(self, client: TestClient):
+        """Test getting audit log with invalid ID returns 422."""
+        response = client.get("/api/v1/audit-logs/0")
+        assert response.status_code == 422
+
+    def test_get_entity_audit_logs_invalid_entity_id(self, client: TestClient):
+        """Test getting entity audit logs with invalid entity ID."""
+        response = client.get("/api/v1/audit-logs/entity/lots/0")
+        assert response.status_code == 422
+
+    def test_get_user_activity_invalid_user_id(self, client: TestClient):
+        """Test getting user activity with invalid user ID."""
+        response = client.get("/api/v1/audit-logs/user/0")
+        assert response.status_code == 422
