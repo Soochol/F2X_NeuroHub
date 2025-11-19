@@ -78,12 +78,19 @@ export const AnalyticsPage = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <div style={{ width: '180px' }}>
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <Input
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              wrapperStyle={{ marginBottom: 0 }}
+            />
           </div>
-          <div style={{ display: 'flex', gap: '10px', paddingBottom: '2px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <Button onClick={handleApplyFilter}>Apply</Button>
             <Button
               variant="secondary"
@@ -181,10 +188,10 @@ export const AnalyticsPage = () => {
                       }}
                     >
                       <CheckCircle size={24} />
-                      <span>{productionStats.pass_rate.toFixed(1)}%</span>
+                      <span>{(productionStats.pass_rate ?? 0).toFixed(1)}%</span>
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                      {productionStats.pass_count} units passed
+                      {productionStats.pass_count ?? 0} units passed
                     </div>
                   </div>
                 </Card>
@@ -205,10 +212,10 @@ export const AnalyticsPage = () => {
                       }}
                     >
                       <XCircle size={24} />
-                      <span>{productionStats.defect_rate.toFixed(1)}%</span>
+                      <span>{(productionStats.defect_rate ?? 0).toFixed(1)}%</span>
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                      {productionStats.fail_count} units failed
+                      {productionStats.fail_count ?? 0} units failed
                     </div>
                   </div>
                 </Card>
@@ -229,7 +236,7 @@ export const AnalyticsPage = () => {
                       }}
                     >
                       <RefreshCw size={24} />
-                      <span>{productionStats.rework_count}</span>
+                      <span>{productionStats.rework_count ?? 0}</span>
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Units reworked</div>
                   </div>
@@ -255,55 +262,63 @@ export const AnalyticsPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {cycleTimeAnalysis.by_process.map((process, idx) => {
-                        return (
-                          <tr
-                            key={idx}
-                            style={{
-                              borderBottom: '1px solid var(--color-border)',
-                              backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'var(--color-bg-secondary)',
-                            }}
-                          >
-                            <td style={{ padding: '12px', fontWeight: '500' }}>{process.process_name}</td>
-                            <td
+                      {!Array.isArray(cycleTimeAnalysis.by_process) || cycleTimeAnalysis.by_process.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
+                            No cycle time data available
+                          </td>
+                        </tr>
+                      ) : (
+                        cycleTimeAnalysis.by_process.map((process, idx) => {
+                          return (
+                            <tr
+                              key={idx}
                               style={{
-                                padding: '12px',
-                                textAlign: 'center',
-                                fontWeight: '600',
-                                color: 'var(--color-brand-500)',
+                                borderBottom: '1px solid var(--color-border)',
+                                backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'var(--color-bg-secondary)',
                               }}
                             >
-                              {formatCycleTime(process.avg_cycle_time)}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-success)' }}>
-                              {formatCycleTime(process.min_cycle_time)}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-error)' }}>
-                              {formatCycleTime(process.max_cycle_time)}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                              {formatCycleTime(process.median_cycle_time)}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                              {process.total_records}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              <td style={{ padding: '12px', fontWeight: '500' }}>{process.process_name}</td>
+                              <td
+                                style={{
+                                  padding: '12px',
+                                  textAlign: 'center',
+                                  fontWeight: '600',
+                                  color: 'var(--color-brand-500)',
+                                }}
+                              >
+                                {formatCycleTime(process.avg_cycle_time ?? 0)}
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-success)' }}>
+                                {formatCycleTime(process.min_cycle_time ?? 0)}
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-error)' }}>
+                                {formatCycleTime(process.max_cycle_time ?? 0)}
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
+                                {formatCycleTime(process.median_cycle_time ?? 0)}
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                {process.total_records ?? 0}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
               </Card>
 
               {/* Bottleneck Analysis */}
-              {cycleTimeAnalysis.bottlenecks.length > 0 && (
+              {Array.isArray(cycleTimeAnalysis.bottlenecks) && cycleTimeAnalysis.bottlenecks.length > 0 && (
                 <Card title="Bottleneck Analysis" style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {cycleTimeAnalysis.bottlenecks.map((bottleneck, idx) => {
-                      const maxCycleTime = Math.max(
-                        ...cycleTimeAnalysis.by_process.map((p) => p.avg_cycle_time)
-                      );
-                      const percentage = (bottleneck.avg_cycle_time / maxCycleTime) * 100;
+                      const maxCycleTime = Array.isArray(cycleTimeAnalysis.by_process)
+                        ? Math.max(...cycleTimeAnalysis.by_process.map((p) => p.avg_cycle_time ?? 0))
+                        : 0;
+                      const percentage = ((bottleneck.avg_cycle_time ?? 0) / (maxCycleTime || 1)) * 100;
 
                       return (
                         <div
@@ -329,7 +344,7 @@ export const AnalyticsPage = () => {
                                 {bottleneck.process_name}
                               </div>
                               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                                WIP Count: {bottleneck.wip_count} units
+                                WIP Count: {bottleneck.wip_count ?? 0} units
                               </div>
                             </div>
                             <div
@@ -339,7 +354,7 @@ export const AnalyticsPage = () => {
                                 color: 'var(--color-warning)',
                               }}
                             >
-                              {formatCycleTime(bottleneck.avg_cycle_time)}
+                              {formatCycleTime(bottleneck.avg_cycle_time ?? 0)}
                             </div>
                           </div>
 

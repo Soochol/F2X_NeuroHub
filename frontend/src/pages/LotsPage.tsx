@@ -109,6 +109,7 @@ export const LotsPage = () => {
               placeholder="LOT 번호 또는 제품 모델 이름 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <div style={{ width: '200px' }}>
@@ -126,6 +127,7 @@ export const LotsPage = () => {
                 { value: LotStatus.COMPLETED, label: '완료' },
                 { value: LotStatus.CLOSED, label: '종료' },
               ]}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); fetchLots(); }}>

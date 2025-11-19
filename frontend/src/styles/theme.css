@@ -64,6 +64,9 @@
   --color-input-focus-border: #3ecf8e;
   --color-input-placeholder: #6b6b6b;
 
+  /* Date input calendar picker icon */
+  --calendar-icon-filter: invert(1);
+
   --color-card-bg: #232323;
   --color-card-border: #2e2e2e;
 
@@ -165,6 +168,9 @@
   --color-input-border: #d1d5db;
   --color-input-focus-border: #24b47e;
   --color-input-placeholder: #9ca3af;
+
+  /* Date input calendar picker icon */
+  --calendar-icon-filter: none;
 
   --color-card-bg: #ffffff;
   --color-card-border: #e3e5e8;

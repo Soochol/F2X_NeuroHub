@@ -33,6 +33,7 @@ export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
               value={serialNumber}
               onChange={(e) => setSerialNumber(e.target.value)}
               required
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <Button type="submit" disabled={isLoading || !serialNumber.trim()}>

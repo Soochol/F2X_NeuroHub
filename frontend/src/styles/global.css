@@ -84,6 +84,9 @@
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
+
+  /* Date input calendar picker icon */
+  --calendar-icon-filter: invert(1);
 }
 
 * {
@@ -157,4 +160,13 @@ code, pre {
 *:focus-visible {
   outline: 2px solid var(--color-brand-400);
   outline-offset: 2px;
+}
+
+/* Date input styling for dark/light theme support */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"] {
+  color-scheme: light;
 }

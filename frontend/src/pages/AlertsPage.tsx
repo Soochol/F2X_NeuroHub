@@ -147,6 +147,7 @@ export const AlertsPage = () => {
               placeholder="Search by title, serial, or lot number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <div style={{ width: '150px' }}>
@@ -163,6 +164,7 @@ export const AlertsPage = () => {
                 { value: AlertSeverity.MEDIUM, label: 'Medium' },
                 { value: AlertSeverity.LOW, label: 'Low' },
               ]}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <div style={{ width: '150px' }}>
@@ -178,6 +180,7 @@ export const AlertsPage = () => {
                 { value: AlertStatus.UNREAD, label: 'Unread' },
                 { value: AlertStatus.READ, label: 'Read' },
               ]}
+              wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <Button

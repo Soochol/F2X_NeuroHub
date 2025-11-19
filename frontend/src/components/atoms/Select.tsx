@@ -8,12 +8,14 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   options: Array<{ value: string; label: string }>;
+  /** Custom style for the wrapper (overrides default marginBottom) */
+  wrapperStyle?: React.CSSProperties;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, ...props }, ref: Ref<HTMLSelectElement>) => {
+  ({ label, error, options, wrapperStyle, ...props }, ref: Ref<HTMLSelectElement>) => {
     return (
-      <div style={{ marginBottom: '15px' }}>
+      <div style={{ marginBottom: '15px', ...wrapperStyle }}>
         {label && (
           <label
             style={{

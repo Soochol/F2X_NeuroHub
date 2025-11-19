@@ -43,6 +43,15 @@ textarea {
   font-size: inherit;
 }
 
+/* Date input styling for dark/light theme support */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"] {
+  color-scheme: light;
+}
+
 table {
   border-collapse: collapse;
 }

@@ -16,6 +16,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   wrapperClassName?: string;
   /** Custom className for the input element */
   inputClassName?: string;
+  /** Custom style for the wrapper (overrides default marginBottom) */
+  wrapperStyle?: React.CSSProperties;
 }
 
 /**
@@ -33,12 +35,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
  * ```
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, wrapperClassName, inputClassName, ...props }, ref: Ref<HTMLInputElement>) => {
+  ({ label, error, wrapperClassName, inputClassName, wrapperStyle, ...props }, ref: Ref<HTMLInputElement>) => {
     return (
       <div
         className={wrapperClassName}
         style={{
           marginBottom: 'var(--spacing-4)',
+          ...wrapperStyle,
         }}
       >
         {label && (

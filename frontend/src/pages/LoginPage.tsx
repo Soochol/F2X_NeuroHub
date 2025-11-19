@@ -129,8 +129,8 @@ export const LoginPage = () => {
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: isLoading ? 'var(--color-text-tertiary)' : 'var(--color-brand)',
-              color: isLoading ? 'var(--color-text-secondary)' : 'var(--color-text-inverse)',
+              backgroundColor: isLoading ? 'var(--color-text-tertiary)' : 'var(--color-brand-400)',
+              color: isLoading ? 'var(--color-text-secondary)' : '#ffffff',
               border: 'none',
               borderRadius: '4px',
               fontSize: '16px',
