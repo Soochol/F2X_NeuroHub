@@ -29,6 +29,12 @@ export const LotsPage = () => {
   const [totalLots, setTotalLots] = useState(0);
   const lotsPerPage = 20;
 
+  // Sorting
+  type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'production_date' | 'created_at' | null;
+  type SortDirection = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   useEffect(() => {
     fetchProductModels();
     fetchLots();
@@ -72,25 +78,61 @@ export const LotsPage = () => {
   };
 
   const handleCreateSuccess = () => {
-    fetchLots();
-    setCurrentPage(0);
+    setCurrentPage(0); // Reset to first page, useEffect will auto-fetch
+    setIsCreateModalOpen(false); // Close modal
   };
 
   const handleLotClick = (lotId: number) => {
     setSelectedLotId(lotId);
   };
 
-  const filteredLots = lots.filter((lot) => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        lot.lot_number.toLowerCase().includes(query) ||
-        (lot.product_model?.model_name && lot.product_model.model_name.toLowerCase().includes(query)) ||
-        (lot.product_model?.model_code && lot.product_model.model_code.toLowerCase().includes(query))
-      );
+  const handleSort = (column: SortColumn) => {
+    if (column === sortColumn) {
+      // Toggle direction if clicking same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to descending
+      setSortColumn(column);
+      setSortDirection('desc');
     }
-    return true;
-  });
+  };
+
+  const filteredAndSortedLots = lots
+    .filter((lot) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          lot.lot_number.toLowerCase().includes(query) ||
+          (lot.product_model?.model_name && lot.product_model.model_name.toLowerCase().includes(query)) ||
+          (lot.product_model?.model_code && lot.product_model.model_code.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (!sortColumn) return 0;
+
+      let comparison = 0;
+      switch (sortColumn) {
+        case 'lot_number':
+          comparison = a.lot_number.localeCompare(b.lot_number);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case 'target_quantity':
+          comparison = a.target_quantity - b.target_quantity;
+          break;
+        case 'production_date':
+          comparison = new Date(a.production_date).getTime() - new Date(b.production_date).getTime();
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
 
   const totalPages = Math.ceil(totalLots / lotsPerPage);
 
@@ -147,7 +189,7 @@ export const LotsPage = () => {
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
             {error}
           </div>
-        ) : filteredLots.length === 0 ? (
+        ) : filteredAndSortedLots.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
             LOT가 없습니다. 새 LOT를 생성하세요.
           </div>
@@ -157,17 +199,42 @@ export const LotsPage = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>LOT 번호</th>
+                    <th
+                      onClick={() => handleSort('lot_number')}
+                      style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      LOT 번호 {sortColumn === 'lot_number' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>제품 모델</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>상태</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>목표 수량</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>생산 날짜</th>
+                    <th
+                      onClick={() => handleSort('status')}
+                      style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      상태 {sortColumn === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th
+                      onClick={() => handleSort('target_quantity')}
+                      style={{ padding: '12px', textAlign: 'center', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      목표 수량 {sortColumn === 'target_quantity' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th
+                      onClick={() => handleSort('production_date')}
+                      style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      생산 날짜 {sortColumn === 'production_date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>시프트</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>생성일시</th>
+                    <th
+                      onClick={() => handleSort('created_at')}
+                      style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      생성일시 {sortColumn === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLots.map((lot) => (
+                  {filteredAndSortedLots.map((lot) => (
                     <tr
                       key={lot.id}
                       onClick={() => handleLotClick(lot.id)}

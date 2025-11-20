@@ -64,7 +64,8 @@ def get_multi(
     Get multiple LOTs with pagination.
 
     Retrieves a list of LOTs with support for offset/limit pagination.
-    Results are ordered by production_date (descending) and lot_number (descending).
+    Results are ordered by created_at (descending) and id (descending) to show
+    most recently created LOTs first.
 
     Args:
         db: SQLAlchemy database session
@@ -83,7 +84,7 @@ def get_multi(
     """
     return (
         db.query(Lot)
-        .order_by(Lot.production_date.desc(), Lot.lot_number.desc())
+        .order_by(Lot.created_at.desc(), Lot.id.desc())
         .offset(skip)
         .limit(limit)
         .all()
