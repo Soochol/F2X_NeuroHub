@@ -20,6 +20,7 @@ from app.crud import user as user_crud
 from app.models import (
     ProductModel, Lot, LotStatus, Process, ProcessData, User, UserRole
 )
+from app.models.production_line import ProductionLine
 from app.models.process_data import ProcessResult, DataLevel
 from app.schemas.process_data import ProcessDataCreate, ProcessDataUpdate, DataLevel as DataLevelSchema, ProcessResult as ProcessResultSchema
 from app.schemas.lot import LotCreate
@@ -30,7 +31,7 @@ from app.schemas import UserCreate
 def create_product_model(db: Session) -> ProductModel:
     """Helper to create a ProductModel for tests."""
     product_model = ProductModel(
-        model_code="NH-TEST-001",
+        model_code="PSA",  # 3-char model code for serial generation
         model_name="Test Model",
         category="Test",
         status="ACTIVE",
@@ -42,11 +43,31 @@ def create_product_model(db: Session) -> ProductModel:
     return product_model
 
 
-def create_lot(db: Session, product_model_id: int) -> Lot:
+def create_production_line(db: Session) -> ProductionLine:
+    """Helper to create a ProductionLine for tests."""
+    production_line = ProductionLine(
+        line_code="KR001",  # Country KR, Line 1
+        line_name="Test Line 1",
+        location="Test Factory",
+        status="ACTIVE"
+    )
+    db.add(production_line)
+    db.commit()
+    db.refresh(production_line)
+    return production_line
+
+
+def create_lot(db: Session, product_model_id: int, production_line_id: int = None) -> Lot:
     """Helper to create a Lot for tests."""
+    # Create production line if not provided
+    if production_line_id is None:
+        production_line = create_production_line(db)
+        production_line_id = production_line.id
+
     lot = Lot(
-        lot_number="WF-KR-251118D-001",
+        lot_number="TEST-LOT-001",
         product_model_id=product_model_id,
+        production_line_id=production_line_id,
         production_date=date(2025, 11, 18),
         shift="D",
         target_quantity=100,

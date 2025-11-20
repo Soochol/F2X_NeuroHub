@@ -499,7 +499,7 @@ class LotInDB(LotBase):
 
     Attributes:
         id: Primary key identifier
-        lot_number: Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)
+        lot_number: Auto-generated LOT identifier
         production_line_id: Production line identifier (optional for backward compatibility)
         actual_quantity: Actual units produced in this LOT
         passed_quantity: Number of units that passed all quality checks
@@ -519,8 +519,9 @@ class LotInDB(LotBase):
     id: int = Field(..., description="LOT identifier")
     lot_number: str = Field(
         ...,
-        pattern="^[A-Z]+-[A-Z0-9-]+-[0-9]{6}[DN]-[0-9]{3}$",
-        description="Auto-generated LOT identifier ({model_prefix}-{line_code}-YYMMDD{D|N}-nnn)"
+        min_length=1,
+        max_length=50,
+        description="Auto-generated LOT identifier"
     )
     actual_quantity: int = Field(
         ...,

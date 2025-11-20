@@ -16,9 +16,10 @@ Schemas:
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, computed_field
 
 from app.schemas.lot import LotInDB
+from app.utils.serial_number import SerialNumber
 
 
 class SerialBase(BaseModel):
@@ -239,7 +240,7 @@ class SerialInDB(SerialBase):
 
     Attributes:
         id: Primary key (auto-generated)
-        serial_number: Auto-generated unique identifier in format {LOT_NUMBER}-XXXX
+        serial_number: Auto-generated unique identifier (14 chars, format: KR01PSA2511001)
         created_at: Creation timestamp (UTC timezone-aware)
         updated_at: Last update timestamp (UTC timezone-aware)
         completed_at: Completion timestamp when reaching terminal state (optional)
@@ -255,7 +256,10 @@ class SerialInDB(SerialBase):
     )
     serial_number: str = Field(
         ...,
-        description="Auto-generated unique identifier in format: {LOT_NUMBER}-XXXX"
+        min_length=14,
+        max_length=14,
+        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
+        description="Auto-generated unique serial number (14 chars, format: KR01PSA2511001)"
     )
     created_at: datetime = Field(
         ...,

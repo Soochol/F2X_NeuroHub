@@ -20,7 +20,7 @@ class TestSerialGet:
         mock_db = MagicMock()
         mock_serial = MagicMock(spec=Serial)
         mock_serial.id = 1
-        mock_serial.serial_number = "LOT-001-0001"
+        mock_serial.serial_number = "KR01PSA2511001"
         mock_db.query().filter().first.return_value = mock_serial
 
         result = serial_crud.get(mock_db, 1)
@@ -78,13 +78,13 @@ class TestSerialGetByNumber:
         """Test getting serial by serial number when found."""
         mock_db = MagicMock()
         mock_serial = MagicMock(spec=Serial)
-        mock_serial.serial_number = "WF-KR-251110D-001-0001"
+        mock_serial.serial_number = "KR01PSA2511001"
         mock_db.query().filter().first.return_value = mock_serial
 
-        result = serial_crud.get_by_number(mock_db, "WF-KR-251110D-001-0001")
+        result = serial_crud.get_by_number(mock_db, "KR01PSA2511001")
 
         assert result is not None
-        assert result.serial_number == "WF-KR-251110D-001-0001"
+        assert result.serial_number == "KR01PSA2511001"
 
     def test_get_by_number_not_found(self):
         """Test getting serial by serial number when not found."""

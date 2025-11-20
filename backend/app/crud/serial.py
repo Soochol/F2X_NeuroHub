@@ -113,8 +113,8 @@ def create(
     Create a new serial.
 
     Creates and saves a new serial record in the database using validated
-    Pydantic schema input. The serial_number is auto-generated in format:
-    {LOT_NUMBER}-{sequence_in_lot:04d} (e.g., "LOT-001-0001").
+    Pydantic schema input. The serial_number is auto-generated in 14-char format:
+    KR01PSA2511001 (Country + Line + Model + Month + Sequence).
 
     Args:
         db: SQLAlchemy database session
@@ -125,7 +125,7 @@ def create(
 
     Raises:
         IntegrityError: If lot_id is invalid or other unique constraints violated
-        ValueError: If lot not found
+        ValueError: If lot not found or missing required data
         SQLAlchemyError: For other database operation errors
 
     Example:
@@ -136,16 +136,62 @@ def create(
             rework_count=0
         )
         new_serial = create(db, serial_data)
-        print(f"Created: {new_serial.serial_number}")
+        print(f"Created: {new_serial.serial_number}")  # e.g., KR01PSA2511001
     """
-    # Get the lot to extract lot_number for serial_number generation
+    # Get the lot and related data for serial_number generation
     from app.models import Lot
+    from app.models.production_line import ProductionLine
+    from app.models.product_model import ProductModel
+    from app.utils.serial_number import SerialNumber
+    from datetime import datetime
+
     lot = db.query(Lot).filter(Lot.id == serial_in.lot_id).first()
     if not lot:
         raise ValueError(f"Lot with ID {serial_in.lot_id} not found")
 
-    # Generate serial_number in format: {LOT_NUMBER}-{sequence:04d}
-    serial_number = f"{lot.lot_number}-{serial_in.sequence_in_lot:04d}"
+    # Get production line and product model
+    if not lot.production_line_id:
+        raise ValueError(f"Lot {lot.id} does not have a production_line_id assigned")
+
+    production_line = db.query(ProductionLine).filter(
+        ProductionLine.id == lot.production_line_id
+    ).first()
+    if not production_line:
+        raise ValueError(f"ProductionLine with ID {lot.production_line_id} not found")
+
+    product_model = db.query(ProductModel).filter(
+        ProductModel.id == lot.product_model_id
+    ).first()
+    if not product_model:
+        raise ValueError(f"ProductModel with ID {lot.product_model_id} not found")
+
+    # Extract components for serial number generation
+    # line_code format: "KR001" → country="KR", line_number=1
+    line_code = production_line.line_code
+    if len(line_code) < 3:
+        raise ValueError(f"Invalid line_code format: {line_code}")
+
+    country_code = line_code[:2]  # "KR"
+    line_number_str = line_code[2:]  # "001"
+    try:
+        line_number = int(line_number_str)  # 1
+    except ValueError:
+        raise ValueError(f"Invalid line number in line_code: {line_code}")
+
+    # model_code format: "PSA10" → "PSA" (first 3 chars)
+    model_code = product_model.model_code[:3].upper()
+
+    # production_date: date → datetime for formatting
+    production_month = datetime.combine(lot.production_date, datetime.min.time())
+
+    # Generate serial number using V1 format (14 chars)
+    serial_number = SerialNumber.generate(
+        country_code=country_code,
+        line_number=line_number,
+        model_code=model_code,
+        production_month=production_month,
+        sequence=serial_in.sequence_in_lot
+    )
 
     db_serial = Serial(
         serial_number=serial_number,
@@ -279,22 +325,19 @@ def get_by_number(db: Session, serial_number: str) -> Optional[Serial]:
     Get a serial by unique serial_number.
 
     Retrieves a single serial by its unique auto-generated identifier.
-    Serial numbers follow the format: {LOT_NUMBER}-XXXX (e.g., WF-KR-251110D-001-0001).
+    Serial numbers follow the 14-char format: KR01PSA2511001.
 
     Args:
         db: SQLAlchemy database session
-        serial_number: Unique serial identifier string
+        serial_number: Unique serial identifier string (14 chars)
 
     Returns:
         Serial instance if found, None otherwise
 
     Example:
-        serial = get_by_number(db, "WF-KR-251110D-001-0001")
+        serial = get_by_number(db, "KR01PSA2511001")
         if serial:
             print(f"Status: {serial.status.value}, Rework: {serial.rework_count}")
-
-        # Alternative usage with lot and sequence info
-        serial = get_by_number(db, "WF-KR-251110D-001-0042")
     """
     return (
         db.query(Serial)

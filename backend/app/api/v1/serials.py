@@ -43,6 +43,7 @@ from app.core.exceptions import (
     BusinessRuleException,
     ConstraintViolationException,
 )
+from app.utils.serial_number import SerialNumber
 
 router = APIRouter(
     prefix="/serials",
@@ -117,17 +118,23 @@ def get_failed_serials(
     "/number/{serial_number}",
     response_model=SerialInDB,
     summary="Get serial by serial number",
-    description="Retrieve a serial by its unique serial number (e.g., WF-KR-251110D-001-0001).",
+    description="Retrieve a serial by its unique serial number (e.g., KR01PSA2511001).",
 )
 def get_serial_by_number(
-    serial_number: str = Path(..., min_length=1, description="Serial number (format: {LOT_NUMBER}-XXXX)"),
+    serial_number: str = Path(
+        ...,
+        min_length=14,
+        max_length=14,
+        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
+        description="Serial number (14 chars, format: KR01PSA2511001)"
+    ),
     db: Session = Depends(get_db),
 ):
     """
     Get serial by unique serial number.
 
     Path Parameters:
-        serial_number: Unique serial identifier in format {LOT_NUMBER}-XXXX
+        serial_number: Unique serial identifier (14 chars, format: KR01PSA2511001)
 
     Returns:
         Serial object with full details
@@ -683,3 +690,72 @@ def get_serial_trace(
         "component_lots": component_lots if component_lots else None,
         "total_cycle_time_seconds": total_cycle_time
     }
+
+
+@router.get(
+    "/parse/{serial_number}",
+    response_model=dict,
+    summary="Parse serial number format",
+    description="Parse and validate serial number format, returning all components and metadata.",
+)
+def parse_serial_number(
+    serial_number: str = Path(
+        ...,
+        min_length=14,
+        max_length=14,
+        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
+        description="Serial number to parse (14 chars, format: KR01PSA2511001)"
+    ),
+):
+    """
+    Parse serial number and extract all components.
+
+    Format: KR01PSA2511001 (14 chars, no hyphens)
+
+    Path Parameters:
+        serial_number: Serial number string to parse
+
+    Returns:
+        Complete parsed information including:
+        - serial_number: Original input
+        - formatted: Human-readable formatted version
+        - valid: Boolean indicating if format is valid
+        - components: Parsed component breakdown
+        - production_date: Parsed production date
+
+    Raises:
+        HTTPException 400: If serial number format is invalid
+
+    Example Response:
+        {
+            "serial_number": "KR01PSA2511001",
+            "formatted": "KR01-PSA-2511-001",
+            "valid": true,
+            "components": {
+                "country_code": "KR",
+                "line_number": "01",
+                "model_code": "PSA",
+                "production_month": "2511",
+                "sequence": "001"
+            },
+            "production_date": "2025-11-01T00:00:00"
+        }
+    """
+    # Validate and parse
+    if not SerialNumber.validate(serial_number):
+        raise ValidationException(
+            message=f"Invalid serial number format: {serial_number}. "
+                   "Expected format: KR01PSA2511001 (14 characters)"
+        )
+
+    try:
+        info = SerialNumber.get_full_info(serial_number)
+        return {
+            "serial_number": info["serial_number"],
+            "formatted": info["formatted"],
+            "valid": info["valid"],
+            "components": info["components"],
+            "production_date": info["production_date"].isoformat() if info.get("production_date") else None
+        }
+    except ValueError as e:
+        raise ValidationException(message=str(e))

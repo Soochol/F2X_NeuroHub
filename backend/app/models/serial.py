@@ -67,7 +67,7 @@ class Serial(Base):
 
     Attributes:
         id: Unique identifier (auto-incrementing primary key)
-        serial_number: Auto-generated unique serial identifier in format: {LOT_NUMBER}-XXXX
+        serial_number: Auto-generated unique serial identifier (14 chars, format: KR01PSA2511001)
         lot_id: Foreign key reference to parent LOT
         sequence_in_lot: Sequence number within LOT (1-100, auto-assigned)
         status: Serial lifecycle status (CREATED, IN_PROGRESS, PASSED, FAILED)

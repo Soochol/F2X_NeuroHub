@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.crud import serial as serial_crud
 from app.models import Serial, SerialStatus, ProductModel, Lot, LotStatus
+from app.models.production_line import ProductionLine
 from app.schemas import SerialCreate, SerialUpdate
 from app.schemas.lot import LotCreate
 
@@ -22,7 +23,7 @@ from app.schemas.lot import LotCreate
 def create_product_model(db: Session) -> ProductModel:
     """Helper to create a ProductModel for tests."""
     product_model = ProductModel(
-        model_code="NH-TEST-001",
+        model_code="PSA",  # 3-char model code for serial generation
         model_name="Test Model",
         category="Test",
         status="ACTIVE",
@@ -34,11 +35,31 @@ def create_product_model(db: Session) -> ProductModel:
     return product_model
 
 
-def create_lot(db: Session, product_model_id: int) -> Lot:
+def create_production_line(db: Session) -> ProductionLine:
+    """Helper to create a ProductionLine for tests."""
+    production_line = ProductionLine(
+        line_code="KR001",  # Country KR, Line 1
+        line_name="Test Line 1",
+        location="Test Factory",
+        status="ACTIVE"
+    )
+    db.add(production_line)
+    db.commit()
+    db.refresh(production_line)
+    return production_line
+
+
+def create_lot(db: Session, product_model_id: int, production_line_id: int = None) -> Lot:
     """Helper to create a Lot for tests."""
+    # Create production line if not provided
+    if production_line_id is None:
+        production_line = create_production_line(db)
+        production_line_id = production_line.id
+
     lot = Lot(
-        lot_number="WF-KR-251118D-001",
+        lot_number="TEST-LOT-001",
         product_model_id=product_model_id,
+        production_line_id=production_line_id,
         production_date=date(2025, 11, 18),
         shift="D",
         target_quantity=100,
@@ -72,10 +93,13 @@ class TestSerialCreate:
         assert serial.sequence_in_lot == 1
         assert serial.status == SerialStatus.CREATED
         assert serial.rework_count == 0
-        assert serial.serial_number == f"{lot.lot_number}-0001"
+        # Verify 14-char format: KR01PSA2511001
+        assert len(serial.serial_number) == 14
+        assert serial.serial_number.startswith("KR01PSA")
+        assert serial.serial_number.endswith("001")
 
     def test_create_serial_generates_correct_serial_number(self, db: Session):
-        """Test that serial numbers are correctly generated from lot number."""
+        """Test that serial numbers are correctly generated."""
         product_model = create_product_model(db)
         lot = create_lot(db, product_model.id)
 
@@ -88,7 +112,14 @@ class TestSerialCreate:
 
         serial = serial_crud.create(db, serial_data)
 
-        assert serial.serial_number == "WF-KR-251118D-001-0042"
+        # Verify 14-char format: KR01PSA2511042
+        assert len(serial.serial_number) == 14
+        assert serial.serial_number[:7] == "KR01PSA"  # Country + Line + Model
+        assert serial.serial_number[-3:] == "042"  # Sequence
+
+        # Validate with SerialNumber utility
+        from app.utils.serial_number import SerialNumber
+        assert SerialNumber.validate(serial.serial_number)
 
     def test_create_serial_with_invalid_lot_raises_error(self, db: Session):
         """Test creating serial with invalid lot_id raises ValueError."""
@@ -148,7 +179,9 @@ class TestSerialRead:
 
     def test_get_by_number_not_found(self, db: Session):
         """Test get_by_number returns None for nonexistent serial."""
-        serial = serial_crud.get_by_number(db, serial_number="NONEXISTENT-0001")
+        serial = serial_crud.get_by_number(
+            db, serial_number="XX99XXX9999999"
+        )
         assert serial is None
 
 
