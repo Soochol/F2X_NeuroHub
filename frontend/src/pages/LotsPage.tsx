@@ -78,8 +78,9 @@ export const LotsPage = () => {
   };
 
   const handleCreateSuccess = () => {
-    setCurrentPage(0); // Reset to first page, useEffect will auto-fetch
     setIsCreateModalOpen(false); // Close modal
+    setCurrentPage(0); // Reset to first page
+    fetchLots(); // Force refresh to show newly created LOT
   };
 
   const handleLotClick = (lotId: number) => {
