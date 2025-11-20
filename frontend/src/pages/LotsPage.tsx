@@ -28,6 +28,7 @@ export const LotsPage = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalLots, setTotalLots] = useState(0);
   const lotsPerPage = 20;
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Sorting
   type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'production_date' | 'created_at' | null;
@@ -38,7 +39,7 @@ export const LotsPage = () => {
   useEffect(() => {
     fetchProductModels();
     fetchLots();
-  }, [statusFilter, currentPage]);
+  }, [statusFilter, currentPage, refreshTrigger]);
 
   const fetchProductModels = async () => {
     try {
@@ -80,7 +81,7 @@ export const LotsPage = () => {
   const handleCreateSuccess = () => {
     setIsCreateModalOpen(false); // Close modal
     setCurrentPage(0); // Reset to first page
-    fetchLots(); // Force refresh to show newly created LOT
+    setRefreshTrigger(prev => prev + 1); // Trigger useEffect to refresh list
   };
 
   const handleLotClick = (lotId: number) => {
@@ -174,7 +175,7 @@ export const LotsPage = () => {
               wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
-          <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); fetchLots(); }}>
+          <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); setRefreshTrigger(prev => prev + 1); }}>
             초기화
           </Button>
         </div>
