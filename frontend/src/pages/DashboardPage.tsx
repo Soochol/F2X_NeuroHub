@@ -136,7 +136,7 @@ export const DashboardPage = () => {
           textAlign: 'center',
         }}>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            생산 진행률
+            Completion Rate
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-brand-500)', marginBottom: '4px' }}>
             {completionRate.toFixed(1)}%
@@ -153,7 +153,7 @@ export const DashboardPage = () => {
           textAlign: 'center',
         }}>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            완료 수량
+            Completed
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-success)', marginBottom: '4px' }}>
             {summary.total_completed}
@@ -170,7 +170,7 @@ export const DashboardPage = () => {
           textAlign: 'center',
         }}>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            시작 수량
+            Started
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-info)', marginBottom: '4px' }}>
             {summary.total_started}
@@ -186,7 +186,7 @@ export const DashboardPage = () => {
           textAlign: 'center',
         }}>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            불량률
+            Defect Rate
           </div>
           <div style={{
             fontSize: '28px',
@@ -208,7 +208,7 @@ export const DashboardPage = () => {
           textAlign: 'center',
         }}>
           <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            불량 수량
+            Defective
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-error)', marginBottom: '4px' }}>
             {summary.total_defective}
@@ -230,7 +230,7 @@ export const DashboardPage = () => {
           marginBottom: '12px',
           color: 'var(--color-text-primary)',
         }}>
-          공정 흐름 현황
+          Process Flow Status
         </h2>
         <ProcessFlowDiagram data={summary.process_wip} />
       </div>
@@ -254,7 +254,7 @@ export const DashboardPage = () => {
             marginBottom: '16px',
             color: 'var(--color-text-primary)',
           }}>
-            LOT별 생산 현황
+            Production by LOT
           </h2>
           <ProductionBarChart data={productionChartData} height={250} />
         </div>
@@ -271,7 +271,7 @@ export const DashboardPage = () => {
             marginBottom: '16px',
             color: 'var(--color-text-primary)',
           }}>
-            합격/불합격 분포
+            Pass/Fail Distribution
           </h2>
           <DefectPieChart
             passed={summary.total_completed - summary.total_defective}
@@ -294,7 +294,7 @@ export const DashboardPage = () => {
           marginBottom: '16px',
           color: 'var(--color-text-primary)',
         }}>
-          LOT 이력
+          LOT History
         </h2>
         <LotHistoryTabs lots={summary.lots} />
       </div>

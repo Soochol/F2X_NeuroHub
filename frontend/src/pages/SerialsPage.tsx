@@ -24,7 +24,7 @@ export const SerialsPage = () => {
       const data = await serialsApi.getTrace(serialNumber);
       setTrace(data);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, `Serial 번호 "${serialNumber}"를 찾을 수 없습니다`));
+      setError(getErrorMessage(err, `Serial number "${serialNumber}" not found`));
     } finally {
       setIsLoading(false);
     }
@@ -44,9 +44,9 @@ export const SerialsPage = () => {
         <Card style={{ marginTop: '20px' }}>
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
             <div style={{ fontSize: '18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <Search size={18} /> 검색 중...
+              <Search size={18} /> Searching...
             </div>
-            <div style={{ fontSize: '14px' }}>Serial 번호를 조회하고 있습니다.</div>
+            <div style={{ fontSize: '14px' }}>Looking up serial number.</div>
           </div>
         </Card>
       )}
@@ -59,7 +59,7 @@ export const SerialsPage = () => {
               <XCircle size={18} /> {error}
             </div>
             <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-              Serial 번호를 확인하고 다시 시도하세요.
+              Please verify the serial number and try again.
             </div>
           </div>
         </Card>
@@ -80,10 +80,10 @@ export const SerialsPage = () => {
               <Search size={48} />
             </div>
             <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-              Serial 번호를 입력하여 공정 이력을 조회하세요
+              Enter a serial number to view process history
             </div>
             <div style={{ fontSize: '14px' }}>
-              각 제품의 전체 공정 이력, 측정 데이터, 불량 코드 등을 확인할 수 있습니다.
+              View complete process history, measurement data, and defect codes for each product.
             </div>
           </div>
         </Card>

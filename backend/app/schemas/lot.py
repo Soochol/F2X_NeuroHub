@@ -117,8 +117,8 @@ class LotBase(BaseModel):
     """
 
     product_model_id: int = Field(..., gt=0, description="Product model identifier")
-    production_line_id: int = Field(
-        ..., gt=0, description="Production line identifier (required for LOT number generation)"
+    production_line_id: Optional[int] = Field(
+        default=None, description="Production line identifier (required for LOT number generation, optional for legacy data)"
     )
     production_date: date = Field(..., description="Scheduled/actual production date")
     shift: str = Field(
@@ -226,8 +226,18 @@ class LotCreate(LotBase):
 
     Inherits all validation from LotBase.
     All required fields must be provided on creation.
+    Validates that production_line_id is provided for LOT number generation.
     """
-    pass
+
+    @field_validator('production_line_id')
+    @classmethod
+    def validate_production_line_required(cls, v):
+        """Ensure production_line_id is provided for new LOT creation."""
+        if v is None:
+            raise ValueError('production_line_id is required for creating new LOTs')
+        if v <= 0:
+            raise ValueError('production_line_id must be greater than 0')
+        return v
 
 
 class LotUpdate(BaseModel):
@@ -490,6 +500,7 @@ class LotInDB(LotBase):
     Attributes:
         id: Primary key identifier
         lot_number: Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)
+        production_line_id: Production line identifier (optional for backward compatibility)
         actual_quantity: Actual units produced in this LOT
         passed_quantity: Number of units that passed all quality checks
         failed_quantity: Number of units that failed quality checks
@@ -508,8 +519,8 @@ class LotInDB(LotBase):
     id: int = Field(..., description="LOT identifier")
     lot_number: str = Field(
         ...,
-        pattern="^WF-KR-[0-9]{6}[DN]-[0-9]{3}$",
-        description="Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)"
+        pattern="^[A-Z]+-[A-Z0-9-]+-[0-9]{6}[DN]-[0-9]{3}$",
+        description="Auto-generated LOT identifier ({model_prefix}-{line_code}-YYMMDD{D|N}-nnn)"
     )
     actual_quantity: int = Field(
         ...,

@@ -2,7 +2,7 @@
  * Reusable Modal Component
  */
 
-import { forwardRef, type ReactNode, type Ref } from 'react';
+import { forwardRef, useRef, type ReactNode, type Ref } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -15,7 +15,16 @@ interface ModalProps {
 
 export const Modal = forwardRef<HTMLDivElement, ModalProps>(
   ({ isOpen, onClose, title, children, footer, width = '600px' }, ref: Ref<HTMLDivElement>) => {
+    const mouseDownTargetRef = useRef<EventTarget | null>(null);
+
     if (!isOpen) return null;
+
+    const handleBackdropClick = (e: React.MouseEvent) => {
+      // Only close if mouseDown and mouseUp both occurred on the backdrop (not a drag)
+      if (e.target === mouseDownTargetRef.current) {
+        onClose();
+      }
+    };
 
     return (
       <div
@@ -31,7 +40,8 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
           justifyContent: 'center',
           zIndex: 1000,
         }}
-        onClick={onClose}
+        onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }}
+        onClick={handleBackdropClick}
       >
         <div
           ref={ref}

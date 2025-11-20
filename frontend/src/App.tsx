@@ -32,18 +32,40 @@ const queryClient = new QueryClient({
 
 // Inner app component that has access to theme context
 function AppContent() {
-  const { isDarkMode } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     <ConfigProvider
       theme={{
-        algorithm: isDarkMode ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+        algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
         token: {
+          // Brand colors
           colorPrimary: '#3ecf8e',
-          colorSuccess: '#3ecf8e',
-          colorError: '#f56565',
-          colorWarning: '#f5a623',
+          colorSuccess: isDark ? '#3ecf8e' : '#22c55e',
+          colorError: isDark ? '#f56565' : '#ef4444',
+          colorWarning: isDark ? '#f5a623' : '#f59e0b',
           colorInfo: '#3b82f6',
+
+          // Background colors (matching theme.css)
+          colorBgBase: isDark ? '#1c1c1c' : '#ffffff',
+          colorBgContainer: isDark ? '#232323' : '#ffffff',
+          colorBgElevated: isDark ? '#323232' : '#ffffff',
+          colorBgLayout: isDark ? '#1c1c1c' : '#f8f9fa',
+
+          // Text colors
+          colorText: isDark ? '#ededed' : '#1f2937',
+          colorTextSecondary: isDark ? '#a1a1a1' : '#6b7280',
+          colorTextTertiary: isDark ? '#6b6b6b' : '#9ca3af',
+          colorTextQuaternary: isDark ? '#4a4a4a' : '#d1d5db',
+
+          // Border colors
+          colorBorder: isDark ? '#2e2e2e' : '#e3e5e8',
+          colorBorderSecondary: isDark ? '#252525' : '#f1f3f5',
+
+          // Border radius
+          borderRadius: 6,
+          borderRadiusLG: 12,
+          borderRadiusSM: 4,
         },
       }}
     >

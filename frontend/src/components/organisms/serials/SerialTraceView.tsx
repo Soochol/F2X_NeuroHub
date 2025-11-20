@@ -29,24 +29,24 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${minutes}분 ${secs}초`;
+    return `${minutes}min ${secs}sec`;
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Summary Card */}
-      <Card title="요약 정보">
+      <Card title="Summary">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Serial 번호</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Serial Number</div>
             <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{trace.serial_number}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>LOT 번호</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>LOT Number</div>
             <div style={{ fontWeight: 'bold' }}>{trace.lot_number}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>상태</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Status</div>
             <div>
               <span
                 style={{
@@ -62,31 +62,31 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>재작업 횟수</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Rework Count</div>
             <div style={{ fontWeight: 'bold', color: trace.rework_count > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
-              {trace.rework_count}회
+              {trace.rework_count} times
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>총 사이클 타임</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Total Cycle Time</div>
             <div style={{ fontWeight: 'bold' }}>{formatDuration(trace.total_cycle_time_seconds)}</div>
           </div>
         </div>
       </Card>
 
       {/* LOT Info Card */}
-      <Card title="LOT 정보">
+      <Card title="LOT Information">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>제품 모델</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Product Model</div>
             <div>{trace.lot_info.product_model_name}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>생산 날짜</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Production Date</div>
             <div>{trace.lot_info.production_date}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>시프트</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Shift</div>
             <div>{trace.lot_info.shift}</div>
           </div>
         </div>
@@ -97,7 +97,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
           trace.component_lots.pin_lot ||
           trace.component_lots.hsg_lot) && (
           <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--color-border)' }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px' }}>구성품 LOT</div>
+            <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px' }}>Component LOTs</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
               {trace.component_lots.busbar_lot && (
                 <div>
@@ -129,7 +129,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
       </Card>
 
       {/* Process History */}
-      <Card title="공정 이력 (시간순)">
+      <Card title="Process History (Chronological)">
         <div style={{ position: 'relative' }}>
           {trace.process_history.map((process, index) => (
             <div
@@ -184,7 +184,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                       P{process.process_number}. {process.process_name}
                     </div>
                     <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                      작업자: {process.worker_name}
+                      Worker: {process.worker_name}
                     </div>
                   </div>
                   <span
@@ -202,15 +202,15 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '13px', marginTop: '10px' }}>
                   <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>시작: </span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
                     {format(new Date(process.started_at), 'MM/dd HH:mm:ss')}
                   </div>
                   <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>완료: </span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
                     {format(new Date(process.completed_at), 'MM/dd HH:mm:ss')}
                   </div>
                   <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>소요시간: </span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Duration: </span>
                     <span style={{ fontWeight: '500' }}>{formatDuration(process.cycle_time_seconds)}</span>
                   </div>
                 </div>
@@ -219,7 +219,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 {process.measurements && Object.keys(process.measurements).length > 0 && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-text-secondary)' }}>
-                      측정 데이터
+                      Measurement Data
                     </div>
                     <div style={{ fontSize: '13px', display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
                       {Object.entries(process.measurements).map(([key, value]) => (
@@ -236,7 +236,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 {process.defect_codes && process.defect_codes.length > 0 && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-error)' }}>
-                      불량 코드
+                      Defect Codes
                     </div>
                     <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                       {process.defect_codes.map((code, idx) => (
@@ -261,7 +261,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 {process.notes && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-text-secondary)' }}>
-                      비고
+                      Notes
                     </div>
                     <div style={{ fontSize: '13px', fontStyle: 'italic' }}>{process.notes}</div>
                   </div>
@@ -274,9 +274,9 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
 
       {/* Rework History (if any) */}
       {trace.rework_history.length > 0 && (
-        <Card title="재작업 이력">
+        <Card title="Rework History">
           <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '15px' }}>
-            총 {trace.rework_history.length}건의 재작업이 발생했습니다.
+            Total of {trace.rework_history.length} rework(s) occurred.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {trace.rework_history.map((rework, index) => (
@@ -294,17 +294,17 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 </div>
                 <div style={{ fontSize: '13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>시작: </span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
                     {format(new Date(rework.started_at), 'yyyy-MM-dd HH:mm:ss')}
                   </div>
                   <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>완료: </span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
                     {format(new Date(rework.completed_at), 'yyyy-MM-dd HH:mm:ss')}
                   </div>
                 </div>
                 {rework.defect_codes && rework.defect_codes.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>불량 코드: </span>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Defect Codes: </span>
                     {rework.defect_codes.join(', ')}
                   </div>
                 )}

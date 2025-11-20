@@ -23,6 +23,7 @@ import {
   Tooltip,
   message,
   DatePicker,
+  theme,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -51,11 +52,7 @@ import dayjs, { Dayjs } from 'dayjs';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
-
-/**
- * Color palette for charts
- */
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
+const { useToken } = theme;
 
 /**
  * Time range presets
@@ -66,16 +63,30 @@ const TIME_RANGES = {
   '30d': 720,
 };
 
-/**
- * Status code color mapping
- */
-const getStatusCodeColor = (statusCode: number): string => {
-  if (statusCode >= 500) return 'red';
-  if (statusCode >= 400) return 'orange';
-  return 'green';
-};
-
 const ErrorDashboardPage: React.FC = () => {
+  const { token } = useToken();
+
+  /**
+   * Color palette for charts - using theme tokens
+   */
+  const COLORS = [
+    token.colorPrimary,
+    token.colorSuccess,
+    token.colorWarning,
+    token.colorError,
+    token.colorInfo,
+    token.colorLink,
+    token.colorTextSecondary,
+  ];
+
+  /**
+   * Status code color mapping using theme-aware colors
+   */
+  const getStatusCodeColor = (statusCode: number): string => {
+    if (statusCode >= 500) return 'red';
+    if (statusCode >= 400) return 'orange';
+    return 'green';
+  };
   // State for statistics
   const [stats, setStats] = useState<ErrorLogStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -272,16 +283,35 @@ const ErrorDashboardPage: React.FC = () => {
     value: item.count,
   })) || [];
 
+  /**
+   * Custom label renderer for Pie chart with theme support
+   */
+  const renderPieLabel = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, name, value } = props;
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill={token.colorText}
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={12}
+      >
+        {`${name}: ${value}`}
+      </text>
+    );
+  };
+
   return (
-    <div style={{ padding: '24px' }}>
+    <div>
       {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>
-          Error Dashboard
-        </h1>
-        <p style={{ color: '#666' }}>
-          Monitor and analyze application errors
-        </p>
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Error Dashboard</h1>
       </div>
 
       {/* Time Range Selector */}
@@ -314,8 +344,8 @@ const ErrorDashboardPage: React.FC = () => {
             <Statistic
               title="Total Errors"
               value={stats?.total_errors || 0}
-              prefix={<WarningOutlined style={{ color: '#ff4d4f' }} />}
-              valueStyle={{ color: '#ff4d4f' }}
+              prefix={<WarningOutlined style={{ color: token.colorError }} />}
+              valueStyle={{ color: token.colorError }}
             />
           </Card>
         </Col>
@@ -342,8 +372,8 @@ const ErrorDashboardPage: React.FC = () => {
             <Statistic
               title="Monitoring"
               value="Active"
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<CheckCircleOutlined style={{ color: token.colorSuccess }} />}
+              valueStyle={{ color: token.colorSuccess }}
             />
           </Card>
         </Col>
@@ -355,15 +385,33 @@ const ErrorDashboardPage: React.FC = () => {
           <Card title="Error Trend (Hourly)" loading={loadingStats}>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={hourlyTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <RechartsTooltip />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" stroke={token.colorBorder} />
+                <XAxis
+                  dataKey="hour"
+                  stroke={token.colorTextSecondary}
+                  tick={{ fill: token.colorText }}
+                />
+                <YAxis
+                  stroke={token.colorTextSecondary}
+                  tick={{ fill: token.colorText }}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: token.colorBgElevated,
+                    borderColor: token.colorBorder,
+                    borderRadius: token.borderRadius,
+                  }}
+                  labelStyle={{ color: token.colorText }}
+                  itemStyle={{ color: token.colorText }}
+                />
+                <Legend
+                  wrapperStyle={{ color: token.colorText }}
+                  iconType="line"
+                />
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke="#ff4d4f"
+                  stroke={token.colorError}
                   strokeWidth={2}
                   name="Error Count"
                 />
@@ -380,16 +428,23 @@ const ErrorDashboardPage: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
+                  label={renderPieLabel}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill={token.colorPrimary}
                   dataKey="value"
                 >
                   {errorCodeDistributionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: token.colorBgElevated,
+                    borderColor: token.colorBorder,
+                    borderRadius: token.borderRadius,
+                    color: token.colorText,
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </Card>

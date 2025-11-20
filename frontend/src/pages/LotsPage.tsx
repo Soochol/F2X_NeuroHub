@@ -83,7 +83,7 @@ export const LotsPage = () => {
         setTotalLots(response.total);
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'LOT 목록을 불러오지 못했습니다'));
+      setError(getErrorMessage(err, 'Failed to load LOT list'));
     } finally {
       setIsLoading(false);
     }
@@ -161,8 +161,8 @@ export const LotsPage = () => {
         <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
             <Input
-              label="검색"
-              placeholder="LOT 번호 또는 제품 모델 이름 검색..."
+              label="Search"
+              placeholder="Search LOT number or product model..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               wrapperStyle={{ marginBottom: 0 }}
@@ -170,24 +170,24 @@ export const LotsPage = () => {
           </div>
           <div style={{ width: '200px' }}>
             <Select
-              label="상태 필터"
+              label="Status Filter"
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value as LotStatus | '');
                 setCurrentPage(0);
               }}
               options={[
-                { value: '', label: '전체' },
-                { value: LotStatus.CREATED, label: '생성됨' },
-                { value: LotStatus.IN_PROGRESS, label: '진행중' },
-                { value: LotStatus.COMPLETED, label: '완료' },
-                { value: LotStatus.CLOSED, label: '종료' },
+                { value: '', label: 'All' },
+                { value: LotStatus.CREATED, label: 'Created' },
+                { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
+                { value: LotStatus.COMPLETED, label: 'Completed' },
+                { value: LotStatus.CLOSED, label: 'Closed' },
               ]}
               wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
           <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); setRefreshTrigger(prev => prev + 1); }}>
-            초기화
+            Reset
           </Button>
         </div>
       </Card>
@@ -196,7 +196,7 @@ export const LotsPage = () => {
       <Card>
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-            로딩 중...
+            Loading...
           </div>
         ) : error ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
@@ -204,7 +204,7 @@ export const LotsPage = () => {
           </div>
         ) : filteredAndSortedLots.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-            LOT가 없습니다. 새 LOT를 생성하세요.
+            No LOTs found. Create a new LOT.
           </div>
         ) : (
           <>
@@ -216,33 +216,33 @@ export const LotsPage = () => {
                       onClick={() => handleSort('lot_number')}
                       style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      LOT 번호 {sortColumn === 'lot_number' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      LOT Number {sortColumn === 'lot_number' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>제품 모델</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Product Model</th>
                     <th
                       onClick={() => handleSort('status')}
                       style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      상태 {sortColumn === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Status {sortColumn === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th
                       onClick={() => handleSort('target_quantity')}
                       style={{ padding: '12px', textAlign: 'center', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      목표 수량 {sortColumn === 'target_quantity' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Target Quantity {sortColumn === 'target_quantity' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th
                       onClick={() => handleSort('production_date')}
                       style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      생산 날짜 {sortColumn === 'production_date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Production Date {sortColumn === 'production_date' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>시프트</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Shift</th>
                     <th
                       onClick={() => handleSort('created_at')}
                       style={{ padding: '12px', textAlign: 'left', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      생성일시 {sortColumn === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Created At {sortColumn === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                   </tr>
                 </thead>
@@ -328,7 +328,7 @@ export const LotsPage = () => {
                   onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={currentPage === 0}
                 >
-                  이전
+                  Previous
                 </Button>
                 <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                   {currentPage + 1} / {totalPages}
@@ -339,7 +339,7 @@ export const LotsPage = () => {
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage >= totalPages - 1}
                 >
-                  다음
+                  Next
                 </Button>
               </div>
             )}

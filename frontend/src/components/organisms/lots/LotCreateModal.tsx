@@ -37,7 +37,7 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
     const line = productionLines.find(pl => pl.id === formData.production_line_id);
 
     if (!model || !line || !formData.product_model_id || !formData.production_line_id) {
-      return '모델과 생산라인을 선택하세요';
+      return 'Select model and production line';
     }
 
     const modelPrefix = model.model_code.split('-')[0];
@@ -58,13 +58,13 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
       const newErrors: Record<string, string> = {};
 
       if (!formData.product_model_id) {
-        newErrors.product_model_id = '제품 모델을 선택하세요';
+        newErrors.product_model_id = 'Please select a product model';
       }
       if (!formData.production_line_id) {
-        newErrors.production_line_id = '생산 라인을 선택하세요';
+        newErrors.production_line_id = 'Please select a production line';
       }
       if (formData.target_quantity < 1 || formData.target_quantity > 100) {
-        newErrors.target_quantity = '목표 수량은 1-100 사이여야 합니다';
+        newErrors.target_quantity = 'Target quantity must be between 1-100';
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -90,7 +90,7 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
         hsg_lot: '',
       });
     } catch (error: unknown) {
-      setErrors({ submit: getErrorMessage(error, 'LOT 생성 실패') });
+      setErrors({ submit: getErrorMessage(error, 'Failed to create LOT') });
     } finally {
       setIsSubmitting(false);
     }
@@ -105,10 +105,10 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            취소
+            Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? '생성 중...' : 'LOT 생성'}
+            {isSubmitting ? 'Creating...' : 'Create LOT'}
           </Button>
         </>
       }
@@ -122,9 +122,6 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
           borderRadius: '8px',
           border: '1px solid var(--color-border)'
         }}>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>
-            생성될 LOT 번호 (미리보기)
-          </div>
           <div style={{
             fontSize: '18px',
             fontWeight: 'bold',
@@ -134,43 +131,37 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
             {previewLotNumber}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '5px' }}>
-            * 순번(xxx)은 자동으로 채번됩니다
+            * Sequence number (xxx) will be auto-generated
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <Select
-            label="제품 모델"
-            value={formData.product_model_id.toString()}
-            onChange={(e) => setFormData({ ...formData, product_model_id: parseInt(e.target.value) })}
-            options={[
-              { value: '0', label: '선택하세요' },
-              ...productModels.map((pm) => ({
-                value: pm.id.toString(),
-                label: `${pm.model_code} - ${pm.model_name}`,
-              }))
-            ]}
+            label="Product Model"
+            value={formData.product_model_id === 0 ? '' : formData.product_model_id.toString()}
+            onChange={(e) => setFormData({ ...formData, product_model_id: e.target.value ? parseInt(e.target.value) : 0 })}
+            options={productModels.map((pm) => ({
+              value: pm.id.toString(),
+              label: `${pm.model_code} - ${pm.model_name}`,
+            }))}
             required
             error={errors.product_model_id}
           />
 
           <Select
-            label="생산 라인"
-            value={formData.production_line_id.toString()}
-            onChange={(e) => setFormData({ ...formData, production_line_id: parseInt(e.target.value) })}
-            options={[
-              { value: '0', label: '선택하세요' },
-              ...productionLines.map((pl) => ({
-                value: pl.id.toString(),
-                label: `${pl.line_code} - ${pl.line_name}`,
-              }))
-            ]}
+            label="Production Line"
+            value={formData.production_line_id === 0 ? '' : formData.production_line_id.toString()}
+            onChange={(e) => setFormData({ ...formData, production_line_id: e.target.value ? parseInt(e.target.value) : 0 })}
+            options={productionLines.map((pl) => ({
+              value: pl.id.toString(),
+              label: `${pl.line_code} - ${pl.line_name}`,
+            }))}
             required
             error={errors.production_line_id}
           />
 
           <Input
-            label="목표 수량"
+            label="Target Quantity"
             type="number"
             value={formData.target_quantity}
             onChange={(e) => setFormData({ ...formData, target_quantity: parseInt(e.target.value) })}
@@ -181,7 +172,7 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
           />
 
           <Input
-            label="생산 날짜"
+            label="Production Date"
             type="date"
             value={formData.production_date}
             onChange={(e) => setFormData({ ...formData, production_date: e.target.value })}
@@ -189,13 +180,13 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
           />
 
           <Select
-            label="작업 시프트"
+            label="Work Shift"
             value={formData.shift}
             onChange={(e) => setFormData({ ...formData, shift: e.target.value as Shift })}
             options={[
-              { value: Shift.DAY, label: '주간 (Day)' },
-              { value: Shift.EVENING, label: '저녁 (Evening)' },
-              { value: Shift.NIGHT, label: '야간 (Night)' },
+              { value: Shift.DAY, label: 'Day Shift' },
+              { value: Shift.EVENING, label: 'Evening Shift' },
+              { value: Shift.NIGHT, label: 'Night Shift' },
             ]}
             required
           />
@@ -203,35 +194,35 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels, prod
 
         <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '15px' }}>
-            구성품 LOT 번호 (선택사항)
+            Component LOT Numbers (Optional)
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <Input
               label="Busbar LOT"
               value={formData.busbar_lot || ''}
               onChange={(e) => setFormData({ ...formData, busbar_lot: e.target.value })}
-              placeholder="예: BB-20250118-001"
+              placeholder="e.g., BB-20250118-001"
             />
 
             <Input
               label="SMA Spring LOT"
               value={formData.sma_spring_lot || ''}
               onChange={(e) => setFormData({ ...formData, sma_spring_lot: e.target.value })}
-              placeholder="예: SP-20250118-001"
+              placeholder="e.g., SP-20250118-001"
             />
 
             <Input
               label="Pin LOT"
               value={formData.pin_lot || ''}
               onChange={(e) => setFormData({ ...formData, pin_lot: e.target.value })}
-              placeholder="예: PN-20250118-001"
+              placeholder="e.g., PN-20250118-001"
             />
 
             <Input
               label="Housing LOT"
               value={formData.hsg_lot || ''}
               onChange={(e) => setFormData({ ...formData, hsg_lot: e.target.value })}
-              placeholder="예: HS-20250118-001"
+              placeholder="e.g., HS-20250118-001"
             />
           </div>
         </div>
