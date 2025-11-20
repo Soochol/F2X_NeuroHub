@@ -22,7 +22,7 @@ All endpoints include:
     - Pydantic schema validation for request/response
     - OpenAPI documentation metadata
     - Proper HTTP status codes
-    - Error handling with descriptive HTTPException responses
+    - Error handling with custom exception responses
     - Dependency injection for database sessions
 """
 
@@ -37,7 +37,6 @@ from app.schemas.equipment import (
     EquipmentCreate,
     EquipmentUpdate,
     EquipmentInDB,
-    EquipmentResponse,
 )
 from app.core.exceptions import (
     EquipmentNotFoundException,
@@ -265,7 +264,7 @@ def get_equipment_by_code(
         EquipmentInDB: Equipment record with all database fields.
 
     Raises:
-        HTTPException: 404 Not Found if equipment does not exist.
+        EquipmentNotFoundException: If equipment does not exist.
     """
     obj = crud.get_by_code(db, equipment_code=equipment_code)
     if not obj:
@@ -299,7 +298,7 @@ def get_equipment(
         EquipmentInDB: Equipment record with all database fields.
 
     Raises:
-        HTTPException: 404 Not Found if equipment does not exist with given ID.
+        EquipmentNotFoundException: If equipment does not exist with given ID.
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
@@ -333,8 +332,8 @@ def create_equipment(
         EquipmentInDB: Newly created equipment record with all fields.
 
     Raises:
-        HTTPException: 400 Bad Request if validation fails.
-        HTTPException: 409 Conflict if constraint violation occurs (e.g., duplicate code).
+        ValidationException: If validation fails (invalid references).
+        DuplicateResourceException: If duplicate equipment code exists.
     """
     # Check if equipment_code already exists
     existing = crud.get_by_code(db, equipment_code=obj_in.equipment_code)
@@ -392,9 +391,9 @@ def update_equipment(
         EquipmentInDB: Updated equipment record with all fields.
 
     Raises:
-        HTTPException: 404 Not Found if equipment does not exist.
-        HTTPException: 400 Bad Request if validation fails.
-        HTTPException: 409 Conflict if constraint violation occurs.
+        EquipmentNotFoundException: If equipment does not exist.
+        ValidationException: If validation fails (invalid references).
+        DuplicateResourceException: If duplicate equipment code exists.
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
@@ -450,8 +449,8 @@ def delete_equipment(
         current_user: Current authenticated user (injected via dependency).
 
     Raises:
-        HTTPException: 404 Not Found if equipment does not exist.
-        HTTPException: 409 Conflict if deletion violates constraints (has associated records).
+        EquipmentNotFoundException: If equipment does not exist.
+        ConstraintViolationException: If deletion violates constraints (has associated records).
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
@@ -466,8 +465,7 @@ def delete_equipment(
     except Exception as e:
         error_str = str(e).lower()
         if "foreign key" in error_str or "constraint" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete equipment with associated records",
+            raise ConstraintViolationException(
+                message="Cannot delete equipment with associated records"
             )
         raise
