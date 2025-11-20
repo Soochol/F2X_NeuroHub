@@ -98,7 +98,7 @@ export const LotsPage = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>LOT Management</h1>
-        <Button onClick={() => setIsCreateModalOpen(true)}>+ 새 LOT 생성</Button>
+        <Button onClick={() => setIsCreateModalOpen(true)}>+ Create New LOT</Button>
       </div>
 
       {/* Filters */}

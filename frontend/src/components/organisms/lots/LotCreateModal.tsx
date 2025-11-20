@@ -82,7 +82,7 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels }: Lo
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="새 LOT 생성"
+      title="Create New LOT"
       width="700px"
       footer={
         <>
