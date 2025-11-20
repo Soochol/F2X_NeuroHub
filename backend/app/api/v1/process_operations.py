@@ -207,7 +207,7 @@ def start_process(
             Serial.lot_id == lot.id
         ).first()
         if not serial:
-            raise SerialNotFoundException(serial_number=request.serial_number)
+            raise SerialNotFoundException(request.serial_number)
         data_level = DataLevel.SERIAL
         serial_id = serial.id
 

@@ -33,18 +33,26 @@ class WorkService(QObject):
         self, lot_number: str, worker_id: str, serial_number: str = None
     ):
         """
-        Start work for LOT - POST /api/v1/process-operations/start
+        Start work for LOT or Serial - POST /api/v1/process-operations/start
+
+        Args:
+            lot_number: LOT number
+            worker_id: Worker ID
+            serial_number: Serial number (optional - only for SERIAL-level work)
+
+        Note:
+            - If serial_number is provided → SERIAL-level work (backend requires Serial record)
+            - If serial_number is None → LOT-level work (backend does not require Serial record)
         """
         try:
-            logger.info(f"Starting work (threaded) for LOT: {lot_number}")
+            if serial_number:
+                logger.info(f"Starting SERIAL work (threaded) for Serial: {serial_number}, LOT: {lot_number}")
+            else:
+                logger.info(f"Starting LOT work (threaded) for LOT: {lot_number}")
 
-            # Use serial_number if provided, otherwise generate from lot_number
-            if not serial_number:
-                serial_number = f"{lot_number}-0001"
-
+            # Build base request data
             data = {
                 "lot_number": lot_number,
-                "serial_number": serial_number,
                 # Database PK as string
                 "process_id": str(self.config.process_db_id),
                 "worker_id": worker_id,
@@ -52,6 +60,10 @@ class WorkService(QObject):
                 "line_id": self.config.line_code,
                 "start_time": datetime.now().isoformat()
             }
+
+            # Only include serial_number if provided (SERIAL-level work)
+            if serial_number:
+                data["serial_number"] = serial_number
 
             logger.debug(f"Start work data: {data}")
 
@@ -78,27 +90,37 @@ class WorkService(QObject):
         Complete work from JSON file.
 
         POST /api/v1/process-operations/complete (non-blocking)
+
+        Note:
+            - If json_data contains 'serial_number' → SERIAL-level work completion
+            - If json_data does NOT contain 'serial_number' → LOT-level work completion
         """
         try:
             lot_number = json_data.get('lot_number', 'UNKNOWN')
-            serial_number = json_data.get(
-                'serial_number', f"{lot_number}-0001"
-            )
-            logger.info(
-                f"Completing work (threaded) for LOT: {lot_number}, "
-                f"Serial: {serial_number}"
-            )
+            serial_number = json_data.get('serial_number')  # May be None
 
-            # Build complete data with process_id from config
+            if serial_number:
+                logger.info(
+                    f"Completing SERIAL work (threaded) for Serial: {serial_number}, LOT: {lot_number}"
+                )
+            else:
+                logger.info(
+                    f"Completing LOT work (threaded) for LOT: {lot_number}"
+                )
+
+            # Build base complete data with process_id from config
             data = {
                 "lot_number": lot_number,
-                "serial_number": serial_number,
                 # Database PK as integer
                 "process_id": self.config.process_db_id,
                 "result": json_data.get('result', 'PASS'),
                 "measurement_data": json_data.get('measurement_data'),
                 "defect_data": json_data.get('defect_data')
             }
+
+            # Only include serial_number if provided (SERIAL-level work)
+            if serial_number:
+                data["serial_number"] = serial_number
 
             logger.debug(f"Complete work data: {data}")
 

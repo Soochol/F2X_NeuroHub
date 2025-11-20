@@ -133,6 +133,10 @@ class MainWindow(QMainWindow):
         self.status_bar.setObjectName("status_bar")
         self.setStatusBar(self.status_bar)
 
+        # Connection status indicator
+        self.connection_indicator = StatusIndicator("연결 중...", "warning")
+        self.status_bar.addPermanentWidget(self.connection_indicator)
+
         # Select first item (Home)
         self.nav_list.setCurrentRow(0)
 
