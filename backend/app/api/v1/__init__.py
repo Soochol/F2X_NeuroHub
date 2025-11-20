@@ -17,6 +17,7 @@ Available routers:
     - alerts: System notifications and alarms
     - production_lines: Production line management
     - equipment: Manufacturing equipment management
+    - error_logs: Error logging and monitoring (read-only)
 """
 
 from app.api.v1 import (
@@ -34,6 +35,7 @@ from app.api.v1 import (
     alerts,
     production_lines,
     equipment,
+    error_logs,
 )
 
 __all__ = [
@@ -51,4 +53,5 @@ __all__ = [
     "alerts",
     "production_lines",
     "equipment",
+    "error_logs",
 ]

@@ -148,7 +148,7 @@ Example Usage:
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app import crud
@@ -156,6 +156,10 @@ from app.api import deps
 from app.models import User
 from app.models.audit_log import AuditAction
 from app.schemas.audit_log import AuditLogInDB
+from app.core.exceptions import (
+    AuditLogNotFoundException,
+    ValidationException,
+)
 
 # Create router with consistent prefix/tags
 router = APIRouter(
@@ -254,10 +258,7 @@ def get_audit_log(
     """
     audit_log = crud.audit_log.get(db, id=id)
     if not audit_log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audit log not found"
-        )
+        raise AuditLogNotFoundException(audit_log_id=id)
     return audit_log
 
 
@@ -424,9 +425,8 @@ def get_logs_by_action(
     # Validate action parameter
     valid_actions = {action_enum.value for action_enum in AuditAction}
     if action.upper() not in valid_actions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid action. Must be one of: {', '.join(sorted(valid_actions))}"
+        raise ValidationException(
+            message=f"Invalid action. Must be one of: {', '.join(sorted(valid_actions))}"
         )
 
     try:
@@ -437,10 +437,7 @@ def get_logs_by_action(
             limit=limit
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -499,9 +496,8 @@ def get_logs_by_date_range(
     """
     # Validate date range
     if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date"
+        raise ValidationException(
+            message="start_date must be before or equal to end_date"
         )
 
     return crud.audit_log.get_by_date_range(

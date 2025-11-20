@@ -38,6 +38,8 @@ class ErrorCode(str, Enum):
     USER_NOT_FOUND = "RES_006"
     PRODUCT_MODEL_NOT_FOUND = "RES_007"
     PRODUCTION_LINE_NOT_FOUND = "RES_008"
+    ALERT_NOT_FOUND = "RES_009"
+    AUDIT_LOG_NOT_FOUND = "RES_010"
 
     # Validation Errors (3xxx)
     VALIDATION_ERROR = "VAL_001"
@@ -130,6 +132,8 @@ ERROR_MESSAGES = {
     ErrorCode.USER_NOT_FOUND: "User not found",
     ErrorCode.PRODUCT_MODEL_NOT_FOUND: "Product model not found",
     ErrorCode.PRODUCTION_LINE_NOT_FOUND: "Production line not found",
+    ErrorCode.ALERT_NOT_FOUND: "Alert not found",
+    ErrorCode.AUDIT_LOG_NOT_FOUND: "Audit log not found",
 
     # Validation
     ErrorCode.VALIDATION_ERROR: "Request validation failed",

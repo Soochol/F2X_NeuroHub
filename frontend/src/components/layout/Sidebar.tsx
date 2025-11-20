@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Bell,
   Settings,
+  AlertTriangle,
   type LucideIcon
 } from 'lucide-react';
 
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { path: '/quality', label: 'Quality', icon: CheckCircle },
   { path: '/analytics', label: 'Analytics', icon: TrendingUp },
   { path: '/alerts', label: 'Alerts', icon: Bell },
+  { path: '/error-dashboard', label: 'Error Dashboard', icon: AlertTriangle, roles: [UserRole.ADMIN] },
   { path: '/admin', label: 'Admin', icon: Settings, roles: [UserRole.ADMIN, UserRole.MANAGER] },
 ];
 

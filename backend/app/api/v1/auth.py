@@ -10,7 +10,7 @@ Provides:
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,10 @@ from app.crud import user as user_crud
 from app.models import User
 from app.schemas import UserInDB, UserLogin
 from app.config import settings
+from app.core.exceptions import (
+    UnauthorizedException,
+    ValidationException,
+)
 
 
 router = APIRouter()
@@ -61,8 +65,8 @@ def login(
     ```
 
     Raises:
-        HTTPException 401: Invalid credentials
-        HTTPException 400: Inactive user account
+        UnauthorizedException: Invalid credentials
+        ValidationException: Inactive user account
     """
     # Authenticate user
     user = user_crud.authenticate(
@@ -72,17 +76,13 @@ def login(
     )
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+        raise UnauthorizedException(
+            message="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account"
-        )
+        raise ValidationException(message="Inactive user account")
 
     # Update last login timestamp
     user_crud.update_last_login(db, user_id=user.id)
@@ -132,8 +132,8 @@ def login_json(
     Same as /login endpoint
 
     Raises:
-        HTTPException 401: Invalid credentials
-        HTTPException 400: Inactive user account
+        UnauthorizedException: Invalid credentials
+        ValidationException: Inactive user account
     """
     # Authenticate user
     user = user_crud.authenticate(
@@ -143,16 +143,10 @@ def login_json(
     )
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
+        raise UnauthorizedException(message="Incorrect username or password")
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account"
-        )
+        raise ValidationException(message="Inactive user account")
 
     # Update last login timestamp
     user_crud.update_last_login(db, user_id=user.id)
@@ -202,8 +196,8 @@ def read_current_user(
     ```
 
     Raises:
-        HTTPException 401: Missing or invalid token
-        HTTPException 400: Inactive user account
+        UnauthorizedException: Missing or invalid token
+        ValidationException: Inactive user account
     """
     return current_user
 
@@ -225,7 +219,7 @@ def refresh_token(
     New access token with refreshed expiration time
 
     Raises:
-        HTTPException 401: Missing or invalid token
+        UnauthorizedException: Missing or invalid token
     """
     # Create new access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

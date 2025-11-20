@@ -17,6 +17,7 @@ import { QualityPage } from './pages/QualityPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { AdminPage } from './pages/AdminPage';
+import ErrorDashboardPage from './pages/ErrorDashboardPage';
 
 // Create QueryClient for react-query
 const queryClient = new QueryClient({
@@ -63,6 +64,7 @@ function AppContent() {
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/error-dashboard" element={<ErrorDashboardPage />} />
                 </Route>
               </Route>
 

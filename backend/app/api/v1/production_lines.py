@@ -24,7 +24,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
+from fastapi import APIRouter, Depends, Query, status, Path
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -35,6 +35,12 @@ from app.schemas.production_line import (
     ProductionLineUpdate,
     ProductionLineInDB,
     ProductionLineResponse,
+)
+from app.core.exceptions import (
+    ProductionLineNotFoundException,
+    DuplicateResourceException,
+    ConstraintViolationException,
+    ValidationException,
 )
 
 
@@ -141,10 +147,7 @@ def get_production_lines_by_capacity_range(
         HTTPException: 400 if min_capacity > max_capacity.
     """
     if min_capacity > max_capacity:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="min_capacity must be less than or equal to max_capacity",
-        )
+        raise ValidationException(message="min_capacity must be less than or equal to max_capacity")
     return crud.get_by_capacity_range(
         db, min_capacity=min_capacity, max_capacity=max_capacity, skip=skip, limit=limit
     )
@@ -179,10 +182,7 @@ def get_production_line_by_code(
     """
     obj = crud.get_by_code(db, line_code=line_code)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Production line with code '{line_code}' not found",
-        )
+        raise ProductionLineNotFoundException(line_id=line_code)
     return obj
 
 
@@ -216,10 +216,7 @@ def get_production_line(
     """
     obj = crud.get(db, production_line_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Production line with ID {id} not found",
-        )
+        raise ProductionLineNotFoundException(line_id=id)
     return obj
 
 
@@ -255,20 +252,14 @@ def create_production_line(
     # Check if line_code already exists
     existing = crud.get_by_code(db, line_code=obj_in.line_code)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Production line with code '{obj_in.line_code}' already exists",
-        )
+        raise DuplicateResourceException(resource_type="Production line", identifier=f"code='{obj_in.line_code}'")
 
     try:
         return crud.create(db, production_line_in=obj_in)
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Production line creation constraint violation",
-            )
+            raise DuplicateResourceException(resource_type="Production line", identifier="constraint violation during creation")
         raise
 
 
@@ -310,29 +301,20 @@ def update_production_line(
     """
     obj = crud.get(db, production_line_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Production line with ID {id} not found",
-        )
+        raise ProductionLineNotFoundException(line_id=id)
 
     # Check if updating line_code to an existing code
     if obj_in.line_code and obj_in.line_code.upper() != obj.line_code:
         existing = crud.get_by_code(db, line_code=obj_in.line_code)
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Production line with code '{obj_in.line_code}' already exists",
-            )
+            raise DuplicateResourceException(resource_type="Production line", identifier=f"code='{obj_in.line_code}'")
 
     try:
         return crud.update(db, production_line_id=id, production_line_in=obj_in)
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Production line update constraint violation",
-            )
+            raise DuplicateResourceException(resource_type="Production line", identifier="constraint violation during update")
         raise
 
 
@@ -366,25 +348,14 @@ def delete_production_line(
     """
     obj = crud.get(db, production_line_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Production line with ID {id} not found",
-        )
+        raise ProductionLineNotFoundException(line_id=id)
 
     try:
         deleted = crud.delete(db, production_line_id=id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Production line with ID {id} not found",
-            )
-    except HTTPException:
-        raise
+            raise ProductionLineNotFoundException(line_id=id)
     except Exception as e:
         error_str = str(e).lower()
         if "foreign key" in error_str or "constraint" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete production line with associated records",
-            )
+            raise ConstraintViolationException(message="Cannot delete production line with associated records")
         raise

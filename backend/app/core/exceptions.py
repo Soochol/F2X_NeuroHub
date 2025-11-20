@@ -173,6 +173,26 @@ class ProductionLineNotFoundException(AppException):
         )
 
 
+class AlertNotFoundException(AppException):
+    """Alert를 찾을 수 없음"""
+
+    def __init__(self, alert_id: Any):
+        super().__init__(
+            error_code=ErrorCode.ALERT_NOT_FOUND,
+            message=f"Alert with ID {alert_id} not found",
+        )
+
+
+class AuditLogNotFoundException(AppException):
+    """Audit Log를 찾을 수 없음"""
+
+    def __init__(self, audit_log_id: Any):
+        super().__init__(
+            error_code=ErrorCode.AUDIT_LOG_NOT_FOUND,
+            message=f"Audit log with ID {audit_log_id} not found",
+        )
+
+
 # ============================================================================
 # Validation Exceptions
 # ============================================================================

@@ -81,6 +81,18 @@ from app.schemas.equipment import (
     EquipmentInDB,
     EquipmentResponse,
 )
+from app.schemas.error_log import (
+    ErrorLogBase,
+    ErrorLogCreate,
+    ErrorLogInDB,
+    ErrorLogResponse,
+    ErrorLogListResponse,
+    ErrorLogStats,
+    ErrorCodeCount,
+    HourlyErrorCount,
+    TopErrorPath,
+    ErrorLogFilters,
+)
 
 __all__ = [
     # ProductModel schemas
@@ -148,4 +160,15 @@ __all__ = [
     "EquipmentUpdate",
     "EquipmentInDB",
     "EquipmentResponse",
+    # ErrorLog schemas
+    "ErrorLogBase",
+    "ErrorLogCreate",
+    "ErrorLogInDB",
+    "ErrorLogResponse",
+    "ErrorLogListResponse",
+    "ErrorLogStats",
+    "ErrorCodeCount",
+    "HourlyErrorCount",
+    "TopErrorPath",
+    "ErrorLogFilters",
 ]

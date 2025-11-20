@@ -39,7 +39,11 @@ from app.api.v1 import (
     alerts,
     production_lines,
     equipment,
+    error_logs,
 )
+
+# Import middleware
+from app.middleware import ErrorLoggingMiddleware
 
 
 # Create FastAPI application
@@ -70,6 +74,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Error Logging Middleware (after CORS for proper request handling)
+app.add_middleware(ErrorLoggingMiddleware)
 
 
 # Configure logging
@@ -305,6 +312,7 @@ app.include_router(audit_logs.router, prefix=settings.API_V1_PREFIX, tags=["Audi
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX, tags=["Alerts"])
 app.include_router(production_lines.router, prefix=settings.API_V1_PREFIX, tags=["Production Lines"])
 app.include_router(equipment.router, prefix=settings.API_V1_PREFIX, tags=["Equipment"])
+app.include_router(error_logs.router, prefix=settings.API_V1_PREFIX, tags=["Error Logs"])
 
 
 if __name__ == "__main__":

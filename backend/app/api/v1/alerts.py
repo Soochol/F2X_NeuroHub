@@ -21,7 +21,7 @@ Endpoints:
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -37,6 +37,10 @@ from app.schemas.alert import (
     AlertListResponse,
     AlertMarkRead,
     AlertBulkMarkRead,
+)
+from app.core.exceptions import (
+    AlertNotFoundException,
+    DatabaseException,
 )
 
 
@@ -148,10 +152,7 @@ def list_alerts(
         )
 
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
-        )
+        raise DatabaseException(message=f"Database error: {str(e)}")
 
 
 @router.get(
@@ -175,10 +176,7 @@ def get_unread_count(
         count = crud.alert.get_unread_count(db)
         return {"unread_count": count}
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
-        )
+        raise DatabaseException(message=f"Database error: {str(e)}")
 
 
 @router.put(
@@ -220,10 +218,7 @@ def bulk_mark_alerts_as_read(
             "alert_ids": bulk_read.alert_ids,
         }
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to bulk mark alerts as read: {str(e)}",
-        )
+        raise DatabaseException(message=f"Failed to bulk mark alerts as read: {str(e)}")
 
 
 @router.get(
@@ -253,10 +248,7 @@ def get_alert(
     try:
         alert = crud.alert.get(db, alert_id=alert_id)
         if not alert:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Alert with id {alert_id} not found",
-            )
+            raise AlertNotFoundException(alert_id=alert_id)
 
         # Convert to response format with related entity names
         alert_dict = {
@@ -268,13 +260,10 @@ def get_alert(
 
         return AlertResponse(**alert_dict)
 
-    except HTTPException:
+    except (AlertNotFoundException, DatabaseException):
         raise
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
-        )
+        raise DatabaseException(message=f"Database error: {str(e)}")
 
 
 @router.post(
@@ -306,10 +295,7 @@ def create_alert(
         alert = crud.alert.create(db, alert_in=alert_in)
         return alert
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create alert: {str(e)}",
-        )
+        raise DatabaseException(message=f"Failed to create alert: {str(e)}")
 
 
 @router.put(
@@ -344,18 +330,12 @@ def update_alert(
     try:
         alert = crud.alert.update(db, alert_id=alert_id, alert_in=alert_in)
         if not alert:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Alert with id {alert_id} not found",
-            )
+            raise AlertNotFoundException(alert_id=alert_id)
         return alert
-    except HTTPException:
+    except (AlertNotFoundException, DatabaseException):
         raise
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update alert: {str(e)}",
-        )
+        raise DatabaseException(message=f"Failed to update alert: {str(e)}")
 
 
 @router.put(
@@ -394,18 +374,12 @@ def mark_alert_as_read(
             read_by_id=mark_read.read_by_id
         )
         if not alert:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Alert with id {alert_id} not found",
-            )
+            raise AlertNotFoundException(alert_id=alert_id)
         return alert
-    except HTTPException:
+    except (AlertNotFoundException, DatabaseException):
         raise
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to mark alert as read: {str(e)}",
-        )
+        raise DatabaseException(message=f"Failed to mark alert as read: {str(e)}")
 
 
 @router.delete(
@@ -439,15 +413,9 @@ def delete_alert(
     try:
         deleted = crud.alert.delete(db, alert_id=alert_id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Alert with id {alert_id} not found",
-            )
+            raise AlertNotFoundException(alert_id=alert_id)
         return None
-    except HTTPException:
+    except (AlertNotFoundException, DatabaseException):
         raise
     except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete alert: {str(e)}",
-        )
+        raise DatabaseException(message=f"Failed to delete alert: {str(e)}")

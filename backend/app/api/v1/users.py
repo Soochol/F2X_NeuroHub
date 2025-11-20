@@ -28,10 +28,9 @@ Endpoints:
     PUT    /users/{id}/password - Change user password (admin only)
 """
 
-from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -42,6 +41,12 @@ from app.schemas.user import (
     UserCreate,
     UserInDB,
     UserUpdate,
+)
+from app.core.exceptions import (
+    UserNotFoundException,
+    DuplicateResourceException,
+    ValidationException,
+    DatabaseException,
 )
 
 
@@ -96,10 +101,7 @@ def list_users(
         )
         return users
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -127,10 +129,7 @@ def get_user(
     """
     user = crud.user.get(db, user_id=user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found",
-        )
+        raise UserNotFoundException(user_id=user_id)
     return user
 
 
@@ -161,10 +160,7 @@ def get_user_by_username(
     """
     user = crud.user.get_by_username(db, username=username)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with username '{username}' not found",
-        )
+        raise UserNotFoundException(user_id=username)
     return user
 
 
@@ -195,10 +191,7 @@ def get_user_by_email(
     """
     user = crud.user.get_by_email(db, email=email)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with email '{email}' not found",
-        )
+        raise UserNotFoundException(user_id=email)
     return user
 
 
@@ -243,10 +236,7 @@ def get_users_by_role(
         )
         return users
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        raise ValidationException(message=str(e))
 
 
 @router.post(
@@ -286,17 +276,17 @@ def create_user(
     # Check if username already exists
     existing_user = crud.user.get_by_username(db, username=user_in.username)
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
+        raise DuplicateResourceException(
+            resource_type="User",
+            identifier=f"username='{user_in.username}'"
         )
 
     # Check if email already exists
     existing_user = crud.user.get_by_email(db, email=user_in.email)
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+        raise DuplicateResourceException(
+            resource_type="User",
+            identifier=f"email='{user_in.email}'"
         )
 
     try:
@@ -306,10 +296,7 @@ def create_user(
         return db_user
     except (IntegrityError, SQLAlchemyError) as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user account",
-        )
+        raise DatabaseException(message="Failed to create user account")
 
 
 @router.put(
@@ -344,27 +331,24 @@ def update_user(
     """
     db_user = crud.user.get(db, user_id=user_id)
     if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found",
-        )
+        raise UserNotFoundException(user_id=user_id)
 
     # Check if new username is unique (if being changed)
     if user_in.username and user_in.username.lower() != db_user.username:
         existing_user = crud.user.get_by_username(db, username=user_in.username)
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered",
+            raise DuplicateResourceException(
+                resource_type="User",
+                identifier=f"username='{user_in.username}'"
             )
 
     # Check if new email is unique (if being changed)
     if user_in.email and user_in.email.lower() != db_user.email:
         existing_user = crud.user.get_by_email(db, email=user_in.email)
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
+            raise DuplicateResourceException(
+                resource_type="User",
+                identifier=f"email='{user_in.email}'"
             )
 
     try:
@@ -374,10 +358,7 @@ def update_user(
         return db_user
     except (IntegrityError, SQLAlchemyError) as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update user",
-        )
+        raise DatabaseException(message="Failed to update user")
 
 
 @router.delete(
@@ -409,26 +390,17 @@ def delete_user(
     """
     db_user = crud.user.get(db, user_id=user_id)
     if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found",
-        )
+        raise UserNotFoundException(user_id=user_id)
 
     try:
         success = crud.user.delete(db, user_id=user_id)
         if success:
             db.commit()
         else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete user",
-            )
+            raise DatabaseException(message="Failed to delete user")
     except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete user",
-        )
+        raise DatabaseException(message="Failed to delete user")
 
 
 # ============================================================================
@@ -458,10 +430,7 @@ def get_current_user(
         Endpoint structure is ready but authentication dependency is not yet implemented.
     """
     # TODO: Implement when authentication is available
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented",
-    )
+    raise NotImplementedException(feature="Authentication")
 
 
 @router.put(
@@ -492,10 +461,7 @@ def update_current_user(
         Endpoint structure is ready but authentication dependency is not yet implemented.
     """
     # TODO: Implement when authentication is available
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented",
-    )
+    raise NotImplementedException(feature="Authentication")
 
 
 @router.put(
@@ -533,7 +499,4 @@ def change_user_password(
         logic will be implemented in authentication phase.
     """
     # TODO: Implement when authentication is available
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented",
-    )
+    raise NotImplementedException(feature="Authentication")

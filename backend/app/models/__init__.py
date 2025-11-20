@@ -15,9 +15,10 @@ Models:
     - Alert: System notifications and alarms
     - ProductionLine: Production line definitions and capacity
     - Equipment: Manufacturing equipment tracking and maintenance
+    - ErrorLog: Centralized error logging for monitoring and debugging
 
 Usage:
-    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert, ProductionLine, Equipment
+    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert, ProductionLine, Equipment, ErrorLog
 """
 
 from app.models.product_model import ProductModel
@@ -30,6 +31,7 @@ from app.models.serial import Serial, SerialStatus
 from app.models.process_data import ProcessData, DataLevel, ProcessResult
 from app.models.audit_log import AuditLog, AuditAction
 from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
+from app.models.error_log import ErrorLog
 
 __all__ = [
     # Models
@@ -43,6 +45,7 @@ __all__ = [
     "Alert",
     "ProductionLine",
     "Equipment",
+    "ErrorLog",
     # Enums
     "UserRole",
     "LotStatus",

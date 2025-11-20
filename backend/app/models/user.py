@@ -160,6 +160,12 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
+    error_logs: Mapped[List["ErrorLog"]] = relationship(
+        "ErrorLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     # Indexes
     __table_args__ = (
         Index(
