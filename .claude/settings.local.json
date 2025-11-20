@@ -60,7 +60,11 @@
       "Bash(cmd //c \"taskkill /F /PID 13136 && taskkill /F /PID 35020 && taskkill /F /PID 28192\")",
       "Bash(tasklist /FI \"IMAGENAME eq python.exe\" /FO TABLE)",
       "Bash(powershell.exe -Command \"Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force\")",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(timeout:*)",
+      "Bash(../.venv/Scripts/python.exe:*)",
+      "Bash(source ../.venv/Scripts/activate)"
     ],
     "deny": [],
     "ask": []
