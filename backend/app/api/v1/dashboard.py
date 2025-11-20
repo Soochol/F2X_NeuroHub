@@ -130,8 +130,8 @@ def get_dashboard_summary(
         })
 
     # Get process WIP (Work In Progress)
-    process_wip = {}
-    processes = db.query(Process).filter(Process.is_active == True).all()
+    process_wip = []
+    processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()
 
     for process in processes:
         # Count serials that have started but not completed this process
@@ -143,7 +143,10 @@ def get_dashboard_summary(
             )
         ).scalar() or 0
 
-        process_wip[process.process_code] = wip_count
+        process_wip.append({
+            "process_name": process.process_name_ko,
+            "wip_count": wip_count
+        })
 
     return {
         "date": target_date.isoformat(),

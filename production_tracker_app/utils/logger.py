@@ -22,11 +22,16 @@ def setup_logger(name: str = "ProductionTracker", log_dir: str = "logs") -> logg
     log_path = Path(log_dir)
     log_path.mkdir(exist_ok=True)
 
-    # Create logger
+    # Configure root logger to capture all module loggers (services, utils, etc.)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    # Create named logger
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    # Remove existing handlers
+    # Remove existing handlers from both loggers
+    root_logger.handlers.clear()
     logger.handlers.clear()
 
     # File handler (daily rotation)
@@ -34,9 +39,9 @@ def setup_logger(name: str = "ProductionTracker", log_dir: str = "logs") -> logg
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
 
-    # Console handler
+    # Console handler (DEBUG level for API request debugging)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
 
     # Formatter
     formatter = logging.Formatter(
@@ -46,8 +51,8 @@ def setup_logger(name: str = "ProductionTracker", log_dir: str = "logs") -> logg
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
 
-    # Add handlers
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    # Add handlers to root logger (captures all module loggers)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
 
     return logger

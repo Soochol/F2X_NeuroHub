@@ -1,10 +1,14 @@
 """
 Main ViewModel for Production Tracker App.
 """
-from PySide6.QtCore import QObject, Signal, QTimer
+from PySide6.QtCore import QObject, Signal
 from datetime import datetime
 from typing import Dict, Optional
 import logging
+
+from utils.exception_handler import (
+    SignalConnector, CleanupManager, safe_slot, safe_cleanup
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +18,6 @@ class MainViewModel(QObject):
 
     # Signals
     lot_updated = Signal(dict)        # LOT information updated
-    stats_updated = Signal(dict)      # Statistics updated
     work_started = Signal(str)        # Work started (lot_number)
     work_completed = Signal(str)      # Work completed (message)
     error_occurred = Signal(str)      # Error message
@@ -47,33 +50,68 @@ class MainViewModel(QObject):
             self.print_service.print_success.connect(self._on_print_success)
             self.print_service.print_error.connect(self._on_print_error)
 
-        # Stats refresh timer (every 5 seconds)
-        self.stats_timer = QTimer()
-        self.stats_timer.timeout.connect(self.refresh_stats)
-        self.stats_timer.start(5000)
-
         logger.info("MainViewModel initialized")
 
     def _connect_signals(self):
         """Connect internal signals."""
+        connector = SignalConnector()
+
         # Barcode signals
-        self.barcode_service.barcode_valid.connect(self.on_barcode_scanned)
-        self.barcode_service.barcode_invalid.connect(self.on_barcode_invalid)
+        connector.connect(
+            self.barcode_service.barcode_valid,
+            self.on_barcode_scanned,
+            "barcode_valid -> on_barcode_scanned"
+        ).connect(
+            self.barcode_service.barcode_invalid,
+            self.on_barcode_invalid,
+            "barcode_invalid -> on_barcode_invalid"
+        )
 
         # Completion watcher signals
-        self.completion_watcher.completion_detected.connect(self.on_completion_detected)
-        self.completion_watcher.file_processed.connect(self.on_file_processed)
-        self.completion_watcher.error_occurred.connect(self.on_completion_error)
+        connector.connect(
+            self.completion_watcher.completion_detected,
+            self.on_completion_detected,
+            "completion_detected -> on_completion_detected"
+        ).connect(
+            self.completion_watcher.file_processed,
+            self.on_file_processed,
+            "file_processed -> on_file_processed"
+        ).connect(
+            self.completion_watcher.error_occurred,
+            self.on_completion_error,
+            "watcher_error -> on_completion_error"
+        )
 
         # Auth signals (threaded)
-        self.auth_service.auth_error.connect(self.error_occurred.emit)
-        self.auth_service.login_success.connect(self.on_login_success)
+        connector.connect(
+            self.auth_service.auth_error,
+            self.error_occurred.emit,
+            "auth_error -> error_occurred"
+        ).connect(
+            self.auth_service.login_success,
+            self.on_login_success,
+            "login_success -> on_login_success"
+        )
 
         # Work service signals (threaded)
-        self.work_service.work_started.connect(self.on_work_started_success)
-        self.work_service.work_completed.connect(self.on_work_completed_success)
-        self.work_service.stats_ready.connect(self.on_stats_ready)
-        self.work_service.error_occurred.connect(self.on_work_service_error)
+        connector.connect(
+            self.work_service.work_started,
+            self.on_work_started_success,
+            "work_started -> on_work_started_success"
+        ).connect(
+            self.work_service.work_completed,
+            self.on_work_completed_success,
+            "work_completed -> on_work_completed_success"
+        ).connect(
+            self.work_service.error_occurred,
+            self.on_work_service_error,
+            "work_error -> on_work_service_error"
+        )
+
+        if not connector.all_connected():
+            logger.error(
+                f"일부 시그널 연결 실패: {connector.failed_connections}"
+            )
 
     def on_barcode_scanned(self, lot_number: str):
         """
@@ -159,11 +197,6 @@ class MainViewModel(QObject):
         logger.error(f"Completion error: {error_msg}")
         self.error_occurred.emit(error_msg)
 
-    def refresh_stats(self):
-        """Refresh daily statistics (threaded - result will come via signal)."""
-        logger.debug("Initiating stats refresh (threaded)")
-        self.work_service.get_today_stats()
-
     def clear_current_lot(self):
         """Clear current LOT information."""
         self.current_lot = None
@@ -193,9 +226,6 @@ class MainViewModel(QObject):
         self.is_online = True
         self.connection_status_changed.emit(True)
 
-        # Refresh stats
-        self.refresh_stats()
-
     def on_work_completed_success(self, response: dict):
         """Handle successful work completion from threaded operation."""
         lot_number = response.get("lot_number", self.current_lot or "UNKNOWN")
@@ -213,19 +243,6 @@ class MainViewModel(QObject):
         # Update connection status
         self.is_online = True
         self.connection_status_changed.emit(True)
-
-        # Refresh stats
-        self.refresh_stats()
-
-    def on_stats_ready(self, stats: dict):
-        """Handle statistics ready from threaded operation."""
-        logger.debug(f"Stats ready (threaded callback): {stats}")
-        self.stats_updated.emit(stats)
-
-        # Update connection status if successful
-        if not self.is_online:
-            self.is_online = True
-            self.connection_status_changed.emit(True)
 
     def on_work_service_error(self, error_msg: str):
         """Handle work service error from threaded operation."""
@@ -311,21 +328,26 @@ class MainViewModel(QObject):
         logger.error(f"Label print error: {error_msg}")
         self.error_occurred.emit(error_msg)
 
+    @safe_cleanup("ViewModel 정리 실패")
     def cleanup(self):
         """Clean up resources and cancel pending operations."""
         logger.info("MainViewModel cleanup initiated")
 
-        # Stop timers
-        if self.stats_timer.isActive():
-            self.stats_timer.stop()
+        cleanup = CleanupManager()
 
-        # Cancel work service operations
-        self.work_service.cancel_all_operations()
+        # Cancel service operations
+        cleanup.add(
+            self.work_service.cancel_all_operations,
+            "작업 서비스 작업 취소"
+        )
+        cleanup.add(
+            self.auth_service.cancel_all_operations,
+            "인증 서비스 작업 취소"
+        )
+        cleanup.add(self.completion_watcher.stop, "완료 감시자 정지")
 
-        # Cancel auth service operations
-        self.auth_service.cancel_all_operations()
-
-        # Stop completion watcher
-        self.completion_watcher.stop()
+        failed = cleanup.execute()
+        if failed:
+            logger.warning(f"일부 정리 작업 실패: {failed}")
 
         logger.info("MainViewModel cleanup completed")

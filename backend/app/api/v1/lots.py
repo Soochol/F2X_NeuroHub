@@ -29,7 +29,7 @@ All endpoints include:
 """
 
 from datetime import date
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from sqlalchemy.orm import Session
 
@@ -42,6 +42,12 @@ from app.schemas.lot import (
     LotInDB,
     LotStatus,
     Shift,
+)
+# New exception imports
+from app.core.exceptions import (
+    LotNotFoundException,
+    DuplicateResourceException,
+    ValidationException,
 )
 
 
@@ -60,25 +66,30 @@ router = APIRouter(
     "/",
     response_model=List[LotInDB],
     summary="List all LOTs",
-    description="Retrieve a paginated list of all LOTs ordered by production date (newest first)",
+    description="Retrieve a paginated list of LOTs ordered by production date (newest first), optionally filtered by status",
 )
 def list_lots(
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return"),
+    status: Optional[LotStatus] = Query(None, description="Filter by LOT status (CREATED, IN_PROGRESS, COMPLETED, CLOSED)"),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> List[LotInDB]:
-    """List all LOTs with pagination.
+    """List all LOTs with pagination and optional status filter.
 
-    Retrieves a paginated list of all LOTs from the database, ordered by
+    Retrieves a paginated list of LOTs from the database, ordered by
     production date in descending order (newest first) and lot number (descending).
-    Supports configurable offset and limit for pagination control.
+    Supports configurable offset and limit for pagination control, and optional
+    status filtering.
 
     Args:
         skip: Number of records to skip (offset) for pagination.
             Defaults to 0. Must be non-negative.
         limit: Maximum number of records to return.
             Defaults to 100. Must be positive (1-10000).
+        status: Optional LOT status filter.
+            If provided, only LOTs with this status are returned.
+            Valid values: CREATED, IN_PROGRESS, COMPLETED, CLOSED
         db: SQLAlchemy database session (injected via dependency).
 
     Returns:
@@ -98,11 +109,37 @@ def list_lots(
         Get all records (large limit):
         >>> GET /api/v1/lots/?skip=0&limit=10000
 
+        Get only COMPLETED LOTs:
+        >>> GET /api/v1/lots/?status=COMPLETED
+
+        Get IN_PROGRESS LOTs with pagination:
+        >>> GET /api/v1/lots/?status=IN_PROGRESS&skip=0&limit=20
+
     OpenAPI Parameters:
         skip: Query parameter, non-negative integer
         limit: Query parameter, positive integer (1-10000)
+        status: Query parameter, optional LOT status enum
     """
-    return crud.get_multi(db, skip=skip, limit=limit)
+    # Debug - Status Filter Investigation
+    print(f"\n{'='*80}")
+    print(f"[STATUS FILTER DEBUG] list_lots called")
+    print(f"  status parameter: {status}")
+    print(f"  status type: {type(status)}")
+    print(f"  skip: {skip}, limit: {limit}")
+    print(f"{'='*80}\n")
+
+    # If status filter is provided, use get_by_status
+    if status:
+        print(f"[FILTER] Using get_by_status with status={status.value}")
+        result = crud.get_by_status(db, status=status.value, skip=skip, limit=limit)
+        print(f"[FILTER] Returned {len(result)} LOTs")
+        return result
+
+    # Otherwise, return all LOTs
+    print(f"[NO FILTER] Returning all LOTs")
+    result = crud.get_multi(db, skip=skip, limit=limit)
+    print(f"[NO FILTER] Returned {len(result)} LOTs")
+    return result
 
 
 @router.get(
@@ -161,10 +198,7 @@ def get_lot(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(id)
     return obj
 
 
@@ -517,10 +551,7 @@ def get_lot_quantities(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(id)
     return obj
 
 

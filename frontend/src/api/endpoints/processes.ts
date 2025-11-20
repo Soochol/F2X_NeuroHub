@@ -7,17 +7,21 @@ import type { Process } from '@/types/api';
 
 export interface ProcessCreate {
   process_number: number;
-  name: string;
+  process_code: string;
+  process_name_ko: string;
+  process_name_en: string;
   description?: string;
-  sequence_order: number;
+  sort_order: number;
   is_active?: boolean;
 }
 
 export interface ProcessUpdate {
   process_number?: number;
-  name?: string;
+  process_code?: string;
+  process_name_ko?: string;
+  process_name_en?: string;
   description?: string;
-  sequence_order?: number;
+  sort_order?: number;
   is_active?: boolean;
 }
 

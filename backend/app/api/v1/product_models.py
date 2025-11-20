@@ -24,7 +24,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -34,6 +34,10 @@ from app.schemas.product_model import (
     ProductModelCreate,
     ProductModelUpdate,
     ProductModelInDB,
+)
+from app.core.exceptions import (
+    ProductModelNotFoundException,
+    DuplicateResourceException,
 )
 
 
@@ -210,10 +214,7 @@ def get_product_model(
     """
     obj = crud.get(db, id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product model with ID {id} not found",
-        )
+        raise ProductModelNotFoundException(model_id=id)
     return obj
 
 
@@ -263,10 +264,7 @@ def get_product_model_by_code(
     """
     obj = crud.get_by_code(db, model_code=model_code)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product model with code '{model_code}' not found",
-        )
+        raise ProductModelNotFoundException(model_id=f"code='{model_code}'")
     return obj
 
 
@@ -405,9 +403,9 @@ def create_product_model(
     except Exception as e:
         # Handle database constraint violations
         if "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Product model with code '{obj_in.model_code}' already exists",
+            raise DuplicateResourceException(
+                resource_type="Product model",
+                identifier=f"code='{obj_in.model_code}'"
             )
         # Re-raise other exceptions
         raise
@@ -483,19 +481,16 @@ def update_product_model(
     """
     obj = crud.get(db, id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product model with ID {id} not found",
-        )
+        raise ProductModelNotFoundException(model_id=id)
 
     try:
         return crud.update(db, db_obj=obj, obj_in=obj_in)
     except Exception as e:
         # Handle database constraint violations
         if "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Product model with code '{obj_in.model_code}' already exists",
+            raise DuplicateResourceException(
+                resource_type="Product model",
+                identifier=f"code='{obj_in.model_code}'"
             )
         # Re-raise other exceptions
         raise
@@ -541,7 +536,4 @@ def delete_product_model(
     """
     obj = crud.delete(db, id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product model with ID {id} not found",
-        )
+        raise ProductModelNotFoundException(model_id=id)

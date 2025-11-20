@@ -4,7 +4,7 @@
  * Top bar with alerts notification and user menu
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { alertsApi } from '@/api';
@@ -21,6 +21,7 @@ export const Header = ({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) => 
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Poll for unread alerts every 30 seconds
   useEffect(() => {
@@ -38,6 +39,23 @@ export const Header = ({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) => 
 
     return () => clearInterval(interval);
   }, []);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
 
   const handleLogout = async () => {
     try {
@@ -105,7 +123,7 @@ export const Header = ({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) => 
             top: '0',
             right: '0',
             backgroundColor: 'var(--color-error)',
-            color: 'white',
+            color: 'var(--color-text-inverse)',
             fontSize: '12px',
             fontWeight: 'bold',
             borderRadius: '50%',
@@ -121,7 +139,7 @@ export const Header = ({ onToggleSidebar, isSidebarCollapsed }: HeaderProps) => 
       </button>
 
       {/* User Menu */}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }} ref={userMenuRef}>
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
           style={{

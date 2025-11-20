@@ -117,6 +117,44 @@ class StartWorkPage(QWidget):
 
         layout.addWidget(input_group)
 
+        # Current equipment info section
+        equip_frame = QFrame()
+        equip_frame.setObjectName("equip_info_frame")
+        equip_frame.setStyleSheet(f"""
+            #equip_info_frame {{
+                background-color: {bg_default};
+                border: 1px solid {border_default};
+                border-radius: 8px;
+            }}
+        """)
+        equip_layout = QVBoxLayout(equip_frame)
+        equip_layout.setContentsMargins(16, 12, 16, 12)
+        equip_layout.setSpacing(8)
+
+        equip_title = QLabel("현재 설정")
+        equip_title.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 600;")
+        equip_layout.addWidget(equip_title)
+
+        # Process info
+        process_text = self._get_process_display()
+        self.process_info_label = QLabel(f"공정: {process_text}")
+        self.process_info_label.setStyleSheet(f"color: {grey_400}; font-size: 12px;")
+        equip_layout.addWidget(self.process_info_label)
+
+        # Line info
+        line_text = self._get_line_display()
+        self.line_info_label = QLabel(f"생산라인: {line_text}")
+        self.line_info_label.setStyleSheet(f"color: {grey_400}; font-size: 12px;")
+        equip_layout.addWidget(self.line_info_label)
+
+        # Equipment info
+        equip_text = self._get_equipment_display()
+        self.equip_info_label = QLabel(f"장비: {equip_text}")
+        self.equip_info_label.setStyleSheet(f"color: {grey_400}; font-size: 12px;")
+        equip_layout.addWidget(self.equip_info_label)
+
+        layout.addWidget(equip_frame)
+
         # Info section
         info_frame = QFrame()
         info_frame.setStyleSheet(f"""
@@ -170,3 +208,39 @@ class StartWorkPage(QWidget):
         """Set focus to LOT input field."""
         self.lot_input.setFocus()
         self.lot_input.selectAll()
+
+    def _get_process_display(self) -> str:
+        """Get process display text from config."""
+        number = self.config.process_number
+        name = self.config.process_name
+        if number and name:
+            return f"{number}. {name}"
+        elif number:
+            return f"Process {number}"
+        return "(미설정)"
+
+    def _get_line_display(self) -> str:
+        """Get production line display text from config."""
+        code = self.config.line_code
+        name = self.config.line_name
+        if code and name:
+            return f"{code} - {name}"
+        elif code:
+            return code
+        return "(미설정)"
+
+    def _get_equipment_display(self) -> str:
+        """Get equipment display text from config."""
+        code = self.config.equipment_code
+        name = self.config.equipment_name
+        if code and name:
+            return f"{code} - {name}"
+        elif code:
+            return code
+        return "(미설정)"
+
+    def refresh_info(self):
+        """Refresh displayed process/equipment/line info from config."""
+        self.process_info_label.setText(f"공정: {self._get_process_display()}")
+        self.line_info_label.setText(f"생산라인: {self._get_line_display()}")
+        self.equip_info_label.setText(f"장비: {self._get_equipment_display()}")

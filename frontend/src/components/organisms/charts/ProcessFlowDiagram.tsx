@@ -1,9 +1,9 @@
 /**
- * Process Flow Diagram Component
+ * Process Flow Diagram Component - Pipeline Style
  * Visualizes the production process flow with WIP counts and bottleneck detection
  */
 
-import { ArrowRight, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ProcessWipData {
   process_name: string;
@@ -33,125 +33,206 @@ export const ProcessFlowDiagram = ({ data }: ProcessFlowDiagramProps) => {
   // Determine if a process is a bottleneck (WIP significantly higher than average)
   const isBottleneck = (wipCount: number) => wipCount > avgWip * 1.5 && wipCount === maxWip;
 
+  // Get node color based on WIP intensity
+  const getNodeColor = (wipCount: number, bottleneck: boolean) => {
+    if (bottleneck) return 'var(--color-error)';
+    const intensity = wipCount / maxWip;
+    if (intensity > 0.7) return 'var(--color-warning)';
+    if (intensity > 0.4) return 'var(--color-info)';
+    return 'var(--color-success)';
+  };
+
   return (
     <div style={{ padding: '20px 0' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          overflowX: 'auto',
-          paddingBottom: '10px',
-        }}
-      >
-        {processes.map((process, index) => {
-          const bottleneck = isBottleneck(process.wip_count);
-          const intensity = process.wip_count / maxWip;
+      {/* Pipeline Container */}
+      <div style={{ position: 'relative', paddingBottom: '120px' }}>
+        {/* Nodes and Lines Row */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '90px 20px',
+            paddingBottom: '10px',
+          }}
+        >
+          {processes.flatMap((process, index) => {
+            const bottleneck = isBottleneck(process.wip_count);
+            const nodeColor = getNodeColor(process.wip_count, bottleneck);
+            const isFirst = index === 0;
+            const isLast = index === processes.length - 1;
 
-          // Determine color based on WIP intensity
-          let bgColor = 'var(--color-success-light)';
-          let borderColor = 'var(--color-success)';
-          let textColor = 'var(--color-success)';
+            const elements = [];
 
-          if (bottleneck) {
-            bgColor = 'var(--color-error-light)';
-            borderColor = 'var(--color-error)';
-            textColor = 'var(--color-error)';
-          } else if (intensity > 0.7) {
-            bgColor = 'var(--color-warning-light)';
-            borderColor = 'var(--color-warning)';
-            textColor = 'var(--color-warning)';
-          } else if (intensity > 0.4) {
-            bgColor = 'var(--color-info-light)';
-            borderColor = 'var(--color-info)';
-            textColor = 'var(--color-info)';
-          }
-
-          return (
-            <div key={process.process_name} style={{ display: 'flex', alignItems: 'center' }}>
-              {/* Process Box */}
+            // Add node
+            elements.push(
               <div
+                key={`node-${index}`}
                 style={{
+                  position: 'relative',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  minWidth: '100px',
                 }}
               >
+                {/* Node Circle */}
                 <div
                   style={{
-                    backgroundColor: bgColor,
-                    border: `2px solid ${borderColor}`,
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    textAlign: 'center',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: isLast ? 'transparent' : nodeColor,
+                    border: `3px solid ${nodeColor}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     position: 'relative',
-                    minWidth: '90px',
+                    boxShadow: bottleneck ? `0 0 8px ${nodeColor}` : 'none',
+                    zIndex: 2,
                   }}
                 >
-                  {bottleneck && (
+                  {/* Inner dot for filled nodes */}
+                  {!isLast && (
                     <div
                       style={{
-                        position: 'absolute',
-                        top: '-10px',
-                        right: '-10px',
-                        backgroundColor: 'var(--color-error)',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        backgroundColor: 'var(--color-bg-primary)',
                       }}
-                    >
-                      <AlertTriangle size={12} color="white" />
-                    </div>
+                    />
                   )}
+                </div>
+
+                {/* Process Info Below Node */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '32px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    minWidth: '70px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {/* Process Name */}
                   <div
                     style={{
-                      fontSize: '12px',
+                      fontSize: '11px',
                       fontWeight: '500',
-                      color: 'var(--color-text-primary)',
+                      color: bottleneck ? nodeColor : 'var(--color-text-primary)',
                       marginBottom: '4px',
-                      whiteSpace: 'nowrap',
                     }}
                   >
                     {process.process_name}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '20px',
-                      fontWeight: '700',
-                      color: textColor,
-                    }}
-                  >
-                    {process.wip_count}
-                  </div>
-                </div>
-                {bottleneck && (
-                  <div
-                    style={{
-                      marginTop: '6px',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      color: 'var(--color-error)',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Bottleneck
-                  </div>
-                )}
-              </div>
 
-              {/* Arrow between processes */}
-              {index < processes.length - 1 && (
-                <div style={{ padding: '0 8px', color: 'var(--color-text-tertiary)' }}>
-                  <ArrowRight size={20} />
+                  {/* WIP Count */}
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: nodeColor,
+                    }}
+                  >
+                    ({process.wip_count})
+                  </div>
+
+                  {/* Bottleneck Indicator */}
+                  {bottleneck && (
+                    <div
+                      style={{
+                        marginTop: '6px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                      }}
+                    >
+                      <AlertTriangle size={14} color={nodeColor} />
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: '600',
+                          color: nodeColor,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Bottleneck
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+
+            // Add connecting line after node (except for last)
+            if (!isLast) {
+              elements.push(
+                <div
+                  key={`line-${index}`}
+                  style={{
+                    flex: '1 1 auto',
+                    minWidth: '30px',
+                    maxWidth: '80px',
+                    height: '3px',
+                    backgroundColor: 'var(--color-border)',
+                  }}
+                />
+              );
+            }
+
+            return elements;
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '20px',
+          marginTop: '15px',
+          fontSize: '10px',
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-success)',
+            }}
+          />
+          <span>Normal</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-warning)',
+            }}
+          />
+          <span>High</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-error)',
+            }}
+          />
+          <span>Bottleneck</span>
+        </div>
       </div>
     </div>
   );

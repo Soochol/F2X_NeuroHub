@@ -86,13 +86,13 @@ class ProductionLineSchema(BaseModel):
         id: Production line identifier
         line_code: Unique line identifier (e.g., 'LINE-A')
         line_name: Display name for the line (e.g., '조립라인 A')
-        capacity_per_shift: Production capacity per 8-hour shift
+        cycle_time_sec: Cycle time in seconds for one unit (optional)
         is_active: Whether this line is currently operational
     """
     id: int
     line_code: str
     line_name: str
-    capacity_per_shift: int
+    cycle_time_sec: Optional[int] = None
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)

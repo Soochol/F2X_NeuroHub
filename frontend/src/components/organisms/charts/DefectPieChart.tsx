@@ -62,11 +62,17 @@ export const DefectPieChart = ({ passed, failed, height = 300 }: DefectPieChartP
               borderRadius: theme.charts.tooltip.borderRadius,
               color: theme.charts.tooltip.color,
             }}
+            itemStyle={{
+              color: theme.charts.tooltip.color,
+            }}
+            labelStyle={{
+              color: theme.charts.tooltip.color,
+            }}
             formatter={(value: number) => [`${value} units`, '']}
           />
           <Legend
             verticalAlign="bottom"
-            formatter={(value) => <span style={{ color: theme.colors.text.secondary }}>{value}</span>}
+            formatter={(value) => <span style={{ color: 'var(--color-text-secondary)' }}>{value}</span>}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -79,10 +85,10 @@ export const DefectPieChart = ({ passed, failed, height = 300 }: DefectPieChartP
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.text.primary }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>
           {passRate}%
         </div>
-        <div style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
+        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
           Pass Rate
         </div>
       </div>

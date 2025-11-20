@@ -15,15 +15,21 @@ Schemas:
 Key Features:
     - Equipment code format validation (alphanumeric and hyphens)
     - Equipment type classification
+    - Status validation (AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE, RETIRED)
     - Maintenance date tracking
     - Foreign key relationships to Process and ProductionLine
-    - Manufacturer and model information
+    - JSONB fields for specifications and maintenance_schedule
 """
 
 from datetime import datetime, date
-from typing import Optional
+from decimal import Decimal
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+
+
+# Valid equipment status values
+VALID_STATUSES = ["AVAILABLE", "IN_USE", "MAINTENANCE", "OUT_OF_SERVICE", "RETIRED"]
 
 
 class ProcessSummarySchema(BaseModel):
@@ -73,23 +79,27 @@ class EquipmentBase(BaseModel):
     Base schema for Equipment with core fields and validation.
 
     Attributes:
-        equipment_code: Unique equipment identifier (e.g., 'LASER-001')
+        equipment_code: Unique equipment identifier (e.g., 'EQ_LASER_001')
         equipment_name: Display name (e.g., '레이저마킹기-001')
         equipment_type: Type classification (e.g., 'LASER_MARKER', 'SENSOR', 'ROBOT')
+        description: Equipment description and details (optional)
         process_id: Foreign key to processes table (optional)
         production_line_id: Foreign key to production_lines table (optional)
-        location: Physical location within facility (optional)
         manufacturer: Equipment manufacturer name (optional)
         model_number: Manufacturer's model number (optional)
         serial_number: Equipment serial number (optional)
-        install_date: Date equipment was installed (optional)
-        last_maintenance_date: Last maintenance timestamp (optional)
-        next_maintenance_date: Scheduled next maintenance timestamp (optional)
+        status: Equipment status (default: AVAILABLE)
         is_active: Whether equipment is currently operational (default: True)
+        last_maintenance_date: Last maintenance date (optional)
+        next_maintenance_date: Scheduled next maintenance date (optional)
+        total_operation_hours: Total hours of operation (optional)
+        specifications: Technical specifications in JSONB format (optional)
+        maintenance_schedule: Maintenance schedule and procedures (optional)
 
     Validators:
         - validate_equipment_code: Ensures equipment_code format is valid
         - validate_equipment_type: Ensures equipment_type is uppercased
+        - validate_status: Ensures status is a valid value
         - validate_maintenance_dates: Ensures next_maintenance_date >= last_maintenance_date
     """
 
@@ -97,7 +107,7 @@ class EquipmentBase(BaseModel):
         ...,
         min_length=1,
         max_length=50,
-        description="Unique equipment identifier (e.g., 'LASER-001')"
+        description="Unique equipment identifier (e.g., 'EQ_LASER_001')"
     )
     equipment_name: str = Field(
         ...,
@@ -111,6 +121,10 @@ class EquipmentBase(BaseModel):
         max_length=100,
         description="Type classification (e.g., 'LASER_MARKER', 'SENSOR', 'ROBOT')"
     )
+    description: Optional[str] = Field(
+        default=None,
+        description="Equipment description and details"
+    )
     process_id: Optional[int] = Field(
         default=None,
         gt=0,
@@ -121,14 +135,9 @@ class EquipmentBase(BaseModel):
         gt=0,
         description="Production line where equipment is located"
     )
-    location: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="Physical location within facility"
-    )
     manufacturer: Optional[str] = Field(
         default=None,
-        max_length=100,
+        max_length=255,
         description="Equipment manufacturer name"
     )
     model_number: Optional[str] = Field(
@@ -141,21 +150,34 @@ class EquipmentBase(BaseModel):
         max_length=100,
         description="Equipment serial number"
     )
-    install_date: Optional[date] = Field(
-        default=None,
-        description="Date equipment was installed"
-    )
-    last_maintenance_date: Optional[datetime] = Field(
-        default=None,
-        description="Last maintenance timestamp"
-    )
-    next_maintenance_date: Optional[datetime] = Field(
-        default=None,
-        description="Scheduled next maintenance timestamp"
+    status: str = Field(
+        default="AVAILABLE",
+        description="Equipment status: AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE, RETIRED"
     )
     is_active: bool = Field(
         default=True,
         description="Whether equipment is currently operational"
+    )
+    last_maintenance_date: Optional[date] = Field(
+        default=None,
+        description="Last maintenance date"
+    )
+    next_maintenance_date: Optional[date] = Field(
+        default=None,
+        description="Scheduled next maintenance date"
+    )
+    total_operation_hours: Optional[Decimal] = Field(
+        default=None,
+        ge=0,
+        description="Total hours of operation"
+    )
+    specifications: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Technical specifications in JSONB format"
+    )
+    maintenance_schedule: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Maintenance schedule and procedures in JSONB format"
     )
 
     @field_validator("equipment_code")
@@ -165,7 +187,7 @@ class EquipmentBase(BaseModel):
         Validate equipment_code format.
 
         Ensures equipment code follows naming convention with alphanumeric
-        characters and hyphens only.
+        characters, hyphens, and underscores only.
 
         Args:
             value: Equipment code to validate
@@ -179,10 +201,10 @@ class EquipmentBase(BaseModel):
         if not value:
             raise ValueError("equipment_code cannot be empty")
 
-        # Check for valid characters (alphanumeric and hyphens)
-        if not all(c.isalnum() or c == '-' for c in value):
+        # Check for valid characters (alphanumeric, hyphens, and underscores)
+        if not all(c.isalnum() or c in '-_' for c in value):
             raise ValueError(
-                "equipment_code can only contain alphanumeric characters and hyphens"
+                "equipment_code can only contain alphanumeric characters, hyphens, and underscores"
             )
 
         return value.upper()
@@ -213,24 +235,50 @@ class EquipmentBase(BaseModel):
 
         return value.upper()
 
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str) -> str:
+        """
+        Validate and uppercase status.
+
+        Args:
+            value: Status to validate
+
+        Returns:
+            Uppercase version of the status
+
+        Raises:
+            ValueError: If status is not a valid value
+        """
+        if not value:
+            raise ValueError("status cannot be empty")
+
+        upper_value = value.upper()
+        if upper_value not in VALID_STATUSES:
+            raise ValueError(
+                f"status must be one of: {', '.join(VALID_STATUSES)}"
+            )
+
+        return upper_value
+
     @model_validator(mode="after")
     def validate_maintenance_dates(self) -> "EquipmentBase":
         """
         Validate maintenance date consistency.
 
-        Ensures next_maintenance_date >= last_maintenance_date when both are provided.
+        Ensures next_maintenance_date > last_maintenance_date when both are provided.
 
         Returns:
             Self instance if valid
 
         Raises:
-            ValueError: If next_maintenance_date is before last_maintenance_date
+            ValueError: If next_maintenance_date is before or equal to last_maintenance_date
         """
         if (self.last_maintenance_date is not None and
             self.next_maintenance_date is not None):
-            if self.next_maintenance_date < self.last_maintenance_date:
+            if self.next_maintenance_date <= self.last_maintenance_date:
                 raise ValueError(
-                    "next_maintenance_date must be greater than or equal to last_maintenance_date"
+                    "next_maintenance_date must be greater than last_maintenance_date"
                 )
         return self
 
@@ -244,7 +292,7 @@ class EquipmentCreate(EquipmentBase):
 
     Example:
         equipment_create = EquipmentCreate(
-            equipment_code="LASER-001",
+            equipment_code="EQ_LASER_001",
             equipment_name="레이저마킹기-001",
             equipment_type="LASER_MARKER",
             production_line_id=1,
@@ -266,16 +314,19 @@ class EquipmentUpdate(BaseModel):
         equipment_code: Updated equipment code (optional)
         equipment_name: Updated equipment name (optional)
         equipment_type: Updated equipment type (optional)
+        description: Updated description (optional)
         process_id: Updated process assignment (optional)
         production_line_id: Updated production line assignment (optional)
-        location: Updated location (optional)
         manufacturer: Updated manufacturer (optional)
         model_number: Updated model number (optional)
         serial_number: Updated serial number (optional)
-        install_date: Updated install date (optional)
+        status: Updated status (optional)
+        is_active: Updated active status (optional)
         last_maintenance_date: Updated last maintenance date (optional)
         next_maintenance_date: Updated next maintenance date (optional)
-        is_active: Updated active status (optional)
+        total_operation_hours: Updated operation hours (optional)
+        specifications: Updated specifications (optional)
+        maintenance_schedule: Updated maintenance schedule (optional)
     """
 
     equipment_code: Optional[str] = Field(
@@ -296,6 +347,10 @@ class EquipmentUpdate(BaseModel):
         max_length=100,
         description="Type classification"
     )
+    description: Optional[str] = Field(
+        default=None,
+        description="Equipment description and details"
+    )
     process_id: Optional[int] = Field(
         default=None,
         gt=0,
@@ -306,14 +361,9 @@ class EquipmentUpdate(BaseModel):
         gt=0,
         description="Production line where equipment is located"
     )
-    location: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="Physical location within facility"
-    )
     manufacturer: Optional[str] = Field(
         default=None,
-        max_length=100,
+        max_length=255,
         description="Equipment manufacturer name"
     )
     model_number: Optional[str] = Field(
@@ -326,21 +376,34 @@ class EquipmentUpdate(BaseModel):
         max_length=100,
         description="Equipment serial number"
     )
-    install_date: Optional[date] = Field(
+    status: Optional[str] = Field(
         default=None,
-        description="Date equipment was installed"
-    )
-    last_maintenance_date: Optional[datetime] = Field(
-        default=None,
-        description="Last maintenance timestamp"
-    )
-    next_maintenance_date: Optional[datetime] = Field(
-        default=None,
-        description="Scheduled next maintenance timestamp"
+        description="Equipment status"
     )
     is_active: Optional[bool] = Field(
         default=None,
         description="Whether equipment is currently operational"
+    )
+    last_maintenance_date: Optional[date] = Field(
+        default=None,
+        description="Last maintenance date"
+    )
+    next_maintenance_date: Optional[date] = Field(
+        default=None,
+        description="Scheduled next maintenance date"
+    )
+    total_operation_hours: Optional[Decimal] = Field(
+        default=None,
+        ge=0,
+        description="Total hours of operation"
+    )
+    specifications: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Technical specifications in JSONB format"
+    )
+    maintenance_schedule: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Maintenance schedule and procedures in JSONB format"
     )
 
     model_config = ConfigDict(validate_assignment=True)
@@ -366,10 +429,10 @@ class EquipmentUpdate(BaseModel):
         if not value:
             raise ValueError("equipment_code cannot be empty")
 
-        # Check for valid characters (alphanumeric and hyphens)
-        if not all(c.isalnum() or c == '-' for c in value):
+        # Check for valid characters (alphanumeric, hyphens, and underscores)
+        if not all(c.isalnum() or c in '-_' for c in value):
             raise ValueError(
-                "equipment_code can only contain alphanumeric characters and hyphens"
+                "equipment_code can only contain alphanumeric characters, hyphens, and underscores"
             )
 
         return value.upper()
@@ -402,6 +465,35 @@ class EquipmentUpdate(BaseModel):
             )
 
         return value.upper()
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: Optional[str]) -> Optional[str]:
+        """
+        Validate and uppercase status if provided.
+
+        Args:
+            value: Status to validate
+
+        Returns:
+            Uppercase version of the status or None
+
+        Raises:
+            ValueError: If status is provided but invalid
+        """
+        if value is None:
+            return None
+
+        if not value:
+            raise ValueError("status cannot be empty")
+
+        upper_value = value.upper()
+        if upper_value not in VALID_STATUSES:
+            raise ValueError(
+                f"status must be one of: {', '.join(VALID_STATUSES)}"
+            )
+
+        return upper_value
 
 
 class EquipmentInDB(EquipmentBase):
@@ -492,4 +584,4 @@ class EquipmentResponse(EquipmentInDB):
         if next_maintenance_date is None:
             return False
 
-        return datetime.now(next_maintenance_date.tzinfo) >= next_maintenance_date
+        return date.today() >= next_maintenance_date

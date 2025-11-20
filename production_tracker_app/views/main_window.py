@@ -21,6 +21,9 @@ from widgets.base_components import StatusIndicator
 from widgets.toast_notification import Toast
 from utils.theme_manager import get_theme
 from utils.process_data_generator import ProcessDataGenerator
+from utils.exception_handler import (
+    SignalConnector, CleanupManager, safe_slot, safe_cleanup
+)
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -110,9 +113,10 @@ class MainWindow(QMainWindow):
         self.home_page = HomePage(self.config)
         self.start_page = StartWorkPage(self.config)
         self.complete_page = CompleteWorkPage(self.config)
-        # Get print_service for settings page
+        # Get services for settings page
         print_service = getattr(self.viewmodel, 'print_service', None)
-        self.settings_page = SettingsPage(self.config, print_service)
+        api_client = getattr(self.viewmodel, 'api_client', None)
+        self.settings_page = SettingsPage(self.config, print_service, api_client)
         self.help_page = HelpPage(self.config)
 
         self.stack.addWidget(self.home_page)
@@ -128,16 +132,6 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.status_bar.setObjectName("status_bar")
         self.setStatusBar(self.status_bar)
-
-        # Connection indicator
-        self.connection_indicator = StatusIndicator("온라인", status="success")
-        self.connection_indicator.setObjectName("connection_indicator")
-        self.status_bar.addPermanentWidget(self.connection_indicator)
-
-        # Process info in status bar
-        process_label = QLabel(f"공정: {self.config.process_name}")
-        process_label.setStyleSheet(f"color: {theme.get('colors.grey.400')}; font-size: 11px;")
-        self.status_bar.addWidget(process_label)
 
         # Select first item (Home)
         self.nav_list.setCurrentRow(0)
@@ -205,22 +199,66 @@ class MainWindow(QMainWindow):
 
     def _connect_page_signals(self):
         """Connect page signals to handlers."""
-        # Start page signals
-        self.start_page.start_requested.connect(self._on_start_work_requested)
+        connector = SignalConnector()
+        connector.connect(
+            self.start_page.start_requested,
+            self._on_start_work_requested,
+            "start_requested -> _on_start_work_requested"
+        ).connect(
+            self.complete_page.pass_requested,
+            self._on_pass_requested,
+            "pass_requested -> _on_pass_requested"
+        ).connect(
+            self.complete_page.fail_requested,
+            self._on_fail_requested,
+            "fail_requested -> _on_fail_requested"
+        ).connect(
+            self.settings_page.settings_saved,
+            self._on_settings_saved,
+            "settings_saved -> _on_settings_saved"
+        )
 
-        # Complete page signals
-        self.complete_page.pass_requested.connect(self._on_pass_requested)
-        self.complete_page.fail_requested.connect(self._on_fail_requested)
+        if not connector.all_connected():
+            logger.error(
+                f"페이지 시그널 연결 실패: {connector.failed_connections}"
+            )
+
+    @safe_slot("설정 저장 후 처리 실패")
+    def _on_settings_saved(self):
+        """Handle settings saved - refresh page info."""
+        self.home_page.refresh_info()
+        self.start_page.refresh_info()
+        self.complete_page.refresh_info()
 
     def connect_signals(self):
         """Connect ViewModel signals to UI updates."""
-        self.viewmodel.lot_updated.connect(self._on_lot_updated)
-        self.viewmodel.work_started.connect(self._on_work_started)
-        self.viewmodel.work_completed.connect(self._on_work_completed)
-        self.viewmodel.error_occurred.connect(self._on_error)
-        self.viewmodel.connection_status_changed.connect(
-            self._on_connection_status_changed
+        connector = SignalConnector()
+        connector.connect(
+            self.viewmodel.lot_updated,
+            self._on_lot_updated,
+            "lot_updated -> _on_lot_updated"
+        ).connect(
+            self.viewmodel.work_started,
+            self._on_work_started,
+            "work_started -> _on_work_started"
+        ).connect(
+            self.viewmodel.work_completed,
+            self._on_work_completed,
+            "work_completed -> _on_work_completed"
+        ).connect(
+            self.viewmodel.error_occurred,
+            self._on_error,
+            "error_occurred -> _on_error"
+        ).connect(
+            self.viewmodel.connection_status_changed,
+            self._on_connection_status_changed,
+            "connection_status_changed -> _on_connection_status_changed"
         )
+
+        if not connector.all_connected():
+            logger.error(
+                f"일부 시그널 연결 실패: {connector.failed_connections}"
+            )
 
     def _on_nav_changed(self, index):
         """Handle navigation item change."""
@@ -338,6 +376,7 @@ class MainWindow(QMainWindow):
             self.current_lot = None
             self.start_time = None
 
+    @safe_slot("착공 처리 실패", show_dialog=True)
     def _on_work_started(self, lot_number: str):
         """Handle work started event."""
         self.current_lot = lot_number
@@ -365,6 +404,7 @@ class MainWindow(QMainWindow):
         # Switch to home page to show status
         self.nav_list.setCurrentRow(0)
 
+    @safe_slot("완공 처리 실패", show_dialog=True)
     def _on_work_completed(self, message: str):
         """Handle work completed event."""
         complete_time = datetime.now().strftime("%H:%M:%S")
@@ -437,17 +477,16 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.Yes:
             logger.info("Application closing - initiating cleanup")
 
-            # Stop timers
-            self.elapsed_timer.stop()
+            # Use CleanupManager for safe cleanup
+            cleanup = CleanupManager()
+            cleanup.add(self.elapsed_timer.stop, "타이머 정지")
+            cleanup.add(Toast.clear_all, "토스트 정리")
+            cleanup.add(self.home_page.cleanup, "홈페이지 정리")
+            cleanup.add(self.viewmodel.cleanup, "ViewModel 정리")
 
-            # Clear all active toasts
-            Toast.clear_all()
-
-            # Clean up home page
-            self.home_page.cleanup()
-
-            # Clean up ViewModel resources
-            self.viewmodel.cleanup()
+            failed = cleanup.execute()
+            if failed:
+                logger.warning(f"일부 정리 작업 실패: {failed}")
 
             logger.info("Application cleanup completed")
             event.accept()

@@ -71,7 +71,7 @@ class HomePage(QWidget):
         line_layout = QHBoxLayout()
         line_label = QLabel("라인:")
         line_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
-        self.line_value = QLabel(self.config.line_id)
+        self.line_value = QLabel(self._get_line_display())
         self.line_value.setStyleSheet(f"color: {text_primary}; font-size: 13px;")
         line_layout.addWidget(line_label)
         line_layout.addWidget(self.line_value)
@@ -82,7 +82,7 @@ class HomePage(QWidget):
         equip_layout = QHBoxLayout()
         equip_label = QLabel("장비:")
         equip_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
-        self.equip_value = QLabel(self.config.equipment_id)
+        self.equip_value = QLabel(self._get_equipment_display())
         self.equip_value.setStyleSheet(f"color: {text_primary}; font-size: 13px;")
         equip_layout.addWidget(equip_label)
         equip_layout.addWidget(self.equip_value)
@@ -144,6 +144,31 @@ class HomePage(QWidget):
         self.work_card.reset()
         self.set_status("바코드 스캔 대기중...", "default")
         self.recent_label.setText("")
+
+    def _get_line_display(self) -> str:
+        """Get production line display text from config."""
+        code = self.config.line_code
+        name = self.config.line_name
+        if code and name:
+            return f"{code} - {name}"
+        elif code:
+            return code
+        return "(미설정)"
+
+    def _get_equipment_display(self) -> str:
+        """Get equipment display text from config."""
+        code = self.config.equipment_code
+        name = self.config.equipment_name
+        if code and name:
+            return f"{code} - {name}"
+        elif code:
+            return code
+        return "(미설정)"
+
+    def refresh_info(self):
+        """Refresh displayed equipment/line info from config."""
+        self.line_value.setText(self._get_line_display())
+        self.equip_value.setText(self._get_equipment_display())
 
     def cleanup(self):
         """Cleanup resources."""

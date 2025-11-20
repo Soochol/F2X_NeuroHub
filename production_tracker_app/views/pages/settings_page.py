@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
 from PySide6.QtCore import Signal
 
 from utils.theme_manager import get_theme
+from services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -28,12 +29,22 @@ class SettingsPage(QWidget):
     # Signal emitted when settings are saved
     settings_saved = Signal()
 
-    def __init__(self, config, print_service: Optional['PrintService'] = None, parent=None):
+    def __init__(self, config, print_service: Optional['PrintService'] = None, api_client: Optional[APIClient] = None, parent=None):
         super().__init__(parent)
         self.config = config
         self.print_service = print_service
+        self.api_client = api_client
+
+        # Cache for API data
+        self._production_lines = []
+        self._equipment_list = []
+        self._processes = []
+
         self.setup_ui()
         self._apply_styles()
+
+        # Load data from API after UI setup
+        self._load_api_data()
 
     def setup_ui(self):
         """Setup UI components."""
@@ -192,17 +203,19 @@ class SettingsPage(QWidget):
         form_layout = QFormLayout()
         form_layout.setSpacing(8)
 
+        # Process selection with refresh button
+        process_layout = QHBoxLayout()
         self.process_combo = QComboBox()
-        process_names = {
-            1: "1. 레이저 마킹", 2: "2. LMA 조립",
-            3: "3. 센서 검사", 4: "4. 펌웨어 업로드",
-            5: "5. 로봇 조립", 6: "6. 성능검사",
-            7: "7. 라벨 프린팅", 8: "8. 포장+외관검사"
-        }
-        for i in range(1, 9):
-            self.process_combo.addItem(process_names[i], i)
-        self.process_combo.setCurrentIndex(self.config.process_number - 1)
-        form_layout.addRow("공정:", self.process_combo)
+        self.process_combo.addItem("(공정 선택)", None)
+        process_layout.addWidget(self.process_combo, 1)
+
+        # Refresh button for processes
+        process_refresh_btn = QPushButton("새로고침")
+        process_refresh_btn.setFixedWidth(70)
+        process_refresh_btn.clicked.connect(self._refresh_processes)
+        process_layout.addWidget(process_refresh_btn)
+
+        form_layout.addRow("공정:", process_layout)
 
         layout.addLayout(form_layout)
         return frame
@@ -229,14 +242,164 @@ class SettingsPage(QWidget):
         form_layout = QFormLayout()
         form_layout.setSpacing(8)
 
-        self.equipment_input = QLineEdit(self.config.equipment_id)
-        form_layout.addRow("설비 ID:", self.equipment_input)
+        # Production line selection
+        line_layout = QHBoxLayout()
+        self.line_combo = QComboBox()
+        self.line_combo.addItem("(생산라인 선택)", None)
+        line_layout.addWidget(self.line_combo, 1)
 
-        self.line_input = QLineEdit(self.config.line_id)
-        form_layout.addRow("라인 ID:", self.line_input)
+        # Refresh button for production lines
+        line_refresh_btn = QPushButton("새로고침")
+        line_refresh_btn.setFixedWidth(70)
+        line_refresh_btn.clicked.connect(self._refresh_production_lines)
+        line_layout.addWidget(line_refresh_btn)
+
+        form_layout.addRow("생산라인:", line_layout)
+
+        # Equipment selection
+        equip_layout = QHBoxLayout()
+        self.equipment_combo = QComboBox()
+        self.equipment_combo.addItem("(장비 선택)", None)
+        equip_layout.addWidget(self.equipment_combo, 1)
+
+        # Refresh button for equipment
+        equip_refresh_btn = QPushButton("새로고침")
+        equip_refresh_btn.setFixedWidth(70)
+        equip_refresh_btn.clicked.connect(self._refresh_equipment)
+        equip_layout.addWidget(equip_refresh_btn)
+
+        form_layout.addRow("장비:", equip_layout)
 
         layout.addLayout(form_layout)
         return frame
+
+    def _load_api_data(self):
+        """Load processes, production lines and equipment from API."""
+        if not self.api_client:
+            logger.warning("API client not available, skipping data load")
+            return
+
+        self._refresh_processes()
+        self._refresh_production_lines()
+        self._refresh_equipment()
+
+    def _refresh_processes(self):
+        """Refresh processes from API."""
+        if not self.api_client:
+            QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
+            return
+
+        try:
+            self._processes = self.api_client.get_processes()
+
+            # Clear and repopulate combo
+            self.process_combo.clear()
+            self.process_combo.addItem("(공정 선택)", None)
+
+            for process in self._processes:
+                process_num = process.get('process_number', 0)
+                process_name = process.get('process_name_ko', '')
+                display_text = f"{process_num}. {process_name}"
+                self.process_combo.addItem(display_text, process)
+                logger.debug(f"Added process item: '{display_text}'")
+
+            # Log combo box state
+            logger.info(f"Process combo count: {self.process_combo.count()}")
+
+            # Restore saved selection
+            saved_id = self.config.process_db_id
+            logger.debug(f"Saved process_db_id: {saved_id}, process_number: {self.config.process_number}")
+
+            if saved_id:
+                for i in range(1, self.process_combo.count()):
+                    data = self.process_combo.itemData(i)
+                    if data and data.get('id') == saved_id:
+                        self.process_combo.setCurrentIndex(i)
+                        logger.debug(f"Restored selection by db_id: index {i}")
+                        break
+            else:
+                # Fallback to process_number if db_id not set
+                saved_number = self.config.process_number
+                if saved_number:
+                    for i in range(1, self.process_combo.count()):
+                        data = self.process_combo.itemData(i)
+                        if data and data.get('process_number') == saved_number:
+                            self.process_combo.setCurrentIndex(i)
+                            logger.debug(f"Restored selection by process_number: index {i}")
+                            break
+
+            # Force UI update
+            self.process_combo.update()
+
+            logger.info(f"Loaded {len(self._processes)} processes, current index: {self.process_combo.currentIndex()}")
+
+        except Exception as e:
+            logger.error(f"Failed to load processes: {e}")
+            QMessageBox.warning(self, "오류", f"공정 목록 로드 실패: {str(e)}")
+
+    def _refresh_production_lines(self):
+        """Refresh production lines from API."""
+        if not self.api_client:
+            QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
+            return
+
+        try:
+            self._production_lines = self.api_client.get_production_lines()
+
+            # Clear and repopulate combo
+            self.line_combo.clear()
+            self.line_combo.addItem("(생산라인 선택)", None)
+
+            for line in self._production_lines:
+                display_text = f"{line['line_code']} - {line['line_name']}"
+                self.line_combo.addItem(display_text, line)
+
+            # Restore saved selection
+            saved_id = self.config.line_id
+            if saved_id:
+                for i in range(1, self.line_combo.count()):
+                    data = self.line_combo.itemData(i)
+                    if data and data.get('id') == saved_id:
+                        self.line_combo.setCurrentIndex(i)
+                        break
+
+            logger.info(f"Loaded {len(self._production_lines)} production lines")
+
+        except Exception as e:
+            logger.error(f"Failed to load production lines: {e}")
+            QMessageBox.warning(self, "오류", f"생산라인 목록 로드 실패: {str(e)}")
+
+    def _refresh_equipment(self):
+        """Refresh equipment list from API."""
+        if not self.api_client:
+            QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
+            return
+
+        try:
+            self._equipment_list = self.api_client.get_equipment()
+
+            # Clear and repopulate combo
+            self.equipment_combo.clear()
+            self.equipment_combo.addItem("(장비 선택)", None)
+
+            for equip in self._equipment_list:
+                display_text = f"{equip['equipment_code']} - {equip['equipment_name']}"
+                self.equipment_combo.addItem(display_text, equip)
+
+            # Restore saved selection
+            saved_id = self.config.equipment_id
+            if saved_id:
+                for i in range(1, self.equipment_combo.count()):
+                    data = self.equipment_combo.itemData(i)
+                    if data and data.get('id') == saved_id:
+                        self.equipment_combo.setCurrentIndex(i)
+                        break
+
+            logger.info(f"Loaded {len(self._equipment_list)} equipment")
+
+        except Exception as e:
+            logger.error(f"Failed to load equipment: {e}")
+            QMessageBox.warning(self, "오류", f"장비 목록 로드 실패: {str(e)}")
 
     def _create_api_section(self) -> QFrame:
         """Create API settings section."""
@@ -359,17 +522,52 @@ class SettingsPage(QWidget):
     def save_settings(self):
         """Save settings to config."""
         try:
-            self.config.process_number = self.process_combo.currentData()
+            # Save process selection
+            process_data = self.process_combo.currentData()
+            if process_data:
+                self.config.process_db_id = process_data.get('id', 0)
+                self.config.process_number = process_data.get('process_number', 1)
+                self.config.process_code = process_data.get('process_code', '')
+                self.config.process_name = process_data.get('process_name_ko', '')
+                self.config.process_name_en = process_data.get('process_name_en', '')
+            else:
+                self.config.process_db_id = 0
+                self.config.process_number = 1
+                self.config.process_code = ''
+                self.config.process_name = ''
+                self.config.process_name_en = ''
+
             self.config.watch_folder = self.folder_input.text()
-            self.config.equipment_id = self.equipment_input.text()
-            self.config.line_id = self.line_input.text()
+
+            # Save production line selection
+            line_data = self.line_combo.currentData()
+            if line_data:
+                self.config.line_id = line_data.get('id', 0)
+                self.config.line_code = line_data.get('line_code', '')
+                self.config.line_name = line_data.get('line_name', '')
+            else:
+                self.config.line_id = 0
+                self.config.line_code = ''
+                self.config.line_name = ''
+
+            # Save equipment selection
+            equip_data = self.equipment_combo.currentData()
+            if equip_data:
+                self.config.equipment_id = equip_data.get('id', 0)
+                self.config.equipment_code = equip_data.get('equipment_code', '')
+                self.config.equipment_name = equip_data.get('equipment_name', '')
+            else:
+                self.config.equipment_id = 0
+                self.config.equipment_code = ''
+                self.config.equipment_name = ''
+
             self.config.api_base_url = self.api_input.text()
             self.config.printer_queue = self.printer_combo.currentData() or ""
             self.config.zpl_template_path = self.zpl_input.text()
 
             logger.info("Settings saved successfully")
             self.settings_saved.emit()
-            QMessageBox.information(self, "저장 완료", "설정이 저장되었습니다. 재시작하면 적용됩니다.")
+            QMessageBox.information(self, "저장 완료", "설정이 저장되었습니다.")
         except Exception as e:
             logger.error(f"Failed to save settings: {e}")
             QMessageBox.critical(self, "오류", f"설정 저장 실패: {str(e)}")

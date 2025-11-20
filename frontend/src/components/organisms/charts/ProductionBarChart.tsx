@@ -41,41 +41,51 @@ export const ProductionBarChart = ({ data, height = 300 }: ProductionBarChartPro
         <XAxis
           dataKey="name"
           stroke={theme.charts.axis.stroke}
-          tick={{ fill: theme.colors.text.secondary, fontSize: 12 }}
+          tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
         />
         <YAxis
           stroke={theme.charts.axis.stroke}
-          tick={{ fill: theme.colors.text.secondary, fontSize: 12 }}
+          tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
         />
         <Tooltip
+          cursor={false}
           contentStyle={{
             backgroundColor: theme.charts.tooltip.background,
             border: theme.charts.tooltip.border,
             borderRadius: theme.charts.tooltip.borderRadius,
             color: theme.charts.tooltip.color,
           }}
+          itemStyle={{
+            color: theme.charts.tooltip.color,
+          }}
+          labelStyle={{
+            color: theme.charts.tooltip.color,
+          }}
         />
         <Legend
           wrapperStyle={{ paddingTop: '10px' }}
-          formatter={(value) => <span style={{ color: theme.colors.text.secondary }}>{value}</span>}
+          formatter={(value) => <span style={{ color: 'var(--color-text-secondary)' }}>{value}</span>}
         />
         <Bar
           dataKey="started"
           name="Started"
           fill={theme.charts.colors[1]}
           radius={[4, 4, 0, 0]}
+          cursor={false}
         />
         <Bar
           dataKey="completed"
           name="Completed"
           fill={theme.charts.colors[0]}
           radius={[4, 4, 0, 0]}
+          cursor={false}
         />
         <Bar
           dataKey="defective"
           name="Defective"
           fill={theme.charts.colors[3]}
           radius={[4, 4, 0, 0]}
+          cursor={false}
         />
       </BarChart>
     </ResponsiveContainer>

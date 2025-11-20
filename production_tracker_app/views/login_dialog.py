@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
                                QPushButton, QCheckBox, QMessageBox)
 from PySide6.QtCore import Qt
 from widgets.base_components import ThemedLabel
+from utils.exception_handler import SignalConnector, safe_slot
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,21 @@ class LoginDialog(QDialog):
 
     def connect_signals(self):
         """Connect auth service signals."""
-        self.auth_service.login_success.connect(self.on_login_success)
-        self.auth_service.auth_error.connect(self.on_login_error)
+        connector = SignalConnector()
+        connector.connect(
+            self.auth_service.login_success,
+            self.on_login_success,
+            "login_success -> on_login_success"
+        ).connect(
+            self.auth_service.auth_error,
+            self.on_login_error,
+            "auth_error -> on_login_error"
+        )
+
+        if not connector.all_connected():
+            logger.error(
+                f"로그인 시그널 연결 실패: {connector.failed_connections}"
+            )
 
     def on_login(self):
         """Handle login button click (initiates threaded login)."""
@@ -91,6 +105,7 @@ class LoginDialog(QDialog):
         # Initiate threaded login
         self.auth_service.login(username, password)
 
+    @safe_slot("로그인 성공 처리 실패", show_dialog=True)
     def on_login_success(self, user_data: dict):
         """Handle successful login from threaded operation."""
         username = user_data.get('username', 'UNKNOWN')
@@ -111,6 +126,7 @@ class LoginDialog(QDialog):
         # Close dialog
         self.accept()
 
+    @safe_slot("로그인 에러 처리 실패")
     def on_login_error(self, error_msg: str):
         """Handle login error from threaded operation."""
         logger.error(f"Login error (dialog): {error_msg}")

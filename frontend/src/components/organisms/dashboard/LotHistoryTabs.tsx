@@ -8,13 +8,40 @@ import { CheckCircle, AlertTriangle, Clock, XCircle } from 'lucide-react';
 
 interface LotSummary {
   lot_number: string;
-  product_model_name: string;
+  product_model_name?: string;
   status: string;
-  progress: number;
-  started_count: number;
+  progress?: number;
+  progress_percentage?: number;
+  started_count?: number;
+  target_quantity?: number;
   completed_count: number;
-  defective_count: number;
+  defective_count?: number;
+  failed_count?: number;
+  passed_count?: number;
 }
+
+// Calculate progress safely
+const getProgress = (lot: LotSummary): number => {
+  // Check progress_percentage first (from API)
+  if (lot.progress_percentage !== undefined && !isNaN(lot.progress_percentage)) return lot.progress_percentage;
+  if (lot.progress !== undefined && !isNaN(lot.progress)) return lot.progress;
+
+  const started = lot.started_count ?? lot.target_quantity ?? 0;
+  const completed = lot.completed_count ?? 0;
+  if (started === 0) return 0;
+  const result = (completed / started) * 100;
+  return isNaN(result) ? 0 : result;
+};
+
+// Get started count (supports both field names)
+const getStartedCount = (lot: LotSummary): number => {
+  return lot.started_count ?? lot.target_quantity ?? 0;
+};
+
+// Get defective count (supports both field names)
+const getDefectiveCount = (lot: LotSummary): number => {
+  return lot.defective_count ?? lot.failed_count ?? 0;
+};
 
 interface LotHistoryTabsProps {
   lots: LotSummary[];
@@ -34,22 +61,25 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
   // Generate recent history from lots data
   const recentHistory = lots.flatMap((lot) => {
     const events = [];
-    if (lot.started_count > 0) {
+    const startedCount = getStartedCount(lot);
+    const defectiveCount = getDefectiveCount(lot);
+
+    if (startedCount > 0) {
       events.push({
         time: 'Recent',
         lotNumber: lot.lot_number,
-        content: `생산 진행중 (${lot.completed_count}/${lot.started_count})`,
+        content: `생산 진행중 (${lot.completed_count}/${startedCount})`,
         status: lot.status === 'COMPLETED' ? 'completed' : 'progress',
-        result: `${lot.progress.toFixed(0)}%`,
+        result: `${getProgress(lot).toFixed(0)}%`,
       });
     }
-    if (lot.defective_count > 0) {
+    if (defectiveCount > 0) {
       events.push({
         time: 'Recent',
         lotNumber: lot.lot_number,
         content: `불량 발생`,
         status: 'defect',
-        result: `${lot.defective_count}건`,
+        result: `${defectiveCount}건`,
       });
     }
     return events;
@@ -57,12 +87,12 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
 
   // Filter defects only
   const defectHistory = lots
-    .filter((lot) => lot.defective_count > 0)
+    .filter((lot) => getDefectiveCount(lot) > 0)
     .map((lot) => ({
       lotNumber: lot.lot_number,
       process: '-',
       defectType: '불량',
-      count: lot.defective_count,
+      count: getDefectiveCount(lot),
     }));
 
   const getStatusIcon = (status: string) => {
@@ -199,19 +229,19 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
                         >
                           <div
                             style={{
-                              width: `${lot.progress}%`,
+                              width: `${getProgress(lot)}%`,
                               height: '100%',
-                              backgroundColor: lot.progress >= 100 ? 'var(--color-success)' : 'var(--color-brand-500)',
+                              backgroundColor: getProgress(lot) >= 100 ? 'var(--color-success)' : 'var(--color-brand-500)',
                               borderRadius: '3px',
                             }}
                           />
                         </div>
-                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lot.progress.toFixed(0)}%</span>
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{getProgress(lot).toFixed(0)}%</span>
                       </div>
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{getStatusBadge(lot.status)}</td>
                     <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                      {lot.completed_count}/{lot.started_count}
+                      {lot.completed_count}/{getStartedCount(lot)}
                     </td>
                   </tr>
                 ))

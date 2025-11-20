@@ -44,6 +44,12 @@ from app.schemas.process_data import (
     ProcessDataInDB,
     ProcessDataUpdate,
 )
+# New exception imports
+from app.core.exceptions import (
+    ResourceNotFoundException,
+    ValidationException,
+    InvalidDataFormatException,
+)
 
 router = APIRouter(
     prefix="/process-data",
@@ -104,10 +110,7 @@ def get_process_data(
     """
     process_data_record = crud.process_data.get(db, process_data_id=process_data_id)
     if not process_data_record:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Process data record with ID {process_data_id} not found"
-        )
+        raise ResourceNotFoundException("Process data record", process_data_id)
     return process_data_record
 
 
@@ -248,7 +251,7 @@ def get_process_data_by_result(
         )
         return process_data_records
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -342,9 +345,9 @@ def get_process_data_by_date_range(
         HTTPException 422: If query parameters are invalid or date format is incorrect
     """
     if start_date > end_date:
-        raise HTTPException(
-            status_code=400,
-            detail="start_date must be before or equal to end_date"
+        raise InvalidDataFormatException(
+            "start_date",
+            "start_date must be before or equal to end_date"
         )
 
     process_data_records = crud.process_data.get_by_date_range(
@@ -567,10 +570,7 @@ def update_process_data(
     """
     process_data_record = crud.process_data.get(db, process_data_id=process_data_id)
     if not process_data_record:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Process data record with ID {process_data_id} not found"
-        )
+        raise ResourceNotFoundException("Process data record", process_data_id)
 
     try:
         updated_record = crud.process_data.update(
@@ -617,10 +617,7 @@ def delete_process_data(
     """
     process_data_record = crud.process_data.get(db, process_data_id=process_data_id)
     if not process_data_record:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Process data record with ID {process_data_id} not found"
-        )
+        raise ResourceNotFoundException("Process data record", process_data_id)
 
     try:
         success = crud.process_data.delete(db, process_data_id=process_data_id)

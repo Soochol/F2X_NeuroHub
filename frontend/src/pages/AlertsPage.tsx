@@ -95,7 +95,7 @@ export const AlertsPage = () => {
   const getSeverityColor = (severity: AlertSeverity) => {
     switch (severity) {
       case AlertSeverity.HIGH:
-        return { bg: 'var(--color-error)', color: '#c33', icon: '=�', label: 'High' };
+        return { bg: 'var(--color-error)', color: 'var(--color-error)', icon: '=�', label: 'High' };
       case AlertSeverity.MEDIUM:
         return { bg: 'var(--color-warning)', color: 'var(--color-warning)', icon: '�', label: 'Medium' };
       case AlertSeverity.LOW:

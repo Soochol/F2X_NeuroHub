@@ -25,7 +25,7 @@ State Machine:
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app import crud
@@ -36,6 +36,13 @@ from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
 from app.schemas.serial import SerialCreate, SerialInDB, SerialUpdate
 from app.api import deps
+from app.core.exceptions import (
+    SerialNotFoundException,
+    ValidationException,
+    MissingRequiredFieldException,
+    BusinessRuleException,
+    ConstraintViolationException,
+)
 
 router = APIRouter(
     prefix="/serials",
@@ -75,7 +82,7 @@ def list_serials(
         serials = crud.serial.get_multi(db, skip=skip, limit=limit, status=status)
         return serials
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -130,10 +137,7 @@ def get_serial_by_number(
     """
     serial = crud.serial.get_by_number(db, serial_number=serial_number)
     if not serial:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Serial with number '{serial_number}' not found"
-        )
+        raise SerialNotFoundException(serial_id=f"number='{serial_number}'")
     return serial
 
 
@@ -202,7 +206,7 @@ def get_serials_by_status(
         serials = crud.serial.get_by_status(db, status=status_filter, skip=skip, limit=limit)
         return serials
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -229,7 +233,7 @@ def get_serial(
     """
     serial = crud.serial.get(db, serial_id=serial_id)
     if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
     return serial
 
 
@@ -267,9 +271,9 @@ def create_serial(
         serial = crud.serial.create(db, serial_in=serial_in)
         return serial
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
     except Exception as e:
-        raise HTTPException(status_code=409, detail="Failed to create serial. Lot may not exist or unique constraint violated.")
+        raise ConstraintViolationException(message="Failed to create serial. Lot may not exist or unique constraint violated.")
 
 
 @router.put(
@@ -305,13 +309,13 @@ def update_serial(
     """
     serial = crud.serial.get(db, serial_id=serial_id)
     if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
 
     try:
         updated_serial = crud.serial.update(db, serial_id=serial_id, serial_in=serial_in)
         return updated_serial
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.put(
@@ -353,13 +357,13 @@ def update_serial_status(
     """
     serial = crud.serial.get(db, serial_id=serial_id)
     if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
 
     status_value = status_update.get("status")
     failure_reason = status_update.get("failure_reason")
 
     if not status_value:
-        raise HTTPException(status_code=400, detail="status field is required")
+        raise MissingRequiredFieldException(field_name="status")
 
     try:
         updated_serial = crud.serial.update_status(
@@ -370,7 +374,7 @@ def update_serial_status(
         )
         return updated_serial
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.post(
@@ -405,25 +409,23 @@ def rework_serial(
     """
     serial = crud.serial.get(db, serial_id=serial_id)
     if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
 
     if not crud.serial.can_rework(db, serial_id=serial_id):
         if serial.status != SerialStatus.FAILED:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Serial is not in FAILED status (current: {serial.status.value}). Cannot start rework."
+            raise BusinessRuleException(
+                message=f"Serial is not in FAILED status (current: {serial.status.value}). Cannot start rework."
             )
         else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Maximum rework count (3) exceeded for serial {serial.serial_number}"
+            raise BusinessRuleException(
+                message=f"Maximum rework count (3) exceeded for serial {serial.serial_number}"
             )
 
     try:
         updated_serial = crud.serial.increment_rework(db, serial_id=serial_id)
         return updated_serial
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.get(
@@ -460,7 +462,7 @@ def check_can_rework(
     """
     serial = crud.serial.get(db, serial_id=serial_id)
     if not serial:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
 
     can_rework = crud.serial.can_rework(db, serial_id=serial_id)
 
@@ -510,7 +512,7 @@ def delete_serial(
     """
     deleted = crud.serial.delete(db, serial_id=serial_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Serial not found")
+        raise SerialNotFoundException(serial_id=serial_id)
     return None
 
 
@@ -594,10 +596,7 @@ def get_serial_trace(
     # Get serial by serial_number
     serial = crud.serial.get_by_serial_number(db, serial_number=serial_number)
     if not serial:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Serial with serial_number '{serial_number}' not found"
-        )
+        raise SerialNotFoundException(serial_id=f"serial_number='{serial_number}'")
 
     # Get LOT information
     lot_info = None

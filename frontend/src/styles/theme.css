@@ -20,6 +20,9 @@
   --color-brand-800: #0d4833;
   --color-brand-900: #06241a;
 
+  /* Brand color alias */
+  --color-brand: #3ecf8e;
+
   /* Gray scale */
   --color-gray-50: #f8f9fa;
   --color-gray-100: #edeff2;
@@ -124,6 +127,9 @@
   --color-brand-700: #156c4c;
   --color-brand-800: #0d4833;
   --color-brand-900: #06241a;
+
+  /* Brand color alias */
+  --color-brand: #24b47e;
 
   /* Gray scale (inverted usage) */
   --color-gray-50: #f8f9fa;

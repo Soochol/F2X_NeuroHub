@@ -27,7 +27,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
+from fastapi import APIRouter, Depends, Query, status, Path
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -38,6 +38,12 @@ from app.schemas.equipment import (
     EquipmentUpdate,
     EquipmentInDB,
     EquipmentResponse,
+)
+from app.core.exceptions import (
+    EquipmentNotFoundException,
+    DuplicateResourceException,
+    ConstraintViolationException,
+    ValidationException,
 )
 
 
@@ -263,10 +269,7 @@ def get_equipment_by_code(
     """
     obj = crud.get_by_code(db, equipment_code=equipment_code)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Equipment with code '{equipment_code}' not found",
-        )
+        raise EquipmentNotFoundException(equipment_id=equipment_code)
     return obj
 
 
@@ -300,10 +303,7 @@ def get_equipment(
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Equipment with ID {id} not found",
-        )
+        raise EquipmentNotFoundException(equipment_id=id)
     return obj
 
 
@@ -339,9 +339,9 @@ def create_equipment(
     # Check if equipment_code already exists
     existing = crud.get_by_code(db, equipment_code=obj_in.equipment_code)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Equipment with code '{obj_in.equipment_code}' already exists",
+        raise DuplicateResourceException(
+            resource_type="Equipment",
+            identifier=f"code='{obj_in.equipment_code}'"
         )
 
     try:
@@ -349,14 +349,13 @@ def create_equipment(
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Equipment creation constraint violation",
+            raise DuplicateResourceException(
+                resource_type="Equipment",
+                identifier="constraint violation during creation"
             )
         if "foreign key" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid process_id or production_line_id reference",
+            raise ValidationException(
+                message="Invalid process_id or production_line_id reference"
             )
         raise
 
@@ -399,18 +398,15 @@ def update_equipment(
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Equipment with ID {id} not found",
-        )
+        raise EquipmentNotFoundException(equipment_id=id)
 
     # Check if updating equipment_code to an existing code
     if obj_in.equipment_code and obj_in.equipment_code.upper() != obj.equipment_code:
         existing = crud.get_by_code(db, equipment_code=obj_in.equipment_code)
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Equipment with code '{obj_in.equipment_code}' already exists",
+            raise DuplicateResourceException(
+                resource_type="Equipment",
+                identifier=f"code='{obj_in.equipment_code}'"
             )
 
     try:
@@ -418,14 +414,13 @@ def update_equipment(
     except Exception as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Equipment update constraint violation",
+            raise DuplicateResourceException(
+                resource_type="Equipment",
+                identifier="constraint violation during update"
             )
         if "foreign key" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid process_id or production_line_id reference",
+            raise ValidationException(
+                message="Invalid process_id or production_line_id reference"
             )
         raise
 
@@ -460,19 +455,13 @@ def delete_equipment(
     """
     obj = crud.get(db, equipment_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Equipment with ID {id} not found",
-        )
+        raise EquipmentNotFoundException(equipment_id=id)
 
     try:
         deleted = crud.delete(db, equipment_id=id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Equipment with ID {id} not found",
-            )
-    except HTTPException:
+            raise EquipmentNotFoundException(equipment_id=id)
+    except (EquipmentNotFoundException, DuplicateResourceException, ConstraintViolationException, ValidationException):
         raise
     except Exception as e:
         error_str = str(e).lower()

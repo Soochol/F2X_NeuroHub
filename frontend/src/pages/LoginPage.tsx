@@ -152,7 +152,7 @@ export const LoginPage = () => {
           textAlign: 'center',
         }}>
           <p style={{ margin: 0 }}>Default credentials:</p>
-          <p style={{ margin: '5px 0 0 0' }}>admin / admin123 or operator / operator123</p>
+          <p style={{ margin: '5px 0 0 0' }}>operator1 / password123</p>
         </div>
       </div>
     </div>

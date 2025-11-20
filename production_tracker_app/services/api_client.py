@@ -51,10 +51,20 @@ class APIClient:
     def get(self, endpoint: str, params: Optional[Dict] = None) -> Any:
         """GET request with error handling."""
         url = f"{self.base_url}{endpoint}"
+
+        # Debug logging - request details
+        logger.debug(f"=== API GET Request ===")
+        logger.debug(f"URL: {url}")
+        logger.debug(f"Params: {params}")
+        logger.debug(f"Headers: {self._headers()}")
+
         try:
             response = self.session.get(url, headers=self._headers(), params=params, timeout=10)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            logger.debug(f"Response Status: {response.status_code}")
+            logger.debug(f"Response Data: {result}")
+            return result
         except ConnectionError as e:
             logger.error(f"Connection error: {e}")
             raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self.base_url}")
@@ -71,10 +81,20 @@ class APIClient:
     def post(self, endpoint: str, data: Dict) -> Any:
         """POST request with error handling."""
         url = f"{self.base_url}{endpoint}"
+
+        # Debug logging - request details
+        logger.debug(f"=== API POST Request ===")
+        logger.debug(f"URL: {url}")
+        logger.debug(f"Data: {data}")
+        logger.debug(f"Headers: {self._headers()}")
+
         try:
             response = self.session.post(url, json=data, headers=self._headers(), timeout=10)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            logger.debug(f"Response Status: {response.status_code}")
+            logger.debug(f"Response Data: {result}")
+            return result
         except ConnectionError as e:
             logger.error(f"Connection error: {e}")
             raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self.base_url}")
@@ -102,3 +122,39 @@ class APIClient:
             raise HTTPError(f"서버 오류가 발생했습니다 (HTTP {status_code})")
         else:
             raise error
+
+    # Production Line & Equipment API methods
+    def get_production_lines(self) -> list:
+        """
+        Get list of active production lines.
+
+        Returns:
+            list: List of active production line dictionaries with keys:
+                - id, line_code, line_name, description, cycle_time_sec,
+                  location, is_active, created_at, updated_at
+        """
+        return self.get("/api/v1/production-lines/active")
+
+    def get_equipment(self) -> list:
+        """
+        Get list of active equipment.
+
+        Returns:
+            list: List of active equipment dictionaries with keys:
+                - id, equipment_code, equipment_name, equipment_type,
+                  process_id, production_line_id, location, manufacturer,
+                  model_number, serial_number, is_active, etc.
+        """
+        return self.get("/api/v1/equipment/active")
+
+    def get_processes(self) -> list:
+        """
+        Get list of active processes.
+
+        Returns:
+            list: List of active process dictionaries with keys:
+                - id, process_number, process_code, process_name_ko,
+                  process_name_en, description, estimated_duration_seconds,
+                  quality_criteria, is_active, sort_order, created_at, updated_at
+        """
+        return self.get("/api/v1/processes/active")

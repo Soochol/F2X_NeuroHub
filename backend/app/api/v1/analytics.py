@@ -9,7 +9,10 @@ Provides aggregated data and statistics for:
     - Real-time status
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date as date_module, datetime, timedelta
+
+# Alias for clarity
+date = date_module
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -202,70 +205,86 @@ def get_production_statistics(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get detailed production statistics for a date range.
+    Get production statistics for a date range.
 
     Query params:
-        - start_date: Start of date range (default: 7 days ago)
+        - start_date: Start of date range (default: 30 days ago)
         - end_date: End of date range (default: today)
 
-    Returns daily production metrics for the specified period.
+    Returns aggregated production metrics including totals and rates.
     """
-    if not start_date:
-        start_date = date.today() - timedelta(days=7)
     if not end_date:
         end_date = date.today()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
 
-    # Daily LOT production
-    lots_by_date = db.query(
-        func.date(Lot.created_at).label('date'),
-        func.count(Lot.id).label('count')
-    ).filter(
+    # Total LOTs in date range
+    total_lots = db.query(func.count(Lot.id)).filter(
         and_(
             func.date(Lot.created_at) >= start_date,
             func.date(Lot.created_at) <= end_date
         )
-    ).group_by(
-        func.date(Lot.created_at)
-    ).order_by(
-        func.date(Lot.created_at)
-    ).all()
+    ).scalar() or 0
 
-    # Daily serial production
-    serials_by_date = db.query(
-        func.date(Serial.created_at).label('date'),
-        func.count(Serial.id).label('count'),
-        func.sum(func.cast(Serial.status == SerialStatus.PASSED, Integer)).label('passed'),
-        func.sum(func.cast(Serial.status == SerialStatus.FAILED, Integer)).label('failed')
-    ).filter(
+    # Total serials in date range
+    total_serials = db.query(func.count(Serial.id)).filter(
         and_(
             func.date(Serial.created_at) >= start_date,
             func.date(Serial.created_at) <= end_date
         )
-    ).group_by(
-        func.date(Serial.created_at)
-    ).order_by(
-        func.date(Serial.created_at)
-    ).all()
+    ).scalar() or 0
+
+    # Completed serials in date range
+    completed_serials = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.completed_at.isnot(None),
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Pass count in date range
+    pass_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.status == SerialStatus.PASSED,
+            Serial.completed_at.isnot(None),
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Fail count in date range
+    fail_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.status == SerialStatus.FAILED,
+            Serial.completed_at.isnot(None),
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Rework count in date range
+    rework_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.rework_count > 0,
+            func.date(Serial.created_at) >= start_date,
+            func.date(Serial.created_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Calculate rates
+    pass_rate = round((pass_count / completed_serials * 100), 2) if completed_serials > 0 else 0
+    defect_rate = round((fail_count / completed_serials * 100), 2) if completed_serials > 0 else 0
 
     return {
-        "date_range": {
-            "start": start_date.isoformat(),
-            "end": end_date.isoformat(),
-        },
-        "lots_by_date": [
-            {"date": str(row.date), "count": row.count}
-            for row in lots_by_date
-        ],
-        "serials_by_date": [
-            {
-                "date": str(row.date),
-                "total": row.count,
-                "passed": row.passed or 0,
-                "failed": row.failed or 0,
-                "pass_rate": round((row.passed or 0) / row.count * 100, 2) if row.count > 0 else 0
-            }
-            for row in serials_by_date
-        ]
+        "total_lots": total_lots,
+        "total_serials": total_serials,
+        "completed_serials": completed_serials,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "rework_count": rework_count,
+        "pass_rate": pass_rate,
+        "defect_rate": defect_rate
     }
 
 
@@ -348,95 +367,136 @@ def get_process_performance(
 
 @router.get("/quality-metrics")
 def get_quality_metrics(
-    days: int = Query(7, description="Number of days to analyze", ge=1, le=90),
+    start_date: Optional[date] = Query(None, description="Start date for metrics"),
+    end_date: Optional[date] = Query(None, description="End date for metrics"),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get detailed quality metrics and defect analysis.
+    Get detailed quality metrics for the Quality Management page.
 
     Query params:
-        - days: Number of days to analyze (default: 7, max: 90)
+        - start_date: Start date for metrics (default: 30 days ago)
+        - end_date: End date for metrics (default: today)
 
-    Returns defect rates, rework statistics, and quality trends.
+    Returns aggregated quality metrics including pass/fail/rework counts and rates.
     """
-    start_date = date.today() - timedelta(days=days)
+    if not end_date:
+        end_date = date.today()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
 
-    # Defect analysis by process
-    defects_by_process = db.query(
-        Process.process_name_ko,
-        Process.process_name_en,
-        func.count(ProcessData.id).label('failure_count')
-    ).join(
-        ProcessData, ProcessData.process_id == Process.id
-    ).filter(
-        and_(
-            ProcessData.result == ProcessResult.FAIL,
-            func.date(ProcessData.created_at) >= start_date
-        )
-    ).group_by(
-        Process.id, Process.process_name_ko, Process.process_name_en
-    ).order_by(
-        func.count(ProcessData.id).desc()
-    ).all()
-
-    # Rework statistics
-    rework_stats = db.query(
-        Serial.rework_count,
-        func.count(Serial.id).label('count')
-    ).filter(
-        and_(
-            Serial.rework_count > 0,
-            func.date(Serial.created_at) >= start_date
-        )
-    ).group_by(
-        Serial.rework_count
-    ).order_by(
-        Serial.rework_count
-    ).all()
-
-    # Daily quality trend
-    quality_trend = db.query(
-        func.date(Serial.completed_at).label('date'),
-        func.count(Serial.id).label('total'),
-        func.sum(func.cast(Serial.status == SerialStatus.PASSED, Integer)).label('passed')
-    ).filter(
+    # Total inspected (completed serials in date range)
+    total_inspected = db.query(func.count(Serial.id)).filter(
         and_(
             Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
         )
-    ).group_by(
-        func.date(Serial.completed_at)
-    ).order_by(
-        func.date(Serial.completed_at)
-    ).all()
+    ).scalar() or 0
+
+    # Pass count
+    pass_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.status == SerialStatus.PASSED,
+            Serial.completed_at.isnot(None),
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Fail count
+    fail_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.status == SerialStatus.FAILED,
+            Serial.completed_at.isnot(None),
+            func.date(Serial.completed_at) >= start_date,
+            func.date(Serial.completed_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Rework count (serials with rework_count > 0)
+    rework_count = db.query(func.count(Serial.id)).filter(
+        and_(
+            Serial.rework_count > 0,
+            func.date(Serial.created_at) >= start_date,
+            func.date(Serial.created_at) <= end_date
+        )
+    ).scalar() or 0
+
+    # Calculate rates
+    pass_rate = round((pass_count / total_inspected * 100), 2) if total_inspected > 0 else 0
+    defect_rate = round((fail_count / total_inspected * 100), 2) if total_inspected > 0 else 0
+    rework_rate = round((rework_count / total_inspected * 100), 2) if total_inspected > 0 else 0
+
+    # Quality metrics by process
+    processes = db.query(Process).filter(Process.is_active == True).order_by(Process.process_number).all()
+
+    by_process = []
+    for process in processes:
+        # Total process executions
+        proc_total = db.query(func.count(ProcessData.id)).filter(
+            and_(
+                ProcessData.process_id == process.id,
+                ProcessData.completed_at.isnot(None),
+                func.date(ProcessData.completed_at) >= start_date,
+                func.date(ProcessData.completed_at) <= end_date
+            )
+        ).scalar() or 0
+
+        # Pass count for process
+        proc_pass = db.query(func.count(ProcessData.id)).filter(
+            and_(
+                ProcessData.process_id == process.id,
+                ProcessData.result == ProcessResult.PASS,
+                ProcessData.completed_at.isnot(None),
+                func.date(ProcessData.completed_at) >= start_date,
+                func.date(ProcessData.completed_at) <= end_date
+            )
+        ).scalar() or 0
+
+        # Fail count for process
+        proc_fail = db.query(func.count(ProcessData.id)).filter(
+            and_(
+                ProcessData.process_id == process.id,
+                ProcessData.result == ProcessResult.FAIL,
+                ProcessData.completed_at.isnot(None),
+                func.date(ProcessData.completed_at) >= start_date,
+                func.date(ProcessData.completed_at) <= end_date
+            )
+        ).scalar() or 0
+
+        # Rework count for process
+        proc_rework = db.query(func.count(ProcessData.id)).filter(
+            and_(
+                ProcessData.process_id == process.id,
+                ProcessData.result == ProcessResult.REWORK,
+                ProcessData.completed_at.isnot(None),
+                func.date(ProcessData.completed_at) >= start_date,
+                func.date(ProcessData.completed_at) <= end_date
+            )
+        ).scalar() or 0
+
+        proc_pass_rate = round((proc_pass / proc_total * 100), 2) if proc_total > 0 else 0
+
+        by_process.append({
+            "process_name": process.process_name_en or process.process_name_ko,
+            "total": proc_total,
+            "pass": proc_pass,
+            "fail": proc_fail,
+            "rework": proc_rework,
+            "pass_rate": proc_pass_rate
+        })
 
     return {
-        "analysis_period_days": days,
-        "defects_by_process": [
-            {
-                "process_name_ko": row.process_name_ko,
-                "process_name_en": row.process_name_en,
-                "failure_count": row.failure_count
-            }
-            for row in defects_by_process
-        ],
-        "rework_distribution": [
-            {
-                "rework_count": row.rework_count,
-                "serial_count": row.count
-            }
-            for row in rework_stats
-        ],
-        "quality_trend": [
-            {
-                "date": str(row.date),
-                "total_completed": row.total,
-                "passed": row.passed or 0,
-                "pass_rate": round((row.passed or 0) / row.total * 100, 2) if row.total > 0 else 0
-            }
-            for row in quality_trend
-        ]
+        "total_inspected": total_inspected,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "rework_count": rework_count,
+        "pass_rate": pass_rate,
+        "defect_rate": defect_rate,
+        "rework_rate": rework_rate,
+        "by_process": by_process
     }
 
 
@@ -646,24 +706,27 @@ def get_defects_analysis(
     defect_rate = (total_defects / total_processes * 100) if total_processes > 0 else 0
 
     # Group by process
-    by_process = {}
+    by_process_dict = {}
     for pd in failed_processes:
         process_code = pd.process.process_code if pd.process else "UNKNOWN"
         process_name = pd.process.process_name_en if pd.process else "Unknown"
 
-        if process_code not in by_process:
-            by_process[process_code] = {
+        if process_code not in by_process_dict:
+            by_process_dict[process_code] = {
                 "process_name": process_name,
                 "count": 0,
-                "percentage": 0
             }
-        by_process[process_code]["count"] += 1
+        by_process_dict[process_code]["count"] += 1
 
-    # Calculate percentages
-    for process_code in by_process:
-        by_process[process_code]["percentage"] = round(
-            by_process[process_code]["count"] / total_defects * 100, 1
-        ) if total_defects > 0 else 0
+    # Convert to list with correct field names for frontend
+    by_process = [
+        {
+            "process_name": data["process_name"],
+            "defect_count": data["count"],
+            "defect_rate": round(data["count"] / total_defects * 100, 1) if total_defects > 0 else 0
+        }
+        for process_code, data in sorted(by_process_dict.items(), key=lambda x: x[1]["count"], reverse=True)
+    ]
 
     # Extract defect types from JSONB defects field
     by_defect_type = {}
@@ -804,11 +867,148 @@ def get_defect_trends(
     }
 
 
+@router.get("/daily")
+def get_daily_statistics(
+    process_id: Optional[str] = Query(None, description="Process ID filter (e.g., PROC-001)"),
+    date: Optional[date] = Query(None, description="Date for statistics (default: today)"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get daily production statistics (일일 통계).
+
+    Returns aggregated statistics for a specific day including:
+    - Total production count
+    - Pass/Fail counts
+    - Pass rate percentage
+    - Process execution summary
+
+    **Query Parameters:**
+    - process_id: Filter by process ID (optional, e.g., PROC-001)
+    - date: Date for statistics (default: today)
+
+    **Response:**
+    ```json
+    {
+        "date": "2025-01-17",
+        "summary": {
+            "total_production": 150,
+            "passed": 145,
+            "failed": 5,
+            "pass_rate": 96.67,
+            "in_progress": 12
+        },
+        "by_process": [
+            {
+                "process_id": 1,
+                "process_name": "레이저 마킹",
+                "total": 150,
+                "passed": 148,
+                "failed": 2,
+                "pass_rate": 98.67
+            }
+        ],
+        "hourly_trend": [
+            {"hour": 9, "count": 25},
+            {"hour": 10, "count": 30}
+        ]
+    }
+    ```
+    """
+    from datetime import datetime as dt
+
+    target_date = date if date else date_module.today()
+
+    # Base query for the day
+    day_start = dt.combine(target_date, dt.min.time())
+    day_end = dt.combine(target_date, dt.max.time())
+
+    # Total process executions for the day
+    base_query = db.query(ProcessData).filter(
+        and_(
+            ProcessData.created_at >= day_start,
+            ProcessData.created_at <= day_end
+        )
+    )
+
+    # Filter by process if specified
+    if process_id:
+        # Convert PROC-001 format to process number
+        try:
+            if process_id.startswith("PROC-"):
+                proc_num = int(process_id.replace("PROC-", ""))
+                process_obj = db.query(Process).filter(
+                    Process.process_number == proc_num
+                ).first()
+                if process_obj:
+                    base_query = base_query.filter(
+                        ProcessData.process_id == process_obj.id
+                    )
+        except (ValueError, AttributeError):
+            pass
+
+    all_data = base_query.all()
+
+    # Calculate summary
+    total = len(all_data)
+    passed = sum(1 for d in all_data if d.result == ProcessResult.PASS and d.completed_at)
+    failed = sum(1 for d in all_data if d.result == ProcessResult.FAIL and d.completed_at)
+    in_progress = sum(1 for d in all_data if d.completed_at is None)
+    pass_rate = round((passed / (passed + failed) * 100), 2) if (passed + failed) > 0 else 0
+
+    # By process breakdown
+    processes = db.query(Process).order_by(Process.process_number).all()
+    by_process = []
+
+    for process in processes:
+        proc_data = [d for d in all_data if d.process_id == process.id]
+        proc_total = len(proc_data)
+        proc_passed = sum(1 for d in proc_data if d.result == ProcessResult.PASS and d.completed_at)
+        proc_failed = sum(1 for d in proc_data if d.result == ProcessResult.FAIL and d.completed_at)
+        proc_rate = round((proc_passed / (proc_passed + proc_failed) * 100), 2) if (proc_passed + proc_failed) > 0 else 0
+
+        by_process.append({
+            "process_id": process.id,
+            "process_number": process.process_number,
+            "process_name": process.process_name_ko or process.process_name_en,
+            "total": proc_total,
+            "passed": proc_passed,
+            "failed": proc_failed,
+            "pass_rate": proc_rate
+        })
+
+    # Hourly trend
+    hourly_counts = {}
+    for d in all_data:
+        if d.created_at:
+            hour = d.created_at.hour
+            hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
+
+    hourly_trend = [
+        {"hour": hour, "count": count}
+        for hour, count in sorted(hourly_counts.items())
+    ]
+
+    return {
+        "date": target_date.isoformat(),
+        "summary": {
+            "total_production": total,
+            "passed": passed,
+            "failed": failed,
+            "pass_rate": pass_rate,
+            "in_progress": in_progress
+        },
+        "by_process": by_process,
+        "hourly_trend": hourly_trend
+    }
+
+
 @router.get("/cycle-time")
 def get_cycle_time_analysis(
     db: Session = Depends(deps.get_db),
     process_id: Optional[int] = Query(None, description="Filter by specific process ID"),
-    days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+    start_date: Optional[date] = Query(None, description="Start date for analysis"),
+    end_date: Optional[date] = Query(None, description="End date for analysis"),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -861,8 +1061,11 @@ def get_cycle_time_analysis(
     }
     ```
     """
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days)
+    # Use provided dates or default to last 30 days
+    if not end_date:
+        end_date = date.today()
+    if not start_date:
+        start_date = end_date - timedelta(days=30)
 
     # Query process data with duration
     query = db.query(ProcessData).filter(
@@ -883,7 +1086,7 @@ def get_cycle_time_analysis(
     by_process = {}
     for pd in process_data:
         process_code = pd.process.process_code if pd.process else "UNKNOWN"
-        process_name = pd.process.process_name if pd.process else "Unknown"
+        process_name = pd.process.process_name_en if pd.process else "Unknown"
 
         if process_code not in by_process:
             by_process[process_code] = {
@@ -896,20 +1099,20 @@ def get_cycle_time_analysis(
         by_process[process_code]["executions"] += 1
 
     # Calculate statistics for each process
-    result_by_process = {}
+    result_by_process_dict = {}
     max_avg_time = 0
 
     for process_code, data in by_process.items():
         durations = sorted(data["durations"])
         avg_time = sum(durations) / len(durations)
 
-        result_by_process[process_code] = {
+        result_by_process_dict[process_code] = {
             "process_name": data["process_name"],
-            "average_seconds": round(avg_time, 1),
-            "min_seconds": round(min(durations), 1),
-            "max_seconds": round(max(durations), 1),
-            "median_seconds": round(durations[len(durations) // 2], 1),
-            "executions": data["executions"],
+            "avg_cycle_time": round(avg_time, 1),
+            "min_cycle_time": round(min(durations), 1),
+            "max_cycle_time": round(max(durations), 1),
+            "median_cycle_time": round(durations[len(durations) // 2], 1),
+            "total_records": data["executions"],
             "is_bottleneck": False
         }
 
@@ -920,8 +1123,8 @@ def get_cycle_time_analysis(
     bottleneck_threshold = max_avg_time * 0.8  # Top 20% longest processes
     bottlenecks = []
 
-    for process_code, stats in result_by_process.items():
-        if stats["average_seconds"] >= bottleneck_threshold:
+    for process_code, stats in result_by_process_dict.items():
+        if stats["avg_cycle_time"] >= bottleneck_threshold:
             stats["is_bottleneck"] = True
 
             # Get current WIP for bottleneck processes
@@ -933,20 +1136,28 @@ def get_cycle_time_analysis(
             ).scalar() or 0
 
             bottlenecks.append({
-                "process_code": process_code,
                 "process_name": stats["process_name"],
-                "average_seconds": stats["average_seconds"],
+                "avg_cycle_time": stats["avg_cycle_time"],
                 "wip_count": wip_count
             })
 
     # Sort bottlenecks by average time
-    bottlenecks.sort(key=lambda x: x["average_seconds"], reverse=True)
+    bottlenecks.sort(key=lambda x: x["avg_cycle_time"], reverse=True)
+
+    # Convert by_process dict to array for frontend
+    result_by_process = [
+        {
+            "process_name": stats["process_name"],
+            "avg_cycle_time": stats["avg_cycle_time"],
+            "min_cycle_time": stats["min_cycle_time"],
+            "max_cycle_time": stats["max_cycle_time"],
+            "median_cycle_time": stats["median_cycle_time"],
+            "total_records": stats["total_records"]
+        }
+        for process_code, stats in sorted(result_by_process_dict.items(), key=lambda x: x[1]["avg_cycle_time"], reverse=True)
+    ]
 
     return {
-        "date_range": {
-            "start": start_date.isoformat(),
-            "end": end_date.isoformat()
-        },
         "by_process": result_by_process,
         "bottlenecks": bottlenecks
     }

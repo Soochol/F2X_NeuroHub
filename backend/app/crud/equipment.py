@@ -20,7 +20,7 @@ Functions:
     get_needs_maintenance: Get equipment that needs maintenance
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 
 from sqlalchemy import and_, desc
@@ -123,16 +123,19 @@ def create(
         equipment_code=equipment_in.equipment_code,
         equipment_name=equipment_in.equipment_name,
         equipment_type=equipment_in.equipment_type,
+        description=equipment_in.description,
         process_id=equipment_in.process_id,
         production_line_id=equipment_in.production_line_id,
-        location=equipment_in.location,
         manufacturer=equipment_in.manufacturer,
         model_number=equipment_in.model_number,
         serial_number=equipment_in.serial_number,
-        install_date=equipment_in.install_date,
+        status=equipment_in.status,
+        is_active=equipment_in.is_active,
         last_maintenance_date=equipment_in.last_maintenance_date,
         next_maintenance_date=equipment_in.next_maintenance_date,
-        is_active=equipment_in.is_active,
+        total_operation_hours=equipment_in.total_operation_hours,
+        specifications=equipment_in.specifications,
+        maintenance_schedule=equipment_in.maintenance_schedule,
     )
 
     try:
@@ -439,12 +442,12 @@ def get_needs_maintenance(
         # Get equipment needing maintenance
         overdue = get_needs_maintenance(db)
     """
-    now = datetime.utcnow()
+    today = date.today()
     return (
         db.query(Equipment)
         .filter(and_(
             Equipment.next_maintenance_date.isnot(None),
-            Equipment.next_maintenance_date <= now
+            Equipment.next_maintenance_date <= today
         ))
         .order_by(Equipment.next_maintenance_date.asc())
         .offset(skip)

@@ -26,7 +26,7 @@ All endpoints include:
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -37,6 +37,11 @@ from app.schemas.process import (
     ProcessCreate,
     ProcessUpdate,
     ProcessInDB,
+)
+from app.core.exceptions import (
+    ProcessNotFoundException,
+    DuplicateResourceException,
+    ConstraintViolationException,
 )
 
 
@@ -102,68 +107,6 @@ def list_processes(
 
 
 @router.get(
-    "/{id}",
-    response_model=ProcessInDB,
-    summary="Get process by ID",
-    description="Retrieve a specific process using its primary key identifier",
-    responses={404: {"description": "Process not found"}},
-)
-def get_process(
-    id: int = Path(..., gt=0, description="Primary key identifier of the process"),
-    db: Session = Depends(deps.get_db),
-) -> ProcessInDB:
-    """Get process by primary key ID.
-
-    Retrieves a single process record from the database using its unique
-    primary key identifier.
-
-    Args:
-        id: Primary key identifier of the process to retrieve.
-            Must be a positive integer.
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        ProcessInDB: Process record with all database fields.
-
-    Raises:
-        HTTPException: 404 Not Found if process does not exist with given ID.
-
-    Examples:
-        Get process with ID 1:
-        >>> GET /api/v1/processes/1
-
-        Get process with ID 5:
-        >>> GET /api/v1/processes/5
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_ko": "레이저 마킹",
-            "process_name_en": "Laser Marking",
-            "description": "Process for marking products with laser",
-            "estimated_duration_seconds": 120,
-            "quality_criteria": {
-                "min_power": 50,
-                "max_power": 100
-            },
-            "is_active": true,
-            "sort_order": 1,
-            "created_at": "2024-01-15T10:30:00",
-            "updated_at": "2024-01-15T10:30:00"
-        }
-    """
-    obj = crud.get(db, process_id=id)
-    if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process with ID {id} not found",
-        )
-    return obj
-
-
-@router.get(
     "/number/{process_number}",
     response_model=ProcessInDB,
     summary="Get process by process number",
@@ -213,10 +156,7 @@ def get_process_by_number(
     """
     obj = crud.get_by_number(db, process_number=process_number)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process with number {process_number} not found",
-        )
+        raise ProcessNotFoundException(process_id=process_number)
     return obj
 
 
@@ -271,10 +211,7 @@ def get_process_by_code(
     """
     obj = crud.get_by_code(db, process_code=process_code)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process with code '{process_code}' not found",
-        )
+        raise ProcessNotFoundException(process_id=process_code)
     return obj
 
 
@@ -412,6 +349,65 @@ def get_process_sequence(
     return crud.get_sequence(db)
 
 
+@router.get(
+    "/{id}",
+    response_model=ProcessInDB,
+    summary="Get process by ID",
+    description="Retrieve a specific process using its primary key identifier",
+    responses={404: {"description": "Process not found"}},
+)
+def get_process(
+    id: int = Path(..., gt=0, description="Primary key identifier of the process"),
+    db: Session = Depends(deps.get_db),
+) -> ProcessInDB:
+    """Get process by primary key ID.
+
+    Retrieves a single process record from the database using its unique
+    primary key identifier.
+
+    Args:
+        id: Primary key identifier of the process to retrieve.
+            Must be a positive integer.
+        db: SQLAlchemy database session (injected via dependency).
+
+    Returns:
+        ProcessInDB: Process record with all database fields.
+
+    Raises:
+        HTTPException: 404 Not Found if process does not exist with given ID.
+
+    Examples:
+        Get process with ID 1:
+        >>> GET /api/v1/processes/1
+
+        Get process with ID 5:
+        >>> GET /api/v1/processes/5
+
+    Response Example (200 OK):
+        {
+            "id": 1,
+            "process_number": 1,
+            "process_code": "LASER_MARKING",
+            "process_name_ko": "레이저 마킹",
+            "process_name_en": "Laser Marking",
+            "description": "Process for marking products with laser",
+            "estimated_duration_seconds": 120,
+            "quality_criteria": {
+                "min_power": 50,
+                "max_power": 100
+            },
+            "is_active": true,
+            "sort_order": 1,
+            "created_at": "2024-01-15T10:30:00",
+            "updated_at": "2024-01-15T10:30:00"
+        }
+    """
+    obj = crud.get(db, process_id=id)
+    if not obj:
+        raise ProcessNotFoundException(process_id=id)
+    return obj
+
+
 @router.post(
     "/",
     response_model=ProcessInDB,
@@ -499,19 +495,18 @@ def create_process(
         # Check for specific constraint violations
         error_msg = str(e).lower()
         if "process_number" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Process with number {obj_in.process_number} already exists",
+            raise DuplicateResourceException(
+                resource_type="Process",
+                identifier=f"number={obj_in.process_number}"
             )
         elif "process_code" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Process with code '{obj_in.process_code}' already exists",
+            raise DuplicateResourceException(
+                resource_type="Process",
+                identifier=f"code='{obj_in.process_code}'"
             )
         else:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Process creation failed due to constraint violation",
+            raise ConstraintViolationException(
+                message="Process creation failed due to constraint violation"
             )
 
 
@@ -588,10 +583,7 @@ def update_process(
     """
     obj = crud.get(db, process_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process with ID {id} not found",
-        )
+        raise ProcessNotFoundException(process_id=id)
 
     try:
         return crud.update(db, process_id=id, process_in=obj_in)
@@ -600,19 +592,18 @@ def update_process(
         # Check for specific constraint violations
         error_msg = str(e).lower()
         if "process_number" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Process with number {obj_in.process_number} already exists",
+            raise DuplicateResourceException(
+                resource_type="Process",
+                identifier=f"number={obj_in.process_number}"
             )
         elif "process_code" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Process with code '{obj_in.process_code}' already exists",
+            raise DuplicateResourceException(
+                resource_type="Process",
+                identifier=f"code='{obj_in.process_code}'"
             )
         else:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Process update failed due to constraint violation",
+            raise ConstraintViolationException(
+                message="Process update failed due to constraint violation"
             )
 
 
@@ -680,17 +671,13 @@ def delete_process(
     """
     obj = crud.get(db, process_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process with ID {id} not found",
-        )
+        raise ProcessNotFoundException(process_id=id)
 
     try:
         crud.delete(db, process_id=id)
     except IntegrityError as e:
         db.rollback()
         # Process deletion is protected by database trigger
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail=f"Cannot delete process: has dependent data (lot_processes). Process deletion is protected by database trigger.",
+        raise ConstraintViolationException(
+            message="Cannot delete process: has dependent data (lot_processes). Process deletion is protected by database trigger."
         )

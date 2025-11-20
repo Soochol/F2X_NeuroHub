@@ -85,7 +85,8 @@ export const LotsPage = () => {
       const query = searchQuery.toLowerCase();
       return (
         lot.lot_number.toLowerCase().includes(query) ||
-        lot.product_model?.name.toLowerCase().includes(query)
+        (lot.product_model?.name && lot.product_model.name.toLowerCase().includes(query)) ||
+        (lot.product_model?.code && lot.product_model.code.toLowerCase().includes(query))
       );
     }
     return true;

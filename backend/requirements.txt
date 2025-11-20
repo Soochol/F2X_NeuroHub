@@ -33,3 +33,4 @@ mypy==1.7.1
 
 # Utilities
 python-dateutil==2.8.2
+faker==22.0.0

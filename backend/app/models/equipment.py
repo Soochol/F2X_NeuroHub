@@ -10,6 +10,7 @@ Primary key: id (BIGINT)
 """
 
 from datetime import datetime, date
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
@@ -18,10 +19,13 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Numeric,
+    Text,
     ForeignKey,
     Index,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -37,32 +41,41 @@ class Equipment(Base):
 
     Attributes:
         id: Primary key, auto-incrementing BIGINT
-        equipment_code: Unique equipment identifier (e.g., 'LASER-001')
+        equipment_code: Unique equipment identifier (e.g., 'EQ_LASER_001')
         equipment_name: Display name (e.g., '레이저마킹기-001')
         equipment_type: Type classification (e.g., 'LASER_MARKER', 'SENSOR', 'ROBOT')
+        description: Equipment description and details
         process_id: Foreign key to processes table (primary process)
         production_line_id: Foreign key to production_lines table
-        location: Physical location within facility
         manufacturer: Equipment manufacturer name
         model_number: Manufacturer's model number
         serial_number: Equipment serial number
-        install_date: Date equipment was installed
-        last_maintenance_date: Last maintenance timestamp
-        next_maintenance_date: Scheduled next maintenance timestamp
+        status: Equipment status (AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE, RETIRED)
         is_active: Whether equipment is currently operational (default: True)
+        last_maintenance_date: Last maintenance date
+        next_maintenance_date: Scheduled next maintenance date
+        total_operation_hours: Total hours of operation
+        specifications: Technical specifications in JSONB format
+        maintenance_schedule: Maintenance schedule and procedures in JSONB format
         created_at: Record creation timestamp
         updated_at: Last update timestamp
 
     Constraints:
         - equipment_code must be unique
+        - status must be one of: AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE, RETIRED
+        - total_operation_hours must be non-negative
+        - next_maintenance_date must be after last_maintenance_date
 
     Indexes:
-        - idx_equipment_active: On (is_active) for active equipment
-        - idx_equipment_code: On (equipment_code) for lookups
-        - idx_equipment_type: On (equipment_type) for filtering
+        - idx_equipment_active: On (is_active, status) for active equipment
         - idx_equipment_process: On (process_id) for process queries
-        - idx_equipment_line: On (production_line_id) for line queries
-        - idx_equipment_maintenance: On (next_maintenance_date) for scheduling
+        - idx_equipment_production_line: On (production_line_id) for line queries
+        - idx_equipment_status: On (status) for status filtering
+        - idx_equipment_type: On (equipment_type) for type filtering
+        - idx_equipment_maintenance_schedule: On (next_maintenance_date) for scheduling
+        - idx_equipment_utilization: Composite index for utilization analysis
+        - idx_equipment_specifications: GIN index for JSONB specifications
+        - idx_equipment_maintenance_schedule_json: GIN index for JSONB maintenance_schedule
     """
 
     __tablename__ = "equipment"
@@ -79,7 +92,7 @@ class Equipment(Base):
         String(50),
         nullable=False,
         unique=True,
-        comment="Unique equipment identifier (e.g., 'LASER-001')",
+        comment="Unique equipment identifier (e.g., 'EQ_LASER_001')",
     )
 
     equipment_name: Mapped[str] = mapped_column(
@@ -92,6 +105,12 @@ class Equipment(Base):
         String(100),
         nullable=False,
         comment="Type classification (e.g., 'LASER_MARKER', 'SENSOR', 'ROBOT')",
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Equipment description and details",
     )
 
     # Foreign Keys
@@ -109,15 +128,9 @@ class Equipment(Base):
         comment="Production line where equipment is located",
     )
 
-    # Location and Manufacturer Information
-    location: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="Physical location within facility",
-    )
-
+    # Manufacturer Information
     manufacturer: Mapped[Optional[str]] = mapped_column(
-        String(100),
+        String(255),
         nullable=True,
         comment="Equipment manufacturer name",
     )
@@ -134,23 +147,13 @@ class Equipment(Base):
         comment="Equipment serial number",
     )
 
-    # Date and Maintenance Tracking
-    install_date: Mapped[Optional[date]] = mapped_column(
-        Date,
-        nullable=True,
-        comment="Date equipment was installed",
-    )
-
-    last_maintenance_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Last maintenance timestamp",
-    )
-
-    next_maintenance_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Scheduled next maintenance timestamp",
+    # Status and Availability
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="AVAILABLE",
+        server_default=text("'AVAILABLE'"),
+        comment="Equipment status: AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE, RETIRED",
     )
 
     is_active: Mapped[bool] = mapped_column(
@@ -159,6 +162,45 @@ class Equipment(Base):
         default=True,
         server_default=text("true"),
         comment="Whether equipment is currently operational",
+    )
+
+    # Maintenance Tracking (DATE type, not DateTime)
+    last_maintenance_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+        comment="Last maintenance date",
+    )
+
+    next_maintenance_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+        comment="Scheduled next maintenance date",
+    )
+
+    # Utilization Tracking
+    total_operation_hours: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        default=0,
+        server_default=text("0"),
+        comment="Total hours of operation",
+    )
+
+    # Configuration (JSONB)
+    specifications: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+        comment="Technical specifications in JSONB format",
+    )
+
+    maintenance_schedule: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+        comment="Maintenance schedule and procedures in JSONB format",
     )
 
     # Timestamp Columns
@@ -191,37 +233,18 @@ class Equipment(Base):
         foreign_keys=[production_line_id],
     )
 
-    # NOTE: process_data relationship disabled until process_data.equipment_id is enabled
-    # process_data: Mapped[List["ProcessData"]] = relationship(
-    #     "ProcessData",
-    #     back_populates="equipment",
-    # )
+    process_data_records: Mapped[list["ProcessData"]] = relationship(
+        "ProcessData",
+        back_populates="equipment",
+        foreign_keys="ProcessData.equipment_id",
+    )
 
     # Table Arguments: Indexes
+    # Note: Most indexes are created in DDL, but we define key ones here for reference
     __table_args__ = (
-        Index(
-            "idx_equipment_active",
-            is_active,
-        ),
         Index(
             "idx_equipment_code",
             equipment_code,
-        ),
-        Index(
-            "idx_equipment_type",
-            equipment_type,
-        ),
-        Index(
-            "idx_equipment_process",
-            process_id,
-        ),
-        Index(
-            "idx_equipment_line",
-            production_line_id,
-        ),
-        Index(
-            "idx_equipment_maintenance",
-            next_maintenance_date,
         ),
     )
 
@@ -229,7 +252,7 @@ class Equipment(Base):
         """Return string representation of Equipment instance."""
         return (
             f"<Equipment(id={self.id}, code='{self.equipment_code}', "
-            f"type='{self.equipment_type}', active={self.is_active})>"
+            f"type='{self.equipment_type}', status='{self.status}', active={self.is_active})>"
         )
 
     def __str__(self) -> str:
@@ -248,16 +271,19 @@ class Equipment(Base):
             "equipment_code": self.equipment_code,
             "equipment_name": self.equipment_name,
             "equipment_type": self.equipment_type,
+            "description": self.description,
             "process_id": self.process_id,
             "production_line_id": self.production_line_id,
-            "location": self.location,
             "manufacturer": self.manufacturer,
             "model_number": self.model_number,
             "serial_number": self.serial_number,
-            "install_date": self.install_date,
+            "status": self.status,
+            "is_active": self.is_active,
             "last_maintenance_date": self.last_maintenance_date,
             "next_maintenance_date": self.next_maintenance_date,
-            "is_active": self.is_active,
+            "total_operation_hours": float(self.total_operation_hours) if self.total_operation_hours else None,
+            "specifications": self.specifications,
+            "maintenance_schedule": self.maintenance_schedule,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -271,7 +297,7 @@ class Equipment(Base):
         """
         if self.next_maintenance_date is None:
             return False
-        return datetime.now(self.next_maintenance_date.tzinfo) >= self.next_maintenance_date
+        return date.today() >= self.next_maintenance_date
 
 
 # Type hint imports for forward references
@@ -279,5 +305,5 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.process import Process
-    # from app.models.process_data import ProcessData  # Disabled until relationship is enabled
+    from app.models.process_data import ProcessData
     from app.models.production_line import ProductionLine

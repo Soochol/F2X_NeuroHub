@@ -97,6 +97,18 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_TOKEN_HERE"
       }
+    },
+    "playwright": {
+      "name": "Playwright MCP",
+      "description": "Browser automation and E2E testing via Playwright",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-playwright"
+      ],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "false"
+      }
     }
   }
 }

@@ -47,13 +47,13 @@ export const ProcessWipChart = ({ data, height = 300 }: ProcessWipChartProps) =>
         <XAxis
           type="number"
           stroke={theme.charts.axis.stroke}
-          tick={{ fill: theme.colors.text.secondary, fontSize: 12 }}
+          tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
         />
         <YAxis
           type="category"
           dataKey="process_name"
           stroke={theme.charts.axis.stroke}
-          tick={{ fill: theme.colors.text.secondary, fontSize: 12 }}
+          tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
           width={90}
         />
         <Tooltip

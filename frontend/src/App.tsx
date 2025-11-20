@@ -4,8 +4,9 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { App as AntApp, ConfigProvider, theme as antTheme } from 'antd';
 import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -28,10 +29,24 @@ const queryClient = new QueryClient({
   },
 });
 
-function App() {
+// Inner app component that has access to theme context
+function AppContent() {
+  const { isDarkMode } = useTheme();
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
+    <ConfigProvider
+      theme={{
+        algorithm: isDarkMode ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#3ecf8e',
+          colorSuccess: '#3ecf8e',
+          colorError: '#f56565',
+          colorWarning: '#f5a623',
+          colorInfo: '#3b82f6',
+        },
+      }}
+    >
+      <AntApp>
         <AuthProvider>
           <BrowserRouter>
             <Routes>
@@ -56,6 +71,16 @@ function App() {
             </Routes>
           </BrowserRouter>
         </AuthProvider>
+      </AntApp>
+    </ConfigProvider>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AppContent />
       </ThemeProvider>
     </QueryClientProvider>
   );

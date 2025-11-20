@@ -60,9 +60,11 @@ export const analyticsApi = {
   /**
    * Get cycle time analysis
    */
-  getCycleTime: async (processId?: number, days = 30): Promise<CycleTimeAnalysis> => {
-    const params: Record<string, any> = { days };
+  getCycleTime: async (processId?: number, startDate?: string, endDate?: string): Promise<CycleTimeAnalysis> => {
+    const params: Record<string, any> = {};
     if (processId) params.process_id = processId;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
 
     const response = await apiClient.get<CycleTimeAnalysis>('/analytics/cycle-time', { params });
     return response.data;

@@ -45,15 +45,15 @@ export const QualityPage = () => {
   };
 
   const getPassRateColor = (rate: number) => {
-    if (rate >= 95) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
-    if (rate >= 85) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '�' };
-    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: 'L' };
+    if (rate >= 95) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
+    if (rate >= 85) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '' };
+    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: '' };
   };
 
   const getDefectRateColor = (rate: number) => {
-    if (rate <= 5) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
-    if (rate <= 15) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '�' };
-    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: 'L' };
+    if (rate <= 5) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', icon: '' };
+    if (rate <= 15) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', icon: '' };
+    return { bg: 'var(--color-error-light)', color: 'var(--color-error)', icon: '' };
   };
 
   return (

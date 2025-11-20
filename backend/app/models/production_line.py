@@ -10,7 +10,7 @@ Primary key: id (BIGINT)
 """
 
 from datetime import datetime
-from typing import Optional, List
+from typing import TYPE_CHECKING, Optional, List
 
 from sqlalchemy import (
     BigInteger,
@@ -26,6 +26,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
+if TYPE_CHECKING:
+    from app.models.equipment import Equipment
+    from app.models.lot import Lot
+
 
 class ProductionLine(Base):
     """
@@ -39,7 +43,7 @@ class ProductionLine(Base):
         line_code: Unique line identifier (e.g., 'LINE-A')
         line_name: Display name for the line (e.g., '조립라인 A')
         description: Detailed description of the production line
-        capacity_per_shift: Production capacity per 8-hour shift
+        cycle_time_sec: Cycle time in seconds per unit (optional)
         location: Physical location (e.g., 'Building 1, Zone A')
         is_active: Whether this line is currently operational (default: True)
         created_at: Record creation timestamp
@@ -47,7 +51,6 @@ class ProductionLine(Base):
 
     Constraints:
         - line_code must be unique
-        - capacity_per_shift must be positive
 
     Indexes:
         - idx_production_lines_active: On (is_active) for active lines
@@ -83,10 +86,10 @@ class ProductionLine(Base):
         comment="Detailed description of the production line",
     )
 
-    capacity_per_shift: Mapped[int] = mapped_column(
+    cycle_time_sec: Mapped[Optional[int]] = mapped_column(
         Integer,
-        nullable=False,
-        comment="Production capacity per 8-hour shift (units)",
+        nullable=True,
+        comment="Cycle time in seconds per unit (optional)",
     )
 
     location: Mapped[Optional[str]] = mapped_column(
@@ -149,7 +152,7 @@ class ProductionLine(Base):
         """Return string representation of ProductionLine instance."""
         return (
             f"<ProductionLine(id={self.id}, code='{self.line_code}', "
-            f"name='{self.line_name}', capacity={self.capacity_per_shift})>"
+            f"name='{self.line_name}', cycle_time={self.cycle_time_sec}s)>"
         )
 
     def __str__(self) -> str:
@@ -168,17 +171,9 @@ class ProductionLine(Base):
             "line_code": self.line_code,
             "line_name": self.line_name,
             "description": self.description,
-            "capacity_per_shift": self.capacity_per_shift,
+            "cycle_time_sec": self.cycle_time_sec,
             "location": self.location,
             "is_active": self.is_active,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
-
-
-# Type hint imports for forward references
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.models.equipment import Equipment
-    from app.models.lot import Lot

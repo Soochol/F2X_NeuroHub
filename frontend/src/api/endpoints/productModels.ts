@@ -6,19 +6,21 @@ import apiClient from '../client';
 import type { ProductModel } from '@/types/api';
 
 export interface ProductModelCreate {
-  code: string;
-  name: string;
-  description?: string;
-  version: string;
-  is_active?: boolean;
+  model_code: string;
+  model_name: string;
+  category?: string;
+  production_cycle_days?: number;
+  specifications?: Record<string, unknown>;
+  status?: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
 }
 
 export interface ProductModelUpdate {
-  code?: string;
-  name?: string;
-  description?: string;
-  version?: string;
-  is_active?: boolean;
+  model_code?: string;
+  model_name?: string;
+  category?: string;
+  production_cycle_days?: number;
+  specifications?: Record<string, unknown>;
+  status?: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
 }
 
 export const productModelsApi = {

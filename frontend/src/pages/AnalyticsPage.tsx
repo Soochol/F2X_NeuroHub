@@ -30,7 +30,7 @@ export const AnalyticsPage = () => {
     try {
       const [stats, cycleTime] = await Promise.all([
         analyticsApi.getProductionStats(startDate, endDate),
-        analyticsApi.getCycleTime(undefined, 30),
+        analyticsApi.getCycleTime(undefined, startDate, endDate),
       ]);
       setProductionStats(stats);
       setCycleTimeAnalysis(cycleTime);

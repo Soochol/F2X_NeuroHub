@@ -14,7 +14,7 @@ Schemas:
 
 Key Features:
     - Line code format validation (alphanumeric and hyphens)
-    - Capacity per shift validation (positive integer)
+    - Cycle time validation (positive integer)
     - Location and description fields
     - is_active status flag
 """
@@ -33,13 +33,13 @@ class ProductionLineBase(BaseModel):
         line_code: Unique line identifier (e.g., 'LINE-A')
         line_name: Display name for the line (e.g., '조립라인 A')
         description: Detailed description of the production line (optional)
-        capacity_per_shift: Production capacity per 8-hour shift (required)
+        cycle_time_sec: Cycle time in seconds per unit (optional)
         location: Physical location (e.g., 'Building 1, Zone A') (optional)
         is_active: Whether this line is currently operational (default: True)
 
     Validators:
         - validate_line_code: Ensures line_code format is valid
-        - validate_capacity_per_shift: Ensures positive capacity
+        - validate_cycle_time_sec: Ensures positive cycle time if provided
     """
 
     line_code: str = Field(
@@ -59,10 +59,10 @@ class ProductionLineBase(BaseModel):
         max_length=2000,
         description="Detailed description of the production line"
     )
-    capacity_per_shift: int = Field(
-        ...,
-        gt=0,
-        description="Production capacity per 8-hour shift (units)"
+    cycle_time_sec: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Cycle time in seconds per unit (optional)"
     )
     location: Optional[str] = Field(
         default=None,
@@ -115,7 +115,7 @@ class ProductionLineCreate(ProductionLineBase):
         production_line_create = ProductionLineCreate(
             line_code="LINE-A",
             line_name="조립라인 A",
-            capacity_per_shift=500,
+            cycle_time_sec=60,
             location="Building 1, Zone A"
         )
     """
@@ -133,7 +133,7 @@ class ProductionLineUpdate(BaseModel):
         line_code: Updated line code (optional)
         line_name: Updated line name (optional)
         description: Updated description (optional)
-        capacity_per_shift: Updated capacity (optional)
+        cycle_time_sec: Updated cycle time (optional)
         location: Updated location (optional)
         is_active: Updated active status (optional)
     """
@@ -155,10 +155,10 @@ class ProductionLineUpdate(BaseModel):
         max_length=2000,
         description="Detailed description of the production line"
     )
-    capacity_per_shift: Optional[int] = Field(
+    cycle_time_sec: Optional[int] = Field(
         default=None,
-        gt=0,
-        description="Production capacity per 8-hour shift (units)"
+        ge=0,
+        description="Cycle time in seconds per unit"
     )
     location: Optional[str] = Field(
         default=None,

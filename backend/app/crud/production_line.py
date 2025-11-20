@@ -14,7 +14,7 @@ Functions:
     delete: Delete a production line
     get_by_code: Get production line by unique line code
     get_active: Get active production lines
-    get_by_capacity_range: Filter production lines by capacity range
+    get_by_cycle_time_range: Filter production lines by cycle time range
 """
 
 from typing import List, Optional
@@ -109,7 +109,7 @@ def create(
         line_data = ProductionLineCreate(
             line_code="LINE-A",
             line_name="Assembly Line A",
-            capacity_per_shift=500,
+            cycle_time_sec=60,
             location="Building 1, Zone A"
         )
         new_line = create(db, line_data)
@@ -118,7 +118,7 @@ def create(
         line_code=production_line_in.line_code,
         line_name=production_line_in.line_name,
         description=production_line_in.description,
-        capacity_per_shift=production_line_in.capacity_per_shift,
+        cycle_time_sec=production_line_in.cycle_time_sec,
         location=production_line_in.location,
         is_active=production_line_in.is_active,
     )
@@ -162,7 +162,7 @@ def update(
 
     Example:
         update_data = ProductionLineUpdate(
-            capacity_per_shift=600,
+            cycle_time_sec=90,
             is_active=False
         )
         updated = update(db, production_line_id=1, production_line_in=update_data)
@@ -295,41 +295,41 @@ def get_active(
     )
 
 
-def get_by_capacity_range(
+def get_by_cycle_time_range(
     db: Session,
-    min_capacity: int,
-    max_capacity: int,
+    min_cycle_time: int,
+    max_cycle_time: int,
     *,
     skip: int = 0,
     limit: int = 100,
 ) -> List[ProductionLine]:
     """
-    Get production lines by capacity range.
+    Get production lines by cycle time range.
 
-    Retrieves production lines with capacity_per_shift between min and max values
-    (inclusive). Results are ordered by capacity_per_shift (descending).
+    Retrieves production lines with cycle_time_sec between min and max values
+    (inclusive). Results are ordered by cycle_time_sec (ascending).
 
     Args:
         db: SQLAlchemy database session
-        min_capacity: Minimum capacity per shift (inclusive)
-        max_capacity: Maximum capacity per shift (inclusive)
+        min_cycle_time: Minimum cycle time in seconds (inclusive)
+        max_cycle_time: Maximum cycle time in seconds (inclusive)
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100)
 
     Returns:
-        List of ProductionLine instances within the capacity range
+        List of ProductionLine instances within the cycle time range
 
     Example:
-        # Get production lines with capacity between 400-600 units
-        lines = get_by_capacity_range(db, min_capacity=400, max_capacity=600)
+        # Get production lines with cycle time between 30-120 seconds
+        lines = get_by_cycle_time_range(db, min_cycle_time=30, max_cycle_time=120)
     """
     return (
         db.query(ProductionLine)
         .filter(and_(
-            ProductionLine.capacity_per_shift >= min_capacity,
-            ProductionLine.capacity_per_shift <= max_capacity
+            ProductionLine.cycle_time_sec >= min_cycle_time,
+            ProductionLine.cycle_time_sec <= max_cycle_time
         ))
-        .order_by(desc(ProductionLine.capacity_per_shift))
+        .order_by(ProductionLine.cycle_time_sec.asc())
         .offset(skip)
         .limit(limit)
         .all()

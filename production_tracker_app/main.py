@@ -28,9 +28,13 @@ from views.login_dialog import LoginDialog
 # Import utilities
 from utils.logger import setup_logger
 from utils.theme_manager import load_theme
+from utils.exception_handler import ExceptionHandler
 
 # Setup logger
 logger = setup_logger()
+
+# Install global exception handler
+ExceptionHandler.install_global_handler()
 
 
 def main():
@@ -57,8 +61,8 @@ def main():
         # Load configuration
         config = AppConfig()
 
-        # Set API URL to 8001 (backend port)
-        config.api_base_url = "http://localhost:8001"
+        # Set API URL to 8000 (backend port)
+        config.api_base_url = "http://localhost:8000"
 
         logger.info(
             f"Configuration loaded: Process {config.process_number} ({config.process_name})"
@@ -107,6 +111,50 @@ def main():
                 return 0
             logger.info("Login successful")
 
+        # Load production lines and equipment from API
+        logger.info("Loading production lines and equipment from API...")
+        production_lines = []
+        equipment_list = []
+
+        try:
+            production_lines = api_client.get_production_lines()
+            logger.info(f"Loaded {len(production_lines)} production lines")
+        except Exception as e:
+            logger.warning(f"Failed to load production lines: {e}")
+
+        try:
+            equipment_list = api_client.get_equipment()
+            logger.info(f"Loaded {len(equipment_list)} equipment")
+        except Exception as e:
+            logger.warning(f"Failed to load equipment: {e}")
+
+        # Validate saved settings
+        if config.line_id and production_lines:
+            line_exists = any(
+                line.get('id') == config.line_id for line in production_lines
+            )
+            if not line_exists:
+                logger.warning(
+                    f"Saved line_id {config.line_id} not found in database. "
+                    "Please update settings."
+                )
+
+        if config.equipment_id and equipment_list:
+            equip_exists = any(
+                equip.get('id') == config.equipment_id for equip in equipment_list
+            )
+            if not equip_exists:
+                logger.warning(
+                    f"Saved equipment_id {config.equipment_id} not found in database. "
+                    "Please update settings."
+                )
+
+        # Log current settings
+        logger.info(
+            f"Current settings - Line: {config.line_code or '(미설정)'}, "
+            f"Equipment: {config.equipment_code or '(미설정)'}"
+        )
+
         # Initialize Work Service
         work_service = WorkService(api_client, config)
         logger.info("Work Service initialized")
@@ -152,9 +200,6 @@ def main():
         window = MainWindow(viewmodel, config)
         window.show()
         logger.info("Main window shown")
-
-        # Initial stats refresh
-        viewmodel.refresh_stats()
 
         logger.info("Application ready")
         logger.info("=" * 60)

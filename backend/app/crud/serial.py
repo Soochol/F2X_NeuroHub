@@ -630,3 +630,7 @@ def can_rework(db: Session, serial_id: int) -> bool:
         return False
 
     return db_serial.can_rework()
+
+
+# Alias for backward compatibility
+get_by_serial_number = get_by_number
