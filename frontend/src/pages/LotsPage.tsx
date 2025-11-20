@@ -85,8 +85,8 @@ export const LotsPage = () => {
       const query = searchQuery.toLowerCase();
       return (
         lot.lot_number.toLowerCase().includes(query) ||
-        (lot.product_model?.name && lot.product_model.name.toLowerCase().includes(query)) ||
-        (lot.product_model?.code && lot.product_model.code.toLowerCase().includes(query))
+        (lot.product_model?.model_name && lot.product_model.model_name.toLowerCase().includes(query)) ||
+        (lot.product_model?.model_code && lot.product_model.model_code.toLowerCase().includes(query))
       );
     }
     return true;
@@ -183,8 +183,8 @@ export const LotsPage = () => {
                       <td style={{ padding: '12px' }}>
                         {lot.product_model ? (
                           <div>
-                            <div style={{ fontWeight: '500' }}>{lot.product_model.code}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lot.product_model.name}</div>
+                            <div style={{ fontWeight: '500' }}>{lot.product_model.model_code}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{lot.product_model.model_name}</div>
                           </div>
                         ) : (
                           'N/A'

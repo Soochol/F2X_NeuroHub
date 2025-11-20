@@ -112,7 +112,7 @@ export const LotCreateModal = ({ isOpen, onClose, onSuccess, productModels }: Lo
             onChange={(e) => setFormData({ ...formData, product_model_id: parseInt(e.target.value) })}
             options={productModels.map((pm) => ({
               value: pm.id.toString(),
-              label: `${pm.code} - ${pm.name}`,
+              label: `${pm.model_code} - ${pm.model_name}`,
             }))}
             required
             error={errors.product_model_id}

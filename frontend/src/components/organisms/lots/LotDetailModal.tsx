@@ -116,7 +116,7 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
             <div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>제품 모델</div>
               <div style={{ fontWeight: 'bold' }}>
-                {lot.product_model ? `${lot.product_model.code} - ${lot.product_model.name}` : 'N/A'}
+                {lot.product_model ? `${lot.product_model.model_code} - ${lot.product_model.model_name}` : 'N/A'}
               </div>
             </div>
             <div>
