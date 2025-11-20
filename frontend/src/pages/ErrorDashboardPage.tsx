@@ -44,7 +44,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { errorLogsApi, ErrorLog, ErrorLogStats } from '../api';
+import { errorLogsApi } from '../api';
+import type { ErrorLog, ErrorLogStats } from '../api';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
 

@@ -108,20 +108,70 @@ class APIClient:
             logger.error(f"Unexpected error: {e}")
             raise
 
+    def _extract_error_detail(self, error: HTTPError) -> str:
+        """
+        Extract detailed error message from HTTP error response.
+
+        Tries to parse StandardErrorResponse or FastAPI HTTPException format.
+        Falls back to response text if JSON parsing fails.
+        """
+        if not hasattr(error, 'response'):
+            return str(error)
+
+        try:
+            error_json = error.response.json()
+
+            # StandardErrorResponse format (backend global handler)
+            if 'message' in error_json:
+                detail_msg = error_json['message']
+                # Add details if available
+                if 'details' in error_json and error_json['details']:
+                    details = error_json['details']
+                    if isinstance(details, list) and details:
+                        # Format field errors
+                        field_errors = [f"{d.get('field', '?')}: {d.get('message', '?')}" for d in details[:3]]
+                        detail_msg += f" ({', '.join(field_errors)})"
+                return detail_msg
+
+            # FastAPI HTTPException format
+            if 'detail' in error_json:
+                return error_json['detail']
+        except Exception as parse_err:
+            logger.debug(f"Failed to parse error response JSON: {parse_err}")
+
+        # Fallback to response text (truncated)
+        try:
+            return error.response.text[:200]
+        except:
+            return str(error)
+
     def _handle_http_error(self, error: HTTPError, endpoint: str):
         """Handle HTTP errors with friendly messages."""
         status_code = error.response.status_code if hasattr(error, 'response') else None
 
-        if status_code == 401:
-            raise HTTPError("인증에 실패했습니다. 다시 로그인해주세요.")
+        # Extract detailed error message from response
+        error_detail = self._extract_error_detail(error)
+
+        # Log the full error for debugging
+        logger.error(f"HTTP {status_code} on {endpoint}: {error_detail}")
+
+        # Map status codes to user-friendly messages
+        if status_code == 400:
+            user_msg = f"요청이 올바르지 않습니다: {error_detail}"
+        elif status_code == 401:
+            user_msg = "인증에 실패했습니다. 다시 로그인해주세요."
         elif status_code == 404:
-            raise HTTPError(f"요청한 리소스를 찾을 수 없습니다: {endpoint}")
+            user_msg = f"요청한 리소스를 찾을 수 없습니다: {error_detail}"
+        elif status_code == 409:
+            user_msg = f"이미 처리된 작업입니다: {error_detail}"
         elif status_code == 422:
-            raise HTTPError("입력 데이터가 올바르지 않습니다.")
+            user_msg = f"입력 데이터가 올바르지 않습니다: {error_detail}"
         elif status_code and 500 <= status_code < 600:
-            raise HTTPError(f"서버 오류가 발생했습니다 (HTTP {status_code})")
+            user_msg = f"서버 오류가 발생했습니다 (HTTP {status_code}): {error_detail}"
         else:
-            raise error
+            user_msg = f"{error_detail}"
+
+        raise HTTPError(user_msg)
 
     # Production Line & Equipment API methods
     def get_production_lines(self) -> list:

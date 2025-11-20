@@ -14,4 +14,13 @@ export { processesApi } from './endpoints/processes';
 export { productModelsApi } from './endpoints/productModels';
 export { productionLinesApi } from './endpoints/productionLines';
 export { equipmentApi } from './endpoints/equipment';
-export { errorLogsApi } from './endpoints/errorLogs';
+export {
+  errorLogsApi,
+  type ErrorLog,
+  type ErrorLogStats,
+  type ErrorLogListResponse,
+  type ErrorCodeCount,
+  type HourlyErrorCount,
+  type TopErrorPath,
+  type ErrorLogFilters
+} from './endpoints/errorLogs';

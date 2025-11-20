@@ -5,7 +5,7 @@ Refactored: Single APIWorker handles all API operations.
 Before: 6 workers (267 lines) → After: 1 worker (80 lines)
 """
 from PySide6.QtCore import QThread, Signal
-from typing import Any, Optional
+from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,10 @@ class APIWorker(QThread):
             return
 
         try:
-            logger.debug(f"APIWorker [{self.operation}] starting: {self.method} {self.endpoint}")
+            logger.debug(
+                f"APIWorker [{self.operation}] starting: "
+                f"{self.method} {self.endpoint}"
+            )
 
             if self.method == "GET":
                 result = self.api_client.get(self.endpoint, self.params)
@@ -85,6 +88,15 @@ class APIWorker(QThread):
         except Exception as e:
             if not self._is_cancelled:
                 error_msg = str(e)
+
+                # Log response body for HTTPError (for debugging)
+                if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                    response_body = e.response.text[:500]
+                    logger.error(
+                        f"APIWorker [{self.operation}] "
+                        f"Response body: {response_body}"
+                    )
+
                 logger.error(f"APIWorker [{self.operation}] error: {error_msg}")
                 self.error.emit(self.operation, error_msg)
 
