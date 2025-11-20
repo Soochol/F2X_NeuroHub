@@ -250,8 +250,8 @@ export interface LoginResponse {
 
 // Lot
 export interface LotCreate {
-  lot_number: string;
   product_model_id: number;
+  production_line_id: number;
   target_quantity: number;
   production_date: string;
   shift: Shift;

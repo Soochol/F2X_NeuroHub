@@ -99,8 +99,9 @@ def create(
     Create a new LOT.
 
     Creates and saves a new LOT record in the database using validated Pydantic
-    schema input. The LOT number is auto-generated in Python code (format: WF-KR-YYMMDD{D|N}-nnn),
-    and status defaults to CREATED.
+    schema input. The LOT number is auto-generated in Python code (format: {MODEL_PREFIX}-{LINE_CODE}-YYMMDD{D|N}-nnn),
+    where MODEL_PREFIX is extracted from ProductModel.model_code and LINE_CODE from ProductionLine.line_code.
+    Status defaults to CREATED.
 
     Args:
         db: SQLAlchemy database session
@@ -112,10 +113,12 @@ def create(
     Raises:
         IntegrityError: If creation violates unique constraints
         SQLAlchemyError: For other database operation errors
+        ValueError: If product_model_id or production_line_id is invalid
 
     Example:
         lot_data = LotCreate(
             product_model_id=1,
+            production_line_id=1,
             production_date=date(2025, 11, 18),
             shift="D",
             target_quantity=50,
@@ -123,13 +126,36 @@ def create(
         )
         new_lot = create(db, lot_data)
     """
-    # Generate LOT number: WF-KR-YYMMDD{D|N}-nnn
+    # Import ProductModel and ProductionLine here to avoid circular imports
+    from app.models.product_model import ProductModel
+    from app.models.production_line import ProductionLine
+
+    # 1. Get ProductModel to extract model prefix
+    product_model = db.query(ProductModel).filter(
+        ProductModel.id == lot_in.product_model_id
+    ).first()
+    if not product_model:
+        raise ValueError(f"Invalid product_model_id: {lot_in.product_model_id}")
+
+    # Extract model prefix from model_code (e.g., "NH-F2X-001" -> "NH")
+    model_prefix = product_model.model_code.split('-')[0] if '-' in product_model.model_code else product_model.model_code
+
+    # 2. Get ProductionLine to extract line code
+    production_line = db.query(ProductionLine).filter(
+        ProductionLine.id == lot_in.production_line_id
+    ).first()
+    if not production_line:
+        raise ValueError(f"Invalid production_line_id: {lot_in.production_line_id}")
+
+    line_code = production_line.line_code
+
+    # 3. Generate LOT number: {MODEL_PREFIX}-{LINE_CODE}-YYMMDD{D|N}-nnn
     # Format production_date as YYMMDD
     date_str = lot_in.production_date.strftime('%y%m%d')
     shift_char = lot_in.shift  # Already validated as D or N
 
-    # Find the next sequential number for this date and shift
-    prefix = f"WF-KR-{date_str}{shift_char}-"
+    # Find the next sequential number for this combination
+    prefix = f"{model_prefix}-{line_code}-{date_str}{shift_char}-"
     last_lot = (
         db.query(Lot)
         .filter(Lot.lot_number.like(f"{prefix}%"))
@@ -142,7 +168,7 @@ def create(
         last_seq = int(last_lot.lot_number[-3:])
         seq_num = last_seq + 1
     else:
-        # First LOT for this date and shift
+        # First LOT for this combination
         seq_num = 1
 
     lot_number = f"{prefix}{seq_num:03d}"
@@ -150,6 +176,7 @@ def create(
     db_lot = Lot(
         lot_number=lot_number,
         product_model_id=lot_in.product_model_id,
+        production_line_id=lot_in.production_line_id,
         production_date=lot_in.production_date,
         shift=lot_in.shift,
         target_quantity=lot_in.target_quantity,

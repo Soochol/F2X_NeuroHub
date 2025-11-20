@@ -5,14 +5,15 @@
 import { useState, useEffect } from 'react';
 import { Button, Select, Input, Card } from '@/components/common';
 import { LotCreateModal, LotDetailModal } from '@/components/lots';
-import { lotsApi } from '@/api';
+import { lotsApi, productionLinesApi } from '@/api';
 import apiClient from '@/api/client';
-import { LotStatus, type Lot, type ProductModel, getErrorMessage } from '@/types/api';
+import { LotStatus, type Lot, type ProductModel, type ProductionLine, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 
 export const LotsPage = () => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [productModels, setProductModels] = useState<ProductModel[]>([]);
+  const [productionLines, setProductionLines] = useState<ProductionLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -38,6 +39,7 @@ export const LotsPage = () => {
 
   useEffect(() => {
     fetchProductModels();
+    fetchProductionLines();
     fetchLots();
   }, [statusFilter, currentPage, refreshTrigger]);
 
@@ -47,6 +49,15 @@ export const LotsPage = () => {
       setProductModels(response.data);
     } catch (err: unknown) {
       console.error('Failed to fetch product models:', err);
+    }
+  };
+
+  const fetchProductionLines = async () => {
+    try {
+      const lines = await productionLinesApi.getActiveProductionLines();
+      setProductionLines(lines);
+    } catch (err: unknown) {
+      console.error('Failed to fetch production lines:', err);
     }
   };
 
@@ -342,6 +353,7 @@ export const LotsPage = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
         productModels={productModels}
+        productionLines={productionLines}
       />
 
       {selectedLotId && (

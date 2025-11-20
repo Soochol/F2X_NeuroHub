@@ -104,7 +104,7 @@ class LotBase(BaseModel):
 
     Attributes:
         product_model_id: Foreign key to product_models table (required)
-        production_line_id: Foreign key to production_lines table (optional)
+        production_line_id: Foreign key to production_lines table (required for LOT number generation)
         production_date: Scheduled/actual production date (required)
         shift: Production shift (D for Day, N for Night)
         target_quantity: Target production quantity (max 100 units per LOT)
@@ -117,8 +117,8 @@ class LotBase(BaseModel):
     """
 
     product_model_id: int = Field(..., gt=0, description="Product model identifier")
-    production_line_id: Optional[int] = Field(
-        None, gt=0, description="Production line identifier"
+    production_line_id: int = Field(
+        ..., gt=0, description="Production line identifier (required for LOT number generation)"
     )
     production_date: date = Field(..., description="Scheduled/actual production date")
     shift: str = Field(
