@@ -13,13 +13,25 @@ and handle the actual manufacturing workflow operations.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app import crud
+from app.core.exceptions import (
+    LotNotFoundException,
+    SerialNotFoundException,
+    ProcessNotFoundException,
+    UserNotFoundException,
+    DuplicateResourceException,
+    ConstraintViolationException,
+    ValidationException,
+    BusinessRuleException,
+    DatabaseException,
+)
 from app.models import (
     User,
     Lot,
@@ -147,16 +159,12 @@ def start_process(
     # Find LOT by number
     lot = db.query(Lot).filter(Lot.lot_number == request.lot_number).first()
     if not lot:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"LOT not found: {request.lot_number}"
-        )
+        raise LotNotFoundException(lot_number=request.lot_number)
 
     # Check LOT status
     if lot.status not in [LotStatus.CREATED, LotStatus.IN_PROGRESS]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"LOT is not active. Current status: {lot.status}"
+        raise ValidationException(
+            message=f"LOT is not active. Current status: {lot.status}"
         )
 
     # Find Process - handle both "PROC-001" format and numeric ID
@@ -186,10 +194,7 @@ def start_process(
             pass
 
     if not process:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Process not found: {request.process_id}"
-        )
+        raise ProcessNotFoundException(process_id=request.process_id)
 
     # Determine data level and serial
     serial = None
@@ -202,10 +207,7 @@ def start_process(
             Serial.lot_id == lot.id
         ).first()
         if not serial:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Serial not found: {request.serial_number}"
-            )
+            raise SerialNotFoundException(serial_number=request.serial_number)
         data_level = DataLevel.SERIAL
         serial_id = serial.id
 
@@ -220,10 +222,7 @@ def start_process(
             pass
 
     if not operator:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Worker not found: {request.worker_id}"
-        )
+        raise UserNotFoundException(user_id=request.worker_id)
 
     # Find equipment by equipment_id (equipment_code)
     equipment = None
@@ -268,9 +267,8 @@ def start_process(
             prev_data = prev_data_query.first()
 
             if not prev_data:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Previous process (Process {process_number - 1}) must be completed with PASS before starting Process {process_number}"
+                raise BusinessRuleException(
+                    message=f"Previous process (Process {process_number - 1}) must be completed with PASS before starting Process {process_number}"
                 )
 
     # Special validation for Process 7 (Label Printing)
@@ -313,9 +311,8 @@ def start_process(
                             if check_query.first():
                                 pass_count += 1
 
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Process 7 requires all previous processes (1-6) to be PASS. Current PASS count: {pass_count}"
+                    raise BusinessRuleException(
+                        message=f"Process 7 requires all previous processes (1-6) to be PASS. Current PASS count: {pass_count}"
                     )
 
     # Check for duplicate start (already in progress)
@@ -328,9 +325,9 @@ def start_process(
         existing = existing.filter(ProcessData.serial_id == serial_id)
 
     if existing.first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Process {process_number} is already in progress for this LOT/Serial"
+        raise DuplicateResourceException(
+            resource_type="ProcessData",
+            identifier=f"Process {process_number} for LOT/Serial"
         )
 
     # Create process data record
@@ -375,12 +372,22 @@ def start_process(
             started_at=started_at,
         )
 
-    except Exception as e:
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to start process: {str(e)}"
-        )
+        error_str = str(e).lower()
+        if "unique constraint" in error_str or "duplicate" in error_str:
+            raise DuplicateResourceException(
+                resource_type="ProcessData",
+                identifier=f"lot_id={lot.id}, process_id={process.id}"
+            )
+        if "foreign key" in error_str:
+            raise ConstraintViolationException(
+                message="Invalid foreign key reference in process data"
+            )
+        raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.post(
@@ -418,10 +425,7 @@ def complete_process(
     # Find LOT
     lot = db.query(Lot).filter(Lot.lot_number == request.lot_number).first()
     if not lot:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"LOT not found: {request.lot_number}"
-        )
+        raise LotNotFoundException(lot_number=request.lot_number)
 
     # Find in-progress process data
     query = db.query(ProcessData).filter(
@@ -441,18 +445,16 @@ def complete_process(
     process_data = query.first()
 
     if not process_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No in-progress process found for process_id {request.process_id}. Did you start the process first?"
+        raise ValidationException(
+            message=f"No in-progress process found for process_id {request.process_id}. Did you start the process first?"
         )
 
     # Validate result
     try:
         result = ProcessResult(request.result.upper())
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid result. Must be one of: PASS, FAIL, REWORK"
+        raise ValidationException(
+            message=f"Invalid result. Must be one of: PASS, FAIL, REWORK"
         )
 
     # Update process data
@@ -487,12 +489,22 @@ def complete_process(
             duration_seconds=duration_seconds,
         )
 
-    except Exception as e:
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to complete process: {str(e)}"
-        )
+        error_str = str(e).lower()
+        if "unique constraint" in error_str or "duplicate" in error_str:
+            raise DuplicateResourceException(
+                resource_type="ProcessData",
+                identifier=f"process_data_id={process_data.id}"
+            )
+        if "foreign key" in error_str:
+            raise ConstraintViolationException(
+                message="Invalid foreign key reference in process completion"
+            )
+        raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.get(
@@ -540,17 +552,11 @@ def get_process_history(
     ).first()
 
     if not serial:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Serial not found: {serial_number}"
-        )
+        raise SerialNotFoundException(serial_number=serial_number)
 
     lot = serial.lot
     if not lot:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"LOT not found for serial: {serial_number}"
-        )
+        raise LotNotFoundException(lot_number=f"serial={serial_number}")
 
     # Get all 8 processes
     processes = db.query(Process).order_by(Process.process_number).all()

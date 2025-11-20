@@ -384,9 +384,9 @@ def get_process_data_by_serial_and_process(
         db, serial_id=serial_id, process_id=process_id
     )
     if not process_data_record:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Process data record for serial {serial_id} and process {process_id} not found"
+        raise ResourceNotFoundException(
+            resource_type="ProcessData",
+            resource_id=f"serial_id={serial_id}, process_id={process_id}"
         )
     return process_data_record
 
@@ -488,14 +488,12 @@ def create_process_data(
     """
     # Validate data_level and serial_id consistency
     if obj_in.data_level == DataLevel.SERIAL and not obj_in.serial_id:
-        raise HTTPException(
-            status_code=400,
-            detail="serial_id is required when data_level='SERIAL'"
+        raise ValidationException(
+            message="serial_id is required when data_level='SERIAL'"
         )
     if obj_in.data_level == DataLevel.LOT and obj_in.serial_id:
-        raise HTTPException(
-            status_code=400,
-            detail="serial_id must be NULL when data_level='LOT'"
+        raise ValidationException(
+            message="serial_id must be NULL when data_level='LOT'"
         )
 
     try:
@@ -505,29 +503,31 @@ def create_process_data(
         return process_data_record
     except ValueError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+        raise ValidationException(message=str(e))
+    except IntegrityError as e:
         db.rollback()
         error_message = str(e)
 
         # Parse specific database trigger exceptions for better error messages
         if "Process 7" in error_message and "requires all previous processes" in error_message:
             # BR-007: Process 7 validation failure
-            raise HTTPException(
-                status_code=400,
-                detail="Process 7 (Label Printing) requires all previous processes (1-6) to be PASS. Please ensure all manufacturing processes are completed successfully before label printing."
+            raise BusinessRuleException(
+                message="Process 7 (Label Printing) requires all previous processes (1-6) to be PASS. Please ensure all manufacturing processes are completed successfully before label printing."
             )
         elif "Process sequence violation" in error_message:
             # Process sequence violation
-            raise HTTPException(
-                status_code=400,
-                detail=f"Process sequence violation: {error_message}"
+            raise BusinessRuleException(
+                message=f"Process sequence violation: {error_message}"
             )
         else:
-            raise HTTPException(
-                status_code=409,
-                detail="Failed to create process data record. Check foreign key references and constraints."
-            )
+            if "foreign key" in error_message.lower():
+                raise ConstraintViolationException(
+                    message="Invalid foreign key reference in process data"
+                )
+            raise DatabaseException(message=f"Failed to create process data record: {str(e)}")
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.put(
@@ -581,13 +581,15 @@ def update_process_data(
         return updated_record
     except ValueError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+        raise ValidationException(message=str(e))
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Failed to update process data record. Check constraint violations."
+        raise ConstraintViolationException(
+            message="Failed to update process data record. Check constraint violations."
         )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.delete(
@@ -624,15 +626,12 @@ def delete_process_data(
         if success:
             db.commit()
         else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Process data record with ID {process_data_id} not found"
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
+            raise ResourceNotFoundException("Process data record", process_data_id)
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Failed to delete process data record. Database constraints may prevent deletion."
+        raise ConstraintViolationException(
+            message="Failed to delete process data record. Database constraints may prevent deletion."
         )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise DatabaseException(message=f"Failed to delete process data record: {str(e)}")

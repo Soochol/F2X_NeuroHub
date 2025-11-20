@@ -254,10 +254,7 @@ def get_lot_by_number(
     """
     obj = crud.get_by_number(db, lot_number=lot_number)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with number '{lot_number}' not found",
-        )
+        raise LotNotFoundException(lot_number=lot_number)
     return obj
 
 
@@ -630,21 +627,20 @@ def create_lot(
     """
     try:
         return crud.create(db, lot_in=obj_in)
-    except Exception as e:
-        # Handle database constraint violations
+    except IntegrityError as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Lot creation constraint violation",
+            raise DuplicateResourceException(
+                resource_type="Lot",
+                identifier=f"lot_number={obj_in.lot_number}"
             )
         if "foreign key" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid product_model_id or other foreign key reference",
+            raise ConstraintViolationException(
+                message="Invalid product_model_id or other foreign key reference"
             )
-        # Re-raise other exceptions
-        raise
+        raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except SQLAlchemyError as e:
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.put(
@@ -724,26 +720,24 @@ def update_lot(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(lot_id=id)
 
     try:
         return crud.update(db, lot_id=id, lot_in=obj_in)
-    except Exception as e:
+    except IntegrityError as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Lot update constraint violation",
+            raise DuplicateResourceException(
+                resource_type="Lot",
+                identifier=f"lot_id={id}"
             )
         if "foreign key" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid reference in update",
+            raise ConstraintViolationException(
+                message="Invalid reference in update"
             )
-        raise
+        raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except SQLAlchemyError as e:
+        raise DatabaseException(message=f"Database operation failed: {str(e)}")
 
 
 @router.post(
@@ -799,18 +793,14 @@ def close_lot(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(lot_id=id)
 
     try:
         return crud.close_lot(db, lot_id=id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to close Lot",
-        )
+    except IntegrityError as e:
+        raise DatabaseException(message=f"Database integrity error while closing lot: {str(e)}")
+    except SQLAlchemyError as e:
+        raise DatabaseException(message=f"Failed to close Lot: {str(e)}")
 
 
 @router.put(
@@ -871,18 +861,14 @@ def recalculate_lot_quantities(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(lot_id=id)
 
     try:
         return crud.update_quantities(db, lot_id=id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to recalculate Lot quantities",
-        )
+    except IntegrityError as e:
+        raise DatabaseException(message=f"Database integrity error while recalculating: {str(e)}")
+    except SQLAlchemyError as e:
+        raise DatabaseException(message=f"Failed to recalculate Lot quantities: {str(e)}")
 
 
 @router.delete(
@@ -943,25 +929,18 @@ def delete_lot(
     """
     obj = crud.get(db, lot_id=id)
     if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lot with ID {id} not found",
-        )
+        raise LotNotFoundException(lot_id=id)
 
     try:
         deleted = crud.delete(db, lot_id=id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Lot with ID {id} not found",
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
+            raise LotNotFoundException(lot_id=id)
+    except IntegrityError as e:
         error_str = str(e).lower()
         if "foreign key" in error_str or "constraint" in error_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete Lot with associated serials",
+            raise ConstraintViolationException(
+                message="Cannot delete Lot with associated serials"
             )
-        raise
+        raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except SQLAlchemyError as e:
+        raise DatabaseException(message=f"Failed to delete Lot: {str(e)}")

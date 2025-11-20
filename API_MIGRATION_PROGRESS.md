@@ -131,12 +131,56 @@
   - 규정 준수(SOX, HIPAA, GDPR) 요구사항 충족
 - **상태**: 완료 및 서버 시작 확인
 
+### 11. ✅ process_operations.py
+
+- **HTTPException 개수**: 11개
+- **마이그레이션 내용**:
+  - 404 에러 (5개) → `LotNotFoundException`, `ProcessNotFoundException`, `SerialNotFoundException`, `UserNotFoundException`
+  - 400 비즈니스 규칙 위반 (2개) → `BusinessRuleException`
+  - 409 중복 에러 (1개) → `DuplicateResourceException`
+  - 500 트랜잭션 에러 (2개) → `IntegrityError` + `SQLAlchemyError` 처리
+- **특이사항**:
+  - 착공 등록 (start_process), 완공 등록 (complete_process)
+  - Process 7 검증 (모든 이전 공정 PASS 필요)
+  - 공정 순서 검증 로직
+  - PySide 데스크톱 앱 연동
+- **상태**: 완료 및 트랜잭션 에러 핸들러 수정
+
+### 12. ✅ lots.py
+
+- **HTTPException 개수**: 13개
+- **마이그레이션 내용**:
+  - 404 에러 (6개) → `LotNotFoundException`
+  - 409 트랜잭션 에러 (5개) → `DuplicateResourceException`, `ConstraintViolationException`, `DatabaseException`
+  - 500 트랜잭션 에러 (2개) → `DatabaseException`
+- **특이사항**:
+  - LOT 생성, 수정, 삭제 트랜잭션 보호
+  - LOT 종료 (close_lot) 트랜잭션 처리
+  - 수량 재계산 (recalculate_lot_quantities)
+  - 외래키 및 유니크 제약조건 처리
+- **상태**: 완료 및 트랜잭션 에러 핸들러 수정
+
+### 13. ✅ process_data.py (최종 완성)
+
+- **HTTPException 개수**: 11개
+- **마이그레이션 내용**:
+  - 404 에러 (3개) → `ResourceNotFoundException`
+  - 400 검증 에러 (5개) → `ValidationException`
+  - 400 비즈니스 규칙 위반 (2개) → `BusinessRuleException`
+  - 409 제약조건 위반 (1개) → `ConstraintViolationException`
+- **특이사항**:
+  - Process 7 검증 (DB 트리거 메시지 파싱)
+  - 공정 순서 위반 검증
+  - data_level (LOT/SERIAL) 일관성 검증
+  - 생성, 수정, 삭제 트랜잭션 처리
+- **상태**: 완료 및 비즈니스 로직 에러 핸들러 수정
+
 ## 마이그레이션 통계
 
 | 항목 | 개수 |
 |------|------|
-| 완료된 API 파일 | 10개 |
-| 총 마이그레이션된 HTTPException | 100개 |
+| 완료된 API 파일 | 13개 |
+| 총 마이그레이션된 HTTPException | 135개 |
 | 사용된 커스텀 예외 클래스 | 17가지 |
 
 ### 사용된 커스텀 예외 클래스
