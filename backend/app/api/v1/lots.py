@@ -14,6 +14,7 @@ Provides:
     - GET /status/{status}: Filter LOTs by status
     - GET /{id}/quantities: Get current quantities (actual, passed, failed)
     - POST /: Create new LOT
+    - POST /{id}/start-wip-generation: Generate WIP IDs for LOT (BR-001, BR-002)
     - POST /{id}/close: Close completed LOT (transition to CLOSED status)
     - PUT /{id}: Update existing LOT
     - PUT /{id}/quantities: Recalculate quantities from serials
@@ -36,6 +37,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.models import User
 from app.crud import lot as crud
+from app.crud import wip_item as wip_crud
 from app.schemas.lot import (
     LotCreate,
     LotUpdate,
@@ -43,12 +45,14 @@ from app.schemas.lot import (
     LotStatus,
     Shift,
 )
+from app.schemas.wip_item import WIPItemInDB
 # New exception imports
 from app.core.exceptions import (
     LotNotFoundException,
     DuplicateResourceException,
     ValidationException,
 )
+from app.services.wip_service import WIPValidationError
 
 
 router = APIRouter(
@@ -206,25 +210,25 @@ def get_lot(
     "/number/{lot_number}",
     response_model=LotInDB,
     summary="Get LOT by LOT number",
-    description="Retrieve a LOT using its unique LOT number (WF-KR-YYMMDD{D|N}-nnn)",
+    description="Retrieve a LOT using its unique LOT number (11 characters)",
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot_by_number(
-    lot_number: str = Path(..., pattern="^WF-KR-[0-9]{6}[DN]-[0-9]{3}$", description="Unique LOT identifier"),
+    lot_number: str = Path(..., pattern="^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$", description="Unique LOT identifier (11 chars)"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get LOT by unique LOT number.
 
     Retrieves a single LOT using its unique LOT number identifier.
-    LOT number format: WF-KR-YYMMDD{D|N}-nnn
-        - WF-KR: Prefix for Korean factory
-        - YYMMDD: Production date (year, month, day)
-        - D|N: Shift (Day or Night)
-        - nnn: Sequential number (001-999)
+    LOT number format: {Country 2}{Line 2}{Model 3}{Month 4} = 11 chars
+        - Country: 2-char country code (e.g., "KR" for Korea)
+        - Line: 2-digit production line number (e.g., "01")
+        - Model: 3-char model code (e.g., "PSA")
+        - Month: 4-digit year/month YYMM format (e.g., "2511" for Nov 2025)
 
     Args:
-        lot_number: Unique LOT identifier in format WF-KR-YYMMDD{D|N}-nnn
-            (e.g., WF-KR-251118D-001)
+        lot_number: Unique LOT identifier (11 characters)
+            (e.g., KR01PSA2511)
         db: SQLAlchemy database session (injected via dependency).
 
     Returns:
@@ -235,15 +239,15 @@ def get_lot_by_number(
 
     Examples:
         Get LOT by number:
-        >>> GET /api/v1/lots/number/WF-KR-251118D-001
+        >>> GET /api/v1/lots/number/KR01PSA2511
 
         Get LOT with different number:
-        >>> GET /api/v1/lots/number/WF-KR-251120N-045
+        >>> GET /api/v1/lots/number/KR02WFA2511
 
     Response Example (200 OK):
         {
             "id": 1,
-            "lot_number": "WF-KR-251118D-001",
+            "lot_number": "KR01PSA2511",
             "product_model_id": 1,
             "production_date": "2025-11-18",
             "shift": "D",
@@ -641,6 +645,51 @@ def create_lot(
         raise DatabaseException(message=f"Database integrity error: {str(e)}")
     except SQLAlchemyError as e:
         raise DatabaseException(message=f"Database operation failed: {str(e)}")
+
+
+@router.post(
+    "/{id}/start-wip-generation",
+    response_model=List[WIPItemInDB],
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate WIP IDs for LOT",
+    description="Generate batch of WIP IDs for a LOT (BR-001, BR-002)",
+    responses={
+        404: {"description": "LOT not found"},
+        400: {"description": "Invalid request data (validation failed)"},
+    },
+)
+def start_wip_generation(
+    id: int = Path(..., gt=0, description="LOT identifier"),
+    quantity: int = Query(..., ge=1, le=100, description="Number of WIP IDs to generate"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> List[WIPItemInDB]:
+    """
+    Generate batch of WIP IDs for a LOT.
+
+    Business Rules:
+        BR-001: LOT must be in CREATED status
+        BR-002: WIP generation transitions LOT to IN_PROGRESS
+
+    Args:
+        id: LOT identifier
+        quantity: Number of WIP IDs (1-100)
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        List of created WIP items
+
+    Raises:
+        HTTPException: 404 if LOT not found, 400 if validation fails
+    """
+    try:
+        wip_items = wip_crud.create_batch(db, id, quantity)
+        return wip_items
+    except WIPValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.put(
