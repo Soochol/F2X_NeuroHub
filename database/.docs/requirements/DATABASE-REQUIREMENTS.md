@@ -548,7 +548,156 @@ $$ LANGUAGE plpgsql;
 - 공정 1~6 중 일부만 완료된 경우
 - 일부 공정이 FAIL 또는 REWORK 상태인 경우
 
-### 6.3 BR-006: 감사 로그 자동 생성
+### 6.4 BR-008: updated_at 자동 갱신
+
+**목적**: 모든 주요 테이블의 수정 시간을 데이터베이스 레벨에서 자동 관리
+
+**구현**: Database Trigger
+
+**Function 구현**:
+```sql
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 모든 주요 테이블에 적용
+CREATE TRIGGER trg_update_product_models_updated_at
+BEFORE UPDATE ON product_models
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_lots_updated_at
+BEFORE UPDATE ON lots
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_serials_updated_at
+BEFORE UPDATE ON serials
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_processes_updated_at
+BEFORE UPDATE ON processes
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_process_data_updated_at
+BEFORE UPDATE ON process_data
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_update_wip_items_updated_at
+BEFORE UPDATE ON wip_items
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+**특징**:
+- 모든 UPDATE 시 자동으로 `updated_at` 필드 갱신
+- 애플리케이션에서 시간 값을 설정할 필요 없음
+- 데이터 변경 추적 용이
+
+---
+
+### 6.5 BR-009: 생산 라인 자동 할당
+
+**목적**: 첫 착공 (공정 시작) 시 LOT에 생산 라인 자동 할당
+
+**구현 위치**: API Logic (POST /api/v1/process-operations/start)
+
+**비즈니스 규칙**:
+- LOT의 첫 공정 착공 시 `line_id`가 제공되면 `lots.production_line_id`에 할당
+- 이미 `production_line_id`가 할당된 경우 변경하지 않음
+- `line_id`는 `production_lines` 테이블의 코드를 기반으로 ID로 변환
+
+**의사 코드**:
+```python
+def start_process(lot_number, line_id, ...):
+    lot = get_lot(lot_number)
+
+    # 첫 착공 시 생산 라인 할당
+    if lot.production_line_id is None and line_id:
+        production_line = get_production_line_by_code(line_id)
+        if production_line:
+            lot.production_line_id = production_line.id
+            save(lot)
+
+    # 공정 데이터 생성
+    process_data = create_process_data(...)
+```
+
+**테스트 케이스**:
+```python
+# 첫 착공 - 라인 할당
+POST /api/v1/process-operations/start
+{
+    "lot_number": "KR01PSA2511001",
+    "process_id": "1",
+    "worker_id": "OP001",
+    "line_id": "LINE-A"
+}
+# → lots.production_line_id = (LINE-A의 ID)
+
+# 두 번째 착공 - 라인 변경 안됨
+POST /api/v1/process-operations/start
+{
+    "lot_number": "KR01PSA2511001",
+    "process_id": "2",
+    "worker_id": "OP001",
+    "line_id": "LINE-B"  # 무시됨
+}
+# → lots.production_line_id 유지
+```
+
+---
+
+### 6.6 BR-010: 설비 ID 연결
+
+**목적**: 착공 시 설비 코드를 설비 테이블 ID로 변환하여 저장
+
+**구현 위치**: API Logic (POST /api/v1/process-operations/start)
+
+**비즈니스 규칙**:
+- 요청의 `equipment_id` (문자열 코드)를 `equipment` 테이블에서 조회
+- 해당 설비의 실제 ID를 `process_data.equipment_id`에 저장
+- 설비 코드가 없거나 잘못된 경우 NULL 또는 에러 처리
+
+**의사 코드**:
+```python
+def start_process(equipment_id_code, ...):
+    equipment_id = None
+
+    if equipment_id_code:
+        equipment = get_equipment_by_code(equipment_id_code)
+        if equipment:
+            equipment_id = equipment.id
+
+    # 공정 데이터 생성
+    process_data = ProcessData(
+        equipment_id=equipment_id,  # BIGINT FK
+        ...
+    )
+```
+
+**테스트 케이스**:
+```python
+# 설비 코드로 착공
+POST /api/v1/process-operations/start
+{
+    "lot_number": "KR01PSA2511001",
+    "serial_number": "KR01PSA25110010001",
+    "process_id": "1",
+    "worker_id": "OP001",
+    "equipment_id": "LASER-001"  # 문자열 코드
+}
+# → process_data.equipment_id = (LASER-001의 실제 ID)
+```
+
+---
+
+### 6.7 BR-006: 감사 로그 자동 생성
 
 ```sql
 CREATE OR REPLACE FUNCTION log_audit_event()
@@ -695,6 +844,10 @@ FOR VALUES FROM ('2025-11-01') TO ('2025-12-01');
 
 ## 관련 문서
 
+- [README.md](./README.md) - 문서 가이드 및 네비게이션
 - [01-ERD.md](./01-ERD.md) - ERD 다이어그램
 - [02-entity-definitions.md](./02-entity-definitions.md) - 엔티티 상세 정의
 - [03-relationship-specifications.md](./03-relationship-specifications.md) - 관계 명세
+- [04-index-strategy.md](./04-index-strategy.md) - 인덱스 최적화 전략
+- [05-migration-plan.md](./05-migration-plan.md) - Alembic 마이그레이션 계획
+- [06-data-dictionary.md](./06-data-dictionary.md) - 데이터 사전
