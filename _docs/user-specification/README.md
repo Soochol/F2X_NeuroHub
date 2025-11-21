@@ -1,0 +1,153 @@
+# Withforce MES 시스템 사양서
+
+**최초 작성일:** 2025-11-10
+**최종 수정일:** 2025-11-15
+**문서 유형:** 시스템 요구사항 명세서
+**상태:** ✅ 승인됨 (Production Ready)
+
+---
+
+## 📋 문서 요약
+
+### 프로젝트 개요
+
+**목적:** Withforce 웨어러블 로봇 생산 라인에 MES(제조실행시스템)를 도입하여 완벽한 제품 추적성과 실시간 생산 모니터링 체계를 구축합니다.
+
+**핵심 기능:**
+- LOT 및 시리얼 번호 기반 제품 추적
+- 8개 공정별 착공/완공 관리
+- 실시간 생산 현황 대시보드
+- 품질 데이터 자동 수집 및 분석
+
+### 주요 수치
+
+| 항목 | 수치 |
+|------|------|
+| **동시 접속자** | 100명 (작업자 70명 + 관리자 30명) |
+| **일일 트랜잭션** | 약 50,000건 |
+| **생산 대상** | LOT당 100대, 일일 약 100대 |
+
+### 기술 스택
+
+| 계층 | 기술 |
+|------|------|
+| **백엔드** | Python 3.11, FastAPI, PostgreSQL 15 |
+| **프론트엔드** | PyQt5 (작업 PC), React 18 (관리자 대시보드) |
+| **인프라** | Ubuntu 22.04, Nginx, Docker |
+| **기타** | File Watcher, Zebra 프린터, 바코드 스캐너 |
+
+---
+
+## 📚 문서 구조
+
+본 사양서는 다음과 같이 구성되어 있습니다:
+
+### 1. [프로젝트 개요](./01-project-overview.md)
+- 프로젝트 배경 및 목적
+- 프로젝트 범위 (Phase 1 기본 버전, Phase 2 고도화)
+- 주요 사용자 정의
+
+### 2. [제품 및 공정 현황 (AS-IS)](./02-product-process.md)
+- 제품 소개 및 용어 정의
+- 현재 생산 공정 흐름 (8개 공정)
+- 공정별 상세 설명
+- 현재 문제점 및 개선 필요사항
+- LOT 및 시리얼 번호 체계
+- 불량 유형 코드 체계
+
+### 3. MES 요구사항 (TO-BE)
+
+**하위 문서:**
+- [3.1 기능 요구사항](./03-requirements/03-1-functional.md) - LOT 관리, 공정 관리, 모니터링
+- [3.2 API 명세](./03-requirements/03-2-api-specs.md) - 착공/완공/라벨/펌웨어 API
+- [3.3 검수 기준](./03-requirements/03-3-acceptance.md) - 기능 검수 항목
+
+### 4. 시스템 아키텍처
+
+**하위 문서:**
+- [4.1 배포 옵션 비교](./04-architecture/04-1-deployment-options.md) - 온프레미스 vs Railway vs AWS
+- [4.2 시스템 설계](./04-architecture/04-2-system-design.md) - 시스템 구성도, 배포 아키텍처, 네트워크
+- [4.3 기술 스택](./04-architecture/04-3-tech-stack.md) - 백엔드, 프론트엔드, 인프라 상세
+
+### 5. 데이터 설계
+
+**하위 문서:**
+- [5.1 ERD 및 테이블 스키마](./05-data-design/05-1-erd.md) - 데이터베이스 설계
+- [5.2 코드 체계](./05-data-design/05-2-code-systems.md) - LOT 번호, 불량 코드, 에러 코드
+
+### 6. [투자 계획](./06-investment.md)
+- 개발 일정 및 팀 구성
+- 투자 비용 (초기 투자 + 월 운영비)
+- ROI 분석
+- 리스크 관리 계획
+
+### 7. [부록](./07-appendix.md)
+- 용어 정의
+- 버전 이력
+- 참고 자료
+
+### 8. 테스팅 전략 ⭐ NEW
+
+**하위 문서:**
+- [8.1 성능 테스트 계획](./08-testing/08-1-performance-test.md) - 부하/스트레스/내구성 테스트
+- [8.2 통합 테스트 가이드](./08-testing/08-2-integration-test.md) - Database/API/E2E 테스트
+
+---
+
+## 🚀 빠른 시작
+
+### 의사결정자를 위한 필독 섹션
+1. [README.md](./README.md) (현재 문서) - 전체 개요 파악
+2. [01-project-overview.md](./01-project-overview.md) - 프로젝트 목적 및 범위
+3. [04-1-deployment-options.md](./04-architecture/04-1-deployment-options.md) - 배포 옵션 및 비용 비교
+4. [06-investment.md](./06-investment.md) - 투자 계획 및 ROI
+
+### 개발자를 위한 필독 섹션
+1. [03-2-api-specs.md](./03-requirements/03-2-api-specs.md) - API 명세
+2. [04-3-tech-stack.md](./04-architecture/04-3-tech-stack.md) - 기술 스택
+3. [05-1-erd.md](./05-data-design/05-1-erd.md) - 데이터베이스 설계
+4. [04-2-system-design.md](./04-architecture/04-2-system-design.md) - 시스템 구성도
+
+### 생산 관리자를 위한 필독 섹션
+1. [02-product-process.md](./02-product-process.md) - 현재 공정 및 개선안
+2. [03-1-functional.md](./03-requirements/03-1-functional.md) - MES 기능 요구사항
+3. [03-3-acceptance.md](./03-requirements/03-3-acceptance.md) - 검수 기준
+
+### QA/테스트 엔지니어를 위한 필독 섹션 ⭐ NEW
+1. [03-3-acceptance.md](./03-requirements/03-3-acceptance.md) - BDD 시나리오 및 검수 기준
+2. [08-1-performance-test.md](./08-testing/08-1-performance-test.md) - 성능 테스트 계획
+3. [08-2-integration-test.md](./08-testing/08-2-integration-test.md) - 통합 테스트 가이드
+4. [05-1-erd.md](./05-data-design/05-1-erd.md) - Database 제약조건 및 트리거
+
+---
+
+## 📊 주요 개선 효과 (기대 효과)
+
+| 항목 | AS-IS (현재) | TO-BE (개선 후) | 개선 효과 |
+|------|--------------|-----------------|-----------|
+| **LOT 생성 시간** | 5분 (수동) | 30초 (자동) | **90% 단축** |
+| **불량 원인 파악** | 불가능 | 5분 이내 | **추적성 확보** |
+| **생산 현황 파악** | 1시간 (수동 집계) | 실시간 | **실시간 모니터링** |
+| **품질 데이터 수집** | 미수집 | 100% 수집 | **데이터 기반 개선** |
+| **공정 병목 식별** | 파악 불가 | 실시간 가시화 | **생산 최적화** |
+
+---
+
+## 🔗 관련 링크
+
+- **프로젝트 레포지토리:** (미정)
+- **이슈 트래킹:** (미정)
+- **배포 환경:** (미정)
+
+---
+
+## 📞 문의
+
+**프로젝트 담당:**
+- 기술 문의: (담당자 이메일)
+- 비즈니스 문의: (담당자 이메일)
+
+---
+
+**마지막 업데이트:** 2025-11-15
+**문서 관리:** F2X NeuroHub Team
