@@ -1230,7 +1230,7 @@ Authorization: Bearer {JWT_TOKEN}
       "line_code": "KR01",
       "line_name": "조립라인 A",
       "description": "메인 생산 라인",
-      "capacity_per_shift": 100,
+      "cycle_time_sec": 3600,
       "location": "Building 1, Zone A",
       "is_active": true,
       "created_at": "2025-01-01T00:00:00+09:00",
@@ -1252,7 +1252,7 @@ Authorization: Bearer {JWT_TOKEN}
   "line_code": "KR03",
   "line_name": "테스트 라인",
   "description": "테스트용 생산 라인",
-  "capacity_per_shift": 50,
+  "cycle_time_sec": 7200,
   "location": "Building 2, Zone B",
   "is_active": true
 }
