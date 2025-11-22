@@ -13,10 +13,22 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LotsPage } from './pages/LotsPage';
 import { SerialsPage } from './pages/SerialsPage';
+import { WipTrackingPage } from './pages/WipTrackingPage';
+
+import { SerialGenerationPage } from './pages/SerialGenerationPage';
+import { WipGenerationPage } from './pages/WipGenerationPage';
+import {
+  SerialInspectorPage,
+  LotMonitorPage,
+  AdminUsersPage,
+  AdminProcessesPage,
+  AdminProductsPage,
+  AdminProductionLinesPage,
+  AdminEquipmentPage
+} from './pages/admin';
 import { QualityPage } from './pages/QualityPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AlertsPage } from './pages/AlertsPage';
-import { AdminPage } from './pages/AdminPage';
 import ErrorDashboardPage from './pages/ErrorDashboardPage';
 
 // Create QueryClient for react-query
@@ -82,11 +94,23 @@ function AppContent() {
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/lots" element={<LotsPage />} />
                   <Route path="/serials" element={<SerialsPage />} />
+                  <Route path="/wip-tracking" element={<WipTrackingPage />} />
+
+                  <Route path="/serials/generate" element={<SerialGenerationPage />} />
+                  <Route path="/wip-generation" element={<WipGenerationPage />} />
                   <Route path="/quality" element={<QualityPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
                   <Route path="/error-dashboard" element={<ErrorDashboardPage />} />
+
+                  {/* Admin routes */}
+                  <Route path="/admin/users" element={<AdminUsersPage />} />
+                  <Route path="/admin/processes" element={<AdminProcessesPage />} />
+                  <Route path="/admin/products" element={<AdminProductsPage />} />
+                  <Route path="/admin/production-lines" element={<AdminProductionLinesPage />} />
+                  <Route path="/admin/equipment" element={<AdminEquipmentPage />} />
+                  <Route path="/admin/serial-inspector" element={<SerialInspectorPage />} />
+                  <Route path="/admin/lot-monitor" element={<LotMonitorPage />} />
                 </Route>
               </Route>
 

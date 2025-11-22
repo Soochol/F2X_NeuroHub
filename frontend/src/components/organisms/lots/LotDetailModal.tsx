@@ -37,10 +37,6 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
       setLot(data);
       setEditData({
         status: data.status,
-        busbar_lot: data.busbar_lot,
-        sma_spring_lot: data.sma_spring_lot,
-        pin_lot: data.pin_lot,
-        hsg_lot: data.hsg_lot,
       });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'LOT 정보를 불러오지 못했습니다'));
@@ -55,6 +51,7 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
       setIsEditing(false);
       await fetchLot();
       onUpdate();
+      onClose(); // 저장 완료 후 모달 닫기
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'LOT 업데이트 실패'));
     }
@@ -130,10 +127,6 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>시프트</div>
-              <div style={{ fontWeight: 'bold' }}>{lot.shift}</div>
-            </div>
-            <div>
               {isEditing ? (
                 <Select
                   label="상태"
@@ -159,14 +152,14 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
                           lot.status === LotStatus.COMPLETED
                             ? 'var(--color-success-bg)'
                             : lot.status === LotStatus.IN_PROGRESS
-                            ? 'var(--color-info-bg)'
-                            : 'var(--color-bg-tertiary)',
+                              ? 'var(--color-info-bg)'
+                              : 'var(--color-bg-tertiary)',
                         color:
                           lot.status === LotStatus.COMPLETED
                             ? 'var(--color-success)'
                             : lot.status === LotStatus.IN_PROGRESS
-                            ? 'var(--color-info)'
-                            : 'var(--color-text-secondary)',
+                              ? 'var(--color-info)'
+                              : 'var(--color-text-secondary)',
                       }}
                     >
                       {lot.status}
@@ -176,54 +169,6 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
               )}
             </div>
           </div>
-        </div>
-
-        {/* Component LOTs */}
-        <div style={{ marginBottom: '20px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>구성품 LOT</h3>
-          {isEditing ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <Input
-                label="Busbar LOT"
-                value={editData.busbar_lot || ''}
-                onChange={(e) => setEditData({ ...editData, busbar_lot: e.target.value })}
-              />
-              <Input
-                label="SMA Spring LOT"
-                value={editData.sma_spring_lot || ''}
-                onChange={(e) => setEditData({ ...editData, sma_spring_lot: e.target.value })}
-              />
-              <Input
-                label="Pin LOT"
-                value={editData.pin_lot || ''}
-                onChange={(e) => setEditData({ ...editData, pin_lot: e.target.value })}
-              />
-              <Input
-                label="Housing LOT"
-                value={editData.hsg_lot || ''}
-                onChange={(e) => setEditData({ ...editData, hsg_lot: e.target.value })}
-              />
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Busbar</div>
-                <div>{lot.busbar_lot || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>SMA Spring</div>
-                <div>{lot.sma_spring_lot || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Pin</div>
-                <div>{lot.pin_lot || 'N/A'}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Housing</div>
-                <div>{lot.hsg_lot || 'N/A'}</div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Timestamps */}
