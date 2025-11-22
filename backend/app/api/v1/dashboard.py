@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, Date
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -37,7 +37,7 @@ router = APIRouter()
 @router.get("/summary")
 def get_dashboard_summary(
     db: Session = Depends(deps.get_db),
-    target_date: Optional[date] = Query(None, description="Target date (default: today)"),
+    target_date: Optional[str] = Query(None, description="Target date (default: today, format: YYYY-MM-DD)"),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -50,7 +50,7 @@ def get_dashboard_summary(
     - Process WIP breakdown
 
     Query Parameters:
-        target_date: Date for metrics (default: today)
+        target_date: Date for metrics (default: today, format: YYYY-MM-DD)
 
     Returns:
         Dashboard summary with production KPIs
@@ -78,15 +78,24 @@ def get_dashboard_summary(
             }
         }
     """
-    if not target_date:
-        target_date = date.today()
+    # Parse target_date string to date object
+    if target_date:
+        try:
+            from datetime import datetime as dt
+            target_date_obj = dt.strptime(target_date, "%Y-%m-%d").date()
+        except ValueError:
+            target_date_obj = date.today()
+    else:
+        target_date_obj = date.today()
 
     # Import WIPItem for WIP-based metrics
     from app.models.wip_item import WIPItem, WIPStatus
 
     # Total started (WIP items created today)
+    start_of_day = datetime.combine(target_date_obj, datetime.min.time())
+    end_of_day = datetime.combine(target_date_obj, datetime.max.time())
     total_started = db.query(func.count(WIPItem.id)).filter(
-        func.date(WIPItem.created_at) == target_date
+        WIPItem.created_at.between(start_of_day, end_of_day)
     ).scalar() or 0
 
     # Total in progress (WIP items currently being processed)
@@ -97,7 +106,7 @@ def get_dashboard_summary(
     # Total completed (WIP items completed today - all processes 1-6 PASS)
     total_completed = db.query(func.count(WIPItem.id)).filter(
         and_(
-            func.date(WIPItem.completed_at) == target_date,
+            WIPItem.completed_at.between(start_of_day, end_of_day),
             WIPItem.status == WIPStatus.COMPLETED
         )
     ).scalar() or 0
@@ -105,7 +114,7 @@ def get_dashboard_summary(
     # Total failed (WIP items failed today)
     total_failed = db.query(func.count(WIPItem.id)).filter(
         and_(
-            func.date(WIPItem.updated_at) == target_date,
+            WIPItem.updated_at.between(start_of_day, end_of_day),
             WIPItem.status == WIPStatus.FAILED
         )
     ).scalar() or 0
@@ -184,7 +193,7 @@ def get_dashboard_summary(
         })
 
     return {
-        "date": target_date.isoformat(),
+        "date": target_date_obj.isoformat(),
         "total_started": total_started,
         "total_in_progress": total_in_progress,
         "total_completed": total_completed,
