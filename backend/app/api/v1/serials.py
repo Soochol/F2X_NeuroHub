@@ -34,7 +34,7 @@ from app.models import User
 from app.models.serial import SerialStatus
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
-from app.schemas.serial import SerialCreate, SerialInDB, SerialUpdate
+from app.schemas.serial import SerialCreate, SerialInDB, SerialUpdate, SerialListItem
 from app.api import deps
 from app.core.exceptions import (
     SerialNotFoundException,
@@ -44,6 +44,10 @@ from app.core.exceptions import (
     ConstraintViolationException,
 )
 from app.utils.serial_number import SerialNumber
+from app.services.printer_service import printer_service
+from app.models.wip_item import WIPItem, WIPStatus
+from app.models.lot import Lot
+from app.schemas.serial import SerialCreate
 
 router = APIRouter(
     prefix="/serials",
@@ -59,7 +63,7 @@ router = APIRouter(
 )
 def list_serials(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
+    limit: int = Query(50, ge=1, le=10000, description="Maximum records to return (max 10000)"),
     status: Optional[str] = Query(None, description="Filter by status: CREATED, IN_PROGRESS, PASSED, FAILED"),
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_user),
@@ -69,7 +73,7 @@ def list_serials(
 
     Query Parameters:
         skip: Offset for pagination (default: 0)
-        limit: Number of serials to return (default: 50, max: 100)
+        limit: Number of serials to return (default: 50, max: 10000)
         status: Optional filter for serial status
 
     Returns:
@@ -94,7 +98,7 @@ def list_serials(
 )
 def get_failed_serials(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
+    limit: int = Query(50, ge=1, le=10000, description="Maximum records to return (max 10000)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -102,7 +106,7 @@ def get_failed_serials(
 
     Query Parameters:
         skip: Offset for pagination (default: 0)
-        limit: Number of serials to return (default: 50, max: 100)
+        limit: Number of serials to return (default: 50, max: 10000)
 
     Returns:
         List of FAILED Serial objects with rework_count < 3
@@ -150,14 +154,14 @@ def get_serial_by_number(
 
 @router.get(
     "/lot/{lot_id}",
-    response_model=List[SerialInDB],
+    response_model=List[SerialListItem],
     summary="Get serials by lot",
     description="Retrieve all serials in a specific lot with pagination.",
 )
 def get_serials_by_lot(
     lot_id: int = Path(..., gt=0, description="Lot ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=100, description="Maximum records to return (max 100)"),
+    limit: int = Query(100, ge=1, le=10000, description="Maximum records to return (max 10000)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -168,7 +172,7 @@ def get_serials_by_lot(
 
     Query Parameters:
         skip: Offset for pagination (default: 0)
-        limit: Number of serials to return (default: 100, max: 100)
+        limit: Number of serials to return (default: 100, max: 10000)
 
     Returns:
         List of Serial objects in the lot, ordered by sequence
@@ -189,7 +193,7 @@ def get_serials_by_lot(
 def get_serials_by_status(
     status_filter: str = Path(..., description="Status filter: CREATED, IN_PROGRESS, PASSED, FAILED"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum records to return (max 100)"),
+    limit: int = Query(50, ge=1, le=10000, description="Maximum records to return (max 10000)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -200,7 +204,7 @@ def get_serials_by_status(
 
     Query Parameters:
         skip: Offset for pagination (default: 0)
-        limit: Number of serials to return (default: 50, max: 100)
+        limit: Number of serials to return (default: 50, max: 10000)
 
     Returns:
         List of Serial objects with specified status
@@ -246,13 +250,14 @@ def get_serial(
 
 @router.post(
     "/",
-    response_model=SerialInDB,
+    response_model=SerialListItem,
     status_code=status.HTTP_201_CREATED,
     summary="Create new serial",
     description="Create a new serial within a lot. Serial number is auto-generated.",
 )
 def create_serial(
     serial_in: SerialCreate,
+    print_label: bool = Query(False, description="Whether to print a label for the created serial"),
     db: Session = Depends(get_db),
 ):
     """
@@ -276,11 +281,122 @@ def create_serial(
     """
     try:
         serial = crud.serial.create(db, serial_in=serial_in)
+        
+        if print_label:
+            try:
+                # Get model code and production date for label
+                model_code = serial.lot.product_model.model_code if serial.lot and serial.lot.product_model else "N/A"
+                production_date = serial.lot.production_date.strftime("%Y-%m-%d") if serial.lot and serial.lot.production_date else "N/A"
+                
+                printer_service.print_label(
+                    serial_number=serial.serial_number,
+                    model_code=model_code,
+                    production_date=production_date
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to print label for serial {serial.serial_number}: {e}")
+            
         return serial
     except ValueError as e:
         raise ValidationException(message=str(e))
     except Exception as e:
         raise ConstraintViolationException(message="Failed to create serial. Lot may not exist or unique constraint violated.")
+
+
+@router.post(
+    "/generate-from-wip",
+    response_model=SerialInDB,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate serial from WIP ID",
+    description="Generate a new serial number and map it to the provided WIP ID.",
+)
+def generate_from_wip(
+    wip_id: str = Query(..., description="WIP ID to generate serial from"),
+    print_label: bool = Query(True, description="Whether to print a label"),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate a new serial number from a WIP ID.
+
+    Process:
+    1. Validate WIP ID exists and is not already converted
+    2. Get associated LOT
+    3. Generate next sequence number for the LOT
+    4. Create Serial record
+    5. Update WIP item with serial_id and set status to CONVERTED
+    6. Print label (optional)
+
+    Returns:
+        Created Serial object
+    """
+    # 1. Find WIP Item
+    wip_item = db.query(WIPItem).filter(WIPItem.wip_id == wip_id).first()
+    if not wip_item:
+        raise ValidationException(message=f"WIP ID '{wip_id}' not found")
+
+    # 2. Validate WIP status
+    if wip_item.serial_id is not None:
+        raise ValidationException(message=f"WIP '{wip_id}' is already converted to serial")
+    
+    # 3. Get LOT
+    lot = wip_item.lot
+    if not lot:
+        raise ValidationException(message=f"Associated LOT not found for WIP '{wip_id}'")
+
+    try:
+        # 4. Determine next sequence
+        # Get current max sequence for this LOT
+        current_count = crud.serial.count_by_lot(db, lot_id=lot.id)
+        next_sequence = current_count + 1
+
+        if next_sequence > lot.target_quantity:
+             raise ValidationException(message=f"Target quantity ({lot.target_quantity}) reached for LOT {lot.lot_number}")
+
+        # 5. Create Serial
+        serial_in = SerialCreate(
+            lot_id=lot.id,
+            sequence_in_lot=next_sequence,
+            status=SerialStatus.CREATED
+        )
+        
+        serial = crud.serial.create(db, serial_in=serial_in)
+
+        # 6. Update WIP Item
+        wip_item.serial_id = serial.id
+        wip_item.status = WIPStatus.CONVERTED.value
+        wip_item.converted_at = serial.created_at
+        db.add(wip_item)
+        db.commit()
+        db.refresh(serial)
+
+        # 7. Print Label
+        if print_label:
+            try:
+                model_code = lot.product_model.model_code if lot.product_model else "N/A"
+                production_date = lot.production_date.strftime("%Y-%m-%d") if lot.production_date else "N/A"
+                
+                printer_service.print_label(
+                    serial_number=serial.serial_number,
+                    model_code=model_code,
+                    production_date=production_date
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to print label for serial {serial.serial_number}: {e}")
+
+        return serial
+
+    except ValueError as e:
+        db.rollback()
+        raise ValidationException(message=str(e))
+    except Exception as e:
+        db.rollback()
+        raise ValidationException(message=f"Failed to generate serial: {str(e)}")
 
 
 @router.put(
@@ -570,8 +686,7 @@ def get_serial_trace(
             "lot_info": {
                 "lot_number": "WF-KR-251118D-001",
                 "product_model": "WF-A01",
-                "production_date": "2025-01-18",
-                "shift": "D"
+                "production_date": "2025-01-18"
             },
             "process_history": [
                 {
@@ -612,7 +727,6 @@ def get_serial_trace(
             "lot_number": serial.lot.lot_number,
             "product_model": serial.lot.product_model.model_code if serial.lot.product_model else None,
             "production_date": serial.lot.production_date.isoformat() if serial.lot.production_date else None,
-            "shift": serial.lot.shift,
             "target_quantity": serial.lot.target_quantity,
         }
 

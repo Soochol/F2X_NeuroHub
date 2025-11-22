@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Printer
+    PRINTER_QUEUE_NAME: str = "ZDesigner GK420t"  # Default Zebra printer name
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173"]
     CORS_ALLOW_CREDENTIALS: bool = True

@@ -26,13 +26,13 @@ All endpoints include:
     - OpenAPI documentation metadata
     - Proper HTTP status codes
     - Error handling with descriptive HTTPException responses
-    - Dependency injection for database sessions
 """
 
 from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, InternalError
 
 from app.api import deps
 from app.models import User
@@ -43,14 +43,15 @@ from app.schemas.lot import (
     LotUpdate,
     LotInDB,
     LotStatus,
-    Shift,
 )
 from app.schemas.wip_item import WIPItemInDB
-# New exception imports
 from app.core.exceptions import (
     LotNotFoundException,
     DuplicateResourceException,
     ValidationException,
+    ConstraintViolationException,
+    DatabaseException,
+    BusinessRuleException,
 )
 from app.services.wip_service import WIPValidationError
 
@@ -146,64 +147,7 @@ def list_lots(
     return result
 
 
-@router.get(
-    "/{id}",
-    response_model=LotInDB,
-    summary="Get LOT by ID",
-    description="Retrieve a specific LOT using its primary key identifier",
-    responses={404: {"description": "Lot not found"}},
-)
-def get_lot(
-    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
-    db: Session = Depends(deps.get_db),
-) -> LotInDB:
-    """Get LOT by primary key ID.
 
-    Retrieves a single LOT record from the database using its unique
-    primary key identifier.
-
-    Args:
-        id: Primary key identifier of the LOT to retrieve.
-            Must be a positive integer.
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        LotInDB: LOT record with all database fields.
-
-    Raises:
-        HTTPException: 404 Not Found if LOT does not exist with given ID.
-
-    Examples:
-        Get LOT with ID 1:
-        >>> GET /api/v1/lots/1
-
-        Get LOT with ID 42:
-        >>> GET /api/v1/lots/42
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "product_model_id": 1,
-            "production_date": "2025-11-18",
-            "shift": "D",
-            "target_quantity": 100,
-            "actual_quantity": 95,
-            "passed_quantity": 92,
-            "failed_quantity": 3,
-            "status": "IN_PROGRESS",
-            "created_at": "2025-11-18T08:30:00",
-            "updated_at": "2025-11-18T14:15:00",
-            "closed_at": null,
-            "product_model": {...},
-            "defect_rate": 3.16,
-            "pass_rate": 96.84
-        }
-    """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(id)
-    return obj
 
 
 @router.get(
@@ -214,7 +158,7 @@ def get_lot(
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot_by_number(
-    lot_number: str = Path(..., pattern="^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$", description="Unique LOT identifier (11 chars)"),
+    lot_number: str = Path(..., pattern=r"^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$", description="Unique LOT identifier (11 chars)"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get LOT by unique LOT number.
@@ -250,7 +194,6 @@ def get_lot_by_number(
             "lot_number": "KR01PSA2511",
             "product_model_id": 1,
             "production_date": "2025-11-18",
-            "shift": "D",
             "target_quantity": 100,
             "actual_quantity": 95,
             ...
@@ -501,6 +444,65 @@ def get_lots_by_status(
 
 
 @router.get(
+    "/{id}",
+    response_model=LotInDB,
+    summary="Get LOT by ID",
+    description="Retrieve a specific LOT using its primary key identifier",
+    responses={404: {"description": "Lot not found"}},
+)
+def get_lot(
+    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
+    db: Session = Depends(deps.get_db),
+) -> LotInDB:
+    """Get LOT by primary key ID.
+
+    Retrieves a single LOT record from the database using its unique
+    primary key identifier.
+
+    Args:
+        id: Primary key identifier of the LOT to retrieve.
+            Must be a positive integer.
+        db: SQLAlchemy database session (injected via dependency).
+
+    Returns:
+        LotInDB: LOT record with all database fields.
+
+    Raises:
+        HTTPException: 404 Not Found if LOT does not exist with given ID.
+
+    Examples:
+        Get LOT with ID 1:
+        >>> GET /api/v1/lots/1
+
+        Get LOT with ID 42:
+        >>> GET /api/v1/lots/42
+
+    Response Example (200 OK):
+        {
+            "id": 1,
+            "lot_number": "WF-KR-251118D-001",
+            "product_model_id": 1,
+            "production_date": "2025-11-18",
+            "target_quantity": 100,
+            "actual_quantity": 95,
+            "passed_quantity": 92,
+            "failed_quantity": 3,
+            "status": "IN_PROGRESS",
+            "created_at": "2025-11-18T08:30:00",
+            "updated_at": "2025-11-18T14:15:00",
+            "closed_at": null,
+            "product_model": {...},
+            "defect_rate": 3.16,
+            "pass_rate": 96.84
+        }
+    """
+    obj = crud.get(db, lot_id=id)
+    if not obj:
+        raise LotNotFoundException(id)
+    return obj
+
+
+@router.get(
     "/{id}/quantities",
     response_model=LotInDB,
     summary="Get LOT quantities",
@@ -577,7 +579,7 @@ def create_lot(
     Args:
         db: SQLAlchemy database session (injected via dependency).
         obj_in: LotCreate schema with validated LOT data.
-            Required: product_model_id, production_date, shift, target_quantity
+            Required: product_model_id, production_date, target_quantity
             Optional: status (defaults to CREATED)
 
     Returns:
@@ -631,6 +633,9 @@ def create_lot(
     """
     try:
         return crud.create(db, lot_in=obj_in)
+    except ValueError as e:
+        # Handle invalid product_model_id, production_line_id, or other validation errors
+        raise ValidationException(message=str(e))
     except IntegrityError as e:
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
@@ -668,7 +673,7 @@ def start_wip_generation(
     Generate batch of WIP IDs for a LOT.
 
     Business Rules:
-        BR-001: LOT must be in CREATED status
+        BR-001: LOT must be in CREATED or IN_PROGRESS status
         BR-002: WIP generation transitions LOT to IN_PROGRESS
 
     Args:
@@ -785,8 +790,24 @@ def update_lot(
                 message="Invalid reference in update"
             )
         raise DatabaseException(message=f"Database integrity error: {str(e)}")
+    except InternalError as e:
+        error_str = str(e)
+        if "Invalid status transition" in error_str:
+            # Extract the message from the trigger
+            # Format: (psycopg2.errors.RaiseException) Invalid status transition: ...
+            msg = error_str.split("RaiseException) ")[-1].split("\n")[0] if "RaiseException)" in error_str else "Invalid status transition"
+            raise BusinessRuleException(message=msg)
+        raise DatabaseException(message=f"Database internal error: {str(e)}")
     except SQLAlchemyError as e:
         raise DatabaseException(message=f"Database operation failed: {str(e)}")
+    except ValueError as e:
+        raise ValidationException(message=str(e))
+    except Exception as e:
+        # Log the full error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error updating LOT {id}: {str(e)}", exc_info=True)
+        raise DatabaseException(message=f"An unexpected error occurred: {str(e)}")
 
 
 @router.post(

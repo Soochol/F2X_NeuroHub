@@ -6,9 +6,8 @@ import { useEffect, useState } from 'react';
 import { dashboardApi } from '@/api';
 import type { DashboardSummary } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
-import { ProductionBarChart, DefectPieChart, ProcessFlowDiagram } from '@/components/charts';
+import { ProcessFlowDiagram } from '@/components/charts';
 import { LotHistoryTabs } from '@/components/organisms/dashboard/LotHistoryTabs';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export const DashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -73,41 +72,7 @@ export const DashboardPage = () => {
     ? (summary.total_completed / summary.total_started) * 100
     : 0;
 
-  // Mock trend data (in real app, compare with previous period)
-  const trends = {
-    completion: 0,
-    completed: 0,
-    defectRate: 0,
-  };
 
-  const productionChartData = summary.lots.slice(0, 5).map((lot) => ({
-    name: lot.lot_number.slice(-6),
-    started: lot.started_count,
-    completed: lot.completed_count,
-    defective: lot.defective_count,
-  }));
-
-  const TrendIndicator = ({ value, suffix = '' }: { value: number; suffix?: string }) => {
-    if (value === 0) {
-      return (
-        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
-          <Minus size={12} /> 0{suffix}
-        </span>
-      );
-    }
-    if (value > 0) {
-      return (
-        <span style={{ fontSize: '12px', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
-          <TrendingUp size={12} /> +{value}{suffix}
-        </span>
-      );
-    }
-    return (
-      <span style={{ fontSize: '12px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
-        <TrendingDown size={12} /> {value}{suffix}
-      </span>
-    );
-  };
 
   return (
     <div>
@@ -123,57 +88,83 @@ export const DashboardPage = () => {
       {/* KPI Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '16px',
         marginBottom: '24px',
       }}>
+        {/* Started */}
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+          textAlign: 'center',
+        }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+            Started
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-info)', marginBottom: '8px' }}>
+            {summary.total_started}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+            units in production
+          </div>
+        </div>
+
+        {/* In Progress */}
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+          textAlign: 'center',
+        }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+            In Progress
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-warning)', marginBottom: '8px' }}>
+            {summary.total_in_progress}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+            units being processed
+          </div>
+        </div>
+
+        {/* Completed */}
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+          textAlign: 'center',
+        }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+            Completed
+          </div>
+          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-success)', marginBottom: '8px' }}>
+            {summary.total_completed}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+            units finished
+          </div>
+        </div>
+
         {/* Completion Rate */}
         <div style={{
           backgroundColor: 'var(--color-bg-secondary)',
           border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          padding: '16px',
+          padding: '20px',
           textAlign: 'center',
         }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
             Completion Rate
           </div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-brand-500)', marginBottom: '4px' }}>
-            {completionRate.toFixed(1)}%
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-brand)', marginBottom: '4px' }}>
+            {summary.total_completed} / {summary.total_started}
           </div>
-          <TrendIndicator value={trends.completion} suffix="%" />
-        </div>
-
-        {/* Total Completed */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '16px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            Completed
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-success)', marginBottom: '4px' }}>
-            {summary.total_completed}
-          </div>
-          <TrendIndicator value={trends.completed} />
-        </div>
-
-        {/* Total Started */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '16px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            Started
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-info)', marginBottom: '4px' }}>
-            {summary.total_started}
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-brand)', marginBottom: '8px' }}>
+            ({completionRate.toFixed(1)}%)
           </div>
         </div>
 
@@ -182,36 +173,22 @@ export const DashboardPage = () => {
           backgroundColor: 'var(--color-bg-secondary)',
           border: '1px solid var(--color-border)',
           borderRadius: '8px',
-          padding: '16px',
+          padding: '20px',
           textAlign: 'center',
         }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
+          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
             Defect Rate
           </div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: summary.defect_rate > 5 ? 'var(--color-error)' : 'var(--color-warning)', marginBottom: '4px' }}>
+            {summary.total_defective} / {summary.total_completed}
+          </div>
           <div style={{
-            fontSize: '28px',
+            fontSize: '24px',
             fontWeight: 700,
             color: summary.defect_rate > 5 ? 'var(--color-error)' : 'var(--color-warning)',
-            marginBottom: '4px',
+            marginBottom: '8px',
           }}>
-            {summary.defect_rate.toFixed(1)}%
-          </div>
-          <TrendIndicator value={trends.defectRate} suffix="%" />
-        </div>
-
-        {/* Total Defective */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '16px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginBottom: '8px' }}>
-            Defective
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-error)', marginBottom: '4px' }}>
-            {summary.total_defective}
+            ({summary.defect_rate.toFixed(1)}%)
           </div>
         </div>
       </div>
@@ -235,51 +212,7 @@ export const DashboardPage = () => {
         <ProcessFlowDiagram data={summary.process_wip} />
       </div>
 
-      {/* Charts Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-        gap: '20px',
-        marginBottom: '24px',
-      }}>
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-        }}>
-          <h2 style={{
-            fontSize: '1rem',
-            fontWeight: 600,
-            marginBottom: '16px',
-            color: 'var(--color-text-primary)',
-          }}>
-            Production by LOT
-          </h2>
-          <ProductionBarChart data={productionChartData} height={250} />
-        </div>
 
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-        }}>
-          <h2 style={{
-            fontSize: '1rem',
-            fontWeight: 600,
-            marginBottom: '16px',
-            color: 'var(--color-text-primary)',
-          }}>
-            Pass/Fail Distribution
-          </h2>
-          <DefectPieChart
-            passed={summary.total_completed - summary.total_defective}
-            failed={summary.total_defective}
-            height={250}
-          />
-        </div>
-      </div>
 
       {/* LOT History Tabs */}
       <div style={{

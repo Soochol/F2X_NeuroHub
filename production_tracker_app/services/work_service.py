@@ -11,6 +11,7 @@ from .workers import APIWorker
 import logging
 
 from utils.exception_handler import safe_cleanup
+from utils.serial_validator import validate_serial_number_v1
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class WorkService(QObject):
     # Signals for threaded operations
     work_started = Signal(dict)     # Work started successfully
     work_completed = Signal(dict)   # Work completed successfully
+    serial_converted = Signal(dict) # Serial converted successfully
     error_occurred = Signal(str)    # Operation failed
 
     def __init__(self, api_client: APIClient, config):
@@ -45,7 +47,14 @@ class WorkService(QObject):
             - If serial_number is None → LOT-level work (backend does not require Serial record)
         """
         try:
+            # Validate serial_number format if provided
             if serial_number:
+                if not validate_serial_number_v1(serial_number):
+                    error_msg = f"잘못된 Serial 번호 형식: {serial_number}. V1 형식 필요 (14자)"
+                    logger.error(error_msg)
+                    self.error_occurred.emit(error_msg)
+                    return
+
                 logger.info(f"Starting SERIAL work (threaded) for Serial: {serial_number}, LOT: {lot_number}")
             else:
                 logger.info(f"Starting LOT work (threaded) for LOT: {lot_number}")
@@ -99,7 +108,14 @@ class WorkService(QObject):
             lot_number = json_data.get('lot_number', 'UNKNOWN')
             serial_number = json_data.get('serial_number')  # May be None
 
+            # Validate serial_number format if provided
             if serial_number:
+                if not validate_serial_number_v1(serial_number):
+                    error_msg = f"잘못된 Serial 번호 형식: {serial_number}. V1 형식 필요 (14자)"
+                    logger.error(error_msg)
+                    self.error_occurred.emit(error_msg)
+                    return
+
                 logger.info(
                     f"Completing SERIAL work (threaded) for Serial: {serial_number}, LOT: {lot_number}"
                 )
@@ -142,6 +158,40 @@ class WorkService(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
+    def convert_wip_to_serial(self, wip_id: int, operator_id: int):
+        """
+        Convert WIP to Serial - POST /api/v1/wip-items/{wip_id}/convert-to-serial
+
+        Args:
+            wip_id: WIP item ID
+            operator_id: Operator ID
+        """
+        try:
+            logger.info(f"Converting WIP {wip_id} to Serial (threaded)")
+
+            data = {
+                "operator_id": operator_id,
+                "notes": "Converted via Production Tracker App"
+            }
+
+            worker = APIWorker(
+                api_client=self.api_client,
+                operation="convert_serial",
+                method="POST",
+                endpoint=f"/api/v1/wip-items/{wip_id}/convert-to-serial",
+                data=data
+            )
+            worker.success.connect(self._on_api_success)
+            worker.error.connect(self._on_api_error)
+            worker.finished.connect(lambda: self._cleanup_worker(worker))
+
+            self._active_workers.append(worker)
+            worker.start()
+        except Exception as e:
+            error_msg = f"시리얼 변환 요청 실패: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.error_occurred.emit(error_msg)
+
     def _on_api_success(self, operation: str, result: dict):
         """Handle successful API call based on operation type."""
         logger.info(f"API success [{operation}]: {result}")
@@ -150,6 +200,8 @@ class WorkService(QObject):
             self.work_started.emit(result)
         elif operation == "complete_work":
             self.work_completed.emit(result)
+        elif operation == "convert_serial":
+            self.serial_converted.emit(result)
 
     def _on_api_error(self, operation: str, error_msg: str):
         """Handle API error with user-friendly messages."""
@@ -162,6 +214,8 @@ class WorkService(QObject):
             self.error_occurred.emit(f"착공 등록 실패: {friendly_msg}")
         elif operation == "complete_work":
             self.error_occurred.emit(f"완공 처리 실패: {friendly_msg}")
+        elif operation == "convert_serial":
+            self.error_occurred.emit(f"시리얼 변환 실패: {friendly_msg}")
 
     def _make_user_friendly_message(self, error_msg: str) -> str:
         """

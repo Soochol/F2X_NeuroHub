@@ -202,7 +202,7 @@ class WIPProcessHistory(Base):
         TIMESTAMP(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Record creation timestamp",
     )
 

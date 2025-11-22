@@ -50,7 +50,7 @@ type NavConfig = (NavItem | NavGroup)[];
 
 const navConfig: NavConfig = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/lots', label: 'LOT Management', icon: Package },
+  { path: '/lots', label: 'LOT Issuance', icon: Package, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
 
   {
     id: 'wip',
@@ -67,7 +67,7 @@ const navConfig: NavConfig = [
     label: 'Serial',
     icon: Box,
     items: [
-      { path: '/serials/generate', label: 'Serial Generation', icon: PackagePlus },
+      { path: '/serials/generate', label: 'Serial Generation', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
       { path: '/serials', label: 'Serial Tracking', icon: Search },
     ]
   },
@@ -76,9 +76,10 @@ const navConfig: NavConfig = [
     id: 'reports',
     label: 'Reports & Analytics',
     icon: BarChart3,
+    roles: [UserRole.ADMIN, UserRole.MANAGER],
     items: [
-      { path: '/quality', label: 'Quality', icon: CheckCircle },
-      { path: '/analytics', label: 'Analytics', icon: TrendingUp },
+      { path: '/quality', label: 'Quality', icon: CheckCircle, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+      { path: '/analytics', label: 'Analytics', icon: TrendingUp, roles: [UserRole.ADMIN, UserRole.MANAGER] },
     ]
   },
 
@@ -86,8 +87,9 @@ const navConfig: NavConfig = [
     id: 'system',
     label: 'System',
     icon: FileText,
+    roles: [UserRole.ADMIN, UserRole.MANAGER],
     items: [
-      { path: '/alerts', label: 'Alerts', icon: Bell },
+      { path: '/alerts', label: 'Alerts', icon: Bell, roles: [UserRole.ADMIN, UserRole.MANAGER] },
       { path: '/error-dashboard', label: 'Error Dashboard', icon: AlertTriangle, roles: [UserRole.ADMIN] },
     ]
   },
@@ -96,15 +98,15 @@ const navConfig: NavConfig = [
     id: 'admin',
     label: 'Admin',
     icon: Settings,
-    roles: [UserRole.ADMIN, UserRole.MANAGER],
+    roles: [UserRole.ADMIN],
     items: [
-      { path: '/admin/users', label: 'Users', icon: Users, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/processes', label: 'Processes', icon: Cog, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/products', label: 'Products', icon: Package, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/production-lines', label: 'Production Lines', icon: Factory, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/admin/lot-monitor', label: 'LOT Monitor', icon: Monitor, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+      { path: '/admin/users', label: 'Users', icon: Users, roles: [UserRole.ADMIN] },
+      { path: '/admin/processes', label: 'Processes', icon: Cog, roles: [UserRole.ADMIN] },
+      { path: '/admin/products', label: 'Products', icon: Package, roles: [UserRole.ADMIN] },
+      { path: '/admin/production-lines', label: 'Production Lines', icon: Factory, roles: [UserRole.ADMIN] },
+      { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN] },
+      { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN] },
+      { path: '/admin/lot-monitor', label: 'LOT Management', icon: Monitor, roles: [UserRole.ADMIN] },
     ]
   },
 ];

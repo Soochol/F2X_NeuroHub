@@ -3,9 +3,10 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Input, Button } from '../../atoms';
+import { Button } from '../../atoms';
 import { Card } from '../../molecules';
-import { Search, Lightbulb } from 'lucide-react';
+import { QrCode, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { validateSerialNumber, detectSerialVersion } from '@/utils/serialNumber';
 
 interface SerialSearchProps {
   onSearch: (serialNumber: string) => void;
@@ -14,34 +15,114 @@ interface SerialSearchProps {
 
 export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
   const [serialNumber, setSerialNumber] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (serialNumber.trim()) {
-      onSearch(serialNumber.trim());
+    if (!serialNumber.trim()) {
+      setError('Please enter a serial number');
+      return;
     }
+    setError('');
+    onSearch(serialNumber.trim());
   };
+
+  const isValid = serialNumber.trim() ? validateSerialNumber(serialNumber) : null;
 
   return (
     <Card>
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
-            <Input
-              label="Search Serial Number"
-              placeholder="WF-KR-YYMMDDX-nnn-nnnn (e.g. WF-KR-250118A-001-0001)"
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
-              required
-              wrapperStyle={{ marginBottom: 0 }}
-            />
+            <label
+              htmlFor="serialNumber"
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: 'var(--color-text-primary)'
+              }}
+            >
+              Search Serial Number
+            </label>
+            <div style={{ position: 'relative' }}>
+              <QrCode
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-secondary)'
+                }}
+              />
+              <input
+                id="serialNumber"
+                type="text"
+                value={serialNumber}
+                onChange={(e) => {
+                  setSerialNumber(e.target.value);
+                  setError('');
+                }}
+                placeholder="e.g., KR01PSA2511001"
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '12px 12px 12px 40px',
+                  border: error ? '1px solid var(--color-error)' : '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  fontSize: '15px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
+            {isValid !== null && (
+              <div style={{
+                marginTop: '6px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: isValid ? 'var(--color-success)' : 'var(--color-error)'
+              }}>
+                {isValid ? (
+                  <>
+                    <CheckCircle2 size={14} />
+                    <span>
+                      Valid {detectSerialVersion(serialNumber) === 1 ? 'V1' : 'V0'} format
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={14} />
+                    <span>Invalid serial format</span>
+                  </>
+                )}
+              </div>
+            )}
+            {error && (
+              <div style={{
+                marginTop: '6px',
+                color: 'var(--color-error)',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <AlertCircle size={14} />
+                {error}
+              </div>
+            )}
           </div>
-          <Button type="submit" disabled={isLoading || !serialNumber.trim()}>
-            {isLoading ? 'Searching...' : <><Search size={16} style={{ marginRight: '6px' }} />Search</>}
+          <Button
+            type="submit"
+            disabled={isLoading || !serialNumber.trim()}
+            size="lg"
+          >
+            {isLoading ? 'Searching...' : 'Search'}
           </Button>
-        </div>
-        <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Lightbulb size={14} /> Tip: Enter a serial number to view complete process history for that product.
         </div>
       </form>
     </Card>

@@ -9,14 +9,21 @@ from PySide6.QtWidgets import (
     QStatusBar, QMessageBox, QPushButton, QFrame, QListWidget,
     QListWidgetItem, QStackedWidget
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtGui import QKeyEvent
 
 from views.pages.home_page import HomePage
 from views.pages.start_work_page import StartWorkPage
 from views.pages.complete_work_page import CompleteWorkPage
 from views.pages.settings_page import SettingsPage
 from views.pages.help_page import HelpPage
+from views.pages.wip_generation_page import WIPGenerationPage
+from views.pages.wip_scan_page import WIPScanPage
+from views.pages.wip_dashboard_page import WIPDashboardPage
 from views.defect_dialog import DefectDialog
+from viewmodels.wip_generation_viewmodel import WIPGenerationViewModel
+from viewmodels.wip_scan_viewmodel import WIPScanViewModel
+from viewmodels.wip_dashboard_viewmodel import WIPDashboardViewModel
 from widgets.base_components import StatusIndicator
 from widgets.toast_notification import Toast
 from utils.theme_manager import get_theme
@@ -24,6 +31,7 @@ from utils.process_data_generator import ProcessDataGenerator
 from utils.exception_handler import (
     SignalConnector, CleanupManager, safe_slot, safe_cleanup
 )
+from services.barcode_service import BarcodeService
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -51,10 +59,19 @@ class MainWindow(QMainWindow):
         self.elapsed_timer = QTimer()
         self.elapsed_timer.timeout.connect(self._update_elapsed_time)
 
+        # Barcode scanner service
+        self.barcode_service = BarcodeService()
+        self.barcode_service.barcode_valid.connect(self._on_lot_barcode_scanned)
+        self.barcode_service.serial_valid.connect(self._on_serial_barcode_scanned)
+        self.barcode_service.barcode_invalid.connect(self._on_invalid_barcode)
+
         self.setup_ui()
         self.connect_signals()
 
-        logger.info("MainWindow initialized with sidebar navigation")
+        # Install event filter for global barcode scanning
+        self.installEventFilter(self)
+
+        logger.info("MainWindow initialized with sidebar navigation and barcode scanner")
 
     def setup_ui(self):
         """Setup UI components with sidebar navigation."""
@@ -84,6 +101,7 @@ class MainWindow(QMainWindow):
             ("홈", "home"),
             ("착공", "start"),
             ("완공", "complete"),
+            ("WIP 스캔", "wip-scan"),
             ("설정", "settings"),
             ("도움말", "help"),
         ]
@@ -113,15 +131,32 @@ class MainWindow(QMainWindow):
         self.home_page = HomePage(self.config)
         self.start_page = StartWorkPage(self.config)
         self.complete_page = CompleteWorkPage(self.config)
-        # Get services for settings page
+
+        # Get services from viewmodel
         print_service = getattr(self.viewmodel, 'print_service', None)
         api_client = getattr(self.viewmodel, 'api_client', None)
+
+        # Create WIP ViewModels
+        # self.wip_generation_vm = WIPGenerationViewModel(api_client, print_service)
+        self.wip_scan_vm = WIPScanViewModel(api_client)
+        # self.wip_dashboard_vm = WIPDashboardViewModel(api_client)
+
+        # Create WIP pages
+        # self.wip_generation_page = WIPGenerationPage(self.wip_generation_vm, self.config)
+        self.wip_scan_page = WIPScanPage(self.wip_scan_vm, self.config)
+        # self.wip_dashboard_page = WIPDashboardPage(self.wip_dashboard_vm, self.config)
+
+        # Create settings page
         self.settings_page = SettingsPage(self.config, print_service, api_client)
         self.help_page = HelpPage(self.config)
 
+        # Add pages to stack
         self.stack.addWidget(self.home_page)
         self.stack.addWidget(self.start_page)
         self.stack.addWidget(self.complete_page)
+        # self.stack.addWidget(self.wip_generation_page)
+        self.stack.addWidget(self.wip_scan_page)
+        # self.stack.addWidget(self.wip_dashboard_page)
         self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.help_page)
 
@@ -209,6 +244,10 @@ class MainWindow(QMainWindow):
             self._on_start_work_requested,
             "start_requested -> _on_start_work_requested"
         ).connect(
+            self.start_page.serial_start_requested,
+            self._on_serial_start_work_requested,
+            "serial_start_requested -> _on_serial_start_work_requested"
+        ).connect(
             self.complete_page.pass_requested,
             self._on_pass_requested,
             "pass_requested -> _on_pass_requested"
@@ -257,6 +296,10 @@ class MainWindow(QMainWindow):
             self.viewmodel.connection_status_changed,
             self._on_connection_status_changed,
             "connection_status_changed -> _on_connection_status_changed"
+        ).connect(
+            self.viewmodel.serial_received,
+            self._on_serial_received,
+            "serial_received -> _on_serial_received"
         )
 
         if not connector.all_connected():
@@ -273,12 +316,14 @@ class MainWindow(QMainWindow):
         page_type = item.data(Qt.UserRole)
         self.stack.setCurrentIndex(index)
 
-        # Focus on input when switching to start page
+        # Focus on input when switching to specific pages
         if page_type == "start":
             self.start_page.focus_input()
+        elif page_type == "wip-scan":
+            self.wip_scan_page.focus_input()
 
     def _on_start_work_requested(self, lot_number: str):
-        """Handle start work request from start page."""
+        """Handle start work request from start page (LOT-level)."""
         if not lot_number:
             Toast.warning(self, "LOT 번호를 입력하세요.")
             return
@@ -286,8 +331,30 @@ class MainWindow(QMainWindow):
         # Disable start controls during request
         self.start_page.set_enabled(False)
 
-        # Call viewmodel to start work
+        # Call viewmodel to start work (LOT-level)
         self.viewmodel.start_work(lot_number)
+
+    def _on_serial_start_work_requested(self, lot_number: str, serial_number: str):
+        """Handle start work request with serial number (SERIAL-level)."""
+        if not lot_number:
+            Toast.warning(self, "LOT 번호를 입력하세요.")
+            return
+
+        if not serial_number:
+            Toast.warning(self, "Serial 번호를 입력하세요.")
+            return
+
+        # Disable start controls during request
+        self.start_page.set_enabled(False)
+
+        # Call viewmodel to start work (SERIAL-level)
+        self.viewmodel.start_work(lot_number, serial_number)
+
+    def _on_serial_received(self, serial_number: str):
+        """Handle serial number received (from barcode or server)."""
+        # Update StartWorkPage serial input
+        self.start_page.set_serial_number(serial_number)
+        Toast.success(self, f"Serial 스캔: {serial_number}")
 
     def _on_pass_requested(self):
         """Handle PASS completion request."""
@@ -387,12 +454,15 @@ class MainWindow(QMainWindow):
         self.start_time = datetime.now()
         start_time_str = self.start_time.strftime("%H:%M:%S")
 
+        # Get serial number from viewmodel (if SERIAL-level work)
+        serial_number = self.viewmodel.current_serial
+
         # Update home page
         self.home_page.start_work(lot_number, start_time_str)
         self.home_page.set_status(f"착공 완료: {lot_number}", "success")
 
-        # Update complete page
-        self.complete_page.set_work_info(lot_number, "00:00:00")
+        # Update complete page (with serial if available)
+        self.complete_page.set_work_info(lot_number, "00:00:00", serial_number=serial_number)
         self.complete_page.set_enabled(True)
 
         # Update start page
@@ -468,6 +538,85 @@ class MainWindow(QMainWindow):
             # Update complete page
             self.complete_page.update_elapsed_time(elapsed_str)
 
+    def eventFilter(self, obj, event):
+        """
+        Global event filter for barcode scanner input.
+
+        Captures keyboard events and forwards to barcode service.
+        """
+        if event.type() == QEvent.KeyPress:
+            key_event = event
+            key = key_event.text()
+
+            # Only process printable characters and Enter
+            if key or key_event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                if key_event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                    self.barcode_service.process_key('\n')
+                else:
+                    self.barcode_service.process_key(key)
+
+        return super().eventFilter(obj, event)
+
+    @safe_slot("LOT 바코드 처리 실패")
+    def _on_lot_barcode_scanned(self, lot_number: str):
+        """
+        Handle LOT barcode scanned.
+
+        Routes to appropriate page based on current context.
+        """
+        logger.info(f"LOT barcode scanned: {lot_number}")
+
+        current_index = self.stack.currentIndex()
+        current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
+
+        # Route to appropriate handler based on current page
+        if current_page_data == "start":
+            # Auto-fill LOT input on start page
+            self.start_page.set_lot_number(lot_number)
+            Toast.success(self, f"LOT 스캔: {lot_number}")
+
+        elif current_page_data == "complete":
+            # Show info on complete page
+            Toast.info(self, f"LOT 스캔: {lot_number} (완공 페이지에서는 Serial 스캔이 필요합니다)")
+
+        else:
+            # Generic notification
+            Toast.info(self, f"LOT 스캔: {lot_number}")
+
+    @safe_slot("Serial 바코드 처리 실패")
+    def _on_serial_barcode_scanned(self, serial_number: str):
+        """
+        Handle Serial barcode scanned.
+
+        Routes to appropriate page based on current context.
+        """
+        logger.info(f"Serial barcode scanned: {serial_number}")
+
+        current_index = self.stack.currentIndex()
+        current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
+
+        # Route to appropriate handler based on current page
+        if current_page_data == "start":
+            # Auto-fill Serial input on start page
+            self.start_page.set_serial_number(serial_number)
+            Toast.success(self, f"Serial 스캔: {serial_number}")
+
+        elif current_page_data == "wip-scan":
+            # Trigger WIP scan
+            self.wip_scan_page.barcode_input.setText(serial_number)
+            self.wip_scan_page._on_scan()
+            Toast.success(self, f"WIP 스캔: {serial_number}")
+
+        else:
+            # Generic notification
+            Toast.info(self, f"Serial 스캔: {serial_number}")
+
+    @safe_slot("잘못된 바코드 처리 실패")
+    def _on_invalid_barcode(self, barcode: str):
+        """Handle invalid barcode scanned."""
+        logger.warning(f"Invalid barcode scanned: {barcode}")
+        Toast.warning(self, f"잘못된 바코드 형식: {barcode}")
+
     def closeEvent(self, event):
         """Handle window close event with proper cleanup."""
         reply = QMessageBox.question(
@@ -486,6 +635,9 @@ class MainWindow(QMainWindow):
             cleanup.add(self.elapsed_timer.stop, "타이머 정지")
             cleanup.add(Toast.clear_all, "토스트 정리")
             cleanup.add(self.home_page.cleanup, "홈페이지 정리")
+            # cleanup.add(self.wip_generation_page.cleanup, "WIP 생성 페이지 정리")
+            cleanup.add(self.wip_scan_page.cleanup, "WIP 스캔 페이지 정리")
+            # cleanup.add(self.wip_dashboard_page.cleanup, "WIP 대시보드 정리")
             cleanup.add(self.viewmodel.cleanup, "ViewModel 정리")
 
             failed = cleanup.execute()

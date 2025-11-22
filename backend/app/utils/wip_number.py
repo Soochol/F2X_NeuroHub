@@ -30,11 +30,13 @@ from typing import Tuple, List, Optional
 
 
 # WIP ID format constants
+# WIP ID format constants
 WIP_PREFIX = "WIP-"
-WIP_ID_PATTERN = re.compile(r"^WIP-([A-Z0-9]{11})-(\d{3})$")
-LOT_NUMBER_LENGTH = 11
+# Allow LOT numbers between 10 and 20 characters
+WIP_ID_PATTERN = re.compile(r"^WIP-([A-Z0-9-]{10,20})-(\d{3})$")
+MIN_LOT_LENGTH = 10
+MAX_LOT_LENGTH = 20
 SEQUENCE_LENGTH = 3
-WIP_ID_LENGTH = 19  # WIP- (4) + LOT (11) + - (1) + SEQ (3) = 19
 
 # Valid sequence range
 MIN_SEQUENCE = 1
@@ -78,19 +80,17 @@ def generate_wip_id(lot_number: str, sequence: int) -> str:
 
     lot_number = lot_number.strip().upper()
 
-    if len(lot_number) != LOT_NUMBER_LENGTH:
+    if len(lot_number) < MIN_LOT_LENGTH or len(lot_number) > MAX_LOT_LENGTH:
         raise ValueError(
-            f"lot_number must be exactly {LOT_NUMBER_LENGTH} characters, "
+            f"lot_number must be between {MIN_LOT_LENGTH} and {MAX_LOT_LENGTH} characters, "
             f"got {len(lot_number)}"
         )
 
-    # Validate LOT number format: {Country 2}{Line 2}{Model 3}{Month 4}
-    # Example: KR01PSA2511
-    if not re.match(r"^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$", lot_number):
+    # Validate LOT number format: Allow alphanumeric and hyphens
+    if not re.match(r"^[A-Z0-9-]+$", lot_number):
         raise ValueError(
             f"Invalid LOT number format: {lot_number}. "
-            f"Expected format: {{Country 2}}{{Line 2}}{{Model 3}}{{Month 4}} "
-            f"(e.g., KR01PSA2511)"
+            f"Expected alphanumeric characters and hyphens."
         )
 
     # Validate sequence
@@ -146,7 +146,7 @@ def parse_wip_id(wip_id: str) -> Tuple[str, int]:
     if not match:
         raise ValueError(
             f"Invalid WIP ID format: {wip_id}. "
-            f"Expected format: WIP-{{LOT 11}}-{{SEQ 3}} (e.g., WIP-KR01PSA2511-001)"
+            f"Expected format: WIP-{{LOT}}-{{SEQ}} (e.g., WIP-KR01PSA2511-001)"
         )
 
     lot_number = match.group(1)

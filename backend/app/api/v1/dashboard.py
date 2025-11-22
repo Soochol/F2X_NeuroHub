@@ -81,34 +81,42 @@ def get_dashboard_summary(
     if not target_date:
         target_date = date.today()
 
-    # Total started (serials created today)
-    total_started = db.query(func.count(Serial.id)).filter(
-        func.date(Serial.created_at) == target_date
+    # Import WIPItem for WIP-based metrics
+    from app.models.wip_item import WIPItem, WIPStatus
+
+    # Total started (WIP items created today)
+    total_started = db.query(func.count(WIPItem.id)).filter(
+        func.date(WIPItem.created_at) == target_date
     ).scalar() or 0
 
-    # Total completed (serials passed/failed today)
-    total_completed = db.query(func.count(Serial.id)).filter(
+    # Total in progress (WIP items currently being processed)
+    total_in_progress = db.query(func.count(WIPItem.id)).filter(
+        WIPItem.status == WIPStatus.IN_PROGRESS
+    ).scalar() or 0
+
+    # Total completed (WIP items completed today - all processes 1-6 PASS)
+    total_completed = db.query(func.count(WIPItem.id)).filter(
         and_(
-            func.date(Serial.completed_at) == target_date,
-            Serial.status.in_([SerialStatus.PASSED, SerialStatus.FAILED])
+            func.date(WIPItem.completed_at) == target_date,
+            WIPItem.status == WIPStatus.COMPLETED
         )
     ).scalar() or 0
 
-    # Total defective (serials failed today)
-    total_defective = db.query(func.count(Serial.id)).filter(
+    # Total failed (WIP items failed today)
+    total_failed = db.query(func.count(WIPItem.id)).filter(
         and_(
-            func.date(Serial.completed_at) == target_date,
-            Serial.status == SerialStatus.FAILED
+            func.date(WIPItem.updated_at) == target_date,
+            WIPItem.status == WIPStatus.FAILED
         )
     ).scalar() or 0
 
-    # Calculate defect rate
-    defect_rate = (total_defective / total_completed * 100) if total_completed > 0 else 0
+    # Calculate defect rate based on WIP
+    total_finished = total_completed + total_failed
+    defect_rate = (total_failed / total_finished * 100) if total_finished > 0 else 0
 
-    # Get active LOTs with progress
+    # Get recent LOTs (all statuses)
     active_lots = (
         db.query(Lot)
-        .filter(Lot.status.in_([LotStatus.CREATED, LotStatus.IN_PROGRESS]))
         .order_by(Lot.created_at.desc())
         .limit(10)
         .all()
@@ -116,30 +124,57 @@ def get_dashboard_summary(
 
     lots_summary = []
     for lot in active_lots:
-        completed = lot.passed_quantity + lot.failed_quantity
-        progress = (completed / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
+        # Count WIP items for this lot
+        wip_started = db.query(func.count(WIPItem.id)).filter(
+            WIPItem.lot_id == lot.id
+        ).scalar() or 0
+
+        wip_completed = db.query(func.count(WIPItem.id)).filter(
+            and_(
+                WIPItem.lot_id == lot.id,
+                WIPItem.status.in_([WIPStatus.COMPLETED, WIPStatus.CONVERTED])
+            )
+        ).scalar() or 0
+
+        wip_failed = db.query(func.count(WIPItem.id)).filter(
+            and_(
+                WIPItem.lot_id == lot.id,
+                WIPItem.status == WIPStatus.FAILED
+            )
+        ).scalar() or 0
+
+        wip_in_progress = db.query(func.count(WIPItem.id)).filter(
+            and_(
+                WIPItem.lot_id == lot.id,
+                WIPItem.status == WIPStatus.IN_PROGRESS
+            )
+        ).scalar() or 0
+
+        progress = (wip_completed / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
 
         lots_summary.append({
             "lot_number": lot.lot_number,
+            "product_model_name": lot.product_model.model_name if lot.product_model else "Unknown",
             "status": lot.status,
             "target_quantity": lot.target_quantity,
-            "completed_count": completed,
-            "passed_count": lot.passed_quantity,
-            "failed_count": lot.failed_quantity,
-            "progress_percentage": round(progress, 1)
+            "started_count": wip_started,
+            "in_progress_count": wip_in_progress,
+            "completed_count": wip_completed,
+            "defective_count": wip_failed,
+            "progress": round(progress, 1),
+            "created_at": lot.created_at.isoformat() if lot.created_at else None
         })
 
-    # Get process WIP (Work In Progress)
+    # Get process WIP (Work In Progress) - count WIP items at each process
     process_wip = []
     processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()
 
     for process in processes:
-        # Count serials that have started but not completed this process
-        wip_count = db.query(func.count(ProcessData.id)).filter(
+        # Count WIP items currently at this process
+        wip_count = db.query(func.count(WIPItem.id)).filter(
             and_(
-                ProcessData.process_id == process.id,
-                ProcessData.started_at.isnot(None),
-                ProcessData.completed_at.is_(None)
+                WIPItem.current_process_id == process.id,
+                WIPItem.status == WIPStatus.IN_PROGRESS
             )
         ).scalar() or 0
 
@@ -151,8 +186,9 @@ def get_dashboard_summary(
     return {
         "date": target_date.isoformat(),
         "total_started": total_started,
+        "total_in_progress": total_in_progress,
         "total_completed": total_completed,
-        "total_defective": total_defective,
+        "total_defective": total_failed,
         "defect_rate": round(defect_rate, 2),
         "lots": lots_summary,
         "process_wip": process_wip
@@ -187,7 +223,6 @@ def get_dashboard_lots(
                     "product_model": "WF-A01",
                     "status": "IN_PROGRESS",
                     "production_date": "2025-01-18",
-                    "shift": "D",
                     "target_quantity": 100,
                     "actual_quantity": 100,
                     "passed_quantity": 80,
@@ -234,7 +269,6 @@ def get_dashboard_lots(
             "product_model": lot.product_model.model_code if lot.product_model else None,
             "status": lot.status,
             "production_date": lot.production_date.isoformat() if lot.production_date else None,
-            "shift": lot.shift,
             "target_quantity": lot.target_quantity,
             "actual_quantity": lot.actual_quantity,
             "passed_quantity": lot.passed_quantity,
@@ -293,18 +327,20 @@ def get_process_wip(
         .all()
     )
 
+    # Import WIPItem for WIP-based metrics
+    from app.models.wip_item import WIPItem, WIPStatus
+
     process_wip_data = []
     total_wip = 0
     max_wip = 0
     bottleneck_process = None
 
     for process in processes:
-        # Count in-progress process data
-        wip_count = db.query(func.count(ProcessData.id)).filter(
+        # Count WIP items currently at this process
+        wip_count = db.query(func.count(WIPItem.id)).filter(
             and_(
-                ProcessData.process_id == process.id,
-                ProcessData.started_at.isnot(None),
-                ProcessData.completed_at.is_(None)
+                WIPItem.current_process_id == process.id,
+                WIPItem.status == WIPStatus.IN_PROGRESS
             )
         ).scalar() or 0
 

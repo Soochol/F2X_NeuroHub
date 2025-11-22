@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton,
                                 QFrame, QHBoxLayout)
 from PySide6.QtCore import Signal
 from utils.theme_manager import get_theme
+from utils.serial_validator import format_serial_number_v1
 
 theme = get_theme()
 
@@ -81,6 +82,23 @@ class CompleteWorkPage(QWidget):
         lot_layout.addWidget(self.lot_value)
         lot_layout.addStretch()
         work_info_layout.addLayout(lot_layout)
+
+        # Serial number display (conditional - only shown for serial-level work)
+        serial_layout = QHBoxLayout()
+        serial_label = QLabel("Serial:")
+        serial_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
+        self.serial_value = QLabel("-")
+        self.serial_value.setStyleSheet(f"color: {brand}; font-size: 13px; font-weight: 600;")
+        serial_layout.addWidget(serial_label)
+        serial_layout.addWidget(self.serial_value)
+        serial_layout.addStretch()
+        self.serial_layout_container = serial_layout
+        self.serial_label_widget = serial_label
+        self.serial_value_widget = self.serial_value
+        work_info_layout.addLayout(serial_layout)
+        # Hide serial row by default
+        serial_label.hide()
+        self.serial_value.hide()
 
         # Elapsed time display
         time_layout = QHBoxLayout()
@@ -244,10 +262,21 @@ class CompleteWorkPage(QWidget):
         """Handle FAIL button click."""
         self.fail_requested.emit()
 
-    def set_work_info(self, lot_number: str, elapsed_time: str = "-"):
+    def set_work_info(self, lot_number: str, elapsed_time: str = "-", serial_number: str = None):
         """Set current work information."""
         self.lot_value.setText(lot_number if lot_number else "-")
         self.time_value.setText(elapsed_time)
+
+        # Show/hide serial number
+        if serial_number:
+            formatted_serial = format_serial_number_v1(serial_number)
+            self.serial_value.setText(formatted_serial)
+            self.serial_label_widget.show()
+            self.serial_value_widget.show()
+        else:
+            self.serial_value.setText("-")
+            self.serial_label_widget.hide()
+            self.serial_value_widget.hide()
 
     def update_elapsed_time(self, elapsed_time: str):
         """Update elapsed time display."""
@@ -261,6 +290,9 @@ class CompleteWorkPage(QWidget):
     def reset(self):
         """Reset to initial state."""
         self.lot_value.setText("-")
+        self.serial_value.setText("-")
+        self.serial_label_widget.hide()
+        self.serial_value_widget.hide()
         self.time_value.setText("-")
         self.set_enabled(False)
 

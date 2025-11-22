@@ -342,7 +342,7 @@ LOT 생성 → WIP 생성 (공정 1) → 공정 2~6 작업 → Serial 전환 (�
 ```
 
 **WIP ID 포맷**: `WIP-{LOT}-{SEQ:03d}`
-- 예: `WIP-KR01PSA2511-001` (LOT KR01PSA2511의 첫 번째 WIP)
+- 예: `WIP-KR01PSA251101-001` (LOT KR01PSA251101의 첫 번째 WIP)
 
 ### POST /api/v1/wip-items
 

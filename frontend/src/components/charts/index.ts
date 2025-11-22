@@ -4,4 +4,4 @@
  * Re-exports from organisms/charts
  */
 
-export { ProcessWipChart, ProductionBarChart, DefectPieChart, ProcessFlowDiagram } from '../organisms/charts';
+export { ProcessWipChart, ProcessFlowDiagram } from '../organisms/charts';

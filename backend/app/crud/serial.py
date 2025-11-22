@@ -23,7 +23,7 @@ Functions:
 
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.serial import Serial, SerialStatus
@@ -113,8 +113,8 @@ def create(
     Create a new serial.
 
     Creates and saves a new serial record in the database using validated
-    Pydantic schema input. The serial_number is auto-generated in 14-char format:
-    KR01PSA2511001 (Country + Line + Model + Month + Sequence).
+    Pydantic schema input. The serial_number is auto-generated in 16-char format:
+    KR01PSA251101001 (Country + Line + Model + Month + LOT Seq + Serial Seq).
 
     Args:
         db: SQLAlchemy database session
@@ -136,62 +136,29 @@ def create(
             rework_count=0
         )
         new_serial = create(db, serial_data)
-        print(f"Created: {new_serial.serial_number}")  # e.g., KR01PSA2511001
+        print(f"Created: {new_serial.serial_number}")  # e.g., KR01PSA251101001
     """
-    # Get the lot and related data for serial_number generation
+    # Get the lot for serial number generation
     from app.models import Lot
-    from app.models.production_line import ProductionLine
-    from app.models.product_model import ProductModel
-    from app.utils.serial_number import SerialNumber
-    from datetime import datetime
 
     lot = db.query(Lot).filter(Lot.id == serial_in.lot_id).first()
     if not lot:
         raise ValueError(f"Lot with ID {serial_in.lot_id} not found")
 
-    # Get production line and product model
-    if not lot.production_line_id:
-        raise ValueError(f"Lot {lot.id} does not have a production_line_id assigned")
+    # Serial number = LOT number (13 chars) + sequence (3 chars) = 16 chars total
+    # LOT number format: KR01PSA251101 (13 chars)
+    lot_number = lot.lot_number
 
-    production_line = db.query(ProductionLine).filter(
-        ProductionLine.id == lot.production_line_id
-    ).first()
-    if not production_line:
-        raise ValueError(f"ProductionLine with ID {lot.production_line_id} not found")
+    # Validate LOT number length
+    if len(lot_number) != 13:
+        raise ValueError(f"Invalid LOT number format: {lot_number}. Expected 13 characters.")
 
-    product_model = db.query(ProductModel).filter(
-        ProductModel.id == lot.product_model_id
-    ).first()
-    if not product_model:
-        raise ValueError(f"ProductModel with ID {lot.product_model_id} not found")
+    # Generate serial number by appending sequence to LOT number
+    serial_number = f"{lot_number}{serial_in.sequence_in_lot:03d}"
 
-    # Extract components for serial number generation
-    # line_code format: "KR001" → country="KR", line_number=1
-    line_code = production_line.line_code
-    if len(line_code) < 3:
-        raise ValueError(f"Invalid line_code format: {line_code}")
-
-    country_code = line_code[:2]  # "KR"
-    line_number_str = line_code[2:]  # "001"
-    try:
-        line_number = int(line_number_str)  # 1
-    except ValueError:
-        raise ValueError(f"Invalid line number in line_code: {line_code}")
-
-    # model_code format: "PSA10" → "PSA" (first 3 chars)
-    model_code = product_model.model_code[:3].upper()
-
-    # production_date: date → datetime for formatting
-    production_month = datetime.combine(lot.production_date, datetime.min.time())
-
-    # Generate serial number using V1 format (14 chars)
-    serial_number = SerialNumber.generate(
-        country_code=country_code,
-        line_number=line_number,
-        model_code=model_code,
-        production_month=production_month,
-        sequence=serial_in.sequence_in_lot
-    )
+    # Validate the generated serial is 16 chars
+    if len(serial_number) != 16:
+        raise ValueError(f"Generated invalid serial length: {serial_number}. Expected 16 characters.")
 
     db_serial = Serial(
         serial_number=serial_number,
@@ -381,6 +348,7 @@ def get_by_lot(
     return (
         db.query(Serial)
         .filter(Serial.lot_id == lot_id)
+        .options(joinedload(Serial.lot))
         .order_by(Serial.sequence_in_lot)
         .offset(skip)
         .limit(limit)

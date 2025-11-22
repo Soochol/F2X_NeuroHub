@@ -11,6 +11,7 @@ Available routers:
     - processes: Manufacturing process definitions (8 processes)
     - users: User authentication and management
     - lots: Production batch tracking
+    - wip_items: Work-In-Progress tracking (processes 1-6)
     - serials: Individual unit tracking
     - process_data: Process execution records
     - audit_logs: Immutable audit trail (read-only)
@@ -29,6 +30,7 @@ from app.api.v1 import (
     process_operations,
     users,
     lots,
+    wip_items,
     serials,
     process_data,
     audit_logs,
@@ -47,6 +49,7 @@ __all__ = [
     "process_operations",
     "users",
     "lots",
+    "wip_items",
     "serials",
     "process_data",
     "audit_logs",

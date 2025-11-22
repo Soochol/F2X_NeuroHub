@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { CheckCircle, AlertTriangle, Clock, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 interface LotSummary {
   lot_number: string;
@@ -13,11 +13,13 @@ interface LotSummary {
   progress?: number;
   progress_percentage?: number;
   started_count?: number;
+  in_progress_count?: number;
   target_quantity?: number;
   completed_count: number;
   defective_count?: number;
   failed_count?: number;
   passed_count?: number;
+  created_at?: string;
 }
 
 // Calculate progress safely
@@ -47,43 +49,17 @@ interface LotHistoryTabsProps {
   lots: LotSummary[];
 }
 
-type TabType = 'recent' | 'lots' | 'defects';
+type TabType = 'lots' | 'defects';
 
 export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
-  const [activeTab, setActiveTab] = useState<TabType>('recent');
+  const [activeTab, setActiveTab] = useState<TabType>('lots');
 
   const tabs: { id: TabType; label: string }[] = [
-    { id: 'recent', label: '최근 이력' },
-    { id: 'lots', label: 'LOT별 현황' },
-    { id: 'defects', label: '불량 이력' },
+    { id: 'lots', label: 'LOT Status' },
+    { id: 'defects', label: 'Defect History' },
   ];
 
-  // Generate recent history from lots data
-  const recentHistory = lots.flatMap((lot) => {
-    const events = [];
-    const startedCount = getStartedCount(lot);
-    const defectiveCount = getDefectiveCount(lot);
 
-    if (startedCount > 0) {
-      events.push({
-        time: 'Recent',
-        lotNumber: lot.lot_number,
-        content: `생산 진행중 (${lot.completed_count}/${startedCount})`,
-        status: lot.status === 'COMPLETED' ? 'completed' : 'progress',
-        result: `${getProgress(lot).toFixed(0)}%`,
-      });
-    }
-    if (defectiveCount > 0) {
-      events.push({
-        time: 'Recent',
-        lotNumber: lot.lot_number,
-        content: `불량 발생`,
-        status: 'defect',
-        result: `${defectiveCount}건`,
-      });
-    }
-    return events;
-  }).slice(0, 10);
 
   // Filter defects only
   const defectHistory = lots
@@ -91,22 +67,11 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
     .map((lot) => ({
       lotNumber: lot.lot_number,
       process: '-',
-      defectType: '불량',
+      defectType: 'Defect',
       count: getDefectiveCount(lot),
     }));
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle size={14} color="var(--color-success)" />;
-      case 'progress':
-        return <Clock size={14} color="var(--color-info)" />;
-      case 'defect':
-        return <AlertTriangle size={14} color="var(--color-error)" />;
-      default:
-        return <Clock size={14} color="var(--color-text-secondary)" />;
-    }
-  };
+
 
   const getStatusBadge = (status: string) => {
     const baseStyle = {
@@ -120,19 +85,25 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
       case 'COMPLETED':
         return (
           <span style={{ ...baseStyle, backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }}>
-            완료
+            Completed
           </span>
         );
       case 'IN_PROGRESS':
         return (
           <span style={{ ...baseStyle, backgroundColor: 'var(--color-info-light)', color: 'var(--color-info)' }}>
-            진행중
+            In Progress
           </span>
         );
       case 'CREATED':
         return (
           <span style={{ ...baseStyle, backgroundColor: 'var(--color-warning-light)', color: 'var(--color-warning)' }}>
-            생성됨
+            Created
+          </span>
+        );
+      case 'CLOSED':
+        return (
+          <span style={{ ...baseStyle, backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+            Closed
           </span>
         );
       default:
@@ -146,63 +117,28 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'recent':
-        return (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>시간</th>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT 번호</th>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>내용</th>
-                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>상태</th>
-                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: '13px' }}>결과</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentHistory.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                    최근 이력이 없습니다
-                  </td>
-                </tr>
-              ) : (
-                recentHistory.map((item, index) => (
-                  <tr
-                    key={index}
-                    style={{
-                      borderBottom: '1px solid var(--color-border)',
-                      backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--color-bg-tertiary)',
-                    }}
-                  >
-                    <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{item.time}</td>
-                    <td style={{ padding: '12px', fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{item.lotNumber}</td>
-                    <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{item.content}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{getStatusIcon(item.status)}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{item.result}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
+
 
       case 'lots':
         return (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT 번호</th>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>제품</th>
-                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>진행률</th>
-                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>상태</th>
-                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: '13px' }}>완료/시작</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Time</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT Number</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Product</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Started</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>In Progress</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Completed</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Completion Rate</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {lots.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                    LOT 데이터가 없습니다
+                  <td colSpan={8} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                    No LOT data available
                   </td>
                 </tr>
               ) : (
@@ -214,35 +150,31 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
                       backgroundColor: index % 2 === 0 ? 'transparent' : 'var(--color-bg-tertiary)',
                     }}
                   >
+                    <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {lot.created_at ? new Date(lot.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) + ' ' + new Date(lot.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                    </td>
                     <td style={{ padding: '12px', fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{lot.lot_number}</td>
                     <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{lot.product_model_name}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-primary)' }}>
+                      {getStartedCount(lot)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-warning)' }}>
+                      {lot.in_progress_count ?? 0}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-success)' }}>
+                      {lot.completed_count}
+                    </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                        <div
-                          style={{
-                            width: '60px',
-                            height: '6px',
-                            backgroundColor: 'var(--color-border)',
-                            borderRadius: '3px',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${getProgress(lot)}%`,
-                              height: '100%',
-                              backgroundColor: getProgress(lot) >= 100 ? 'var(--color-success)' : 'var(--color-brand-500)',
-                              borderRadius: '3px',
-                            }}
-                          />
-                        </div>
-                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{getProgress(lot).toFixed(0)}%</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-brand)' }}>
+                          {lot.completed_count} / {getStartedCount(lot)}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                          ({getProgress(lot).toFixed(1)}%)
+                        </span>
                       </div>
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{getStatusBadge(lot.status)}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                      {lot.completed_count}/{getStartedCount(lot)}
-                    </td>
                   </tr>
                 ))
               )}
@@ -255,10 +187,10 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--color-border-strong)' }}>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT 번호</th>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>공정</th>
-                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>불량 유형</th>
-                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: '13px' }}>수량</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT Number</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Process</th>
+                <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Defect Type</th>
+                <th style={{ padding: '12px', textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Quantity</th>
               </tr>
             </thead>
             <tbody>
@@ -267,7 +199,7 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
                   <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                       <CheckCircle size={16} color="var(--color-success)" />
-                      불량 이력이 없습니다
+                      No defect history
                     </div>
                   </td>
                 </tr>

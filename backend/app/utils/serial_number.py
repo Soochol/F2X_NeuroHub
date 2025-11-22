@@ -5,6 +5,7 @@ Serial Number Format Utility
 Serial number format (14 characters):
 - Format: KR01PSA2511001
 - Structure: [Country 2][Line 2][Model 3][Month 4][Sequence 3]
+- Display: KR01-PSA-2511-001
 - Example: KR01PSA2511001
   - KR: Country code (Korea)
   - 01: Production line number (Line 1)
@@ -21,7 +22,7 @@ from typing import Dict
 class SerialNumber:
     """Serial number format handler"""
 
-    # Regex pattern: KR01PSA2511001
+    # Regex pattern: KR01PSA2511001 (14 chars)
     PATTERN = r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$'
 
     # Component lengths
@@ -39,7 +40,7 @@ class SerialNumber:
         Validate serial number format
 
         Args:
-            serial: Serial number string
+            serial: Serial number string (14 chars)
 
         Returns:
             True if valid format, False otherwise
@@ -55,6 +56,32 @@ class SerialNumber:
         return bool(re.match(SerialNumber.PATTERN, serial))
 
     @staticmethod
+    def extract_lot_number(serial: str) -> str:
+        """
+        Extract LOT number from serial number
+
+        Args:
+            serial: Serial number string (14 chars)
+
+        Returns:
+            LOT number (first 11 characters)
+
+        Raises:
+            ValueError: If serial format is invalid
+
+        Example:
+            >>> SerialNumber.extract_lot_number("KR01PSA2511001")
+            "KR01PSA2511"
+        """
+        if not SerialNumber.validate(serial):
+            raise ValueError(
+                f"Invalid serial format: {serial}. "
+                f"Expected format: KR01PSA2511001 (14 characters)"
+            )
+
+        return serial[:11]  # First 11 chars are the LOT number
+
+    @staticmethod
     def parse(serial: str) -> Dict[str, str]:
         """
         Parse serial number into components
@@ -64,6 +91,7 @@ class SerialNumber:
 
         Returns:
             Dictionary with components:
+                - lot_number: LOT number (11 chars)
                 - country_code: Country code (2 chars)
                 - line_number: Production line (2 chars)
                 - model_code: Model abbreviation (3 chars)
@@ -76,6 +104,7 @@ class SerialNumber:
         Example:
             >>> SerialNumber.parse("KR01PSA2511001")
             {
+                "lot_number": "KR01PSA2511",
                 "country_code": "KR",
                 "line_number": "01",
                 "model_code": "PSA",
@@ -90,6 +119,7 @@ class SerialNumber:
             )
 
         return {
+            "lot_number": serial[0:11],  # First 11 chars are the LOT
             "country_code": serial[0:2],
             "line_number": serial[2:4],
             "model_code": serial[4:7],
@@ -249,6 +279,7 @@ class SerialNumber:
                 "formatted": "KR01-PSA-2511-001",
                 "valid": True,
                 "components": {
+                    "lot_number": "KR01PSA2511",
                     "country_code": "KR",
                     "line_number": "01",
                     "model_code": "PSA",

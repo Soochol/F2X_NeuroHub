@@ -26,12 +26,15 @@ sys.path.insert(0, str(backend_path))
 from faker import Faker
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal, engine
+from app.database import SessionLocal
 from app.models import (
     ProductModel, Process, User, UserRole,
-    ProductionLine, Equipment, Lot, LotStatus, Shift,
-    Serial, SerialStatus, ProcessData, DataLevel, ProcessResult
+    ProductionLine, Equipment, Lot, LotStatus,
+    Serial, SerialStatus, ProcessData, DataLevel, ProcessResult,
+    WIPItem, WIPProcessHistory
 )
+from app.crud import lot as lot_crud, serial as serial_crud
+from app.schemas import LotCreate, SerialCreate
 
 # Initialize Faker with Korean locale
 fake = Faker(['ko_KR', 'en_US'])
@@ -60,8 +63,10 @@ def clear_data(db: Session):
     """Clear existing data in reverse dependency order."""
     print("Clearing existing data...")
 
-    # Delete in order of dependencies
+    # Delete in order of dependencies (reverse of creation)
+    db.query(WIPProcessHistory).delete()
     db.query(ProcessData).delete()
+    db.query(WIPItem).delete()
     db.query(Serial).delete()
     db.query(Lot).delete()
     db.query(Equipment).delete()
@@ -112,6 +117,37 @@ def seed_users(db: Session) -> list[User]:
     db.commit()
     print(f"   Created {len(users)} users.")
     return users
+
+
+def seed_processes(db: Session) -> list[Process]:
+    """Create standard manufacturing processes."""
+    print("Seeding processes...")
+
+    existing = db.query(Process).all()
+    if existing:
+        print(f"   Found {len(existing)} existing processes.")
+        return existing
+
+    processes_data = [
+        {"process_number": 1, "process_code": "LASER", "process_name_en": "Laser Marking", "process_name_ko": "레이저 마킹", "description": "Laser marking of serial number on PCB", "estimated_duration_seconds": 60, "sort_order": 1},
+        {"process_number": 2, "process_code": "ASSEMBLY", "process_name_en": "LMA Assembly", "process_name_ko": "LMA 조립", "description": "Assembly of LMA components", "estimated_duration_seconds": 180, "sort_order": 2},
+        {"process_number": 3, "process_code": "SENSOR", "process_name_en": "Sensor Inspection", "process_name_ko": "센서 검사", "description": "Inspection of temperature and ToF sensors", "estimated_duration_seconds": 45, "sort_order": 3},
+        {"process_number": 4, "process_code": "FIRMWARE", "process_name_en": "Firmware Upload", "process_name_ko": "펌웨어 업로드", "description": "Flashing of main firmware", "estimated_duration_seconds": 240, "sort_order": 4},
+        {"process_number": 5, "process_code": "ROBOT", "process_name_en": "Robot Assembly", "process_name_ko": "로봇 조립", "description": "Automated assembly by robot arm", "estimated_duration_seconds": 300, "sort_order": 5},
+        {"process_number": 6, "process_code": "TEST", "process_name_en": "Performance Test", "process_name_ko": "성능 테스트", "description": "Comprehensive performance testing", "estimated_duration_seconds": 180, "sort_order": 6},
+        {"process_number": 7, "process_code": "LABEL", "process_name_en": "Label Printing", "process_name_ko": "라벨 출력", "description": "Printing and attaching product label", "estimated_duration_seconds": 30, "sort_order": 7},
+        {"process_number": 8, "process_code": "PACKAGING", "process_name_en": "Packaging", "process_name_ko": "포장", "description": "Final packaging and visual check", "estimated_duration_seconds": 60, "sort_order": 8},
+    ]
+
+    processes = []
+    for p_data in processes_data:
+        process = Process(**p_data)
+        db.add(process)
+        processes.append(process)
+
+    db.commit()
+    print(f"   Created {len(processes)} processes.")
+    return processes
 
 
 def seed_product_models(db: Session) -> list[ProductModel]:
@@ -187,7 +223,7 @@ def seed_production_lines(db: Session) -> list[ProductionLine]:
 
     lines_data = [
         {
-            "line_code": "LINE-A",
+            "line_code": "KR001",
             "line_name": "Production Line A",
             "description": "Main assembly line for PSA-1000 and PSA-2000",
             "cycle_time_sec": 1260,  # 21 minutes total
@@ -195,7 +231,7 @@ def seed_production_lines(db: Session) -> list[ProductionLine]:
             "is_active": True
         },
         {
-            "line_code": "LINE-B",
+            "line_code": "KR002",
             "line_name": "Production Line B",
             "description": "Secondary assembly line for PSA-3000 Pro",
             "cycle_time_sec": 1500,  # 25 minutes total
@@ -252,10 +288,9 @@ def seed_equipment(db: Session, production_lines: list[ProductionLine]) -> list[
                 equipment_type=eq_type,
                 process_id=process.id,
                 production_line_id=line.id,
-                location=line.location,
                 manufacturer=fake.company(),
                 model_number=f"MODEL-{fake.random_number(digits=4)}",
-                status="OPERATIONAL"
+                status="AVAILABLE"
             )
             db.add(equipment)
             equipment_list.append(equipment)
@@ -294,36 +329,32 @@ def seed_lots(db: Session, product_models: list[ProductModel],
                 status = s
                 break
 
-        # Production date (today or recent days)
-        if status == LotStatus.COMPLETED:
-            days_ago = random.randint(0, 3)
-        elif status == LotStatus.IN_PROGRESS:
-            days_ago = random.randint(0, 1)
-        else:
-            days_ago = 0
+        # Production date - vary by a few days to create different months/days
+        days_offset = i % 30  # Spread across 30 days
+        production_date = today - timedelta(days=days_offset)
 
-        production_date = today - timedelta(days=days_ago)
-        shift = random.choice([Shift.DAY, Shift.NIGHT])
+        # Random product model and production line
+        product_model = random.choice(product_models)
+        production_line = random.choice(production_lines)
 
         # Target quantity (max 100 per business rule)
         target_quantity = random.randint(30, 100)
 
-        lot = Lot(
-            product_model_id=random.choice(product_models).id,
-            production_line_id=random.choice(production_lines).id,
+        # CRUD function handles LOT number generation with auto-increment sequence
+        lot_data = LotCreate(
+            product_model_id=product_model.id,
+            production_line_id=production_line.id,
             production_date=production_date,
-            shift=shift,
             target_quantity=target_quantity,
             status=status
         )
-        db.add(lot)
-        lots.append(lot)
 
-    db.commit()
-
-    # Refresh to get generated lot_numbers
-    for lot in lots:
-        db.refresh(lot)
+        try:
+            lot = lot_crud.create(db, lot_data)
+            lots.append(lot)
+        except Exception as e:
+            print(f"  Warning: Could not create LOT: {e}")
+            continue
 
     print(f"   Created {len(lots)} LOTs.")
     return lots
@@ -347,7 +378,7 @@ def seed_serials(db: Session, lots: list[Lot], scale: str) -> list[Serial]:
         else:  # COMPLETED
             num_serials = lot.target_quantity
 
-        for i in range(num_serials):
+        for i in range(1, num_serials + 1):  # Start from 1 for sequence_in_lot
             # Determine serial status based on lot status
             if lot.status == LotStatus.COMPLETED:
                 # 90% passed, 8% failed, 2% passed with rework
@@ -388,20 +419,21 @@ def seed_serials(db: Session, lots: list[Lot], scale: str) -> list[Serial]:
                     "Visual inspection failed"
                 ])
 
-            serial = Serial(
+            # Use CRUD function to create serial (handles serial_number generation)
+            serial_data = SerialCreate(
                 lot_id=lot.id,
-                status=status,
+                sequence_in_lot=i,
+                status=status.value,
                 rework_count=rework_count,
                 failure_reason=failure_reason
             )
-            db.add(serial)
-            all_serials.append(serial)
 
-    db.commit()
-
-    # Refresh to get generated serial_numbers
-    for serial in all_serials:
-        db.refresh(serial)
+            try:
+                serial = serial_crud.create(db, serial_data)
+                all_serials.append(serial)
+            except Exception as e:
+                print(f"  Warning: Could not create serial: {e}")
+                continue
 
     print(f"   Created {len(all_serials)} serials.")
     return all_serials
@@ -704,13 +736,13 @@ def main():
 
         # Seed data in dependency order
         users = seed_users(db)
+        processes = seed_processes(db)
         product_models = seed_product_models(db)
         production_lines = seed_production_lines(db)
-        # Skip equipment for now due to schema mismatch
-        # equipment = seed_equipment(db, production_lines)
+        equipment = seed_equipment(db, production_lines)
         lots = seed_lots(db, product_models, production_lines, args.scale)
         serials = seed_serials(db, lots, args.scale)
-        seed_process_data(db, serials, users, production_lines, skip_equipment=True)
+        seed_process_data(db, serials, users, production_lines, skip_equipment=False)
         update_lot_statistics(db, lots)
 
         print_summary(db)

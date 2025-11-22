@@ -510,7 +510,7 @@ const EquipmentManagement = () => {
             options={[{ value: '', label: '- Select Process -' }, ...processes?.map(p => ({ value: p.id, label: p.process_name_en })) || []]} />
           <Input label="Manufacturer" value={form.formData.manufacturer} onChange={(e) => form.setField('manufacturer', e.target.value)} placeholder="e.g., KEYENCE" />
           <Input label="Model Number" value={form.formData.model_number} onChange={(e) => form.setField('model_number', e.target.value)} placeholder="e.g., MD-X1000" />
-          <Input label="Serial Number" value={form.formData.serial_number} onChange={(e) => form.setField('serial_number', e.target.value)} />
+          <Input label="Serial Number" value={form.formData.serial_number} onChange={(e) => form.setField('serial_number', e.target.value)} placeholder="Equipment S/N (e.g., LASER01-2024-001)" />
           <Select label="Status" value={form.formData.status} onChange={(e) => form.setField('status', e.target.value)}
             options={[{ value: 'AVAILABLE', label: 'Available' }, { value: 'IN_USE', label: 'In Use' }, { value: 'MAINTENANCE', label: 'Maintenance' }, { value: 'OUT_OF_SERVICE', label: 'Out of Service' }, { value: 'RETIRED', label: 'Retired' }]} />
           <div style={styles.checkbox}><label style={styles.checkboxLabel}>
@@ -522,3 +522,6 @@ const EquipmentManagement = () => {
     </>
   );
 };
+
+// Export individual components for use in separate routes
+export { UserManagement, ProcessManagement, ProductModelManagement, ProductionLineManagement, EquipmentManagement };

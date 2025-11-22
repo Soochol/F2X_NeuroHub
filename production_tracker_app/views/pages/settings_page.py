@@ -11,6 +11,7 @@ from PySide6.QtCore import Signal
 
 from utils.theme_manager import get_theme
 from services.api_client import APIClient
+from views.dialogs.printer_config_dialog import PrinterConfigDialog
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -438,13 +439,21 @@ class SettingsPage(QWidget):
         zpl_layout.addWidget(zpl_browse_button)
         form_layout.addRow("ZPL 템플릿:", zpl_layout)
 
-        # Test print button
-        test_layout = QHBoxLayout()
-        test_layout.addStretch()
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        # Advanced config button
+        advanced_button = QPushButton("고급 설정")
+        advanced_button.setProperty("variant", "secondary")
+        advanced_button.clicked.connect(self.open_printer_config)
+        button_layout.addWidget(advanced_button)
+
         test_button = QPushButton("테스트 출력")
         test_button.clicked.connect(self.test_print)
-        test_layout.addWidget(test_button)
-        form_layout.addRow("", test_layout)
+        button_layout.addWidget(test_button)
+
+        form_layout.addRow("", button_layout)
 
         layout.addLayout(form_layout)
         return frame
@@ -487,6 +496,22 @@ class SettingsPage(QWidget):
             index = self.printer_combo.findData(current_printer)
             if index >= 0:
                 self.printer_combo.setCurrentIndex(index)
+
+    def open_printer_config(self):
+        """Open advanced printer configuration dialog."""
+        dialog = PrinterConfigDialog(self.config, self.print_service, self)
+        dialog.printer_configured.connect(self._on_printer_configured)
+        dialog.exec()
+
+    def _on_printer_configured(self, config_data: dict):
+        """Handle printer configuration saved."""
+        logger.info(f"Printer configured: {config_data}")
+
+        # Refresh printer list if USB printer was configured
+        if config_data.get("printer_type") == "usb":
+            self._populate_printers()
+
+        QMessageBox.information(self, "설정 완료", "프린터 설정이 적용되었습니다.")
 
     def test_print(self):
         """Test print with selected printer."""

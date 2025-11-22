@@ -11,7 +11,7 @@ PostgreSQL database schema for F2X NeuroHub Manufacturing Execution System (MES)
 cd /path/to/F2X_NeuroHub/database
 
 # Run master deployment script
-psql -U postgres -d f2x_neurohub_mes -f deploy.sql
+psql -U postgres -d f2x_neurohub_mes -f scripts/deploy.sql
 ```
 
 **Duration**: 15-25 seconds | See [QUICK_START.md](./guides/QUICK_START.md) for details
@@ -19,7 +19,7 @@ psql -U postgres -d f2x_neurohub_mes -f deploy.sql
 ### Option 2: Verify Existing Deployment
 
 ```bash
-psql -U postgres -d f2x_neurohub_mes -f verify.sql
+psql -U postgres -d f2x_neurohub_mes -f scripts/verify.sql
 ```
 
 Expected output:
@@ -33,45 +33,13 @@ OVERALL STATUS: PASS
 database/
 ├── README.md                     # This file
 │
-├── deploy.sql                    # Master deployment script (automated)
-├── rollback.sql                  # Complete rollback/teardown script
-├── verify.sql                    # Comprehensive verification script
-├── quick_check.sql               # Quick status check
-│
-├── requirements/                 # Database requirements & design docs
-│   ├── 01-ERD.md                 # Entity-Relationship Diagram
-│   ├── 02-entity-definitions.md  # Table definitions and specifications
-│   └── 03-relationship-specifications.md  # Foreign key relationships
-│
-├── guides/                       # User guides & documentation
-│   ├── QUICK_START.md            # Quick deployment guide (5 minutes)
-│   ├── DEPLOYMENT_GUIDE.md       # Comprehensive deployment documentation
-│   ├── DEPLOYMENT_DIAGRAM.md     # Visual execution flow and dependencies
-│   └── VERIFICATION_GUIDE.md     # Verification and testing guide
-│
-├── ddl/                          # Data Definition Language scripts
-│   ├── 01_functions/            # 14 PostgreSQL functions
-│   │   ├── update_timestamp.sql
-│   │   ├── log_audit_event.sql
-│   │   ├── prevent_audit_modification.sql
-│   │   ├── prevent_process_deletion.sql
-│   │   └── prevent_user_deletion.sql
-│   └── 02_tables/               # 7 core tables
-│       ├── 01_product_models.sql
-│       ├── 02_processes.sql     # 8 manufacturing processes
-│       ├── 03_users.sql
-│       ├── 04_lots.sql          # Batch tracking (max 100 units)
-│       ├── 05_serials.sql       # Individual unit tracking
-│       ├── 06_process_data.sql  # Transactional data
-│       └── 07_audit_logs.sql    # Partitioned audit trail
-│
-├── views/                        # Optional analytics views
-│   └── process_views/           # 8 process-specific views (JSONB flattening)
-│
 ├── scripts/                      # Deployment and utility scripts
-│   └── 01-deploy.sh             # Docker init script for PostgreSQL
-│
-└── test_data.sql                # Sample test data for development
+│   ├── 01-deploy.sh             # Docker init script for PostgreSQL
+│   ├── deploy.sql               # Master deployment script (automated)
+│   ├── rollback.sql             # Complete rollback/teardown script
+│   ├── verify.sql               # Comprehensive verification script
+│   ├── quick_check.sql          # Quick status check
+│   └── test_data.sql            # Sample test data for development
 ```
 
 ## Database Schema Overview
@@ -98,10 +66,10 @@ database/
 - `prevent_user_deletion()` - Protect user history
 
 #### Table-Specific Functions (9) - Created by DDL scripts
-- `generate_lot_number()` - LOT number: WF-KR-YYMMDD{D|N}-nnn
+- `generate_lot_number()` - DEPRECATED (Python handles generation) - LOT number: Country+Line+Model+Month+Seq (13 chars, e.g., KR01PSA251101)
 - `validate_lot_status_transition()` - LOT state machine
 - `auto_close_lot()` - Auto-close completed LOTs
-- `generate_serial_number()` - Serial number: {LOT_NUMBER}-XXXX
+- `generate_serial_number()` - DEPRECATED (Python handles generation) - Serial number: LOT+Sequence (16 chars, e.g., KR01PSA251101001)
 - `validate_lot_capacity()` - Max 100 serials/LOT
 - `validate_serial_status_transition()` - Serial state machine
 - `update_lot_quantities()` - Auto-update LOT counters
@@ -136,7 +104,7 @@ cd /path/to/F2X_NeuroHub/database
 createdb -U postgres f2x_neurohub_mes
 
 # Run deployment
-psql -U postgres -d f2x_neurohub_mes -f deploy.sql
+psql -U postgres -d f2x_neurohub_mes -f scripts/deploy.sql
 ```
 
 **Features**:
@@ -153,7 +121,7 @@ psql -U postgres -d f2x_neurohub_mes -f deploy.sql
 To completely remove all database objects:
 
 ```bash
-psql -U postgres -d f2x_neurohub_mes -f rollback.sql
+psql -U postgres -d f2x_neurohub_mes -f scripts/rollback.sql
 ```
 
 ## Verification Checklist
@@ -185,9 +153,9 @@ Run `verify.sql` to check:
 
 ### 3. LOT/Serial Relationship
 - **1 LOT** = max **100 serials**
-- **LOT Number**: WF-KR-YYMMDD{D|N}-nnn
-- **Serial Number**: {LOT_NUMBER}-XXXX
-- **Auto-generated** via triggers
+- **LOT Number**: Country(2)+Line(2)+Model(3)+Month(4)+Seq(2) = 13 chars (e.g., KR01PSA251101)
+- **Serial Number**: LOT(13)+Sequence(3) = 16 chars (e.g., KR01PSA251101001)
+- **Auto-generated** via Python CRUD functions (not triggers)
 
 ### 4. Status State Machines
 
@@ -312,7 +280,7 @@ for dir in 01_functions 02_tables; do
 done
 
 # Verify again
-psql -U postgres -d f2x_neurohub_mes -f verify.sql
+psql -U postgres -d f2x_neurohub_mes -f scripts/verify.sql
 ```
 
 ### Issue: Missing Partitions
@@ -342,12 +310,12 @@ psql -U postgres -d f2x_neurohub_mes -f ddl/02_tables/02_processes.sql
 - **[QUICK_START.md](./guides/QUICK_START.md)** - 5-minute deployment guide
 - **[DEPLOYMENT_GUIDE.md](./guides/DEPLOYMENT_GUIDE.md)** - Comprehensive deployment documentation
 - **[DEPLOYMENT_DIAGRAM.md](./guides/DEPLOYMENT_DIAGRAM.md)** - Visual execution flow and dependencies
-- **`deploy.sql`** - Master deployment script (automated, with inline documentation)
-- **`rollback.sql`** - Complete rollback script (with safety confirmations)
+- **`scripts/deploy.sql`** - Master deployment script (automated, with inline documentation)
+- **`scripts/rollback.sql`** - Complete rollback script (with safety confirmations)
 
 ### Verification & Testing
-- **`verify.sql`** - Comprehensive verification script (9 validation sections)
-- **`quick_check.sql`** - Quick status check (< 2 seconds)
+- **`scripts/verify.sql`** - Comprehensive verification script (9 validation sections)
+- **`scripts/quick_check.sql`** - Quick status check (< 2 seconds)
 - **[VERIFICATION_GUIDE.md](./guides/VERIFICATION_GUIDE.md)** - Detailed verification guide
 
 ## Support

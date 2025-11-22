@@ -61,7 +61,7 @@ class ProductionLine(Base):
 
     # Primary Key
     id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         primary_key=True,
         autoincrement=True,
     )
@@ -102,7 +102,7 @@ class ProductionLine(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("true"),
+        server_default=text("1"),
         comment="Whether this line is currently operational",
     )
 
@@ -111,7 +111,7 @@ class ProductionLine(Base):
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Record creation timestamp",
     )
 
@@ -120,7 +120,7 @@ class ProductionLine(Base):
         nullable=False,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Last update timestamp",
     )
 

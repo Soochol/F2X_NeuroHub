@@ -15,12 +15,15 @@ import pytest
 from typing import Generator
 from unittest.mock import patch
 
+# PostgreSQL test database configuration
+# Use separate test database to avoid interfering with dev data
+TEST_DATABASE_URL = "postgresql://postgres:postgres123@localhost:5432/f2x_neurohub_mes_test"
+
 # Mock the database configuration before importing the app
-# CRITICAL: Must match TEST_DATABASE_URL to ensure app and tests use same DB
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -33,8 +36,10 @@ from app.models import (
     ProductModel,
     Process,
     Lot,
+    WIPItem,
     Serial,
     ProcessData,
+    WIPProcessHistory,
     AuditLog,
     Alert
 )
@@ -42,13 +47,11 @@ from app.crud import user as user_crud
 from app.schemas import UserCreate
 
 
-# Test database URL (file-based SQLite for reliability)
-TEST_DATABASE_URL = "sqlite:///./test.db"
-
-# Create test engine
+# Create test engine with PostgreSQL
 test_engine = create_engine(
     TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    pool_pre_ping=True,  # Verify connections before using
+    echo=False,  # Set to True for SQL debugging
 )
 
 # Test session factory
@@ -85,14 +88,11 @@ def db() -> Generator[Session, None, None]:
     """
     # Clear all data from tables BEFORE test runs
     # This prevents 409 Conflict from previous test data
-    from sqlalchemy import text
     with test_engine.begin() as conn:
-        # Disable foreign key constraints temporarily for SQLite
-        conn.execute(text("PRAGMA foreign_keys = OFF"))
         # Delete all data from tables in reverse order (children first)
+        # PostgreSQL automatically enforces FK constraints
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
-        conn.execute(text("PRAGMA foreign_keys = ON"))
 
     # Create session
     session = TestSessionLocal()
@@ -104,10 +104,8 @@ def db() -> Generator[Session, None, None]:
 
     # Clear all data from tables AFTER test runs (redundant but safe)
     with test_engine.begin() as conn:
-        conn.execute(text("PRAGMA foreign_keys = OFF"))
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
-        conn.execute(text("PRAGMA foreign_keys = ON"))
 
 
 @pytest.fixture(scope="function")

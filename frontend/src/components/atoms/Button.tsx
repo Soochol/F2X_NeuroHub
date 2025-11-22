@@ -64,22 +64,30 @@ const getVariantStyles = (
     primary: {
       backgroundColor: 'var(--color-brand-400)',
       color: 'var(--color-text-inverse)',
-      border: '1px solid transparent',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'transparent',
     },
     secondary: {
       backgroundColor: 'transparent',
       color: 'var(--color-text-primary)',
-      border: '1px solid var(--color-border-strong)',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'var(--color-border-strong)',
     },
     danger: {
       backgroundColor: 'var(--color-error)',
       color: 'var(--color-text-inverse)',
-      border: '1px solid transparent',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'transparent',
     },
     ghost: {
       backgroundColor: 'transparent',
       color: 'var(--color-text-primary)',
-      border: '1px solid transparent',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'transparent',
     },
   };
 

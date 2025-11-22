@@ -42,6 +42,7 @@ from app.models import (
     LotStatus,
     Equipment,
     ProductionLine,
+    WIPItem,
 )
 from app.schemas.process_data import ProcessDataCreate, ProcessDataInDB, DataLevel, ProcessResult
 
@@ -55,6 +56,7 @@ class ProcessStartRequest(BaseModel):
     """Request schema for starting a process (착공 등록)."""
     lot_number: str = Field(..., description="LOT number (e.g., WF-KR-251110D-001)")
     serial_number: Optional[str] = Field(None, description="Serial number (optional for LOT-level)")
+    wip_id: Optional[str] = Field(None, description="WIP ID (e.g., WIP-KR01PSA2511-001)")
     process_id: str = Field(..., description="Process ID (e.g., PROC-001 or 1)")
     worker_id: str = Field(..., description="Worker ID (e.g., W001)")
     equipment_id: Optional[str] = Field(None, description="Equipment ID (e.g., EQ-001)")
@@ -70,6 +72,8 @@ class ProcessStartResponse(BaseModel):
     message: str
     process_data_id: int
     started_at: datetime
+    wip_id: Optional[int] = None
+    wip_id_str: Optional[str] = None
 
 
 class ProcessCompleteRequest(BaseModel):
@@ -157,9 +161,51 @@ def start_process(
     - 409: Process already started (duplicate)
     """
     # Find LOT by number
-    lot = db.query(Lot).filter(Lot.lot_number == request.lot_number).first()
+    lot_number = request.lot_number
+    lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
+
+    # If LOT not found, try to interpret as Serial, WIP ID, or Unit Barcode
     if not lot:
-        raise LotNotFoundException(lot_number=request.lot_number)
+        # 1. Try as Serial Number
+        serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
+        if serial:
+            lot = serial.lot
+            if not request.serial_number:
+                request.serial_number = serial.serial_number
+        
+        # 2. Try as WIP ID (e.g., WIP-KR01TES251101-001)
+        elif lot_number.startswith("WIP-"):
+             wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
+             if wip:
+                 lot = wip.lot
+                 if not request.wip_id:
+                     request.wip_id = wip.wip_id
+                 # Set wip_item for later use
+                 wip_item = wip
+                 wip_item_id = wip.id
+
+        # 3. Try as Unit Barcode (LOT + Sequence, e.g., KR01TES251101001)
+        # Assuming last 3 digits are sequence if length > 13 (typical LOT length)
+        elif len(lot_number) > 13 and lot_number[-3:].isdigit():
+            potential_lot_num = lot_number[:-3]
+            potential_seq = lot_number[-3:]
+            
+            lot = db.query(Lot).filter(Lot.lot_number == potential_lot_num).first()
+            if lot:
+                # Found the LOT! Now try to find the specific WIP item
+                wip_id_str = f"WIP-{potential_lot_num}-{potential_seq}"
+                wip = db.query(WIPItem).filter(WIPItem.wip_id == wip_id_str).first()
+                if wip:
+                    if not request.wip_id:
+                        request.wip_id = wip.wip_id
+                
+                # If we found the LOT but not the WIP item, we still proceed with the LOT
+                # (The user might be starting the LOT, or the WIP item hasn't been created yet? 
+                #  Actually WIP items are created when LOT is created/started. 
+                #  But let's be safe and just use the LOT if found.)
+
+    if not lot:
+        raise LotNotFoundException(request.lot_number)
 
     # Check LOT status
     if lot.status not in [LotStatus.CREATED, LotStatus.IN_PROGRESS]:
@@ -196,10 +242,12 @@ def start_process(
     if not process:
         raise ProcessNotFoundException(process_id=request.process_id)
 
-    # Determine data level and serial
+    # Determine data level, serial, and WIP
     serial = None
+    wip_item = None
     data_level = DataLevel.LOT
     serial_id = None
+    wip_item_id = None
 
     if request.serial_number:
         serial = db.query(Serial).filter(
@@ -210,6 +258,18 @@ def start_process(
             raise SerialNotFoundException(request.serial_number)
         data_level = DataLevel.SERIAL
         serial_id = serial.id
+    elif request.wip_id:
+        # Look up WIP item by wip_id string
+        wip_item = db.query(WIPItem).filter(
+            WIPItem.wip_id == request.wip_id,
+            WIPItem.lot_id == lot.id
+        ).first()
+        if not wip_item:
+            raise ValidationException(
+                message=f"WIP item '{request.wip_id}' not found for LOT {lot.lot_number}"
+            )
+        wip_item_id = wip_item.id
+        data_level = DataLevel.WIP  # Set data_level to WIP
 
     # Find operator by worker_id (username)
     operator = db.query(User).filter(User.username == request.worker_id).first()
@@ -345,6 +405,7 @@ def start_process(
     process_data_create = ProcessDataCreate(
         lot_id=lot.id,
         serial_id=serial_id,
+        wip_id=wip_item_id,
         process_id=process.id,
         operator_id=operator.id,
         equipment_id=equipment_id,
@@ -370,6 +431,8 @@ def start_process(
             message=f"Process {process_number} ({process.process_name_ko}) started successfully",
             process_data_id=process_data.id,
             started_at=started_at,
+            wip_id=wip_item_id,
+            wip_id_str=wip_item.wip_id if wip_item else None,
         )
 
     except IntegrityError as e:
@@ -422,8 +485,41 @@ def complete_process(
     - 400: Invalid result or validation failure
     - 404: Process data not found (not started)
     """
-    # Find LOT
-    lot = db.query(Lot).filter(Lot.lot_number == request.lot_number).first()
+    # Smart Lookup: Find LOT by number, or interpret as Serial/WIP/Unit Barcode
+    lot_number = request.lot_number
+    lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
+    
+    # If LOT not found, try to interpret as Serial, WIP ID, or Unit Barcode
+    serial_for_query = None
+    wip_for_query = None
+    
+    if not lot:
+        # 1. Try as Serial Number
+        serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
+        if serial:
+            lot = serial.lot
+            serial_for_query = serial
+        
+        # 2. Try as WIP ID (e.g., WIP-KR01TES251101-001)
+        elif lot_number.startswith("WIP-"):
+            wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
+            if wip:
+                lot = wip.lot
+                wip_for_query = wip
+        
+        # 3. Try as Unit Barcode (LOT + Sequence, e.g., KR01TES251101001)
+        elif len(lot_number) > 13 and lot_number[-3:].isdigit():
+            potential_lot_num = lot_number[:-3]
+            potential_seq = lot_number[-3:]
+            
+            lot = db.query(Lot).filter(Lot.lot_number == potential_lot_num).first()
+            if lot:
+                # Found the LOT! Now try to find the specific WIP item
+                wip_id_str = f"WIP-{potential_lot_num}-{potential_seq}"
+                wip = db.query(WIPItem).filter(WIPItem.wip_id == wip_id_str).first()
+                if wip:
+                    wip_for_query = wip
+    
     if not lot:
         raise LotNotFoundException(lot_number=request.lot_number)
 
@@ -434,13 +530,22 @@ def complete_process(
         ProcessData.completed_at.is_(None)
     )
 
+    # Apply filters based on what was found in Smart Lookup
     if request.serial_number:
+        # Explicit serial_number in request takes precedence
         serial = db.query(Serial).filter(
             Serial.serial_number == request.serial_number,
             Serial.lot_id == lot.id
         ).first()
         if serial:
             query = query.filter(ProcessData.serial_id == serial.id)
+    elif serial_for_query:
+        # Serial found via Smart Lookup
+        query = query.filter(ProcessData.serial_id == serial_for_query.id)
+    elif wip_for_query:
+        # WIP found via Smart Lookup
+        query = query.filter(ProcessData.wip_id == wip_for_query.id)
+
 
     process_data = query.first()
 

@@ -64,7 +64,10 @@
       "Bash(powershell.exe:*)",
       "Bash(timeout:*)",
       "Bash(../.venv/Scripts/python.exe:*)",
-      "Bash(source ../.venv/Scripts/activate)"
+      "Bash(source ../.venv/Scripts/activate)",
+      "Bash(npx tsc:*)",
+      "Bash(cmd //c \"taskkill /F /PID 204384 && taskkill /F /PID 281668\")",
+      "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe check_admin_user.py)"
     ],
     "deny": [],
     "ask": []

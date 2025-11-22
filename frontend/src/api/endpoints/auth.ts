@@ -10,11 +10,11 @@ export const authApi = {
    * Login with username and password
    */
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    const formData = new FormData();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
+    const params = new URLSearchParams();
+    params.append('username', credentials.username);
+    params.append('password', credentials.password);
 
-    const response = await apiClient.post<LoginResponse>('/auth/login', formData, {
+    const response = await apiClient.post<LoginResponse>('/auth/login', params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

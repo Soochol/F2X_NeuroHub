@@ -51,11 +51,12 @@ class AppException(Exception):
 class UnauthorizedException(AppException):
     """인증되지 않은 요청"""
 
-    def __init__(self, message: str = "Authentication required"):
+    def __init__(self, message: str = "Authentication required", headers: dict = None):
         super().__init__(
             error_code=ErrorCode.UNAUTHORIZED,
             message=message,
         )
+        self.headers = headers or {}
 
 
 class InvalidTokenException(AppException):
@@ -120,6 +121,16 @@ class SerialNotFoundException(AppException):
         super().__init__(
             error_code=ErrorCode.SERIAL_NOT_FOUND,
             message=f"Serial with ID {serial_id} not found",
+        )
+
+
+class WIPItemNotFoundException(AppException):
+    """WIP Item을 찾을 수 없음"""
+
+    def __init__(self, wip_id: Any):
+        super().__init__(
+            error_code=ErrorCode.RESOURCE_NOT_FOUND,
+            message=f"WIP Item with ID {wip_id} not found",
         )
 
 

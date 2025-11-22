@@ -7,7 +7,6 @@ quantities, status lifecycle, shift enumeration, and computed quality metrics.
 
 Schemas:
     - LotStatus: Enumeration of LOT lifecycle statuses
-    - Shift: Enumeration of production shifts
     - LotBase: Base schema with core fields and validators
     - LotCreate: Schema for creating new LOT records
     - LotUpdate: Schema for updating existing LOT records
@@ -15,8 +14,7 @@ Schemas:
 
 Key Features:
     - LotStatus enum: CREATED, IN_PROGRESS, COMPLETED, CLOSED
-    - Shift enum: D (Day), N (Night)
-    - LOT number format validation: WF-KR-YYMMDD{D|N}-nnn
+    - LOT number format: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars
     - Target quantity validation: max 100 units
     - Nested ProductModel schema in InDB
     - Computed fields: defect_rate, pass_rate
@@ -42,18 +40,6 @@ class LotStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     CLOSED = "CLOSED"
-
-
-class Shift(str, Enum):
-    """
-    Production shift enumeration.
-
-    Attributes:
-        DAY: Day shift (06:00-18:00)
-        NIGHT: Night shift (18:00-06:00)
-    """
-    DAY = "D"
-    NIGHT = "N"
 
 
 class ProductModelSchema(BaseModel):
@@ -106,12 +92,10 @@ class LotBase(BaseModel):
         product_model_id: Foreign key to product_models table (required)
         production_line_id: Foreign key to production_lines table (required for LOT number generation)
         production_date: Scheduled/actual production date (required)
-        shift: Production shift (D for Day, N for Night)
         target_quantity: Target production quantity (max 100 units per LOT)
         status: LOT lifecycle status (default: CREATED)
 
     Validators:
-        - validate_shift: Ensures shift is 'D' or 'N'
         - validate_target_quantity: Ensures 1 <= target_quantity <= 100
         - validate_status: Ensures valid LOT status
     """
@@ -121,11 +105,6 @@ class LotBase(BaseModel):
         default=None, description="Production line identifier (required for LOT number generation, optional for legacy data)"
     )
     production_date: date = Field(..., description="Scheduled/actual production date")
-    shift: str = Field(
-        ...,
-        pattern="^[DN]$",
-        description="Production shift: D (Day) or N (Night)"
-    )
     target_quantity: int = Field(
         ...,
         ge=1,
@@ -136,37 +115,14 @@ class LotBase(BaseModel):
         default=LotStatus.CREATED,
         description="LOT lifecycle status: CREATED, IN_PROGRESS, COMPLETED, CLOSED"
     )
-
-    @field_validator("shift", mode="before")
-    @classmethod
-    def validate_shift(cls, v: str) -> str:
-        """
-        Validate and convert shift to valid enumeration value.
-
-        Args:
-            v: Input value for shift
-
-        Returns:
-            Shift value ('D' or 'N')
-
-        Raises:
-            ValueError: If value is not a valid shift
-        """
-        if isinstance(v, Shift):
-            return v.value
-        if isinstance(v, str):
-            v_upper = v.upper()
-            if v_upper in ("D", "N"):
-                return v_upper
-            try:
-                # Try to match by enum name (DAY, NIGHT)
-                shift_enum = Shift[v_upper]
-                return shift_enum.value
-            except KeyError:
-                raise ValueError(
-                    f"shift must be 'D' (Day) or 'N' (Night), got '{v}'"
-                )
-        raise ValueError(f"shift must be a string, got {type(v)}")
+    parent_spring_lot: Optional[str] = Field(
+        default=None,
+        description="Parent Spring Lot number"
+    )
+    sma_spring_lot: Optional[str] = Field(
+        default=None,
+        description="SMA Spring Lot number"
+    )
 
     @field_validator("status", mode="before")
     @classmethod
@@ -250,7 +206,6 @@ class LotUpdate(BaseModel):
     Attributes:
         production_line_id: Updated production line (optional)
         production_date: Updated production date (optional)
-        shift: Updated shift (optional)
         target_quantity: Updated target quantity (optional)
         actual_quantity: Updated actual quantity (optional)
         passed_quantity: Updated passed quantity (optional)
@@ -267,11 +222,6 @@ class LotUpdate(BaseModel):
     production_date: Optional[date] = Field(
         None,
         description="Scheduled/actual production date"
-    )
-    shift: Optional[str] = Field(
-        None,
-        pattern="^[DN]$",
-        description="Production shift: D (Day) or N (Night)"
     )
     target_quantity: Optional[int] = Field(
         None,
@@ -302,37 +252,16 @@ class LotUpdate(BaseModel):
         None,
         description="LOT closure/completion timestamp"
     )
+    parent_spring_lot: Optional[str] = Field(
+        None,
+        description="Parent Spring Lot number"
+    )
+    sma_spring_lot: Optional[str] = Field(
+        None,
+        description="SMA Spring Lot number"
+    )
 
     model_config = ConfigDict(validate_assignment=True)
-
-    @field_validator("shift", mode="before")
-    @classmethod
-    def validate_shift(cls, v: Optional[str]) -> Optional[str]:
-        """
-        Validate and convert shift to valid enumeration value.
-
-        Args:
-            v: Input value for shift
-
-        Returns:
-            Shift value ('D' or 'N') or None
-        """
-        if v is None:
-            return None
-        if isinstance(v, Shift):
-            return v.value
-        if isinstance(v, str):
-            v_upper = v.upper()
-            if v_upper in ("D", "N"):
-                return v_upper
-            try:
-                shift_enum = Shift[v_upper]
-                return shift_enum.value
-            except KeyError:
-                raise ValueError(
-                    f"shift must be 'D' (Day) or 'N' (Night), got '{v}'"
-                )
-        raise ValueError(f"shift must be a string, got {type(v)}")
 
     @field_validator("status", mode="before")
     @classmethod
@@ -544,6 +473,14 @@ class LotInDB(LotBase):
         None,
         description="LOT closure/completion timestamp"
     )
+    parent_spring_lot: Optional[str] = Field(
+        None,
+        description="Parent Spring Lot number"
+    )
+    sma_spring_lot: Optional[str] = Field(
+        None,
+        description="SMA Spring Lot number"
+    )
     product_model: Optional[ProductModelSchema] = Field(
         None,
         description="Nested ProductModel relationship data"
@@ -563,6 +500,16 @@ class LotInDB(LotBase):
         ge=0,
         le=100,
         description="Pass rate percentage (0-100) or None if no actual quantity"
+    )
+    serial_count: Optional[int] = Field(
+        None,
+        ge=0,
+        description="Number of serials generated for this LOT (computed from serials relationship)"
+    )
+    wip_count: Optional[int] = Field(
+        None,
+        ge=0,
+        description="Number of WIP items generated for this LOT (computed from wip_items relationship)"
     )
 
     model_config = ConfigDict(from_attributes=True)

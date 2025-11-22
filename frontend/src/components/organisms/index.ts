@@ -5,8 +5,7 @@
  */
 
 // Charts
-export { ProductionBarChart } from './charts/ProductionBarChart';
-export { DefectPieChart } from './charts/DefectPieChart';
+
 export { ProcessWipChart } from './charts/ProcessWipChart';
 
 // Lots

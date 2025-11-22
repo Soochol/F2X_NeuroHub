@@ -256,10 +256,10 @@ class SerialInDB(SerialBase):
     )
     serial_number: str = Field(
         ...,
-        min_length=14,
-        max_length=14,
-        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
-        description="Auto-generated unique serial number (14 chars, format: KR01PSA2511001)"
+        min_length=16,
+        max_length=16,
+        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{2}\d{3}$',
+        description="Auto-generated unique serial number (16 chars, format: KR01PSA251101001)"
     )
     created_at: datetime = Field(
         ...,
@@ -273,12 +273,36 @@ class SerialInDB(SerialBase):
         default=None,
         description="Completion timestamp when reaching terminal state (PASSED or FAILED)"
     )
-    lot: Optional[LotInDB] = Field(
-        default=None,
-        description="Nested Lot object containing full lot details"
-    )
+    # lot: Optional[LotInDB] = Field(
+    #     default=None,
+    #     description="Nested Lot object containing full lot details"
+    # )
+
 
     class Config:
         """Pydantic model configuration."""
 
+        from_attributes = True
+
+
+class SerialListItem(BaseModel):
+    """
+    Lightweight schema for serial list responses.
+    
+    Used in GET /serials/lot/{id} to avoid serialization issues
+    with nested relationships. Contains only essential fields.
+    """
+    
+    id: int
+    serial_number: str
+    lot_id: int
+    sequence_in_lot: int
+    status: str
+    rework_count: int
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    class Config:
+        """Pydantic model configuration."""
         from_attributes = True

@@ -208,3 +208,105 @@ class APIClient:
                   quality_criteria, is_active, sort_order, created_at, updated_at
         """
         return self.get("/api/v1/processes/active")
+
+    # LOT API methods
+    def get_lots(self, status: Optional[str] = None) -> list:
+        """
+        Get list of LOTs.
+
+        Args:
+            status: Filter by status (CREATED, IN_PROGRESS, COMPLETED, etc.)
+
+        Returns:
+            list: List of LOT dictionaries
+        """
+        params = {"status": status} if status else None
+        return self.get("/api/v1/lots", params=params)
+
+    def get_lot(self, lot_id: int) -> dict:
+        """
+        Get LOT details by ID.
+
+        Args:
+            lot_id: LOT database ID
+
+        Returns:
+            dict: LOT details
+        """
+        return self.get(f"/api/v1/lots/{lot_id}")
+
+    def start_wip_generation(self, lot_id: int) -> dict:
+        """
+        Start WIP generation for a LOT.
+
+        Args:
+            lot_id: LOT database ID
+
+        Returns:
+            dict: WIP generation result with generated serials
+        """
+        return self.post(f"/api/v1/lots/{lot_id}/start-wip-generation", {})
+
+    # WIP (Serial) API methods
+    def scan_wip(self, wip_id: str) -> dict:
+        """
+        Scan WIP barcode to retrieve WIP information.
+
+        Args:
+            wip_id: WIP serial number
+
+        Returns:
+            dict: WIP information (LOT, product, process status)
+        """
+        return self.post(f"/api/v1/wip-items/{wip_id}/scan", {})
+
+    def start_process(self, wip_id: str, process_data: dict) -> dict:
+        """
+        Start process for WIP item.
+
+        Args:
+            wip_id: WIP serial number
+            process_data: Process start data
+                - process_id: Process ID
+                - worker_id: Worker ID
+                - equipment_id: Equipment ID (optional)
+                - start_time: Start timestamp (ISO format)
+
+        Returns:
+            dict: Process start result
+        """
+        return self.post(f"/api/v1/wip-items/{wip_id}/start-process", process_data)
+
+    def complete_process(self, wip_id: str, completion_data: dict) -> dict:
+        """
+        Complete process for WIP item.
+
+        Args:
+            wip_id: WIP serial number
+            completion_data: Process completion data
+                - process_id: Process ID
+                - worker_id: Worker ID
+                - result: PASS or FAIL
+                - complete_time: Completion timestamp (ISO format)
+                - measurements: Process measurements (optional)
+                - defect_type: Defect type if FAIL (optional)
+                - defect_description: Defect description if FAIL (optional)
+
+        Returns:
+            dict: Process completion result
+        """
+        return self.post(f"/api/v1/wip-items/{wip_id}/complete-process", completion_data)
+
+    def get_wip_statistics(self) -> dict:
+        """
+        Get WIP statistics for dashboard.
+
+        Returns:
+            dict: Statistics including:
+                - total_wip: Total WIP count
+                - by_process: WIP count by process
+                - by_status: WIP count by status
+                - by_lot: WIP progress by LOT
+                - alerts: Problem WIPs (long waiting time, etc.)
+        """
+        return self.get("/api/v1/wip-items/statistics")

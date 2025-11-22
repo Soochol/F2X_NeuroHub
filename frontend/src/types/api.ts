@@ -21,19 +21,11 @@ export enum LotStatus {
   CLOSED = 'CLOSED',
 }
 
-export enum Shift {
-  DAY = 'DAY',
-  EVENING = 'EVENING',
-  NIGHT = 'NIGHT',
-}
-
 export enum SerialStatus {
   CREATED = 'CREATED',
   IN_PROGRESS = 'IN_PROGRESS',
-  PASS = 'PASS',
-  FAIL = 'FAIL',
-  REWORK = 'REWORK',
-  SCRAPPED = 'SCRAPPED',
+  PASS = 'PASSED',
+  FAIL = 'FAILED',
 }
 
 export enum ProcessResult {
@@ -45,6 +37,14 @@ export enum ProcessResult {
 export enum DataLevel {
   NORMAL = 'NORMAL',
   DETAILED = 'DETAILED',
+}
+
+export enum WIPStatus {
+  CREATED = 'CREATED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CONVERTED = 'CONVERTED',
 }
 
 export enum AuditAction {
@@ -160,28 +160,43 @@ export interface Lot {
   product_model?: ProductModel;
   target_quantity: number;
   production_date: string;
-  shift: Shift;
   status: LotStatus;
-  busbar_lot?: string;
-  sma_spring_lot?: string;
-  pin_lot?: string;
-  hsg_lot?: string;
   created_at: string;
   updated_at: string;
   completed_at?: string;
   closed_at?: string;
+  parent_spring_lot?: string;
+  sma_spring_lot?: string;
+  shift?: string;
+  serial_count?: number;
+  wip_count?: number;
 }
 
 export interface Serial {
   id: number;
   serial_number: string;
   lot_id: number;
+  sequence_in_lot: number;
   lot?: Lot;
   status: SerialStatus;
   rework_count: number;
   created_at: string;
   updated_at: string;
   completed_at?: string;
+}
+
+export interface WIPItem {
+  id: number;
+  wip_id: string;
+  lot_id: number;
+  sequence_in_lot: number;
+  status: WIPStatus;
+  current_process_id?: number;
+  serial_id?: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+  converted_at?: string;
 }
 
 export interface ProcessData {
@@ -254,25 +269,18 @@ export interface LotCreate {
   production_line_id: number;
   target_quantity: number;
   production_date: string;
-  shift: Shift;
-  busbar_lot?: string;
+  parent_spring_lot?: string;
   sma_spring_lot?: string;
-  pin_lot?: string;
-  hsg_lot?: string;
 }
 
 export interface LotUpdate {
   status?: LotStatus;
-  busbar_lot?: string;
-  sma_spring_lot?: string;
-  pin_lot?: string;
-  hsg_lot?: string;
 }
 
 // Serial
 export interface SerialCreate {
-  serial_number: string;
   lot_id: number;
+  sequence_in_lot: number;
 }
 
 export interface SerialUpdate {
@@ -320,6 +328,7 @@ export interface AlertListResponse {
 
 export interface DashboardSummary {
   total_started: number;
+  total_in_progress: number;
   total_completed: number;
   total_defective: number;
   defect_rate: number;
@@ -329,8 +338,10 @@ export interface DashboardSummary {
     status: LotStatus;
     progress: number;
     started_count: number;
+    in_progress_count: number;
     completed_count: number;
     defective_count: number;
+    created_at: string;
   }>;
   process_wip: Array<{
     process_name: string;
@@ -343,7 +354,6 @@ export interface DashboardLot {
   product_model_name: string;
   status: LotStatus;
   production_date: string;
-  shift: Shift;
   target_quantity: number;
   started_count: number;
   completed_count: number;
@@ -471,7 +481,6 @@ export interface SerialTrace {
   lot_info: {
     product_model_name: string;
     production_date: string;
-    shift: Shift;
     busbar_lot?: string;
     sma_spring_lot?: string;
     pin_lot?: string;
@@ -484,6 +493,30 @@ export interface SerialTrace {
     sma_spring_lot?: string;
     pin_lot?: string;
     hsg_lot?: string;
+  };
+  total_cycle_time_seconds: number;
+}
+
+export interface WipTrace {
+  wip_id: string;
+  lot_number: string;
+  status: string;
+  created_at: string;
+  completed_at?: string;
+  converted_at?: string;
+  serial_id?: number;
+  lot_info: {
+    lot_number: string;
+    product_model: string;
+    production_date: string;
+    target_quantity: number;
+  };
+  process_history: ProcessHistoryItem[];
+  rework_history: ProcessHistoryItem[];
+  component_lots: {
+    busbar_lot?: string;
+    sma_spring_lot?: string;
+    [key: string]: string | undefined;
   };
   total_cycle_time_seconds: number;
 }
@@ -522,8 +555,24 @@ export type ApiCatchError = Error & {
  * Helper function to extract error message from API errors
  */
 export const getErrorMessage = (err: unknown, defaultMessage: string): string => {
-  const error = err as ApiCatchError;
-  return error.message || error?.response?.data?.detail || defaultMessage;
+  const error = err as any;
+
+  // StandardErrorResponse format
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+
+  // Legacy APIError format
+  if (error?.response?.data?.detail) {
+    return error.response.data.detail;
+  }
+
+  // Axios error message
+  if (error?.message) {
+    return error.message;
+  }
+
+  return defaultMessage;
 };
 
 // ============================================================================

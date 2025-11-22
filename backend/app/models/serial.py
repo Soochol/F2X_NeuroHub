@@ -5,6 +5,14 @@ This module defines the Serial ORM model that represents the serials table in th
 F2X NeuroHub database. Each serial represents one physical product unit within a LOT,
 with lifecycle management from creation through pass/fail completion.
 
+Serial Number Format: {LOT 11}{Sequence 3} = 14 characters
+    - LOT: First 11 characters are the LOT number
+    - Sequence: Last 3 digits are the sequence within the LOT (001-999)
+
+Example: KR01PSA2511001
+    - LOT: KR01PSA2511 (11 chars)
+    - Sequence: 001 (3 chars)
+
 Provides:
     - Serial: SQLAlchemy ORM model for the serials table
     - SerialStatus: Enumeration for serial lifecycle states

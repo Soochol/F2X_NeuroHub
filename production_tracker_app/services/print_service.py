@@ -8,6 +8,8 @@ import logging
 from typing import Optional, List
 from PySide6.QtCore import QObject, Signal
 
+from utils.serial_validator import validate_serial_number_v1, format_serial_number_v1
+
 logger = logging.getLogger(__name__)
 
 # Try to import zebra library
@@ -134,6 +136,13 @@ class PrintService(QObject):
         Returns:
             True if print successful
         """
+        # Validate serial number format
+        if not validate_serial_number_v1(serial_number):
+            error_msg = f"잘못된 Serial 번호 형식: {serial_number}. V1 형식 필요 (14자)"
+            logger.error(error_msg)
+            self.print_error.emit(error_msg)
+            return False
+
         if not self.is_ready:
             error_msg = "프린터가 준비되지 않았습니다"
             logger.error(error_msg)

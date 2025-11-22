@@ -163,6 +163,14 @@ class ProcessData(Base):
         default=None,
     )
 
+    wip_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT,
+        ForeignKey("wip_items.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=True,
+        default=None,
+        comment="Foreign key reference to wip_items table (for processes 1-6)",
+    )
+
     process_id: Mapped[int] = mapped_column(
         BIGINT,
         ForeignKey("processes.id", ondelete="RESTRICT", onupdate="CASCADE"),
@@ -237,7 +245,7 @@ class ProcessData(Base):
         TIMESTAMP(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     # Relationships
@@ -252,6 +260,12 @@ class ProcessData(Base):
         "Serial",
         back_populates="process_data_records",
         foreign_keys=[serial_id],
+        lazy="select",
+    )
+
+    wip_item: Mapped[Optional["WIPItem"]] = relationship(
+        "WIPItem",
+        foreign_keys=[wip_id],
         lazy="select",
     )
 
@@ -280,7 +294,7 @@ class ProcessData(Base):
     __table_args__ = (
         # CHECK CONSTRAINTS
         CheckConstraint(
-            "data_level IN ('LOT', 'SERIAL')",
+            "data_level IN ('LOT', 'WIP', 'SERIAL')",
             name="chk_process_data_data_level"
         ),
         CheckConstraint(
@@ -288,9 +302,10 @@ class ProcessData(Base):
             name="chk_process_data_result"
         ),
         CheckConstraint(
-            "(data_level = 'LOT' AND serial_id IS NULL) OR "
+            "(data_level = 'LOT' AND serial_id IS NULL AND wip_id IS NULL) OR "
+            "(data_level = 'WIP' AND wip_id IS NOT NULL AND serial_id IS NULL) OR "
             "(data_level = 'SERIAL' AND serial_id IS NOT NULL)",
-            name="chk_process_data_serial_id"
+            name="chk_process_data_wip_serial_consistency"
         ),
         CheckConstraint(
             "duration_seconds IS NULL OR duration_seconds >= 0",
@@ -309,6 +324,10 @@ class ProcessData(Base):
         Index(
             "idx_process_data_serial",
             serial_id,
+        ),
+        Index(
+            "idx_process_data_wip",
+            wip_id,
         ),
         Index(
             "idx_process_data_process",
@@ -493,5 +512,6 @@ if TYPE_CHECKING:
     from app.models.equipment import Equipment
     from app.models.lot import Lot
     from app.models.serial import Serial
+    from app.models.wip_item import WIPItem
     from app.models.process import Process
     from app.models.user import User

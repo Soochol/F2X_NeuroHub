@@ -107,7 +107,7 @@ def create_batch(
     Create multiple WIP IDs in batch (BR-001, BR-002).
 
     Business Rules:
-        BR-001: LOT must be in CREATED status
+        BR-001: LOT must be in CREATED or IN_PROGRESS status
         BR-002: WIP generation transitions LOT to IN_PROGRESS
 
     Args:
@@ -130,13 +130,22 @@ def create_batch(
     # BR-001: Validate LOT can generate WIP IDs
     wip_service.validate_lot_for_wip_generation(db, lot, quantity)
 
+    # Find next sequence number
+    last_wip = (
+        db.query(WIPItem)
+        .filter(WIPItem.lot_id == lot_id)
+        .order_by(desc(WIPItem.sequence_in_lot))
+        .first()
+    )
+    start_sequence = (last_wip.sequence_in_lot + 1) if last_wip else 1
+
     # Generate WIP IDs
-    wip_ids = generate_batch_wip_ids(lot.lot_number, quantity, start_sequence=1)
+    wip_ids = generate_batch_wip_ids(lot.lot_number, quantity, start_sequence=start_sequence)
 
     # Create WIP items
     wip_items = []
     try:
-        for seq, wip_id in enumerate(wip_ids, start=1):
+        for seq, wip_id in enumerate(wip_ids, start=start_sequence):
             wip_item = WIPItem(
                 wip_id=wip_id,
                 lot_id=lot_id,
@@ -518,4 +527,6 @@ def get_statistics(
         "completed": completed,
         "failed": failed,
         "converted": converted,
+        "by_lot": {},
+        "by_process": {},
     }

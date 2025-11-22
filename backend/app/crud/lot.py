@@ -25,7 +25,7 @@ from datetime import date, datetime
 from typing import List, Optional
 
 from sqlalchemy import and_, desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.lot import Lot, LotStatus
@@ -38,6 +38,7 @@ def get(db: Session, lot_id: int) -> Optional[Lot]:
     Get a single LOT by ID.
 
     Retrieves a LOT record from the database by its primary key.
+    Eager loads serials relationship for serial_count calculation.
 
     Args:
         db: SQLAlchemy database session
@@ -51,7 +52,12 @@ def get(db: Session, lot_id: int) -> Optional[Lot]:
         if lot:
             print(f"Found LOT: {lot.lot_number}")
     """
-    return db.query(Lot).filter(Lot.id == lot_id).first()
+    return (
+        db.query(Lot)
+        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
+        .filter(Lot.id == lot_id)
+        .first()
+    )
 
 
 def get_multi(
@@ -66,6 +72,7 @@ def get_multi(
     Retrieves a list of LOTs with support for offset/limit pagination.
     Results are ordered by created_at (descending) and id (descending) to show
     most recently created LOTs first.
+    Eager loads serials relationship for serial_count calculation.
 
     Args:
         db: SQLAlchemy database session
@@ -84,6 +91,7 @@ def get_multi(
     """
     return (
         db.query(Lot)
+        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .order_by(Lot.created_at.desc(), Lot.id.desc())
         .offset(skip)
         .limit(limit)
@@ -98,9 +106,10 @@ def create(
     """
     Create a new LOT.
 
-    Creates and saves a new LOT record in the database using validated Pydantic
-    schema input. The LOT number is auto-generated in Python code (format: {MODEL_PREFIX}-{LINE_CODE}-YYMMDD{D|N}-nnn),
-    where MODEL_PREFIX is extracted from ProductModel.model_code and LINE_CODE from ProductionLine.line_code.
+    Creates and saves a new LOT record in the database using validated
+    Pydantic schema input. The LOT number is auto-generated in Python code
+    (format: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars).
+    The sequence number is auto-incremented within the same month.
     Status defaults to CREATED.
 
     Args:
@@ -120,11 +129,11 @@ def create(
             product_model_id=1,
             production_line_id=1,
             production_date=date(2025, 11, 18),
-            shift="D",
             target_quantity=50,
             status=LotStatus.CREATED
         )
         new_lot = create(db, lot_data)
+        # Generated lot_number: KR01PSA251101 (13 chars)
     """
     # Import ProductModel and ProductionLine here to avoid circular imports
     from app.models.product_model import ProductModel
@@ -137,8 +146,8 @@ def create(
     if not product_model:
         raise ValueError(f"Invalid product_model_id: {lot_in.product_model_id}")
 
-    # Extract model prefix from model_code (e.g., "NH-F2X-001" -> "NH")
-    model_prefix = product_model.model_code.split('-')[0] if '-' in product_model.model_code else product_model.model_code
+    # Extract model prefix from model_code (first 3 chars, e.g., "PSA10" -> "PSA")
+    model_prefix = product_model.model_code[:3].upper()
 
     # 2. Get ProductionLine to extract line code
     production_line = db.query(ProductionLine).filter(
@@ -149,38 +158,67 @@ def create(
 
     line_code = production_line.line_code
 
-    # 3. Generate LOT number: {MODEL_PREFIX}-{LINE_CODE}-YYMMDD{D|N}-nnn
-    # Format production_date as YYMMDD
-    date_str = lot_in.production_date.strftime('%y%m%d')
-    shift_char = lot_in.shift  # Already validated as D or N
+    # 3. Generate LOT number: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars
+    # Extract components for LOT generation
+    # line_code format: "KR001" → country="KR", line_number="01"
+    if len(line_code) < 3:
+        raise ValueError(f"Invalid line_code format: {line_code}")
 
-    # Find the next sequential number for this combination
-    prefix = f"{model_prefix}-{line_code}-{date_str}{shift_char}-"
+    country_code = line_code[:2].upper()  # "KR"
+    line_number_str = line_code[2:]  # "001"
+    try:
+        line_number = int(line_number_str)  # 1
+        line_number_formatted = f"{line_number:02d}"  # "01"
+    except ValueError:
+        raise ValueError(f"Invalid line number in line_code: {line_code}")
+
+    # model_prefix is already 3 chars (e.g., "PSA")
+    model_code = model_prefix[:3].upper()
+
+    # Format production month as YYMM
+    production_month = lot_in.production_date.strftime('%y%m')  # "2511" for Nov 2025
+
+    # Generate base LOT number (11 chars)
+    lot_number_base = f"{country_code}{line_number_formatted}{model_code}{production_month}"
+
+    # 4. Find the last sequence number for this base LOT number
     last_lot = (
         db.query(Lot)
-        .filter(Lot.lot_number.like(f"{prefix}%"))
+        .filter(Lot.lot_number.like(f"{lot_number_base}%"))
         .order_by(Lot.lot_number.desc())
         .first()
     )
 
-    if last_lot:
-        # Extract sequence number and increment
-        last_seq = int(last_lot.lot_number[-3:])
-        seq_num = last_seq + 1
+    # Calculate next sequence number
+    if last_lot and len(last_lot.lot_number) >= 13:
+        try:
+            last_seq = int(last_lot.lot_number[-2:])
+            new_seq = last_seq + 1
+        except ValueError:
+            # If last 2 chars are not numeric, start from 1
+            new_seq = 1
     else:
-        # First LOT for this combination
-        seq_num = 1
+        new_seq = 1
 
-    lot_number = f"{prefix}{seq_num:03d}"
+    # Validate sequence doesn't exceed 99 (2-digit limit)
+    if new_seq > 99:
+        raise ValueError(
+            f"LOT sequence limit exceeded for {lot_number_base}. "
+            f"Maximum 99 LOTs per line/model/month combination."
+        )
+
+    # Generate final 13-char LOT number
+    lot_number = f"{lot_number_base}{new_seq:02d}"
 
     db_lot = Lot(
         lot_number=lot_number,
         product_model_id=lot_in.product_model_id,
         production_line_id=lot_in.production_line_id,
         production_date=lot_in.production_date,
-        shift=lot_in.shift,
         target_quantity=lot_in.target_quantity,
         status=lot_in.status,
+        parent_spring_lot=lot_in.parent_spring_lot,
+        sma_spring_lot=lot_in.sma_spring_lot,
         # actual_quantity, passed_quantity, failed_quantity default to 0
     )
 
@@ -304,7 +342,9 @@ def get_by_number(db: Session, lot_number: str) -> Optional[Lot]:
     Get a LOT by unique LOT number.
 
     Retrieves a single LOT by its unique lot_number identifier.
-    LOT number format: WF-KR-YYMMDD{D|N}-nnn (e.g., WF-KR-251118D-001)
+    LOT number format: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars
+    (e.g., KR01PSA251101)
+    Eager loads serials relationship for serial_count calculation.
 
     Args:
         db: SQLAlchemy database session
@@ -314,12 +354,13 @@ def get_by_number(db: Session, lot_number: str) -> Optional[Lot]:
         Lot instance if found, None otherwise
 
     Example:
-        lot = get_by_number(db, "WF-KR-251118D-001")
+        lot = get_by_number(db, "KR01PSA251101")
         if lot:
             print(f"Found LOT: {lot.lot_number}")
     """
     return (
         db.query(Lot)
+        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .filter(Lot.lot_number == lot_number)
         .first()
     )
@@ -337,6 +378,7 @@ def get_active(
     Retrieves LOTs that are currently in active production. Results are ordered
     by production_date (descending) and lot_number (descending) to show recent
     LOTs first.
+    Eager loads serials relationship for serial_count calculation.
 
     Args:
         db: SQLAlchemy database session
@@ -355,6 +397,7 @@ def get_active(
     """
     return (
         db.query(Lot)
+        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .filter(Lot.status.in_([LotStatus.CREATED, LotStatus.IN_PROGRESS]))
         .order_by(desc(Lot.production_date), desc(Lot.lot_number))
         .offset(skip)
@@ -463,6 +506,7 @@ def get_by_status(
     Retrieves LOTs with the specified status, ordered by production_date
     (descending) and lot_number (descending). Status must be one of:
     CREATED, IN_PROGRESS, COMPLETED, CLOSED
+    Eager loads serials relationship for serial_count calculation.
 
     Args:
         db: SQLAlchemy database session
@@ -482,6 +526,7 @@ def get_by_status(
     """
     return (
         db.query(Lot)
+        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .filter(Lot.status == status)
         .order_by(desc(Lot.production_date), desc(Lot.lot_number))
         .offset(skip)

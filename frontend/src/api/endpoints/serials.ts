@@ -38,8 +38,9 @@ export const serialsApi = {
   /**
    * Create new serial
    */
-  createSerial: async (data: SerialCreate): Promise<Serial> => {
-    const response = await apiClient.post<Serial>('/serials/', data);
+  createSerial: async (data: SerialCreate, printLabel: boolean = false): Promise<Serial> => {
+    const query = printLabel ? '?print_label=true' : '';
+    const response = await apiClient.post<Serial>(`/serials/${query}`, data);
     return response.data;
   },
 
@@ -63,6 +64,54 @@ export const serialsApi = {
    */
   getTrace: async (serialNumber: string): Promise<SerialTrace> => {
     const response = await apiClient.get<SerialTrace>(`/serials/${serialNumber}/trace`);
+    return response.data;
+  },
+
+  /**
+   * Update serial status
+   */
+  updateSerialStatus: async (serialId: number, data: { status: SerialStatus; failure_reason?: string }): Promise<Serial> => {
+    const response = await apiClient.put<Serial>(`/serials/${serialId}/status`, data);
+    return response.data;
+  },
+
+  /**
+   * Start rework for a FAILED serial
+   */
+  startRework: async (serialId: number): Promise<Serial> => {
+    const response = await apiClient.post<Serial>(`/serials/${serialId}/rework`);
+    return response.data;
+  },
+
+  /**
+   * Check if serial can be reworked
+   */
+  canRework: async (serialId: number): Promise<{ can_rework: boolean; reason: string; rework_count: number; status: string }> => {
+    const response = await apiClient.get(`/serials/${serialId}/can-rework`);
+    return response.data;
+  },
+
+  /**
+   * Get serials by LOT ID
+   */
+  getSerialsByLot: async (lotId: number, params?: { skip?: number; limit?: number }): Promise<Serial[]> => {
+    const response = await apiClient.get<Serial[]>(`/serials/lot/${lotId}`, { params });
+    return response.data;
+  },
+
+  /**
+   * Get failed serials available for rework
+   */
+  getFailedSerials: async (params?: { skip?: number; limit?: number }): Promise<Serial[]> => {
+    const response = await apiClient.get<Serial[]>('/serials/failed', { params });
+    return response.data;
+  },
+
+  /**
+   * Generate serial from WIP ID
+   */
+  generateFromWip: async (wipId: string, printLabel: boolean = true): Promise<Serial> => {
+    const response = await apiClient.post<Serial>(`/serials/generate-from-wip?wip_id=${wipId}&print_label=${printLabel}`);
     return response.data;
   },
 };

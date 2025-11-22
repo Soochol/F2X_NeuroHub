@@ -35,7 +35,7 @@ psql -v ON_ERROR_STOP=1 <<-EOSQL
     \set VERBOSITY verbose
 
     -- Execute main deployment script
-    \i /sql/deploy.sql
+    \i /sql/scripts/deploy.sql
 EOSQL
 
 if [ $? -eq 0 ]; then
@@ -236,7 +236,7 @@ echo "✅ Database Initialization Completed Successfully!"
 echo "============================================================================="
 echo ""
 echo "📝 Next Steps:"
-echo "   1. Load test data: psql -f /sql/test_data.sql"
+echo "   1. Load test data: psql -f /sql/scripts/test_data.sql"
 echo "   2. Connect FastAPI backend with DATABASE_URL from .env"
 echo "   3. Access pgAdmin: http://localhost:5050"
 echo "   4. Start API server: uvicorn app.main:app --reload"

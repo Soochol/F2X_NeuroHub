@@ -34,7 +34,18 @@ from app.schemas.lot import (
     LotUpdate,
     LotInDB,
 )
-from app.models.lot import LotStatus, Shift
+from app.models.lot import LotStatus
+from app.schemas.wip_item import (
+    WIPItemBase,
+    WIPItemCreate,
+    WIPItemInDB,
+    WIPItemScan,
+    WIPItemProcessStart,
+    WIPItemProcessComplete,
+    WIPItemConvert,
+    WIPStatistics,
+)
+from app.models.wip_item import WIPStatus
 from app.schemas.serial import (
     SerialBase,
     SerialCreate,
@@ -42,6 +53,11 @@ from app.schemas.serial import (
     SerialInDB,
 )
 from app.models.serial import SerialStatus
+from app.schemas.wip_process_history import (
+    WIPProcessHistoryBase,
+    WIPProcessHistoryCreate,
+    WIPProcessHistoryInDB,
+)
 from app.schemas.process_data import (
     ProcessDataBase,
     ProcessDataCreate,
@@ -118,13 +134,26 @@ __all__ = [
     "LotUpdate",
     "LotInDB",
     "LotStatus",
-    "Shift",
+    # WIPItem schemas
+    "WIPItemBase",
+    "WIPItemCreate",
+    "WIPItemInDB",
+    "WIPItemScan",
+    "WIPItemProcessStart",
+    "WIPItemProcessComplete",
+    "WIPItemConvert",
+    "WIPStatistics",
+    "WIPStatus",
     # Serial schemas
     "SerialBase",
     "SerialCreate",
     "SerialUpdate",
     "SerialInDB",
     "SerialStatus",
+    # WIPProcessHistory schemas
+    "WIPProcessHistoryBase",
+    "WIPProcessHistoryCreate",
+    "WIPProcessHistoryInDB",
     # ProcessData schemas
     "ProcessDataBase",
     "ProcessDataCreate",

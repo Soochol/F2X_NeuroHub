@@ -1,6 +1,6 @@
 /**
- * LOT Monitor Page
- * Monitor LOT status and serial statistics
+ * LOT Management Page (formerly LOT Monitor)
+ * Manage and monitor LOT status
  */
 
 import { useState, useEffect } from 'react';
@@ -106,10 +106,10 @@ export const LotMonitorPage = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
                     <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-                        LOT Monitor
+                        LOT Management
                     </h1>
                     <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-                        Monitor LOT status and serial statistics
+                        Manage and monitor LOT status
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>

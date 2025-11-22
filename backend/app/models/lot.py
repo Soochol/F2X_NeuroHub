@@ -3,13 +3,16 @@ SQLAlchemy 2.0 ORM model for the Lot entity.
 
 This module provides the Lot model representing production batches in the F2X NeuroHub MES.
 Each LOT represents a production run of up to 100 units manufactured together on a specific
-date and shift, providing batch-level traceability and quality metrics.
+date, providing batch-level traceability and quality metrics.
 
-LOT Number Format: WF-KR-YYMMDD{D|N}-nnn
-    - WF-KR: Prefix for Korean factory
-    - YYMMDD: Production date
-    - D|N: Day or Night shift
-    - nnn: Sequential number (001-999)
+LOT Number Format: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 characters
+    - Country: 2-char country code (e.g., "KR" for Korea)
+    - Line: 2-digit production line number (e.g., "01")
+    - Model: 3-char model code (e.g., "PSA")
+    - Month: 4-digit year/month YYMM format (e.g., "2511" for Nov 2025)
+    - Seq: 2-digit sequence number within the month (01-99)
+
+Example: KR01PSA251101 (13 characters total)
 
 Status Lifecycle: CREATED → IN_PROGRESS → COMPLETED → CLOSED
 """
@@ -47,17 +50,6 @@ class LotStatus(str, Enum):
     CLOSED = "CLOSED"
 
 
-class Shift(str, Enum):
-    """Production shift enumeration.
-
-    Attributes:
-        DAY: Day shift (06:00-18:00)
-        NIGHT: Night shift (18:00-06:00)
-    """
-    DAY = "D"
-    NIGHT = "N"
-
-
 class Lot(Base):
     """
     ORM model for production batch (LOT) tracking.
@@ -72,10 +64,9 @@ class Lot(Base):
 
     Attributes:
         id: Primary key, auto-incrementing INTEGER
-        lot_number: Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)
+        lot_number: Auto-generated LOT identifier
         product_model_id: Foreign key reference to product_models table
         production_date: Scheduled/actual production date
-        shift: Production shift (D for Day, N for Night)
         target_quantity: Target production quantity (max 100 units per LOT)
         actual_quantity: Actual units produced in this LOT
         passed_quantity: Number of units that passed all quality checks
@@ -92,7 +83,6 @@ class Lot(Base):
         - Foreign Key: fk_lots_product_model (product_model_id → product_models.id)
         - Unique: uk_lots_lot_number (lot_number)
         - Check: status IN ('CREATED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED')
-        - Check: shift IN ('D', 'N')
         - Check: target_quantity > 0 AND target_quantity <= 100
         - Check: actual_quantity >= 0 AND actual_quantity <= target_quantity
         - Check: passed_quantity >= 0 AND passed_quantity <= actual_quantity
@@ -104,7 +94,7 @@ class Lot(Base):
         - idx_lots_status: (status)
         - idx_lots_active: (status, production_date) WHERE status IN ('CREATED', 'IN_PROGRESS')
         - idx_lots_production_date: (production_date DESC)
-        - idx_lots_model_date_shift: (product_model_id, production_date, shift)
+        - idx_lots_model_date: (product_model_id, production_date)
         - idx_lots_closed_at: (closed_at) WHERE closed_at IS NOT NULL
     """
 
@@ -118,7 +108,7 @@ class Lot(Base):
         VARCHAR(50),
         nullable=False,
         unique=True,
-        comment="Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)"
+        comment="Auto-generated LOT identifier"
     )
 
     product_model_id: Mapped[int] = mapped_column(
@@ -139,10 +129,17 @@ class Lot(Base):
         comment="Scheduled/actual production date"
     )
 
-    shift: Mapped[str] = mapped_column(
-        VARCHAR(1),
-        nullable=False,
-        comment="Production shift: D (Day: 06:00-18:00) or N (Night: 18:00-06:00)"
+    # Component Lots
+    parent_spring_lot: Mapped[Optional[str]] = mapped_column(
+        VARCHAR(50),
+        nullable=True,
+        comment="Parent Spring Lot number"
+    )
+
+    sma_spring_lot: Mapped[Optional[str]] = mapped_column(
+        VARCHAR(50),
+        nullable=True,
+        comment="SMA Spring Lot number"
     )
 
     # Quantity Tracking
@@ -224,6 +221,12 @@ class Lot(Base):
         cascade="all, delete-orphan"
     )
 
+    wip_items: Mapped[List["WIPItem"]] = relationship(
+        "WIPItem",
+        back_populates="lot",
+        cascade="all, delete-orphan"
+    )
+
     alerts: Mapped[List["Alert"]] = relationship(
         "Alert",
         back_populates="lot",
@@ -256,7 +259,7 @@ class Lot(Base):
         Index("idx_lots_production_date", "production_date"),
 
         # Composite index for filtering
-        Index("idx_lots_model_date_shift", "product_model_id", "production_date", "shift"),
+        Index("idx_lots_model_date", "product_model_id", "production_date"),
 
         # Closed LOTs index (for archival)
         Index("idx_lots_closed_at", "closed_at"),
@@ -267,7 +270,7 @@ class Lot(Base):
         return (
             f"<Lot(id={self.id}, lot_number='{self.lot_number}', "
             f"product_model_id={self.product_model_id}, status='{self.status}', "
-            f"shift='{self.shift}', actual_quantity={self.actual_quantity})>"
+            f"actual_quantity={self.actual_quantity})>"
         )
 
     @property
@@ -319,6 +322,24 @@ class Lot(Base):
         """
         return self.actual_quantity - (self.passed_quantity + self.failed_quantity)
 
+    @property
+    def serial_count(self) -> int:
+        """Calculate the number of serials generated for this LOT.
+
+        Returns:
+            Number of serials in the serials relationship
+        """
+        return len(self.serials) if self.serials else 0
+
+    @property
+    def wip_count(self) -> int:
+        """Calculate the number of WIP items generated for this LOT.
+
+        Returns:
+            Number of WIP items in the wip_items relationship
+        """
+        return len(self.wip_items) if self.wip_items else 0
+
 
 # Type hint imports for forward references
 from typing import TYPE_CHECKING
@@ -327,3 +348,4 @@ if TYPE_CHECKING:
     from app.models.product_model import ProductModel
     from app.models.production_line import ProductionLine
     from app.models.serial import Serial
+    from app.models.wip_item import WIPItem

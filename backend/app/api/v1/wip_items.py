@@ -37,6 +37,8 @@ from app.schemas.wip_item import (
 )
 from app.utils.barcode_generator import generate_barcode_image
 from app.services.wip_service import WIPValidationError
+from app.models.process import Process
+from app.models.process_data import ProcessData, ProcessResult
 
 
 router = APIRouter(
@@ -86,6 +88,34 @@ def list_wip_items(
         return crud.get_by_status(db, status.value, skip=skip, limit=limit)
     else:
         return crud.get_multi(db, skip=skip, limit=limit)
+
+
+@router.get(
+    "/statistics",
+    response_model=WIPStatistics,
+    summary="Get WIP statistics",
+    description="Get WIP statistics by LOT or process",
+)
+def get_wip_statistics(
+    lot_id: Optional[int] = Query(None, description="Filter by LOT ID"),
+    process_id: Optional[int] = Query(None, description="Filter by process ID"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> WIPStatistics:
+    """
+    Get WIP statistics.
+
+    Args:
+        lot_id: Optional LOT ID filter
+        process_id: Optional process ID filter
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        WIP statistics
+    """
+    stats = crud.get_statistics(db, lot_id, process_id)
+    return WIPStatistics(**stats)
 
 
 @router.get(
@@ -356,29 +386,108 @@ def convert_wip_to_serial(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get(
-    "/statistics",
-    response_model=WIPStatistics,
-    summary="Get WIP statistics",
-    description="Get WIP statistics by LOT or process",
-)
-def get_wip_statistics(
-    lot_id: Optional[int] = Query(None, description="Filter by LOT ID"),
-    process_id: Optional[int] = Query(None, description="Filter by process ID"),
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),
-) -> WIPStatistics:
-    """
-    Get WIP statistics.
 
-    Args:
-        lot_id: Optional LOT ID filter
-        process_id: Optional process ID filter
-        db: Database session
-        current_user: Current authenticated user
+
+
+@router.get(
+    "/{wip_id}/trace",
+    response_model=dict,
+    summary="Get WIP traceability",
+    description="Get complete traceability information for a WIP item including process history.",
+)
+def get_wip_trace(
+    wip_id: str,
+    db: Session = Depends(deps.get_db),
+):
+    """
+    Get complete traceability information for a WIP item.
+
+    Path Parameters:
+        wip_id: WIP identifier
 
     Returns:
-        WIP statistics
+        Complete traceability record
     """
-    stats = crud.get_statistics(db, lot_id, process_id)
-    return WIPStatistics(**stats)
+    # Get WIP item
+    wip_item = crud.get_by_wip_id(db, wip_id)
+    if not wip_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"WIP {wip_id} not found"
+        )
+
+    # Get LOT information
+    lot_info = None
+    if wip_item.lot:
+        lot_info = {
+            "lot_number": wip_item.lot.lot_number,
+            "product_model": wip_item.lot.product_model.model_code if wip_item.lot.product_model else None,
+            "production_date": wip_item.lot.production_date.isoformat() if wip_item.lot.production_date else None,
+            "target_quantity": wip_item.lot.target_quantity,
+        }
+
+    # Get all process data for this WIP (ordered by process sequence and timestamp)
+    process_data_records = (
+        db.query(ProcessData)
+        .filter(ProcessData.wip_id == wip_item.id)
+        .join(Process)
+        .order_by(Process.process_number, ProcessData.created_at)
+        .all()
+    )
+
+    # Build process history
+    process_history = []
+    rework_history = []
+    total_cycle_time = 0
+
+    for pd in process_data_records:
+        process_record = {
+            "process_number": pd.process.process_number if pd.process else None,
+            "process_code": pd.process.process_code if pd.process else None,
+            "process_name": pd.process.process_name if pd.process else None,
+            "worker_id": pd.operator.username if pd.operator else None,
+            "worker_name": pd.operator.full_name if pd.operator else None,
+            "start_time": pd.started_at.isoformat() if pd.started_at else None,
+            "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
+            "duration_seconds": pd.duration_seconds,
+            "result": pd.result if pd.result else None,
+            "process_data": pd.measurements if pd.measurements else {},
+            "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL.value else [],
+            "notes": pd.notes,
+            "is_rework": False # WIP rework logic might differ, assuming false for now or check logic
+        }
+
+        process_history.append(process_record)
+
+        # Accumulate cycle time
+        if pd.duration_seconds:
+            total_cycle_time += pd.duration_seconds
+
+    # Extract component LOTs from process data if available
+    component_lots = {}
+    for pd in process_data_records:
+        if pd.measurements and isinstance(pd.measurements, dict):
+            # Look for component tracking fields
+            if "busbar_lot" in pd.measurements:
+                component_lots["busbar_lot"] = pd.measurements["busbar_lot"]
+            if "sma_spring_lot" in pd.measurements:
+                component_lots["sma_spring_lot"] = pd.measurements["sma_spring_lot"]
+            if "component_lots" in pd.measurements:
+                component_lots.update(pd.measurements["component_lots"])
+
+    return {
+        "wip_id": wip_item.wip_id,
+        "lot_number": wip_item.lot.lot_number if wip_item.lot else None,
+        "sequence_in_lot": wip_item.sequence_in_lot,
+        "status": wip_item.status.value,
+        "created_at": wip_item.created_at.isoformat(),
+        "completed_at": wip_item.completed_at.isoformat() if wip_item.completed_at else None,
+        "converted_at": wip_item.converted_at.isoformat() if wip_item.converted_at else None,
+        "serial_id": wip_item.serial_id,
+        "lot_info": lot_info,
+        "process_history": process_history,
+        "rework_history": rework_history,
+        "component_lots": component_lots,
+        "total_cycle_time_seconds": total_cycle_time
+    }
+

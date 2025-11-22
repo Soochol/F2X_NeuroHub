@@ -9,8 +9,10 @@ Models:
     - Process: 8 manufacturing processes
     - User: Authentication and authorization
     - Lot: Production batch tracking (max 100 units)
+    - WIPItem: Work-In-Progress tracking (processes 1-6)
     - Serial: Individual unit tracking with rework support
     - ProcessData: Process execution records with JSONB measurements
+    - WIPProcessHistory: WIP process execution history
     - AuditLog: Immutable audit trail (partitioned by month)
     - Alert: System notifications and alarms
     - ProductionLine: Production line definitions and capacity
@@ -18,7 +20,7 @@ Models:
     - ErrorLog: Centralized error logging for monitoring and debugging
 
 Usage:
-    from app.models import ProductModel, Process, User, Lot, Serial, ProcessData, AuditLog, Alert, ProductionLine, Equipment, ErrorLog
+    from app.models import ProductModel, Process, User, Lot, WIPItem, Serial, ProcessData, WIPProcessHistory, AuditLog, Alert, ProductionLine, Equipment, ErrorLog
 """
 
 from app.models.product_model import ProductModel
@@ -26,9 +28,11 @@ from app.models.process import Process
 from app.models.user import User, UserRole
 from app.models.production_line import ProductionLine
 from app.models.equipment import Equipment
-from app.models.lot import Lot, LotStatus, Shift
+from app.models.lot import Lot, LotStatus
+from app.models.wip_item import WIPItem, WIPStatus
 from app.models.serial import Serial, SerialStatus
 from app.models.process_data import ProcessData, DataLevel, ProcessResult
+from app.models.wip_process_history import WIPProcessHistory
 from app.models.audit_log import AuditLog, AuditAction
 from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
 from app.models.error_log import ErrorLog
@@ -39,8 +43,10 @@ __all__ = [
     "Process",
     "User",
     "Lot",
+    "WIPItem",
     "Serial",
     "ProcessData",
+    "WIPProcessHistory",
     "AuditLog",
     "Alert",
     "ProductionLine",
@@ -49,7 +55,7 @@ __all__ = [
     # Enums
     "UserRole",
     "LotStatus",
-    "Shift",
+    "WIPStatus",
     "SerialStatus",
     "DataLevel",
     "ProcessResult",

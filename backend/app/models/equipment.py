@@ -15,6 +15,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Integer,
     String,
     Boolean,
     Date,
@@ -25,10 +26,9 @@ from sqlalchemy import (
     Index,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, JSONB
 
 
 class Equipment(Base):
@@ -82,7 +82,7 @@ class Equipment(Base):
 
     # Primary Key
     id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         primary_key=True,
         autoincrement=True,
     )
@@ -160,7 +160,7 @@ class Equipment(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("true"),
+        server_default=text("1"),
         comment="Whether equipment is currently operational",
     )
 
@@ -191,7 +191,7 @@ class Equipment(Base):
         JSONB,
         nullable=True,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=text("'{}'"),
         comment="Technical specifications in JSONB format",
     )
 
@@ -199,7 +199,7 @@ class Equipment(Base):
         JSONB,
         nullable=True,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=text("'{}'"),
         comment="Maintenance schedule and procedures in JSONB format",
     )
 
@@ -208,7 +208,7 @@ class Equipment(Base):
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Record creation timestamp",
     )
 
@@ -217,7 +217,7 @@ class Equipment(Base):
         nullable=False,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Last update timestamp",
     )
 

@@ -27,11 +27,11 @@ from sqlalchemy import (
     DateTime,
     Integer,
     ForeignKey,
+    Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID, JSONB
 
-from app.database import Base
+from app.database import Base, JSONB
 
 
 class ErrorLog(Base):
@@ -57,7 +57,7 @@ class ErrorLog(Base):
     Table Name: error_logs
 
     Constraints:
-        - PK: pk_error_logs on (id, timestamp) - for partitioning
+        - PK: pk_error_logs on id
         - UNIQUE: trace_id - each error has unique trace ID
         - FK: fk_error_logs_user on user_id → users.id
         - CHECK: chk_error_logs_status_code - status_code BETWEEN 400 AND 599
@@ -88,7 +88,7 @@ class ErrorLog(Base):
 
     # Trace correlation (unique)
     trace_id: Mapped[UUID] = mapped_column(
-        PostgreSQLUUID(as_uuid=True),
+        Uuid(as_uuid=True),
         nullable=False,
         unique=True
     )
@@ -143,7 +143,7 @@ class ErrorLog(Base):
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        primary_key=True  # Part of composite primary key for partitioning
+        # primary_key=True  # Removed for SQLite compatibility
     )
 
     # Relationship to User

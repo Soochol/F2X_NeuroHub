@@ -33,6 +33,7 @@ from app.api.v1 import (
     process_operations,
     users,
     lots,
+    wip_items,
     serials,
     process_data,
     audit_logs,
@@ -306,6 +307,7 @@ app.include_router(processes.router, prefix=settings.API_V1_PREFIX, tags=["Proce
 app.include_router(process_operations.router, prefix=f"{settings.API_V1_PREFIX}/process-operations", tags=["Process Operations"])
 app.include_router(users.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
 app.include_router(lots.router, prefix=settings.API_V1_PREFIX, tags=["LOTs"])
+app.include_router(wip_items.router, prefix=settings.API_V1_PREFIX, tags=["WIP Items"])
 app.include_router(serials.router, prefix=settings.API_V1_PREFIX, tags=["Serials"])
 app.include_router(process_data.router, prefix=settings.API_V1_PREFIX, tags=["Process Data"])
 app.include_router(audit_logs.router, prefix=settings.API_V1_PREFIX, tags=["Audit Logs"])

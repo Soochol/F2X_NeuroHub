@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QColor
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +636,20 @@ QFrame[variant="toast-info"] {{
 }}
 """
         return qss
+
+    def get_qt_color(self, key_path: str, default: str = "#000000") -> QColor:
+        """
+        Get theme color as QColor object.
+
+        Args:
+            key_path: Dot-separated path (e.g., 'colors.semantic.success')
+            default: Default color hex if key not found
+
+        Returns:
+            QColor object
+        """
+        color_hex = self.get(key_path, default)
+        return QColor(color_hex)
 
     def apply_to_app(self, app: QApplication) -> None:
         """

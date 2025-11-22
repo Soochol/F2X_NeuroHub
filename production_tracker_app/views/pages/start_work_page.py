@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QLineEdit,
                                 QPushButton, QFrame, QHBoxLayout)
 from PySide6.QtCore import Qt, Signal
 from utils.theme_manager import get_theme
+from utils.serial_validator import validate_serial_number_v1, format_serial_number_v1
 
 theme = get_theme()
 
@@ -14,6 +15,7 @@ class StartWorkPage(QWidget):
 
     # Signals
     start_requested = Signal(str)  # lot_number
+    serial_start_requested = Signal(str, str)  # lot_number, serial_number
 
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -38,6 +40,7 @@ class StartWorkPage(QWidget):
         brand = theme.get('colors.brand.main')
         brand_light = theme.get('colors.brand.light')
         text_on_brand = theme.get('colors.text.onBrand')
+        danger_main = theme.get('colors.danger.main')
 
         # Header
         header = QLabel("착공")
@@ -65,7 +68,7 @@ class StartWorkPage(QWidget):
         input_layout.setSpacing(12)
 
         # LOT input label
-        lot_label = QLabel("LOT 번호")
+        lot_label = QLabel("WIP ID / LOT 번호")
         lot_label.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 500;")
         input_layout.addWidget(lot_label)
 
@@ -89,6 +92,44 @@ class StartWorkPage(QWidget):
         """)
         self.lot_input.returnPressed.connect(self._on_start_clicked)
         input_layout.addWidget(self.lot_input)
+
+        # Serial input (Process 7 only)
+        self.serial_label = QLabel("Serial 번호 (선택사항)")
+        self.serial_label.setStyleSheet(f"color: {grey_300}; font-size: 13px; font-weight: 500; margin-top: 8px;")
+        input_layout.addWidget(self.serial_label)
+
+        self.serial_input = QLineEdit()
+        self.serial_input.setObjectName("serial_input")
+        self.serial_input.setPlaceholderText("Serial 바코드를 스캔하세요... (선택)")
+        self.serial_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {bg_elevated};
+                border: 1px solid {border_light};
+                border-radius: 6px;
+                padding: 12px 16px;
+                color: {text_primary};
+                font-size: 14px;
+                min-height: 24px;
+            }}
+            QLineEdit:focus {{
+                border-color: {brand};
+            }}
+            QLineEdit[invalid="true"] {{
+                border-color: {danger_main};
+            }}
+        """)
+        self.serial_input.returnPressed.connect(self._on_start_clicked)
+        self.serial_input.textChanged.connect(self._on_serial_changed)
+        input_layout.addWidget(self.serial_input)
+
+        # Validation message label
+        self.serial_validation_label = QLabel("")
+        self.serial_validation_label.setStyleSheet(f"color: {danger_main}; font-size: 11px;")
+        self.serial_validation_label.hide()
+        input_layout.addWidget(self.serial_validation_label)
+
+        # Hide serial input by default (show only for Process 7)
+        self._set_serial_input_visible(self.config.process_number == 7)
 
         # Start button
         self.start_button = QPushButton("착공 시작")
@@ -188,26 +229,65 @@ class StartWorkPage(QWidget):
     def _on_start_clicked(self):
         """Handle start button click."""
         lot_number = self.lot_input.text().strip()
-        if lot_number:
+        serial_number = self.serial_input.text().strip()
+
+        if not lot_number:
+            return
+
+        # Validate serial if provided
+        if serial_number:
+            if not validate_serial_number_v1(serial_number):
+                self.serial_validation_label.setText("❌ 잘못된 Serial 번호 형식입니다 (14자: KR01PSA2511001)")
+                self.serial_validation_label.show()
+                self.serial_input.setProperty("invalid", "true")
+                self.serial_input.style().unpolish(self.serial_input)
+                self.serial_input.style().polish(self.serial_input)
+                return
+            # Valid serial - emit with serial
+            self.serial_start_requested.emit(lot_number, serial_number)
+        else:
+            # No serial - LOT-level work
             self.start_requested.emit(lot_number)
+
+    def _on_serial_changed(self, text: str):
+        """Handle serial input text change - clear validation error."""
+        if text:
+            # Clear validation error when user types
+            self.serial_validation_label.hide()
+            self.serial_input.setProperty("invalid", "false")
+            self.serial_input.style().unpolish(self.serial_input)
+            self.serial_input.style().polish(self.serial_input)
 
     def set_lot_number(self, lot_number: str):
         """Set LOT number in input field."""
         self.lot_input.setText(lot_number)
 
+    def set_serial_number(self, serial_number: str):
+        """Set Serial number in input field."""
+        self.serial_input.setText(serial_number)
+
     def clear_input(self):
-        """Clear input field."""
+        """Clear input fields."""
         self.lot_input.clear()
+        self.serial_input.clear()
+        self.serial_validation_label.hide()
 
     def set_enabled(self, enabled: bool):
         """Enable or disable the start controls."""
         self.lot_input.setEnabled(enabled)
+        self.serial_input.setEnabled(enabled)
         self.start_button.setEnabled(enabled)
 
     def focus_input(self):
         """Set focus to LOT input field."""
         self.lot_input.setFocus()
         self.lot_input.selectAll()
+
+    def _set_serial_input_visible(self, visible: bool):
+        """Show or hide serial input fields."""
+        self.serial_label.setVisible(visible)
+        self.serial_input.setVisible(visible)
+        self.serial_validation_label.setVisible(False)
 
     def _get_process_display(self) -> str:
         """Get process display text from config."""

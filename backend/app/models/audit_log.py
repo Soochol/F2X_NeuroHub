@@ -44,6 +44,7 @@ from sqlalchemy import (
     String,
     Text,
     TIMESTAMP,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -201,7 +202,7 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         # Note: primary_key=True removed for SQLite compatibility
         # PostgreSQL partitioning uses (id, created_at) composite key
     )

@@ -3,10 +3,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Select } from '@/components/common';
+import { Card, Button, Select } from '@/components/common';
 import { alertsApi } from '@/api';
 import { AlertSeverity, AlertStatus, type Alert } from '@/types/api';
 import { format } from 'date-fns';
+import { formatSerialNumber } from '@/utils/serialNumber';
 
 export const AlertsPage = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -142,13 +143,48 @@ export const AlertsPage = () => {
       <Card style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
-            <Input
-              label="Search"
-              placeholder="Search by title, serial, or lot number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              wrapperStyle={{ marginBottom: 0 }}
-            />
+            <label
+              htmlFor="searchQuery"
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: 'var(--color-text-primary)'
+              }}
+            >
+              Search
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '18px'
+                }}
+              >
+                🔍
+              </span>
+              <input
+                id="searchQuery"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, serial, or lot number..."
+                style={{
+                  width: '100%',
+                  padding: '12px 12px 12px 40px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  fontSize: '15px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
           </div>
           <div style={{ width: '150px' }}>
             <Select
@@ -412,7 +448,14 @@ export const AlertsPage = () => {
                               {alert.serial_number && (
                                 <div>
                                   <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Serial: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{alert.serial_number}</span>
+                                  <span style={{
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                    fontFamily: 'var(--font-mono)',
+                                    color: 'var(--color-text-primary)'
+                                  }}>
+                                    {formatSerialNumber(alert.serial_number)}
+                                  </span>
                                 </div>
                               )}
                               {alert.lot_number && (

@@ -8,7 +8,8 @@
 -- ================================================================
 -- TABLE: lots
 -- Purpose: Track production batches (LOTs) with up to 100 units each
--- LOT Number Format: WF-KR-YYMMDD{D|N}-nnn
+-- LOT Number Format: Country(2)+Line(2)+Model(3)+Month(4)+Seq(2)
+-- Example: KR01PSA251101 (13 chars)
 -- ================================================================
 
 -- Drop existing objects if needed (for development)
@@ -23,7 +24,6 @@ CREATE TABLE lots (
     lot_number VARCHAR(50) NOT NULL,                    -- Auto-generated LOT identifier
     product_model_id BIGINT NOT NULL,                   -- Foreign key to product_models
     production_date DATE NOT NULL,                      -- Scheduled/actual production date
-    shift VARCHAR(1) NOT NULL,                          -- Production shift: D (day) or N (night)
 
     -- Quantity Tracking
     target_quantity INTEGER NOT NULL DEFAULT 100,       -- Target production quantity (typically 100)
@@ -64,10 +64,6 @@ ADD CONSTRAINT uk_lots_lot_number UNIQUE (lot_number);
 ALTER TABLE lots
 ADD CONSTRAINT chk_lots_status
 CHECK (status IN ('CREATED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED'));
-
-ALTER TABLE lots
-ADD CONSTRAINT chk_lots_shift
-CHECK (shift IN ('D', 'N'));
 
 ALTER TABLE lots
 ADD CONSTRAINT chk_lots_target_quantity
@@ -111,8 +107,8 @@ CREATE INDEX idx_lots_production_date
 ON lots(production_date DESC);
 
 -- Composite index for filtering
-CREATE INDEX idx_lots_model_date_shift
-ON lots(product_model_id, production_date, shift);
+CREATE INDEX idx_lots_model_date
+ON lots(product_model_id, production_date);
 
 -- Closed LOTs index (for archival)
 CREATE INDEX idx_lots_closed_at
@@ -125,13 +121,16 @@ WHERE closed_at IS NOT NULL;
 
 -- ----------------------------------------------------------------
 -- Function: generate_lot_number()
--- Purpose: Auto-generate LOT number in format WF-KR-YYMMDD{D|N}-nnn
+-- Purpose: DEPRECATED - LOT number generation moved to Python application layer
+-- This function is kept for reference but not used
+-- Format: Country(2)+Line(2)+Model(3)+Month(4)+Seq(2) = 13 chars
 -- ----------------------------------------------------------------
+/*
+-- DEPRECATED: This function is no longer used
 CREATE OR REPLACE FUNCTION generate_lot_number()
 RETURNS TRIGGER AS $$
 DECLARE
     v_date_part VARCHAR(6);
-    v_shift_part VARCHAR(1);
     v_sequence INTEGER;
     v_new_lot_number VARCHAR(50);
 BEGIN
@@ -143,22 +142,20 @@ BEGIN
     -- Extract date part: YYMMDD
     v_date_part := TO_CHAR(NEW.production_date, 'YYMMDD');
 
-    -- Extract shift part: D or N
-    v_shift_part := NEW.shift;
-
-    -- Get next sequence number for this date+shift combination
+    -- Get next sequence number for this production month
     SELECT COALESCE(MAX(
         CAST(
-            SUBSTRING(lot_number FROM LENGTH(lot_number) - 2)
+            SUBSTRING(lot_number FROM 12 FOR 3)
             AS INTEGER
         )
     ), 0) + 1
     INTO v_sequence
     FROM lots
-    WHERE lot_number LIKE 'WF-KR-' || v_date_part || v_shift_part || '-%';
+    WHERE lot_number LIKE '______' || SUBSTRING(v_date_part FROM 1 FOR 4) || '%';
 
-    -- Generate LOT number: WF-KR-251110D-001
-    v_new_lot_number := 'WF-KR-' || v_date_part || v_shift_part || '-' ||
+    -- Generate LOT number: KR01PSA2511001
+    -- Format: Country(2) + Line(2) + Model(3) + YYMM(4) + Seq(3)
+    v_new_lot_number := 'KR01' || 'PSA' || SUBSTRING(v_date_part FROM 1 FOR 4) ||
                         LPAD(v_sequence::TEXT, 3, '0');
 
     -- Assign to NEW record
@@ -169,11 +166,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION generate_lot_number() IS
-'Auto-generates LOT number in format WF-KR-YYMMDD{D|N}-nnn where:
-- WF-KR: Prefix for Korean factory
-- YYMMDD: Production date
-- D|N: Day or Night shift
-- nnn: Sequential number (001-999)';
+'DEPRECATED: LOT number generation moved to Python application layer.
+Format: Country(2)+Line(2)+Model(3)+Month(4)+Seq(2) = 13 chars
+Example: KR01PSA251101';
+*/
 
 -- ----------------------------------------------------------------
 -- Function: validate_lot_status_transition()
@@ -274,11 +270,13 @@ COMMENT ON FUNCTION auto_close_lot() IS
 -- TRIGGERS
 -- ================================================================
 
--- Auto-generate LOT number
-CREATE TRIGGER trg_lots_generate_number
-BEFORE INSERT ON lots
-FOR EACH ROW
-EXECUTE FUNCTION generate_lot_number();
+-- NOTE: LOT number generation is now handled in Python application layer
+-- The trigger below is deprecated and commented out
+-- -- Auto-generate LOT number
+-- CREATE TRIGGER trg_lots_generate_number
+-- BEFORE INSERT ON lots
+-- FOR EACH ROW
+-- EXECUTE FUNCTION generate_lot_number();
 
 -- Auto-update updated_at timestamp
 CREATE TRIGGER trg_lots_updated_at
@@ -312,14 +310,13 @@ EXECUTE FUNCTION log_audit_event();
 
 COMMENT ON TABLE lots IS
 'Production batch tracking table. Each LOT represents a production run of up to 100 units
-manufactured together on a specific date and shift. Provides batch-level traceability
+manufactured together on a specific date. Provides batch-level traceability
 and quality metrics for the F2X NeuroHub manufacturing process.';
 
 COMMENT ON COLUMN lots.id IS 'Primary key, auto-incrementing BIGINT';
-COMMENT ON COLUMN lots.lot_number IS 'Auto-generated LOT identifier (WF-KR-YYMMDD{D|N}-nnn)';
+COMMENT ON COLUMN lots.lot_number IS 'Auto-generated LOT identifier (Country+Line+Model+Month+Seq, 13 chars, e.g., KR01PSA251101)';
 COMMENT ON COLUMN lots.product_model_id IS 'Foreign key reference to product_models table';
 COMMENT ON COLUMN lots.production_date IS 'Scheduled/actual production date';
-COMMENT ON COLUMN lots.shift IS 'Production shift: D (Day: 06:00-18:00) or N (Night: 18:00-06:00)';
 COMMENT ON COLUMN lots.target_quantity IS 'Target production quantity (max 100 units per LOT)';
 COMMENT ON COLUMN lots.actual_quantity IS 'Actual units produced in this LOT';
 COMMENT ON COLUMN lots.passed_quantity IS 'Number of units that passed all quality checks';
@@ -335,24 +332,23 @@ COMMENT ON COLUMN lots.closed_at IS 'LOT closure/completion timestamp (auto-set 
 
 /*
 -- Sample LOT creation
-INSERT INTO lots (product_model_id, production_date, shift, target_quantity)
+INSERT INTO lots (product_model_id, production_date, target_quantity)
 VALUES
-    (1, '2024-11-18', 'D', 100),  -- Day shift LOT
-    (1, '2024-11-18', 'N', 100),  -- Night shift LOT
-    (2, '2024-11-19', 'D', 50);   -- Partial LOT
+    (1, '2024-11-18', 100),
+    (1, '2024-11-19', 100),
+    (2, '2024-11-19', 50);   -- Partial LOT
 
 -- View created LOTs
 SELECT
     lot_number,
     production_date,
-    shift,
     status,
     target_quantity,
     actual_quantity,
     passed_quantity,
     failed_quantity
 FROM lots
-ORDER BY production_date DESC, shift;
+ORDER BY production_date DESC;
 */
 
 -- ================================================================

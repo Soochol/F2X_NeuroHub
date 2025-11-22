@@ -110,7 +110,7 @@ class Process(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("true"),
+        server_default=text("1"),
     )
 
     sort_order: Mapped[int] = mapped_column(
@@ -123,7 +123,7 @@ class Process(Base):
         DateTime(timezone=True),
         nullable=False,
         default=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     updated_at: Mapped[datetime] = mapped_column(
@@ -131,7 +131,7 @@ class Process(Base):
         nullable=False,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        server_default=text("NOW()"),
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     # Relationships

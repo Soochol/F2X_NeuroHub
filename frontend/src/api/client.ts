@@ -201,6 +201,12 @@ apiClient.interceptors.response.use(
 
     const errorData = error.response.data;
     const statusCode = error.response.status;
+    const requestUrl = error.config?.url;
+
+    // 로그인 요청에서 발생한 401 에러는 인터셉터에서 처리하지 않고 컴포넌트로 넘김
+    if (statusCode === 401 && requestUrl?.includes('/auth/login')) {
+      return Promise.reject(error);
+    }
 
     // 표준 에러 응답 처리
     if (isStandardErrorResponse(errorData)) {

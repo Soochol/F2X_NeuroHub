@@ -7,6 +7,7 @@
 import { Card } from '../../molecules';
 import { ProcessResult, type SerialTrace } from '@/types/api';
 import { format } from 'date-fns';
+import { formatSerialNumber } from '@/utils/serialNumber';
 
 interface SerialTraceViewProps {
   trace: SerialTrace;
@@ -39,7 +40,14 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Serial Number</div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{trace.serial_number}</div>
+            <div style={{
+              fontWeight: 'bold',
+              fontSize: '18px',
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.5px'
+            }}>
+              {formatSerialNumber(trace.serial_number)}
+            </div>
           </div>
           <div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>LOT Number</div>

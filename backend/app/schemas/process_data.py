@@ -32,10 +32,12 @@ class DataLevel(str, Enum):
     Data granularity level enumeration.
 
     Attributes:
-        LOT: LOT-level process data (serial_id is NULL)
+        LOT: LOT-level process data (serial_id and wip_id are NULL)
+        WIP: WIP-level process data (wip_id is NOT NULL, serial_id is NULL)
         SERIAL: Per-unit/serial-level process data (serial_id is NOT NULL)
     """
     LOT = "LOT"
+    WIP = "WIP"
     SERIAL = "SERIAL"
 
 
@@ -137,6 +139,9 @@ class ProcessDataBase(BaseModel):
     lot_id: int = Field(..., gt=0, description="Lot identifier")
     serial_id: Optional[int] = Field(
         None, gt=0, description="Serial identifier (required for SERIAL data_level)"
+    )
+    wip_id: Optional[int] = Field(
+        None, gt=0, description="WIP item identifier (for processes 1-6)"
     )
     process_id: int = Field(..., gt=0, description="Process identifier")
     operator_id: int = Field(..., gt=0, description="Operator identifier")
@@ -256,27 +261,41 @@ class ProcessDataBase(BaseModel):
     @model_validator(mode="after")
     def validate_data_level_serial_consistency(self) -> "ProcessDataBase":
         """
-        Validate serial_id consistency with data_level.
+        Validate serial_id and wip_id consistency with data_level.
 
         Rules:
-            - If data_level=SERIAL: serial_id MUST be provided (not None)
-            - If data_level=LOT: serial_id MUST be None
+            - If data_level=LOT: serial_id and wip_id MUST be None
+            - If data_level=WIP: wip_id MUST be provided, serial_id MUST be None
+            - If data_level=SERIAL: serial_id MUST be provided
 
         Returns:
             Self instance if valid
 
         Raises:
-            ValueError: If serial_id is inconsistent with data_level
+            ValueError: If serial_id/wip_id is inconsistent with data_level
         """
         if self.data_level == DataLevel.SERIAL:
             if self.serial_id is None:
                 raise ValueError(
                     "serial_id is required when data_level='SERIAL'"
                 )
+        elif self.data_level == DataLevel.WIP:
+            if self.wip_id is None:
+                raise ValueError(
+                    "wip_id is required when data_level='WIP'"
+                )
+            if self.serial_id is not None:
+                raise ValueError(
+                    "serial_id must be None when data_level='WIP'"
+                )
         elif self.data_level == DataLevel.LOT:
             if self.serial_id is not None:
                 raise ValueError(
                     "serial_id must be None when data_level='LOT'"
+                )
+            if self.wip_id is not None:
+                raise ValueError(
+                    "wip_id must be None when data_level='LOT'"
                 )
         return self
 
