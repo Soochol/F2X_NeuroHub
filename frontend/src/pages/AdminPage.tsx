@@ -254,7 +254,7 @@ const ProcessManagement = () => {
 
           {/* Auto Print Label Settings */}
           <div style={{ marginTop: '20px', padding: '15px', backgroundColor: 'var(--color-bg-secondary)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-            <h4 style={{ marginBottom: '15px', fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)' }}>🖨️ 라벨 자동 출력 설정</h4>
+            <h4 style={{ marginBottom: '15px', fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)' }}>라벨 자동 출력 설정</h4>
 
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
