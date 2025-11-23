@@ -36,6 +36,8 @@ from app.models.wip_process_history import WIPProcessHistory
 from app.models.audit_log import AuditLog, AuditAction
 from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
 from app.models.error_log import ErrorLog
+from app.models.print_log import PrintLog, PrintStatus
+
 
 __all__ = [
     # Models
@@ -52,6 +54,7 @@ __all__ = [
     "ProductionLine",
     "Equipment",
     "ErrorLog",
+    "PrintLog",
     # Enums
     "UserRole",
     "LotStatus",
@@ -63,4 +66,5 @@ __all__ = [
     "AlertType",
     "AlertSeverity",
     "AlertStatus",
+    "PrintStatus",
 ]

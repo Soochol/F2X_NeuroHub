@@ -59,9 +59,16 @@ def check_and_print_label(db: Session, process_data: ProcessData, wip_item=None,
         from app.services.printer_service import printer_service
         
         label_type = process.label_template_type
+        operator_id = process_data.operator_id if process_data else None
         
         if label_type == LabelTemplateType.WIP_LABEL.value and wip_item:
-            result = printer_service.print_wip_label(wip_item.wip_id)
+            result = printer_service.print_wip_label(
+                wip_id=wip_item.wip_id,
+                db=db,
+                operator_id=operator_id,
+                process_id=process.id,
+                process_data_id=process_data.id
+            )
             if result.get("success"):
                 logger.info(f"Auto-printed WIP label: {wip_item.wip_id}")
                 return {
@@ -70,7 +77,13 @@ def check_and_print_label(db: Session, process_data: ProcessData, wip_item=None,
                 }
         
         elif label_type == LabelTemplateType.SERIAL_LABEL.value and serial:
-            result = printer_service.print_serial_label(serial.serial_number)
+            result = printer_service.print_serial_label(
+                serial_number=serial.serial_number,
+                db=db,
+                operator_id=operator_id,
+                process_id=process.id,
+                process_data_id=process_data.id
+            )
             if result.get("success"):
                 logger.info(f"Auto-printed Serial label: {serial.serial_number}")
                 return {
@@ -79,7 +92,13 @@ def check_and_print_label(db: Session, process_data: ProcessData, wip_item=None,
                 }
         
         elif label_type == LabelTemplateType.LOT_LABEL.value and lot:
-            result = printer_service.print_lot_label(lot.lot_number)
+            result = printer_service.print_lot_label(
+                lot_number=lot.lot_number,
+                db=db,
+                operator_id=operator_id,
+                process_id=process.id,
+                process_data_id=process_data.id
+            )
             if result.get("success"):
                 logger.info(f"Auto-printed LOT label: {lot.lot_number}")
                 return {
