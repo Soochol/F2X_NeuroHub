@@ -98,151 +98,175 @@ export const WipGenerationPage = () => {
     });
 
     return (
-        <div>
-            <div style={{ marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px', color: 'var(--color-text-primary)' }}>
-                    WIP Generation
-                </h1>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-                    Generate WIP IDs for LOTs with CREATED or IN_PROGRESS status
-                </p>
-            </div>
-
-            {/* Search Filter */}
-            <Card style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                        <label
-                            htmlFor="searchQuery"
-                            style={{
-                                display: 'block',
-                                marginBottom: '8px',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                color: 'var(--color-text-primary)'
-                            }}
-                        >
-                            Search LOT
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <QrCode
-                                size={18}
-                                style={{
-                                    position: 'absolute',
-                                    left: '12px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--color-text-secondary)'
-                                }}
-                            />
-                            <input
-                                ref={inputRef}
-                                id="searchQuery"
-                                type="text"
-                                placeholder="Search LOT number or product model..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 12px 12px 40px',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '6px',
-                                    fontSize: '15px',
-                                    backgroundColor: 'var(--color-bg-primary)',
-                                    color: 'var(--color-text-primary)',
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <Button variant="secondary" onClick={fetchCreatedLots}>
-                        Refresh
-                    </Button>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%'
+        }}>
+            {/* Fixed Header Section - Title and Search */}
+            <div style={{
+                flexShrink: 0,
+                marginBottom: '20px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                position: 'sticky',
+                top: '-20px',
+                zIndex: 10,
+                paddingTop: '20px',
+                paddingBottom: '20px',
+                marginTop: '-20px',
+                paddingLeft: '20px',
+                paddingRight: '20px',
+                marginLeft: '-20px',
+                marginRight: '-20px',
+                borderBottom: '2px solid var(--color-border)'
+            }}>
+                <div style={{ marginBottom: '20px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px', color: 'var(--color-text-primary)' }}>
+                        WIP Generation
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                        Generate WIP IDs for LOTs with CREATED or IN_PROGRESS status
+                    </p>
                 </div>
-            </Card>
 
-            {/* LOT List */}
-            <Card>
-                {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-                        Loading LOTs...
-                    </div>
-                ) : error ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
-                        {error}
-                    </div>
-                ) : filteredLots.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-                        No active LOTs found.
-                    </div>
-                ) : (
-                    <div style={{ display: 'grid', gap: '15px' }}>
-                        {filteredLots.map((lot) => (
-                            <div
-                                key={lot.id}
-                                onClick={() => setSelectedLot(lot)}
+                {/* Search Filter */}
+                <Card>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+                        <div style={{ flex: 1 }}>
+                            <label
+                                htmlFor="searchQuery"
                                 style={{
-                                    padding: '20px',
-                                    border: selectedLot?.id === lot.id
-                                        ? '2px solid var(--color-brand)'
-                                        : '1px solid var(--color-border)',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    backgroundColor: selectedLot?.id === lot.id
-                                        ? 'var(--color-bg-tertiary)'
-                                        : 'var(--color-bg-secondary)',
+                                    display: 'block',
+                                    marginBottom: '8px',
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                    color: 'var(--color-text-primary)'
                                 }}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
-                                                {lot.lot_number}
-                                            </span>
-                                            <span
-                                                style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    fontSize: '12px',
-                                                    backgroundColor: 'var(--color-warning-bg)',
-                                                    color: 'var(--color-warning)',
-                                                }}
-                                            >
-                                                {lot.status}
-                                            </span>
-                                        </div>
-                                        {lot.product_model && (
-                                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-                                                <strong>{lot.product_model.model_code}</strong> - {lot.product_model.model_name}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{
-                                            fontSize: '16px',
-                                            fontWeight: 'bold',
-                                            color: 'var(--color-brand)',
-                                            marginBottom: '4px'
-                                        }}>
-                                            {lot.target_quantity} Units
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                            Target
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                                        <Calendar size={14} />
-                                        {format(new Date(lot.production_date), 'yyyy-MM-dd')}
-                                    </div>
-                                </div>
+                                Search LOT
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <QrCode
+                                    size={18}
+                                    style={{
+                                        position: 'absolute',
+                                        left: '12px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        color: 'var(--color-text-secondary)'
+                                    }}
+                                />
+                                <input
+                                    ref={inputRef}
+                                    id="searchQuery"
+                                    type="text"
+                                    placeholder="Search LOT number or product model..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 12px 12px 40px',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '6px',
+                                        fontSize: '15px',
+                                        backgroundColor: 'var(--color-bg-primary)',
+                                        color: 'var(--color-text-primary)',
+                                    }}
+                                />
                             </div>
-                        ))}
+                        </div>
+                        <Button variant="secondary" onClick={fetchCreatedLots}>
+                            Refresh
+                        </Button>
                     </div>
-                )}
-            </Card>
+                </Card>
+            </div>
+
+            {/* Scrollable Content Section - LOT List */}
+            <div>
+                <Card>
+                    {isLoading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                            Loading LOTs...
+                        </div>
+                    ) : error ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
+                            {error}
+                        </div>
+                    ) : filteredLots.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                            No active LOTs found.
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '15px' }}>
+                            {filteredLots.map((lot) => (
+                                <div
+                                    key={lot.id}
+                                    onClick={() => setSelectedLot(lot)}
+                                    style={{
+                                        padding: '20px',
+                                        border: selectedLot?.id === lot.id
+                                            ? '2px solid var(--color-brand)'
+                                            : '1px solid var(--color-border)',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        backgroundColor: selectedLot?.id === lot.id
+                                            ? 'var(--color-bg-tertiary)'
+                                            : 'var(--color-bg-secondary)',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
+                                                    {lot.lot_number}
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '12px',
+                                                        backgroundColor: 'var(--color-warning-bg)',
+                                                        color: 'var(--color-warning)',
+                                                    }}
+                                                >
+                                                    {lot.status}
+                                                </span>
+                                            </div>
+                                            {lot.product_model && (
+                                                <div style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                                                    <strong>{lot.product_model.model_code}</strong> - {lot.product_model.model_name}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{
+                                                fontSize: '16px',
+                                                fontWeight: 'bold',
+                                                color: 'var(--color-brand)',
+                                                marginBottom: '4px'
+                                            }}>
+                                                {lot.target_quantity} Units
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                                Target
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                            <Calendar size={14} />
+                                            {format(new Date(lot.production_date), 'yyyy-MM-dd')}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+            </div>
 
             {/* Confirmation Modal */}
             <Modal

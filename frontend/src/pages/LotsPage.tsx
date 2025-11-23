@@ -76,7 +76,6 @@ export const LotsPage = () => {
       }
 
       const response = await lotsApi.getLots(params);
-      // 백엔드는 배열을 직접 반환하거나 PaginatedResponse를 반환
       if (Array.isArray(response)) {
         setLots(response);
         setTotalLots(response.length);
@@ -85,7 +84,6 @@ export const LotsPage = () => {
         setTotalLots(response.total);
       }
 
-      // Fetch serials for statistics
       const serialsResponse = await serialsApi.getSerials({ limit: 500 });
       const serialsList = Array.isArray(serialsResponse) ? serialsResponse : serialsResponse.items || [];
       setSerials(serialsList);
@@ -156,263 +154,283 @@ export const LotsPage = () => {
   const totalPages = Math.ceil(totalLots / lotsPerPage);
 
   return (
-    <div>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-            LOT Issuance
-          </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-            Create and manage production LOTs
-          </p>
-        </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus size={16} style={{ marginRight: '6px' }} />
-          Create LOT
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card style={{ marginBottom: '20px', padding: '20px' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '200px' }}>
-            <Input
-              label="Search"
-              placeholder="LOT number, product model..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              wrapperStyle={{ marginBottom: 0 }}
-            />
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%'
+    }}>
+      {/* Fixed Header Section - Page Header and Filters */}
+      <div style={{
+        flexShrink: 0,
+        marginBottom: '20px',
+        backgroundColor: 'var(--color-bg-secondary)',
+        position: 'sticky',
+        top: '-20px',
+        zIndex: 10,
+        paddingTop: '20px',
+        paddingBottom: '20px',
+        marginTop: '-20px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        marginLeft: '-20px',
+        marginRight: '-20px',
+        borderBottom: '2px solid var(--color-border)'
+      }}>
+        {/* Page Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
+              LOT Issuance
+            </h1>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+              Create and manage production LOTs
+            </p>
           </div>
-          <div style={{ width: '180px' }}>
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as LotStatus | '');
-                setCurrentPage(0);
-              }}
-              options={[
-                { value: '', label: 'All' },
-                { value: LotStatus.CREATED, label: 'Created' },
-                { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
-                { value: LotStatus.COMPLETED, label: 'Completed' },
-                { value: LotStatus.CLOSED, label: 'Closed' },
-              ]}
-              wrapperStyle={{ marginBottom: 0 }}
-            />
-          </div>
-          <div style={{ width: '180px' }}>
-            <Select
-              label="Sort By"
-              value={sortColumn || ''}
-              onChange={(e) => setSortColumn(e.target.value as SortColumn)}
-              options={[
-                { value: 'created_at', label: 'Created Date' },
-                { value: 'lot_number', label: 'LOT Number' },
-                { value: 'status', label: 'Status' },
-                { value: 'target_quantity', label: 'Target Qty' },
-                { value: 'production_date', label: 'Production Date' },
-              ]}
-              wrapperStyle={{ marginBottom: 0 }}
-            />
-          </div>
-          <div style={{ width: '120px' }}>
-            <Select
-              label="Direction"
-              value={sortDirection}
-              onChange={(e) => setSortDirection(e.target.value as SortDirection)}
-              options={[
-                { value: 'desc', label: 'Descending' },
-                { value: 'asc', label: 'Ascending' },
-              ]}
-              wrapperStyle={{ marginBottom: 0 }}
-            />
-          </div>
-          <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); setRefreshTrigger(prev => prev + 1); }}>
-            Reset
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus size={16} style={{ marginRight: '6px' }} />
+            Create LOT
           </Button>
         </div>
-      </Card>
 
-      {/* LOT Cards */}
-      <Card>
-        <div style={{ padding: '20px' }}>
-          {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-              Loading...
+        {/* Filters */}
+        <Card>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1', minWidth: '200px' }}>
+              <Input
+                label="Search"
+                placeholder="LOT number, product model..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                wrapperStyle={{ marginBottom: 0 }}
+              />
             </div>
-          ) : error ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
-              {error}
+            <div style={{ width: '180px' }}>
+              <Select
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as LotStatus | '');
+                  setCurrentPage(0);
+                }}
+                options={[
+                  { value: '', label: 'All' },
+                  { value: LotStatus.CREATED, label: 'Created' },
+                  { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
+                  { value: LotStatus.COMPLETED, label: 'Completed' },
+                  { value: LotStatus.CLOSED, label: 'Closed' },
+                ]}
+                wrapperStyle={{ marginBottom: 0 }}
+              />
             </div>
-          ) : filteredAndSortedLots.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-              No LOTs found
+            <div style={{ width: '180px' }}>
+              <Select
+                label="Sort By"
+                value={sortColumn || ''}
+                onChange={(e) => setSortColumn(e.target.value as SortColumn)}
+                options={[
+                  { value: 'created_at', label: 'Created Date' },
+                  { value: 'lot_number', label: 'LOT Number' },
+                  { value: 'status', label: 'Status' },
+                  { value: 'target_quantity', label: 'Target Qty' },
+                  { value: 'production_date', label: 'Production Date' },
+                ]}
+                wrapperStyle={{ marginBottom: 0 }}
+              />
             </div>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
-                {filteredAndSortedLots.map((lot) => {
-                  const stats = getLotSerialStats(lot);
-                  const hasMissing = stats.missing > 0;
-                  const completionRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;
+            <div style={{ width: '120px' }}>
+              <Select
+                label="Direction"
+                value={sortDirection}
+                onChange={(e) => setSortDirection(e.target.value as SortDirection)}
+                options={[
+                  { value: 'desc', label: 'Descending' },
+                  { value: 'asc', label: 'Ascending' },
+                ]}
+                wrapperStyle={{ marginBottom: 0 }}
+              />
+            </div>
+            <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); setRefreshTrigger(prev => prev + 1); }}>
+              Reset
+            </Button>
+          </div>
+        </Card>
+      </div>
 
-                  // 테두리 색상 결정 로직
-                  const isCompleted = lot.status === LotStatus.COMPLETED || lot.status === LotStatus.CLOSED;
-                  const borderColor = isCompleted
-                    ? '2px solid var(--color-success)'
-                    : hasMissing
-                      ? '2px solid var(--color-warning)'
-                      : '1px solid var(--color-border)';
+      {/* Scrollable Content Section - LOT Cards */}
+      <div>
+        <Card>
+          <div style={{ padding: '20px' }}>
+            {isLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                Loading...
+              </div>
+            ) : error ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
+                {error}
+              </div>
+            ) : filteredAndSortedLots.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                No LOTs found
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
+                  {filteredAndSortedLots.map((lot) => {
+                    const stats = getLotSerialStats(lot);
+                    const hasMissing = stats.missing > 0;
+                    const completionRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;
 
-                  return (
-                    <div
-                      key={lot.id}
-                      style={{
-                        padding: '20px',
-                        border: borderColor,
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--color-bg-secondary)',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                              {lot.lot_number}
-                            </span>
-                            <span
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                backgroundColor:
-                                  lot.status === LotStatus.COMPLETED
-                                    ? 'var(--color-success-bg)'
-                                    : lot.status === LotStatus.IN_PROGRESS
-                                      ? 'var(--color-info-bg)'
-                                      : 'var(--color-warning-bg)',
-                                color:
-                                  lot.status === LotStatus.COMPLETED
-                                    ? 'var(--color-success)'
-                                    : lot.status === LotStatus.IN_PROGRESS
-                                      ? 'var(--color-info)'
-                                      : 'var(--color-warning)',
-                              }}
-                            >
-                              {lot.status}
-                            </span>
-                            {hasMissing && (
+                    const isCompleted = lot.status === LotStatus.COMPLETED || lot.status === LotStatus.CLOSED;
+                    const borderColor = isCompleted
+                      ? '2px solid var(--color-success)'
+                      : hasMissing
+                        ? '2px solid var(--color-warning)'
+                        : '1px solid var(--color-border)';
+
+                    return (
+                      <div
+                        key={lot.id}
+                        style={{
+                          padding: '20px',
+                          border: borderColor,
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--color-bg-secondary)',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                                {lot.lot_number}
+                              </span>
                               <span
                                 style={{
                                   padding: '4px 8px',
                                   borderRadius: '4px',
                                   fontSize: '12px',
-                                  backgroundColor: 'var(--color-warning-bg)',
-                                  color: 'var(--color-warning)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
+                                  backgroundColor:
+                                    lot.status === LotStatus.COMPLETED
+                                      ? 'var(--color-success-bg)'
+                                      : lot.status === LotStatus.IN_PROGRESS
+                                        ? 'var(--color-info-bg)'
+                                        : 'var(--color-warning-bg)',
+                                  color:
+                                    lot.status === LotStatus.COMPLETED
+                                      ? 'var(--color-success)'
+                                      : lot.status === LotStatus.IN_PROGRESS
+                                        ? 'var(--color-info)'
+                                        : 'var(--color-warning)',
                                 }}
                               >
-                                <AlertCircle size={12} />
-                                Missing {stats.missing} serials
+                                {lot.status}
                               </span>
-                            )}
-                          </div>
-                          {lot.product_model && (
-                            <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                              {lot.product_model.model_code} - {lot.product_model.model_name}
+                              {hasMissing && (
+                                <span
+                                  style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'var(--color-warning-bg)',
+                                    color: 'var(--color-warning)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <AlertCircle size={12} />
+                                  Missing {stats.missing} serials
+                                </span>
+                              )}
                             </div>
-                          )}
-                          <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                            Created: {format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm')}
+                            {lot.product_model && (
+                              <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                                {lot.product_model.model_code} - {lot.product_model.model_name}
+                              </div>
+                            )}
+                            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                              Created: {format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm')}
+                            </div>
                           </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '15px' }}>
+                          <div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                              Generated
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                              {stats.total} / {lot.target_quantity}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                              Passed
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-success)' }}>
+                              {stats.passed}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                              Failed
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-error)' }}>
+                              {stats.failed}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                              Completion
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-brand)' }}>
+                              {completionRate.toFixed(0)}%
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${completionRate}%`,
+                              height: '100%',
+                              backgroundColor: completionRate === 100 ? 'var(--color-success)' : 'var(--color-brand)',
+                              transition: 'width 0.3s',
+                            }}
+                          />
                         </div>
                       </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '15px' }}>
-                        <div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                            Generated
-                          </div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                            {stats.total} / {lot.target_quantity}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                            Passed
-                          </div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-success)' }}>
-                            {stats.passed}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                            Failed
-                          </div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-error)' }}>
-                            {stats.failed}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                            Completion
-                          </div>
-                          <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-brand)' }}>
-                            {completionRate.toFixed(0)}%
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            width: `${completionRate}%`,
-                            height: '100%',
-                            backgroundColor: completionRate === 100 ? 'var(--color-success)' : 'var(--color-brand)',
-                            transition: 'width 0.3s',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                    disabled={currentPage === 0}
-                  >
-                    Previous
-                  </Button>
-                  <span style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-                    Page {currentPage + 1} of {totalPages} ({totalLots} total LOTs)
-                  </span>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                    disabled={currentPage >= totalPages - 1}
-                  >
-                    Next
-                  </Button>
+                    );
+                  })}
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </Card>
 
-      {/* Create Modal */}
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                      disabled={currentPage === 0}
+                    >
+                      Previous
+                    </Button>
+                    <span style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                      Page {currentPage + 1} of {totalPages} ({totalLots} total LOTs)
+                    </span>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                      disabled={currentPage >= totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
       <LotCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -420,8 +438,6 @@ export const LotsPage = () => {
         productModels={productModels}
         productionLines={productionLines}
       />
-
-
     </div>
   );
 };
