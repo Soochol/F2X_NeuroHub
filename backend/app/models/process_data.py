@@ -50,6 +50,7 @@ class DataLevel(str, Enum):
     """
     LOT = "LOT"
     SERIAL = "SERIAL"
+    WIP = "WIP"
 
 
 class ProcessResult(str, Enum):

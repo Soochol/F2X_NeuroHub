@@ -148,7 +148,7 @@ class WorkStatusCard(QGroupBox):
         self._start_time = datetime.now()
         self._is_working = True
 
-        self.start_badge.set_status("active", "착공중")
+        self.start_badge.set_status("active", "작업중")
         self.start_time_value.setText(start_time)
         self.complete_badge.set_status("default", "미완료")
         self.complete_time_value.setText("-")
@@ -162,6 +162,7 @@ class WorkStatusCard(QGroupBox):
         self._is_working = False
         self._timer.stop()
 
+        self.start_badge.set_status("success", "완료")  # 착공도 완료 상태로 변경
         self.complete_badge.set_status("success", "완료")
         self.complete_time_value.setText(complete_time)
         logger.debug("Work completed")

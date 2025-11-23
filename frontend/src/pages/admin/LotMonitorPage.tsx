@@ -28,9 +28,15 @@ export const LotMonitorPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
 
+    // Sorting
+    type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'passed_quantity' | 'production_date' | 'created_at' | null;
+    type SortDirection = 'asc' | 'desc';
+    const [sortColumn, setSortColumn] = useState<SortColumn>('created_at');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
     useEffect(() => {
         fetchData();
-    }, [statusFilter]);
+    }, [statusFilter, sortColumn, sortDirection]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -92,14 +98,43 @@ export const LotMonitorPage = () => {
         window.URL.revokeObjectURL(url);
     };
 
-    const filteredLots = lots.filter((lot) => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-            lot.lot_number.toLowerCase().includes(query) ||
-            (lot.product_model?.model_name && lot.product_model.model_name.toLowerCase().includes(query))
-        );
-    });
+    const filteredAndSortedLots = lots
+        .filter((lot) => {
+            if (!searchQuery) return true;
+            const query = searchQuery.toLowerCase();
+            return (
+                lot.lot_number.toLowerCase().includes(query) ||
+                (lot.product_model?.model_name && lot.product_model.model_name.toLowerCase().includes(query)) ||
+                (lot.product_model?.model_code && lot.product_model.model_code.toLowerCase().includes(query))
+            );
+        })
+        .sort((a, b) => {
+            if (!sortColumn) return 0;
+
+            let comparison = 0;
+            switch (sortColumn) {
+                case 'lot_number':
+                    comparison = a.lot_number.localeCompare(b.lot_number);
+                    break;
+                case 'status':
+                    comparison = a.status.localeCompare(b.status);
+                    break;
+                case 'target_quantity':
+                    comparison = a.target_quantity - b.target_quantity;
+                    break;
+                case 'passed_quantity':
+                    comparison = (a.passed_quantity || 0) - (b.passed_quantity || 0);
+                    break;
+                case 'production_date':
+                    comparison = new Date(a.production_date).getTime() - new Date(b.production_date).getTime();
+                    break;
+                case 'created_at':
+                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    break;
+            }
+
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
 
     return (
         <div>
@@ -144,37 +179,77 @@ export const LotMonitorPage = () => {
                 </Card>
             </div>
 
+            {/* Filters */}
+            <Card style={{ marginBottom: '20px', padding: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                        <Input
+                            label="Search"
+                            placeholder="LOT number, product model..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            wrapperStyle={{ marginBottom: 0 }}
+                        />
+                    </div>
+                    <div style={{ width: '180px' }}>
+                        <Select
+                            label="Status"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}
+                            options={[
+                                { value: '', label: 'All' },
+                                { value: LotStatus.CREATED, label: 'Created' },
+                                { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
+                                { value: LotStatus.COMPLETED, label: 'Completed' },
+                                { value: LotStatus.CLOSED, label: 'Closed' },
+                            ]}
+                            wrapperStyle={{ marginBottom: 0 }}
+                        />
+                    </div>
+                    <div style={{ width: '180px' }}>
+                        <Select
+                            label="Sort By"
+                            value={sortColumn || ''}
+                            onChange={(e) => setSortColumn(e.target.value as SortColumn)}
+                            options={[
+                                { value: 'created_at', label: 'Created Date' },
+                                { value: 'lot_number', label: 'LOT Number' },
+                                { value: 'status', label: 'Status' },
+                                { value: 'target_quantity', label: 'Target Qty' },
+                                { value: 'production_date', label: 'Production Date' },
+                            ]}
+                            wrapperStyle={{ marginBottom: 0 }}
+                        />
+                    </div>
+                    <div style={{ width: '120px' }}>
+                        <Select
+                            label="Direction"
+                            value={sortDirection}
+                            onChange={(e) => setSortDirection(e.target.value as SortDirection)}
+                            options={[
+                                { value: 'desc', label: 'Descending' },
+                                { value: 'asc', label: 'Ascending' },
+                            ]}
+                            wrapperStyle={{ marginBottom: 0 }}
+                        />
+                    </div>
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('');
+                            setSortColumn('created_at');
+                            setSortDirection('desc');
+                            fetchData();
+                        }}
+                    >
+                        Reset
+                    </Button>
+                </div>
+            </Card>
+
             {/* LOT List */}
             <Card>
-                <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)' }}>
-                    <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
-                        LOT List with Serial Status
-                    </h2>
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                        <div style={{ flex: 1 }}>
-                            <Input
-                                placeholder="Search LOT number or product..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                wrapperStyle={{ marginBottom: 0 }}
-                            />
-                        </div>
-                        <div style={{ width: '200px' }}>
-                            <Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}
-                                options={[
-                                    { value: '', label: 'All Status' },
-                                    { value: LotStatus.CREATED, label: 'Created' },
-                                    { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
-                                    { value: LotStatus.COMPLETED, label: 'Completed' },
-                                    { value: LotStatus.CLOSED, label: 'Closed' },
-                                ]}
-                                wrapperStyle={{ marginBottom: 0 }}
-                            />
-                        </div>
-                    </div>
-                </div>
 
                 <div style={{ padding: '20px' }}>
                     {isLoading ? (
@@ -185,13 +260,13 @@ export const LotMonitorPage = () => {
                         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
                             {error}
                         </div>
-                    ) : filteredLots.length === 0 ? (
+                    ) : filteredAndSortedLots.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
                             No LOTs found
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gap: '15px' }}>
-                            {filteredLots.map((lot) => {
+                            {filteredAndSortedLots.map((lot) => {
                                 const stats = getLotSerialStats(lot);
                                 const hasMissing = stats.missing > 0;
                                 const completionRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;

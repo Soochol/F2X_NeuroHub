@@ -29,6 +29,7 @@ from app.models import (
     SerialStatus,
     ProcessResult
 )
+from app.models.wip_item import WIPItem, WIPStatus
 
 
 router = APIRouter()
@@ -88,120 +89,123 @@ def get_dashboard_summary(
     else:
         target_date_obj = date.today()
 
-    # Import WIPItem for WIP-based metrics
-    from app.models.wip_item import WIPItem, WIPStatus
-
-    # Total started (WIP items created today)
-    start_of_day = datetime.combine(target_date_obj, datetime.min.time())
-    end_of_day = datetime.combine(target_date_obj, datetime.max.time())
-    total_started = db.query(func.count(WIPItem.id)).filter(
-        WIPItem.created_at.between(start_of_day, end_of_day)
-    ).scalar() or 0
-
-    # Total in progress (WIP items currently being processed)
-    total_in_progress = db.query(func.count(WIPItem.id)).filter(
-        WIPItem.status == WIPStatus.IN_PROGRESS
-    ).scalar() or 0
-
-    # Total completed (WIP items completed today - all processes 1-6 PASS)
-    total_completed = db.query(func.count(WIPItem.id)).filter(
-        and_(
-            WIPItem.completed_at.between(start_of_day, end_of_day),
-            WIPItem.status == WIPStatus.COMPLETED
-        )
-    ).scalar() or 0
-
-    # Total failed (WIP items failed today)
-    total_failed = db.query(func.count(WIPItem.id)).filter(
-        and_(
-            WIPItem.updated_at.between(start_of_day, end_of_day),
-            WIPItem.status == WIPStatus.FAILED
-        )
-    ).scalar() or 0
-
-    # Calculate defect rate based on WIP
-    total_finished = total_completed + total_failed
-    defect_rate = (total_failed / total_finished * 100) if total_finished > 0 else 0
-
-    # Get recent LOTs (all statuses)
-    active_lots = (
-        db.query(Lot)
-        .order_by(Lot.created_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    lots_summary = []
-    for lot in active_lots:
-        # Count WIP items for this lot
-        wip_started = db.query(func.count(WIPItem.id)).filter(
-            WIPItem.lot_id == lot.id
+    try:
+        # Total started (WIP items created today)
+        start_of_day = datetime.combine(target_date_obj, datetime.min.time())
+        end_of_day = datetime.combine(target_date_obj, datetime.max.time())
+        total_started = db.query(func.count(WIPItem.id)).filter(
+            WIPItem.created_at.between(start_of_day, end_of_day)
         ).scalar() or 0
 
-        wip_completed = db.query(func.count(WIPItem.id)).filter(
+        # Total in progress (WIP items currently being processed)
+        total_in_progress = db.query(func.count(WIPItem.id)).filter(
+            WIPItem.status == WIPStatus.IN_PROGRESS
+        ).scalar() or 0
+
+        # Total completed (WIP items completed today - all processes 1-6 PASS)
+        total_completed = db.query(func.count(WIPItem.id)).filter(
             and_(
-                WIPItem.lot_id == lot.id,
-                WIPItem.status.in_([WIPStatus.COMPLETED, WIPStatus.CONVERTED])
+                WIPItem.completed_at.between(start_of_day, end_of_day),
+                WIPItem.status == WIPStatus.COMPLETED
             )
         ).scalar() or 0
 
-        wip_failed = db.query(func.count(WIPItem.id)).filter(
+        # Total failed (WIP items failed today)
+        total_failed = db.query(func.count(WIPItem.id)).filter(
             and_(
-                WIPItem.lot_id == lot.id,
+                WIPItem.updated_at.between(start_of_day, end_of_day),
                 WIPItem.status == WIPStatus.FAILED
             )
         ).scalar() or 0
 
-        wip_in_progress = db.query(func.count(WIPItem.id)).filter(
-            and_(
-                WIPItem.lot_id == lot.id,
-                WIPItem.status == WIPStatus.IN_PROGRESS
-            )
-        ).scalar() or 0
+        # Calculate defect rate based on WIP
+        total_finished = total_completed + total_failed
+        defect_rate = (total_failed / total_finished * 100) if total_finished > 0 else 0
 
-        progress = (wip_completed / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
+        # Get recent LOTs (all statuses)
+        active_lots = (
+            db.query(Lot)
+            .order_by(Lot.created_at.desc())
+            .limit(10)
+            .all()
+        )
 
-        lots_summary.append({
-            "lot_number": lot.lot_number,
-            "product_model_name": lot.product_model.model_name if lot.product_model else "Unknown",
-            "status": lot.status,
-            "target_quantity": lot.target_quantity,
-            "started_count": wip_started,
-            "in_progress_count": wip_in_progress,
-            "completed_count": wip_completed,
-            "defective_count": wip_failed,
-            "progress": round(progress, 1),
-            "created_at": lot.created_at.isoformat() if lot.created_at else None
-        })
+        lots_summary = []
+        for lot in active_lots:
+            # Count WIP items for this lot
+            wip_started = db.query(func.count(WIPItem.id)).filter(
+                WIPItem.lot_id == lot.id
+            ).scalar() or 0
 
-    # Get process WIP (Work In Progress) - count WIP items at each process
-    process_wip = []
-    processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()
+            wip_completed = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.lot_id == lot.id,
+                    WIPItem.status.in_([WIPStatus.COMPLETED, WIPStatus.CONVERTED])
+                )
+            ).scalar() or 0
 
-    for process in processes:
-        # Count WIP items currently at this process
-        wip_count = db.query(func.count(WIPItem.id)).filter(
-            and_(
-                WIPItem.current_process_id == process.id,
-                WIPItem.status == WIPStatus.IN_PROGRESS
-            )
-        ).scalar() or 0
+            wip_failed = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.lot_id == lot.id,
+                    WIPItem.status == WIPStatus.FAILED
+                )
+            ).scalar() or 0
 
-        process_wip.append({
-            "process_name": process.process_name_ko,
-            "wip_count": wip_count
-        })
+            wip_in_progress = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.lot_id == lot.id,
+                    WIPItem.status == WIPStatus.IN_PROGRESS
+                )
+            ).scalar() or 0
 
-    return {
-        "date": target_date_obj.isoformat(),
-        "total_started": total_started,
-        "total_in_progress": total_in_progress,
-        "total_completed": total_completed,
-        "total_defective": total_failed,
-        "defect_rate": round(defect_rate, 2),
-        "lots": lots_summary,
-        "process_wip": process_wip
-    }
+            progress = (wip_completed / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
+
+            lots_summary.append({
+                "lot_number": lot.lot_number,
+                "product_model_name": lot.product_model.model_name if lot.product_model else "Unknown",
+                "status": lot.status,
+                "target_quantity": lot.target_quantity,
+                "started_count": wip_started,
+                "in_progress_count": wip_in_progress,
+                "completed_count": wip_completed,
+                "defective_count": wip_failed,
+                "progress": round(progress, 1),
+                "created_at": lot.created_at.isoformat() if lot.created_at else None
+            })
+
+        # Get process WIP (Work In Progress) - count WIP items at each process
+        process_wip = []
+        processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()
+
+        for process in processes:
+            # Count WIP items currently at this process
+            wip_count = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.current_process_id == process.id,
+                    WIPItem.status == WIPStatus.IN_PROGRESS
+                )
+            ).scalar() or 0
+
+            process_wip.append({
+                "process_name": process.process_name_ko,
+                "wip_count": wip_count
+            })
+
+        return {
+            "date": target_date_obj.isoformat(),
+            "total_started": total_started,
+            "total_in_progress": total_in_progress,
+            "total_completed": total_completed,
+            "total_defective": total_failed,
+            "defect_rate": round(defect_rate, 2),
+            "lots": lots_summary,
+            "process_wip": process_wip
+        }
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_dashboard_summary: {str(e)}", exc_info=True)
+        raise e
 
 
 @router.get("/lots")
@@ -337,7 +341,7 @@ def get_process_wip(
     )
 
     # Import WIPItem for WIP-based metrics
-    from app.models.wip_item import WIPItem, WIPStatus
+    # from app.models.wip_item import WIPItem, WIPStatus
 
     process_wip_data = []
     total_wip = 0

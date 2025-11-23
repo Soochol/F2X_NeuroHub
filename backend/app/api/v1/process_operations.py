@@ -164,25 +164,45 @@ def start_process(
     lot_number = request.lot_number
     lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
 
+    # Track if we found WIP item in Smart Lookup
+    wip_from_smart_lookup = None
+    wip_id_from_smart_lookup = None
+
     # If LOT not found, try to interpret as Serial, WIP ID, or Unit Barcode
     if not lot:
+        print(f"[DEBUG] LOT not found by lot_number: {lot_number}")
+        
         # 1. Try as Serial Number
         serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
         if serial:
+            print(f"[DEBUG] Found as Serial: {serial.serial_number}")
             lot = serial.lot
             if not request.serial_number:
                 request.serial_number = serial.serial_number
         
         # 2. Try as WIP ID (e.g., WIP-KR01TES251101-001)
         elif lot_number.startswith("WIP-"):
-             wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
-             if wip:
-                 lot = wip.lot
-                 if not request.wip_id:
-                     request.wip_id = wip.wip_id
-                 # Set wip_item for later use
-                 wip_item = wip
-                 wip_item_id = wip.id
+            print(f"[DEBUG] Trying as WIP ID: {lot_number}")
+            print(f"[DEBUG] Query: db.query(WIPItem).filter(WIPItem.wip_id == {lot_number}).first()")
+            
+            # Try the query
+            wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
+            print(f"[DEBUG] Query result: {wip}")
+            
+            if wip:
+                print(f"[DEBUG] Found WIP item! ID: {wip.id}, LOT ID: {wip.lot_id}")
+                lot = wip.lot
+                print(f"[DEBUG] Associated LOT: {lot}")
+                if not request.wip_id:
+                    request.wip_id = wip.wip_id
+                # Save wip_item for later use
+                wip_from_smart_lookup = wip
+                wip_id_from_smart_lookup = wip.id
+            else:
+                print(f"[DEBUG] WIP item NOT found in database")
+                # Check how many WIP items exist
+                total_wips = db.query(WIPItem).count()
+                print(f"[DEBUG] Total WIP items in database: {total_wips}")
 
         # 3. Try as Unit Barcode (LOT + Sequence, e.g., KR01TES251101001)
         # Assuming last 3 digits are sequence if length > 13 (typical LOT length)
@@ -244,10 +264,10 @@ def start_process(
 
     # Determine data level, serial, and WIP
     serial = None
-    wip_item = None
+    wip_item = wip_from_smart_lookup  # Use WIP from Smart Lookup if found
     data_level = DataLevel.LOT
     serial_id = None
-    wip_item_id = None
+    wip_item_id = wip_id_from_smart_lookup  # Use WIP ID from Smart Lookup if found
 
     if request.serial_number:
         serial = db.query(Serial).filter(
@@ -259,16 +279,17 @@ def start_process(
         data_level = DataLevel.SERIAL
         serial_id = serial.id
     elif request.wip_id:
-        # Look up WIP item by wip_id string
-        wip_item = db.query(WIPItem).filter(
-            WIPItem.wip_id == request.wip_id,
-            WIPItem.lot_id == lot.id
-        ).first()
+        # Look up WIP item by wip_id string (only if not already found above)
         if not wip_item:
-            raise ValidationException(
-                message=f"WIP item '{request.wip_id}' not found for LOT {lot.lot_number}"
-            )
-        wip_item_id = wip_item.id
+            wip_item = db.query(WIPItem).filter(
+                WIPItem.wip_id == request.wip_id,
+                WIPItem.lot_id == lot.id
+            ).first()
+            if not wip_item:
+                raise ValidationException(
+                    message=f"WIP item '{request.wip_id}' not found for LOT {lot.lot_number}"
+                )
+            wip_item_id = wip_item.id
         data_level = DataLevel.WIP  # Set data_level to WIP
 
     # Find operator by worker_id (username)
@@ -319,9 +340,15 @@ def start_process(
                 ProcessData.result == ProcessResult.PASS
             )
 
+            # Apply same level filter as current work
             if serial_id:
                 prev_data_query = prev_data_query.filter(
                     ProcessData.serial_id == serial_id
+                )
+            elif wip_item_id:
+                # WIP-level validation: must check same WIP item
+                prev_data_query = prev_data_query.filter(
+                    ProcessData.wip_id == wip_item_id
                 )
 
             prev_data = prev_data_query.first()
@@ -350,6 +377,10 @@ def start_process(
                     prev_data_query = prev_data_query.filter(
                         ProcessData.serial_id == serial_id
                     )
+                elif wip_item_id:
+                    prev_data_query = prev_data_query.filter(
+                        ProcessData.wip_id == wip_item_id
+                    )
 
                 if not prev_data_query.first():
                     # Count how many processes are PASS
@@ -368,6 +399,10 @@ def start_process(
                                 check_query = check_query.filter(
                                     ProcessData.serial_id == serial_id
                                 )
+                            elif wip_item_id:
+                                check_query = check_query.filter(
+                                    ProcessData.wip_id == wip_item_id
+                                )
                             if check_query.first():
                                 pass_count += 1
 
@@ -375,20 +410,40 @@ def start_process(
                         message=f"Process 7 requires all previous processes (1-6) to be PASS. Current PASS count: {pass_count}"
                     )
 
-    # Check for duplicate start (already in progress)
-    existing = db.query(ProcessData).filter(
+    # Check for concurrent work (WIP-Exclusive Concurrency)
+    # Rule: Only one WIP item per LOT can be active in a process at a time.
+    # Exception: The SAME WIP item can be started multiple times (self-overlap allowed).
+    
+    active_records_query = db.query(ProcessData).filter(
         ProcessData.lot_id == lot.id,
         ProcessData.process_id == process.id,
         ProcessData.completed_at.is_(None)
     )
-    if serial_id:
-        existing = existing.filter(ProcessData.serial_id == serial_id)
+    
+    active_records = active_records_query.all()
+    
+    for record in active_records:
+        # Check if the active record belongs to a DIFFERENT WIP/Serial
+        is_different_work = False
+        
+        if serial_id:
+            if record.serial_id != serial_id:
+                is_different_work = True
+        elif wip_item_id:
+            if record.wip_id != wip_item_id:
+                is_different_work = True
+        else:
+            # LOT level: If there is ANY active record, it's a conflict 
+            # (unless we want to allow multiple LOT-level starts? Assuming yes for consistency)
+            # But LOT level usually implies the whole LOT is the unit.
+            # If data_level is LOT, we check if record.id is not None (which it always is).
+            # Actually, for LOT level, we probably just allow multiple starts.
+            pass
 
-    if existing.first():
-        raise DuplicateResourceException(
-            resource_type="ProcessData",
-            identifier=f"Process {process_number} for LOT/Serial"
-        )
+        if is_different_work:
+             raise BusinessRuleException(
+                message=f"Another WIP item in this LOT is already being processed in Process {process.process_number}. Finish that work first."
+            )
 
     # Create process data record
     # Use provided start_time or current time
@@ -439,7 +494,7 @@ def start_process(
         db.rollback()
         error_str = str(e).lower()
         if "unique constraint" in error_str or "duplicate" in error_str:
-            raise DuplicateResourceException(
+             raise DuplicateResourceException(
                 resource_type="ProcessData",
                 identifier=f"lot_id={lot.id}, process_id={process.id}"
             )
@@ -524,6 +579,7 @@ def complete_process(
         raise LotNotFoundException(lot_number=request.lot_number)
 
     # Find in-progress process data
+    # Use LIFO (Last In First Out) strategy: Find the LATEST started active record
     query = db.query(ProcessData).filter(
         ProcessData.lot_id == lot.id,
         ProcessData.process_id == request.process_id,
@@ -546,8 +602,8 @@ def complete_process(
         # WIP found via Smart Lookup
         query = query.filter(ProcessData.wip_id == wip_for_query.id)
 
-
-    process_data = query.first()
+    # Order by started_at DESC to get the latest one
+    process_data = query.order_by(ProcessData.started_at.desc()).first()
 
     if not process_data:
         raise ValidationException(
@@ -562,8 +618,11 @@ def complete_process(
             message=f"Invalid result. Must be one of: PASS, FAIL, REWORK"
         )
 
-    # Update process data
-    completed_at = datetime.utcnow()
+    # Update process data with LOCAL time (Korea timezone)
+    from datetime import timezone, timedelta
+    korea_tz = timezone(timedelta(hours=9))  # UTC+9
+    completed_at = datetime.now(korea_tz)  # Use local Korea time
+    
     process_data.result = result
     process_data.completed_at = completed_at
     process_data.measurements = request.measurement_data or {}
@@ -571,9 +630,36 @@ def complete_process(
     if request.defect_data and result == ProcessResult.FAIL:
         process_data.defects = request.defect_data
 
-    # Calculate duration
-    duration_seconds = int((completed_at - process_data.started_at).total_seconds())
-    process_data.duration_seconds = duration_seconds
+    # Calculate duration with proper timezone handling
+    duration_seconds = 0  # Initialize with default
+    if process_data.started_at:
+        start_ts = process_data.started_at
+        end_ts = completed_at
+        
+        # Ensure both timestamps have timezone info
+        # If started_at is naive, assume it's in Korea timezone
+        if start_ts.tzinfo is None:
+            start_ts = start_ts.replace(tzinfo=korea_tz)
+        if end_ts.tzinfo is None:
+            end_ts = end_ts.replace(tzinfo=korea_tz)
+            
+        # Calculate duration - should always be positive
+        duration_seconds = int((end_ts - start_ts).total_seconds())
+        
+        # Safety check: if duration is negative, something is wrong with timestamps
+        # Set to 0 instead of failing
+        if duration_seconds < 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Negative duration calculated: {duration_seconds}s. "
+                f"start={start_ts}, end={end_ts}. Setting to 0."
+            )
+            duration_seconds = 0
+            
+        process_data.duration_seconds = duration_seconds
+    else:
+        process_data.duration_seconds = 0
 
     try:
         db.commit()

@@ -398,6 +398,7 @@ def convert_wip_to_serial(
 def get_wip_trace(
     wip_id: str,
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     Get complete traceability information for a WIP item.
@@ -430,7 +431,7 @@ def get_wip_trace(
     process_data_records = (
         db.query(ProcessData)
         .filter(ProcessData.wip_id == wip_item.id)
-        .join(Process)
+        .join(Process, ProcessData.process_id == Process.id)
         .order_by(Process.process_number, ProcessData.created_at)
         .all()
     )
@@ -444,14 +445,16 @@ def get_wip_trace(
         process_record = {
             "process_number": pd.process.process_number if pd.process else None,
             "process_code": pd.process.process_code if pd.process else None,
-            "process_name": pd.process.process_name if pd.process else None,
+            "process_name": pd.process.process_name_en if pd.process else None,
             "worker_id": pd.operator.username if pd.operator else None,
             "worker_name": pd.operator.full_name if pd.operator else None,
-            "start_time": pd.started_at.isoformat() if pd.started_at else None,
-            "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
+            "started_at": pd.started_at.isoformat() if pd.started_at else None,
+            "completed_at": pd.completed_at.isoformat() if pd.completed_at else None,
+            "cycle_time_seconds": pd.duration_seconds,
             "duration_seconds": pd.duration_seconds,
             "result": pd.result if pd.result else None,
-            "process_data": pd.measurements if pd.measurements else {},
+            "measurements": pd.measurements if pd.measurements else {},
+            "defect_codes": pd.defects if pd.defects and pd.result == ProcessResult.FAIL.value else [],
             "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL.value else [],
             "notes": pd.notes,
             "is_rework": False # WIP rework logic might differ, assuming false for now or check logic
@@ -479,7 +482,7 @@ def get_wip_trace(
         "wip_id": wip_item.wip_id,
         "lot_number": wip_item.lot.lot_number if wip_item.lot else None,
         "sequence_in_lot": wip_item.sequence_in_lot,
-        "status": wip_item.status.value,
+        "status": wip_item.status,
         "created_at": wip_item.created_at.isoformat(),
         "completed_at": wip_item.completed_at.isoformat() if wip_item.completed_at else None,
         "converted_at": wip_item.converted_at.isoformat() if wip_item.converted_at else None,

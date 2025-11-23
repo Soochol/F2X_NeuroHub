@@ -78,43 +78,41 @@ export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
                 }}
               />
             </div>
-            {isValid !== null && (
-              <div style={{
-                marginTop: '6px',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: isValid ? 'var(--color-success)' : 'var(--color-error)'
-              }}>
-                {isValid ? (
-                  <>
-                    <CheckCircle2 size={14} />
-                    <span>
-                      Valid {detectSerialVersion(serialNumber) === 1 ? 'V1' : 'V0'} format
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={14} />
-                    <span>Invalid serial format</span>
-                  </>
-                )}
-              </div>
-            )}
-            {error && (
-              <div style={{
-                marginTop: '6px',
-                color: 'var(--color-error)',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <AlertCircle size={14} />
-                {error}
-              </div>
-            )}
+            {/* Absolute positioned container to prevent layout shift */}
+            <div style={{ position: 'relative' }}>
+              {(isValid !== null || error) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '6px',
+                  left: 0,
+                  right: 0,
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: error ? 'var(--color-error)' : (isValid ? 'var(--color-success)' : 'var(--color-error)')
+                }}>
+                  {error ? (
+                    <>
+                      <AlertCircle size={14} />
+                      {error}
+                    </>
+                  ) : isValid ? (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>
+                        Valid {detectSerialVersion(serialNumber) === 1 ? 'V1' : 'V0'} format
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={14} />
+                      <span>Invalid serial format</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <Button
             type="submit"

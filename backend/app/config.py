@@ -2,7 +2,7 @@
 Application Configuration using Pydantic Settings.
 
 Environment variables can be set in .env file:
-    DATABASE_URL=postgresql://postgres:password@localhost:5432/f2x_neurohub_mes
+    DATABASE_URL: str = "sqlite:///./dev.db"
     SECRET_KEY=your-secret-key-here
     DEBUG=True
 """
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/f2x_neurohub_mes"
+    DATABASE_URL: str = "sqlite:///./dev.db"  # Force SQLite for local development
     DB_ECHO: bool = False  # SQLAlchemy echo SQL statements
 
     # Security

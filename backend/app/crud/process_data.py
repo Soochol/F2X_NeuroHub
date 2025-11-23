@@ -142,6 +142,7 @@ def create(db: Session, *, obj_in: ProcessDataCreate) -> ProcessData:
     db_obj = ProcessData(
         lot_id=obj_in.lot_id,
         serial_id=obj_in.serial_id,
+        wip_id=obj_in.wip_id,
         process_id=obj_in.process_id,
         operator_id=obj_in.operator_id,
         data_level=obj_in.data_level.value,
@@ -584,6 +585,41 @@ def get_by_lot_and_process(
                 ProcessData.lot_id == lot_id,
                 ProcessData.process_id == process_id,
                 ProcessData.serial_id.is_(None)
+            )
+        )
+        .first()
+    )
+
+
+def get_by_lot_process_wip(
+    db: Session,
+    *,
+    lot_id: int,
+    process_id: int,
+    wip_id: int
+) -> Optional[ProcessData]:
+    """
+    Get process data for a specific LOT, process, and WIP item combination.
+
+    Retrieves a single process record for a specific WIP item within a LOT.
+    Used for WIP-level process tracking where multiple WIP items exist in one LOT.
+
+    Args:
+        db: SQLAlchemy Session for database operations
+        lot_id: Primary key of the LOT
+        process_id: Primary key of the process
+        wip_id: Primary key of the WIP item
+
+    Returns:
+        ProcessData object if found, None otherwise
+    """
+    return (
+        db.query(ProcessData)
+        .filter(
+            and_(
+                ProcessData.lot_id == lot_id,
+                ProcessData.process_id == process_id,
+                ProcessData.wip_id == wip_id
             )
         )
         .first()
