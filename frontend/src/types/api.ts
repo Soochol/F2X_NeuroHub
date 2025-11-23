@@ -593,3 +593,61 @@ export interface LotQueryParams extends BaseQueryParams {
   status?: LotStatus;
   product_model_id?: number;
 }
+
+// ============================================================================
+// Printer Monitoring
+// ============================================================================
+
+export interface PrinterStatus {
+  online: boolean;
+  ip: string;
+  port: number;
+  response_time_ms?: number;
+  error?: string;
+  last_check: string;
+}
+
+export interface PrintLog {
+  id: number;
+  label_type: string;
+  label_id: string;
+  process_id?: number;
+  process_data_id?: number;
+  printer_ip?: string;
+  printer_port?: number;
+  status: 'SUCCESS' | 'FAILED';
+  error_message?: string;
+  operator_id?: number;
+  created_at: string;
+}
+
+export interface PrintStatistics {
+  total_prints: number;
+  success_count: number;
+  failed_count: number;
+  success_rate: number;
+  today_prints: number;
+  by_label_type: Record<string, number>;
+  recent_failures: Array<{
+    label_id: string;
+    label_type: string;
+    error?: string;
+    time: string;
+  }>;
+  date_range: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface PrintLogQueryParams extends BaseQueryParams {
+  label_type?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface PrintLogsResponse {
+  total: number;
+  logs: PrintLog[];
+}

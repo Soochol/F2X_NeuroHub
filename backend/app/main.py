@@ -41,6 +41,7 @@ from app.api.v1 import (
     production_lines,
     equipment,
     error_logs,
+    printer_monitoring,
 )
 
 # Import middleware
@@ -315,6 +316,7 @@ app.include_router(alerts.router, prefix=settings.API_V1_PREFIX, tags=["Alerts"]
 app.include_router(production_lines.router, prefix=settings.API_V1_PREFIX, tags=["Production Lines"])
 app.include_router(equipment.router, prefix=settings.API_V1_PREFIX, tags=["Equipment"])
 app.include_router(error_logs.router, prefix=settings.API_V1_PREFIX, tags=["Error Logs"])
+app.include_router(printer_monitoring.router, prefix=settings.API_V1_PREFIX + "/printer", tags=["Printer Monitoring"])
 
 
 if __name__ == "__main__":

@@ -73,28 +73,6 @@ const navConfig: NavConfig = [
   },
 
   {
-    id: 'reports',
-    label: 'Reports & Analytics',
-    icon: BarChart3,
-    roles: [UserRole.ADMIN, UserRole.MANAGER],
-    items: [
-      { path: '/quality', label: 'Quality', icon: CheckCircle, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/analytics', label: 'Analytics', icon: TrendingUp, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-    ]
-  },
-
-  {
-    id: 'system',
-    label: 'System',
-    icon: FileText,
-    roles: [UserRole.ADMIN, UserRole.MANAGER],
-    items: [
-      { path: '/alerts', label: 'Alerts', icon: Bell, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/error-dashboard', label: 'Error Dashboard', icon: AlertTriangle, roles: [UserRole.ADMIN] },
-    ]
-  },
-
-  {
     id: 'admin',
     label: 'Admin',
     icon: Settings,
