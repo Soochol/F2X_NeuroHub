@@ -28,21 +28,15 @@ All endpoints include:
 from typing import List
 from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
 from app.api import deps
 from app.models import User
-from app.crud import process as crud
 from app.schemas.process import (
     ProcessCreate,
     ProcessUpdate,
     ProcessInDB,
 )
-from app.core.exceptions import (
-    ProcessNotFoundException,
-    DuplicateResourceException,
-    ConstraintViolationException,
-)
+from app.services.process_service import process_service
 
 
 router = APIRouter(
@@ -88,22 +82,8 @@ def list_processes(
 
     Raises:
         HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get first 10 processes:
-        >>> GET /api/v1/processes/?skip=0&limit=10
-
-        Get next page (items 10-20):
-        >>> GET /api/v1/processes/?skip=10&limit=10
-
-        Get all 8 processes:
-        >>> GET /api/v1/processes/?skip=0&limit=100
-
-    OpenAPI Parameters:
-        skip: Query parameter, non-negative integer
-        limit: Query parameter, positive integer (1-100)
     """
-    return crud.get_multi(db, skip=skip, limit=limit)
+    return process_service.list_processes(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -134,30 +114,8 @@ def get_process_by_number(
 
     Raises:
         HTTPException: 404 Not Found if process does not exist with given number.
-
-    Examples:
-        Get process 1 (first in sequence):
-        >>> GET /api/v1/processes/number/1
-
-        Get process 5:
-        >>> GET /api/v1/processes/number/5
-
-        Get process 8 (last in sequence):
-        >>> GET /api/v1/processes/number/8
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_en": "Laser Marking",
-            ...
-        }
     """
-    obj = crud.get_by_number(db, process_number=process_number)
-    if not obj:
-        raise ProcessNotFoundException(process_id=process_number)
-    return obj
+    return process_service.get_process_by_number(db, process_number=process_number)
 
 
 @router.get(
@@ -188,31 +146,8 @@ def get_process_by_code(
 
     Raises:
         HTTPException: 404 Not Found if process does not exist with given code.
-
-    Examples:
-        Get process by code:
-        >>> GET /api/v1/processes/code/LASER_MARKING
-
-        Get process with different code (case-insensitive):
-        >>> GET /api/v1/processes/code/laser_marking
-
-        Get quality check process:
-        >>> GET /api/v1/processes/code/QUALITY_CHECK
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_ko": "레이저 마킹",
-            "process_name_en": "Laser Marking",
-            ...
-        }
     """
-    obj = crud.get_by_code(db, process_code=process_code)
-    if not obj:
-        raise ProcessNotFoundException(process_id=process_code)
-    return obj
+    return process_service.get_process_by_code(db, process_code=process_code)
 
 
 @router.get(
@@ -240,34 +175,8 @@ def get_active_processes(
 
     Raises:
         HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get all active processes:
-        >>> GET /api/v1/processes/active
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "process_number": 1,
-                "process_code": "LASER_MARKING",
-                "process_name_en": "Laser Marking",
-                "is_active": true,
-                "sort_order": 1,
-                ...
-            },
-            {
-                "id": 2,
-                "process_number": 2,
-                "process_code": "QUALITY_CHECK",
-                "process_name_en": "Quality Check",
-                "is_active": true,
-                "sort_order": 2,
-                ...
-            }
-        ]
     """
-    return crud.get_active(db)
+    return process_service.get_active_processes(db)
 
 
 @router.get(
@@ -300,53 +209,8 @@ def get_process_sequence(
 
     Raises:
         HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get the complete manufacturing sequence:
-        >>> GET /api/v1/processes/sequence
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "process_number": 1,
-                "process_code": "LASER_MARKING",
-                "process_name_en": "Laser Marking",
-                "sort_order": 1,
-                "is_active": true,
-                ...
-            },
-            {
-                "id": 2,
-                "process_number": 2,
-                "process_code": "QUALITY_CHECK",
-                "process_name_en": "Quality Check",
-                "sort_order": 2,
-                "is_active": true,
-                ...
-            },
-            {
-                "id": 3,
-                "process_number": 3,
-                "process_code": "PACKAGING",
-                "process_name_en": "Packaging",
-                "sort_order": 3,
-                "is_active": true,
-                ...
-            },
-            ...
-            {
-                "id": 8,
-                "process_number": 8,
-                "process_code": "SHIPPING",
-                "process_name_en": "Shipping",
-                "sort_order": 8,
-                "is_active": true,
-                ...
-            }
-        ]
     """
-    return crud.get_sequence(db)
+    return process_service.get_process_sequence(db)
 
 
 @router.get(
@@ -375,37 +239,8 @@ def get_process(
 
     Raises:
         HTTPException: 404 Not Found if process does not exist with given ID.
-
-    Examples:
-        Get process with ID 1:
-        >>> GET /api/v1/processes/1
-
-        Get process with ID 5:
-        >>> GET /api/v1/processes/5
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_ko": "레이저 마킹",
-            "process_name_en": "Laser Marking",
-            "description": "Process for marking products with laser",
-            "estimated_duration_seconds": 120,
-            "quality_criteria": {
-                "min_power": 50,
-                "max_power": 100
-            },
-            "is_active": true,
-            "sort_order": 1,
-            "created_at": "2024-01-15T10:30:00",
-            "updated_at": "2024-01-15T10:30:00"
-        }
     """
-    obj = crud.get(db, process_id=id)
-    if not obj:
-        raise ProcessNotFoundException(process_id=id)
-    return obj
+    return process_service.get_process(db, process_id=id)
 
 
 @router.post(
@@ -443,71 +278,8 @@ def create_process(
         HTTPException: 409 Conflict if process_number or process_code already exists.
         HTTPException: 400 Bad Request if validation fails.
         HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Create minimal process:
-        >>> POST /api/v1/processes/
-        >>> {
-        ...     "process_number": 1,
-        ...     "process_code": "LASER_MARKING",
-        ...     "process_name_ko": "레이저 마킹",
-        ...     "process_name_en": "Laser Marking",
-        ...     "sort_order": 1
-        ... }
-
-        Create full process with quality criteria:
-        >>> POST /api/v1/processes/
-        >>> {
-        ...     "process_number": 2,
-        ...     "process_code": "QUALITY_CHECK",
-        ...     "process_name_ko": "품질 검사",
-        ...     "process_name_en": "Quality Check",
-        ...     "description": "Comprehensive quality verification process",
-        ...     "estimated_duration_seconds": 300,
-        ...     "quality_criteria": {
-        ...         "min_pass_rate": 95,
-        ...         "max_defects": 2
-        ...     },
-        ...     "is_active": true,
-        ...     "sort_order": 2
-        ... }
-
-    Response Example (201 Created):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_ko": "레이저 마킹",
-            "process_name_en": "Laser Marking",
-            "description": null,
-            "estimated_duration_seconds": null,
-            "quality_criteria": {},
-            "is_active": true,
-            "sort_order": 1,
-            "created_at": "2024-01-15T10:30:00",
-            "updated_at": "2024-01-15T10:30:00"
-        }
     """
-    try:
-        return crud.create(db, process_in=obj_in)
-    except IntegrityError as e:
-        db.rollback()
-        # Check for specific constraint violations
-        error_msg = str(e).lower()
-        if "process_number" in error_msg:
-            raise DuplicateResourceException(
-                resource_type="Process",
-                identifier=f"number={obj_in.process_number}"
-            )
-        elif "process_code" in error_msg:
-            raise DuplicateResourceException(
-                resource_type="Process",
-                identifier=f"code='{obj_in.process_code}'"
-            )
-        else:
-            raise ConstraintViolationException(
-                message="Process creation failed due to constraint violation"
-            )
+    return process_service.create_process(db, obj_in=obj_in)
 
 
 @router.put(
@@ -548,63 +320,8 @@ def update_process(
         HTTPException: 409 Conflict if update violates unique constraints.
         HTTPException: 400 Bad Request if validation fails.
         HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Update process name only:
-        >>> PUT /api/v1/processes/1
-        >>> {
-        ...     "process_name_en": "Updated Laser Marking"
-        ... }
-
-        Update status to inactive:
-        >>> PUT /api/v1/processes/1
-        >>> {
-        ...     "is_active": false
-        ... }
-
-        Update multiple fields:
-        >>> PUT /api/v1/processes/1
-        >>> {
-        ...     "process_name_en": "Updated Name",
-        ...     "estimated_duration_seconds": 150,
-        ...     "quality_criteria": {"min_power": 60}
-        ... }
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_en": "Updated Name",
-            "estimated_duration_seconds": 150,
-            "quality_criteria": {"min_power": 60},
-            ...
-        }
     """
-    obj = crud.get(db, process_id=id)
-    if not obj:
-        raise ProcessNotFoundException(process_id=id)
-
-    try:
-        return crud.update(db, process_id=id, process_in=obj_in)
-    except IntegrityError as e:
-        db.rollback()
-        # Check for specific constraint violations
-        error_msg = str(e).lower()
-        if "process_number" in error_msg:
-            raise DuplicateResourceException(
-                resource_type="Process",
-                identifier=f"number={obj_in.process_number}"
-            )
-        elif "process_code" in error_msg:
-            raise DuplicateResourceException(
-                resource_type="Process",
-                identifier=f"code='{obj_in.process_code}'"
-            )
-        else:
-            raise ConstraintViolationException(
-                message="Process update failed due to constraint violation"
-            )
+    return process_service.update_process(db, process_id=id, obj_in=obj_in)
 
 
 @router.delete(
@@ -642,42 +359,5 @@ def delete_process(
         HTTPException: 423 Locked if deletion violates foreign key constraint
                        (has dependent lot_processes data).
         HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Delete process with ID 1:
-        >>> DELETE /api/v1/processes/1
-
-        Delete process with ID 5:
-        >>> DELETE /api/v1/processes/5
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "process_number": 1,
-            "process_code": "LASER_MARKING",
-            "process_name_ko": "레이저 마킹",
-            "process_name_en": "Laser Marking",
-            "description": "Process for marking products with laser",
-            "estimated_duration_seconds": 120,
-            "quality_criteria": {
-                "min_power": 50,
-                "max_power": 100
-            },
-            "is_active": true,
-            "sort_order": 1,
-            "created_at": "2024-01-15T10:30:00",
-            "updated_at": "2024-01-15T10:30:00"
-        }
     """
-    obj = crud.get(db, process_id=id)
-    if not obj:
-        raise ProcessNotFoundException(process_id=id)
-
-    try:
-        crud.delete(db, process_id=id)
-    except IntegrityError as e:
-        db.rollback()
-        # Process deletion is protected by database trigger
-        raise ConstraintViolationException(
-            message="Cannot delete process: has dependent data (lot_processes). Process deletion is protected by database trigger."
-        )
+    process_service.delete_process(db, process_id=id)

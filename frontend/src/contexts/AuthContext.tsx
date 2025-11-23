@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authApi } from '@/api';
 import type { User, LoginRequest } from '@/types/api';
+import Logger from '@/utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -49,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(currentUser);
           localStorage.setItem('user', JSON.stringify(currentUser));
         } catch (error) {
-          console.error('Failed to verify token:', error);
+          Logger.error('Failed to verify token:', error);
           localStorage.removeItem('access_token');
           localStorage.removeItem('user');
           setUser(null);
@@ -68,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authApi.login(credentials);
       setUser(response.user);
     } catch (error) {
-      console.error('Login failed:', error);
+      Logger.error('Login failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await authApi.logout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      Logger.error('Logout failed:', error);
     } finally {
       setUser(null);
       setIsLoading(false);
@@ -93,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(currentUser);
       localStorage.setItem('user', JSON.stringify(currentUser));
     } catch (error) {
-      console.error('Failed to refresh user:', error);
+      Logger.error('Failed to refresh user:', error);
       throw error;
     }
   }, []);

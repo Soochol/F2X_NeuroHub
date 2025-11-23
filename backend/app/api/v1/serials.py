@@ -28,26 +28,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app import crud
 from app.database import get_db
 from app.models import User
-from app.models.serial import SerialStatus
-from app.models.process import Process
-from app.models.process_data import ProcessData, ProcessResult
 from app.schemas.serial import SerialCreate, SerialInDB, SerialUpdate, SerialListItem
 from app.api import deps
 from app.core.exceptions import (
     SerialNotFoundException,
     ValidationException,
     MissingRequiredFieldException,
-    BusinessRuleException,
-    ConstraintViolationException,
 )
-from app.utils.serial_number import SerialNumber
-from app.services.printer_service import printer_service
-from app.models.wip_item import WIPItem, WIPStatus
-from app.models.lot import Lot
-from app.schemas.serial import SerialCreate
+from app.services.serial_service import serial_service
 
 router = APIRouter(
     prefix="/serials",
@@ -83,11 +73,7 @@ def list_serials(
         HTTPException 400: If status filter is invalid
         HTTPException 422: If query parameters are invalid
     """
-    try:
-        serials = crud.serial.get_multi(db, skip=skip, limit=limit, status=status)
-        return serials
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.list_serials(db, skip=skip, limit=limit, status=status)
 
 
 @router.get(
@@ -114,8 +100,7 @@ def get_failed_serials(
     Raises:
         HTTPException 422: If query parameters are invalid
     """
-    serials = crud.serial.get_failed(db, skip=skip, limit=limit)
-    return serials
+    return serial_service.get_failed_serials(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -146,10 +131,7 @@ def get_serial_by_number(
     Raises:
         HTTPException 404: If serial not found
     """
-    serial = crud.serial.get_by_number(db, serial_number=serial_number)
-    if not serial:
-        raise SerialNotFoundException(serial_id=f"number='{serial_number}'")
-    return serial
+    return serial_service.get_serial_by_number(db, serial_number=serial_number)
 
 
 @router.get(
@@ -180,8 +162,7 @@ def get_serials_by_lot(
     Raises:
         HTTPException 422: If query parameters are invalid
     """
-    serials = crud.serial.get_by_lot(db, lot_id=lot_id, skip=skip, limit=limit)
-    return serials
+    return serial_service.get_serials_by_lot(db, lot_id=lot_id, skip=skip, limit=limit)
 
 
 @router.get(
@@ -213,11 +194,7 @@ def get_serials_by_status(
         HTTPException 400: If status is invalid
         HTTPException 422: If query parameters are invalid
     """
-    try:
-        serials = crud.serial.get_by_status(db, status=status_filter, skip=skip, limit=limit)
-        return serials
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.get_serials_by_status(db, status_filter=status_filter, skip=skip, limit=limit)
 
 
 @router.get(
@@ -242,10 +219,7 @@ def get_serial(
     Raises:
         HTTPException 404: If serial not found
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise SerialNotFoundException(serial_id=serial_id)
-    return serial
+    return serial_service.get_serial(db, serial_id=serial_id)
 
 
 @router.post(
@@ -279,31 +253,7 @@ def create_serial(
         HTTPException 409: If unique constraint violated
         HTTPException 422: If request body is invalid
     """
-    try:
-        serial = crud.serial.create(db, serial_in=serial_in)
-        
-        if print_label:
-            try:
-                # Get model code and production date for label
-                model_code = serial.lot.product_model.model_code if serial.lot and serial.lot.product_model else "N/A"
-                production_date = serial.lot.production_date.strftime("%Y-%m-%d") if serial.lot and serial.lot.production_date else "N/A"
-                
-                printer_service.print_label(
-                    serial_number=serial.serial_number,
-                    model_code=model_code,
-                    production_date=production_date
-                )
-            except Exception as e:
-                # Log error but don't fail the request
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to print label for serial {serial.serial_number}: {e}")
-            
-        return serial
-    except ValueError as e:
-        raise ValidationException(message=str(e))
-    except Exception as e:
-        raise ConstraintViolationException(message="Failed to create serial. Lot may not exist or unique constraint violated.")
+    return serial_service.create_serial(db, serial_in=serial_in, print_label=print_label)
 
 
 @router.post(
@@ -332,71 +282,7 @@ def generate_from_wip(
     Returns:
         Created Serial object
     """
-    # 1. Find WIP Item
-    wip_item = db.query(WIPItem).filter(WIPItem.wip_id == wip_id).first()
-    if not wip_item:
-        raise ValidationException(message=f"WIP ID '{wip_id}' not found")
-
-    # 2. Validate WIP status
-    if wip_item.serial_id is not None:
-        raise ValidationException(message=f"WIP '{wip_id}' is already converted to serial")
-    
-    # 3. Get LOT
-    lot = wip_item.lot
-    if not lot:
-        raise ValidationException(message=f"Associated LOT not found for WIP '{wip_id}'")
-
-    try:
-        # 4. Determine next sequence
-        # Get current max sequence for this LOT
-        current_count = crud.serial.count_by_lot(db, lot_id=lot.id)
-        next_sequence = current_count + 1
-
-        if next_sequence > lot.target_quantity:
-             raise ValidationException(message=f"Target quantity ({lot.target_quantity}) reached for LOT {lot.lot_number}")
-
-        # 5. Create Serial
-        serial_in = SerialCreate(
-            lot_id=lot.id,
-            sequence_in_lot=next_sequence,
-            status=SerialStatus.CREATED
-        )
-        
-        serial = crud.serial.create(db, serial_in=serial_in)
-
-        # 6. Update WIP Item
-        wip_item.serial_id = serial.id
-        wip_item.status = WIPStatus.CONVERTED.value
-        wip_item.converted_at = serial.created_at
-        db.add(wip_item)
-        db.commit()
-        db.refresh(serial)
-
-        # 7. Print Label
-        if print_label:
-            try:
-                model_code = lot.product_model.model_code if lot.product_model else "N/A"
-                production_date = lot.production_date.strftime("%Y-%m-%d") if lot.production_date else "N/A"
-                
-                printer_service.print_label(
-                    serial_number=serial.serial_number,
-                    model_code=model_code,
-                    production_date=production_date
-                )
-            except Exception as e:
-                # Log error but don't fail the request
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to print label for serial {serial.serial_number}: {e}")
-
-        return serial
-
-    except ValueError as e:
-        db.rollback()
-        raise ValidationException(message=str(e))
-    except Exception as e:
-        db.rollback()
-        raise ValidationException(message=f"Failed to generate serial: {str(e)}")
+    return serial_service.generate_from_wip(db, wip_id=wip_id, print_label=print_label)
 
 
 @router.put(
@@ -430,15 +316,7 @@ def update_serial(
         HTTPException 400: If validation fails
         HTTPException 422: If request body is invalid
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise SerialNotFoundException(serial_id=serial_id)
-
-    try:
-        updated_serial = crud.serial.update(db, serial_id=serial_id, serial_in=serial_in)
-        return updated_serial
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.update_serial(db, serial_id=serial_id, serial_in=serial_in)
 
 
 @router.put(
@@ -478,26 +356,18 @@ def update_serial_status(
         - FAILED → IN_PROGRESS (allowed, max 3 times)
         - PASSED is final (no transitions allowed)
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise SerialNotFoundException(serial_id=serial_id)
-
     status_value = status_update.get("status")
     failure_reason = status_update.get("failure_reason")
 
     if not status_value:
         raise MissingRequiredFieldException(field_name="status")
 
-    try:
-        updated_serial = crud.serial.update_status(
-            db,
-            serial_id=serial_id,
-            status=status_value,
-            failure_reason=failure_reason
-        )
-        return updated_serial
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.update_serial_status(
+        db,
+        serial_id=serial_id,
+        status_value=status_value,
+        failure_reason=failure_reason
+    )
 
 
 @router.post(
@@ -530,25 +400,7 @@ def rework_serial(
         - Each rework resets status to IN_PROGRESS
         - After 3 failed reworks, serial is permanently failed
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise SerialNotFoundException(serial_id=serial_id)
-
-    if not crud.serial.can_rework(db, serial_id=serial_id):
-        if serial.status != SerialStatus.FAILED:
-            raise BusinessRuleException(
-                message=f"Serial is not in FAILED status (current: {serial.status.value}). Cannot start rework."
-            )
-        else:
-            raise BusinessRuleException(
-                message=f"Maximum rework count (3) exceeded for serial {serial.serial_number}"
-            )
-
-    try:
-        updated_serial = crud.serial.increment_rework(db, serial_id=serial_id)
-        return updated_serial
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.rework_serial(db, serial_id=serial_id)
 
 
 @router.get(
@@ -583,26 +435,7 @@ def check_can_rework(
         - Serial must be in FAILED status
         - Rework count must be less than 3
     """
-    serial = crud.serial.get(db, serial_id=serial_id)
-    if not serial:
-        raise SerialNotFoundException(serial_id=serial_id)
-
-    can_rework = crud.serial.can_rework(db, serial_id=serial_id)
-
-    if can_rework:
-        reason = f"Serial eligible for rework. Current rework count: {serial.rework_count}/3"
-    else:
-        if serial.status != SerialStatus.FAILED:
-            reason = f"Serial is in {serial.status.value} status, not FAILED. Cannot rework."
-        else:
-            reason = f"Serial has exhausted maximum rework count (3/3)"
-
-    return {
-        "can_rework": can_rework,
-        "reason": reason,
-        "rework_count": serial.rework_count,
-        "status": serial.status.value,
-    }
+    return serial_service.check_can_rework(db, serial_id=serial_id)
 
 
 @router.delete(
@@ -633,10 +466,7 @@ def delete_serial(
         - Deletion cascades to associated ProcessData records
         - Cannot delete serials with active dependencies (if enforced by DB constraints)
     """
-    deleted = crud.serial.delete(db, serial_id=serial_id)
-    if not deleted:
-        raise SerialNotFoundException(serial_id=serial_id)
-    return None
+    return serial_service.delete_serial(db, serial_id=serial_id)
 
 
 @router.get(
@@ -674,202 +504,5 @@ def get_serial_trace(
     Raises:
         HTTPException 404: If serial not found
         HTTPException 422: If serial_number format is invalid
-
-    Example Response:
-        {
-            "serial_number": "WF-KR-251118D-001-0001",
-            "lot_number": "WF-KR-251118D-001",
-            "status": "PASSED",
-            "rework_count": 0,
-            "created_at": "2025-01-18T08:00:00Z",
-            "completed_at": "2025-01-18T16:30:00Z",
-            "lot_info": {
-                "lot_number": "WF-KR-251118D-001",
-                "product_model": "WF-A01",
-                "production_date": "2025-01-18"
-            },
-            "process_history": [
-                {
-                    "process_number": 1,
-                    "process_code": "PROC-001",
-                    "process_name": "레이저 마킹",
-                    "worker_id": "W001",
-                    "worker_name": "홍길동",
-                    "start_time": "2025-01-18T09:00:00Z",
-                    "complete_time": "2025-01-18T09:01:00Z",
-                    "duration_seconds": 60,
-                    "result": "PASS",
-                    "process_data": {
-                        "laser_power": 15,
-                        "marking_time": 60
-                    },
-                    "is_rework": false
-                },
-                ...
-            ],
-            "rework_history": [],
-            "component_lots": {
-                "busbar_lot": "BUSBAR-2025011801",
-                "sma_spring_lot": "SPRING-2025011802"
-            },
-            "total_cycle_time_seconds": 30600
-        }
     """
-    # Get serial by serial_number
-    serial = crud.serial.get_by_serial_number(db, serial_number=serial_number)
-    if not serial:
-        raise SerialNotFoundException(serial_id=f"serial_number='{serial_number}'")
-
-    # Get LOT information
-    lot_info = None
-    if serial.lot:
-        lot_info = {
-            "lot_number": serial.lot.lot_number,
-            "product_model": serial.lot.product_model.model_code if serial.lot.product_model else None,
-            "production_date": serial.lot.production_date.isoformat() if serial.lot.production_date else None,
-            "target_quantity": serial.lot.target_quantity,
-        }
-
-    # Get all process data for this serial (ordered by process sequence and timestamp)
-    process_data_records = (
-        db.query(ProcessData)
-        .filter(ProcessData.serial_id == serial.id)
-        .join(Process)
-        .order_by(Process.process_number, ProcessData.created_at)
-        .all()
-    )
-
-    # Build process history
-    process_history = []
-    rework_history = []
-    total_cycle_time = 0
-
-    for pd in process_data_records:
-        process_record = {
-            "process_number": pd.process.process_number if pd.process else None,
-            "process_code": pd.process.process_code if pd.process else None,
-            "process_name": pd.process.process_name if pd.process else None,
-            "worker_id": pd.operator.username if pd.operator else None,
-            "worker_name": pd.operator.full_name if pd.operator else None,
-            "start_time": pd.started_at.isoformat() if pd.started_at else None,
-            "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
-            "duration_seconds": pd.duration_seconds,
-            "result": pd.result.value if pd.result else None,
-            "process_data": pd.measurements if pd.measurements else {},
-            "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL else [],
-            "notes": pd.notes,
-            "is_rework": getattr(pd, 'is_rework', False)  # Assuming is_rework field exists
-        }
-
-        process_history.append(process_record)
-
-        # Accumulate cycle time
-        if pd.duration_seconds:
-            total_cycle_time += pd.duration_seconds
-
-        # Track rework attempts
-        if process_record["is_rework"]:
-            rework_history.append({
-                "process_code": process_record["process_code"],
-                "process_name": process_record["process_name"],
-                "attempt_time": process_record["complete_time"],
-                "result": process_record["result"],
-                "defects": process_record["defects"]
-            })
-
-    # Extract component LOTs from process data if available
-    # (Typically stored in specific process measurements like "LMA 조립")
-    component_lots = {}
-    for pd in process_data_records:
-        if pd.measurements and isinstance(pd.measurements, dict):
-            # Look for component tracking fields
-            if "busbar_lot" in pd.measurements:
-                component_lots["busbar_lot"] = pd.measurements["busbar_lot"]
-            if "sma_spring_lot" in pd.measurements:
-                component_lots["sma_spring_lot"] = pd.measurements["sma_spring_lot"]
-            if "component_lots" in pd.measurements:
-                component_lots.update(pd.measurements["component_lots"])
-
-    return {
-        "serial_number": serial.serial_number,
-        "lot_number": serial.lot.lot_number if serial.lot else None,
-        "sequence_in_lot": serial.sequence_in_lot,
-        "status": serial.status.value if serial.status else None,
-        "rework_count": serial.rework_count,
-        "created_at": serial.created_at.isoformat() if serial.created_at else None,
-        "completed_at": serial.completed_at.isoformat() if serial.completed_at else None,
-        "lot_info": lot_info,
-        "process_history": process_history,
-        "rework_history": rework_history,
-        "component_lots": component_lots if component_lots else None,
-        "total_cycle_time_seconds": total_cycle_time
-    }
-
-
-@router.get(
-    "/parse/{serial_number}",
-    response_model=dict,
-    summary="Parse serial number format",
-    description="Parse and validate serial number format, returning all components and metadata.",
-)
-def parse_serial_number(
-    serial_number: str = Path(
-        ...,
-        min_length=14,
-        max_length=14,
-        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
-        description="Serial number to parse (14 chars, format: KR01PSA2511001)"
-    ),
-):
-    """
-    Parse serial number and extract all components.
-
-    Format: KR01PSA2511001 (14 chars, no hyphens)
-
-    Path Parameters:
-        serial_number: Serial number string to parse
-
-    Returns:
-        Complete parsed information including:
-        - serial_number: Original input
-        - formatted: Human-readable formatted version
-        - valid: Boolean indicating if format is valid
-        - components: Parsed component breakdown
-        - production_date: Parsed production date
-
-    Raises:
-        HTTPException 400: If serial number format is invalid
-
-    Example Response:
-        {
-            "serial_number": "KR01PSA2511001",
-            "formatted": "KR01-PSA-2511-001",
-            "valid": true,
-            "components": {
-                "country_code": "KR",
-                "line_number": "01",
-                "model_code": "PSA",
-                "production_month": "2511",
-                "sequence": "001"
-            },
-            "production_date": "2025-11-01T00:00:00"
-        }
-    """
-    # Validate and parse
-    if not SerialNumber.validate(serial_number):
-        raise ValidationException(
-            message=f"Invalid serial number format: {serial_number}. "
-                   "Expected format: KR01PSA2511001 (14 characters)"
-        )
-
-    try:
-        info = SerialNumber.get_full_info(serial_number)
-        return {
-            "serial_number": info["serial_number"],
-            "formatted": info["formatted"],
-            "valid": info["valid"],
-            "components": info["components"],
-            "production_date": info["production_date"].isoformat() if info.get("production_date") else None
-        }
-    except ValueError as e:
-        raise ValidationException(message=str(e))
+    return serial_service.get_serial_trace(db, serial_number=serial_number)

@@ -12,17 +12,62 @@ Schemas:
     - ProcessDataInDB: Schema for database response with relationships
 
 Key Features:
-    - DataLevel enum validation (LOT, SERIAL)
+    - DataLevel enum validation (LOT, WIP, SERIAL)
     - ProcessResult enum validation (PASS, FAIL, REWORK)
     - JSONB fields for measurements and defects (dicts)
     - Conditional validation: serial_id required when data_level=SERIAL
     - Duration validation: completed_at >= started_at
+    - Defect/result consistency: defects required for FAIL, empty for PASS
     - Nested schemas for Process and User relationships
+
+Examples:
+    Valid LOT-level data:
+        {
+            "lot_id": 1,
+            "serial_id": null,
+            "wip_id": null,
+            "process_id": 1,
+            "operator_id": 1,
+            "data_level": "LOT",
+            "result": "PASS",
+            "measurements": {"temperature": 25.5},
+            "defects": null,
+            "started_at": "2024-01-01T10:00:00",
+            "completed_at": "2024-01-01T10:15:00"
+        }
+
+    Valid SERIAL-level FAIL data:
+        {
+            "lot_id": 1,
+            "serial_id": 100,
+            "process_id": 2,
+            "operator_id": 2,
+            "data_level": "SERIAL",
+            "result": "FAIL",
+            "measurements": {"pressure": 2.8},
+            "defects": {"type": "crack", "location": "edge", "severity": "critical"},
+            "started_at": "2024-01-01T11:00:00",
+            "completed_at": "2024-01-01T11:05:00",
+            "notes": "Crack detected during visual inspection"
+        }
+
+    Invalid data (FAIL without defects):
+        {
+            "lot_id": 1,
+            "serial_id": 101,
+            "process_id": 3,
+            "operator_id": 3,
+            "data_level": "SERIAL",
+            "result": "FAIL",
+            "defects": null,  # ERROR: defects required for FAIL
+            "started_at": "2024-01-01T12:00:00"
+        }
 """
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from enum import Enum
+import warnings
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
@@ -120,20 +165,23 @@ class ProcessDataBase(BaseModel):
     Attributes:
         lot_id: Foreign key to lots table (required)
         serial_id: Foreign key to serials table (optional for LOT-level)
+        wip_id: Foreign key to wip_items table (optional for LOT/SERIAL-level)
         process_id: Foreign key to processes table (required)
         operator_id: Foreign key to users table (required)
         equipment_id: Foreign key to equipment table (optional)
-        data_level: Data granularity level (LOT or SERIAL)
+        data_level: Data granularity level (LOT, WIP, or SERIAL)
         result: Process result (PASS, FAIL, REWORK)
         measurements: JSONB field with measurement data (dict, default empty)
-        defects: JSONB field with defect information (optional dict)
+        defects: JSONB field with defect information (required for FAIL)
         started_at: Process execution start timestamp
         completed_at: Process execution completion timestamp (optional)
         notes: Additional comments or observations from operator (optional)
 
     Validators:
-        - validate_data_level: Ensures serial_id consistency with data_level
+        - validate_data_level: Ensures serial_id/wip_id consistency with data_level
         - validate_timestamps: Ensures completed_at >= started_at
+        - validate_defects_result: Ensures defects consistency with result
+        - validate_business_rules: Comprehensive business rules validation
     """
 
     lot_id: int = Field(..., gt=0, description="Lot identifier")
@@ -141,14 +189,14 @@ class ProcessDataBase(BaseModel):
         None, gt=0, description="Serial identifier (required for SERIAL data_level)"
     )
     wip_id: Optional[int] = Field(
-        None, gt=0, description="WIP item identifier (for processes 1-6)"
+        None, gt=0, description="WIP item identifier (required for WIP data_level)"
     )
     process_id: int = Field(..., gt=0, description="Process identifier")
     operator_id: int = Field(..., gt=0, description="Operator identifier")
     equipment_id: Optional[int] = Field(
         None, gt=0, description="Equipment identifier"
     )
-    data_level: DataLevel = Field(..., description="Data granularity level: LOT or SERIAL")
+    data_level: DataLevel = Field(..., description="Data granularity level: LOT, WIP, or SERIAL")
     result: ProcessResult = Field(
         default=ProcessResult.PASS, description="Process result: PASS, FAIL, or REWORK"
     )
@@ -156,7 +204,7 @@ class ProcessDataBase(BaseModel):
         default_factory=dict, description="JSONB field with process measurements"
     )
     defects: Optional[Dict[str, Any]] = Field(
-        None, description="JSONB field with defect information if result=FAIL"
+        None, description="JSONB field with defect information (required if result=FAIL)"
     )
     started_at: datetime = Field(..., description="Process execution start timestamp")
     completed_at: Optional[datetime] = Field(
@@ -187,10 +235,14 @@ class ProcessDataBase(BaseModel):
             try:
                 return DataLevel(v.upper())
             except ValueError:
+                valid_values = [e.value for e in DataLevel]
                 raise ValueError(
-                    f"data_level must be one of {[e.value for e in DataLevel]}, got '{v}'"
+                    f"Invalid data_level '{v}'. Must be one of {valid_values}. "
+                    f"Current value: '{v}'"
                 )
-        raise ValueError(f"data_level must be a string or DataLevel enum, got {type(v)}")
+        raise ValueError(
+            f"data_level must be a string or DataLevel enum, got {type(v).__name__}"
+        )
 
     @field_validator("result", mode="before")
     @classmethod
@@ -213,10 +265,14 @@ class ProcessDataBase(BaseModel):
             try:
                 return ProcessResult(v.upper())
             except ValueError:
+                valid_values = [e.value for e in ProcessResult]
                 raise ValueError(
-                    f"result must be one of {[e.value for e in ProcessResult]}, got '{v}'"
+                    f"Invalid result '{v}'. Must be one of {valid_values}. "
+                    f"Current value: '{v}'"
                 )
-        raise ValueError(f"result must be a string or ProcessResult enum, got {type(v)}")
+        raise ValueError(
+            f"result must be a string or ProcessResult enum, got {type(v).__name__}"
+        )
 
     @field_validator("measurements")
     @classmethod
@@ -231,12 +287,28 @@ class ProcessDataBase(BaseModel):
             Validated measurements dict (empty dict if None)
 
         Raises:
-            ValueError: If value is not a dict
+            ValueError: If value is not a dict or has invalid structure
         """
         if v is None:
             return {}
         if not isinstance(v, dict):
-            raise ValueError("measurements must be a dictionary")
+            raise ValueError(
+                f"measurements must be a dictionary, got {type(v).__name__}"
+            )
+
+        # Validate measurement structure
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"measurement keys must be strings, got {type(key).__name__} for key {key}"
+                )
+            # Allow basic JSON-serializable types
+            if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                raise ValueError(
+                    f"measurement value for '{key}' must be JSON-serializable, "
+                    f"got {type(value).__name__}"
+                )
+
         return v
 
     @field_validator("defects")
@@ -252,21 +324,44 @@ class ProcessDataBase(BaseModel):
             Validated defects dict or None
 
         Raises:
-            ValueError: If value is not a dict
+            ValueError: If value is not a dict or has invalid structure
         """
-        if v is not None and not isinstance(v, dict):
-            raise ValueError("defects must be a dictionary")
+        if v is None:
+            return None
+
+        if not isinstance(v, dict):
+            raise ValueError(
+                f"defects must be a dictionary, got {type(v).__name__}"
+            )
+
+        # Empty dict is treated as None for consistency
+        if not v:
+            return None
+
+        # Validate defect structure
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"defect keys must be strings, got {type(key).__name__} for key {key}"
+                )
+            # Allow basic JSON-serializable types
+            if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                raise ValueError(
+                    f"defect value for '{key}' must be JSON-serializable, "
+                    f"got {type(value).__name__}"
+                )
+
         return v
 
     @model_validator(mode="after")
-    def validate_data_level_serial_consistency(self) -> "ProcessDataBase":
+    def validate_data_level_consistency(self) -> "ProcessDataBase":
         """
         Validate serial_id and wip_id consistency with data_level.
 
         Rules:
             - If data_level=LOT: serial_id and wip_id MUST be None
             - If data_level=WIP: wip_id MUST be provided, serial_id MUST be None
-            - If data_level=SERIAL: serial_id MUST be provided
+            - If data_level=SERIAL: serial_id MUST be provided, wip_id is optional
 
         Returns:
             Self instance if valid
@@ -277,26 +372,81 @@ class ProcessDataBase(BaseModel):
         if self.data_level == DataLevel.SERIAL:
             if self.serial_id is None:
                 raise ValueError(
-                    "serial_id is required when data_level='SERIAL'"
+                    f"serial_id is required when data_level='SERIAL'. "
+                    f"Current: serial_id={self.serial_id}, data_level={self.data_level.value}"
                 )
         elif self.data_level == DataLevel.WIP:
             if self.wip_id is None:
                 raise ValueError(
-                    "wip_id is required when data_level='WIP'"
+                    f"wip_id is required when data_level='WIP'. "
+                    f"Current: wip_id={self.wip_id}, data_level={self.data_level.value}"
                 )
             if self.serial_id is not None:
                 raise ValueError(
-                    "serial_id must be None when data_level='WIP'"
+                    f"serial_id must be None when data_level='WIP'. "
+                    f"Current: serial_id={self.serial_id}, data_level={self.data_level.value}"
                 )
         elif self.data_level == DataLevel.LOT:
             if self.serial_id is not None:
                 raise ValueError(
-                    "serial_id must be None when data_level='LOT'"
+                    f"serial_id must be None when data_level='LOT'. "
+                    f"Current: serial_id={self.serial_id}, data_level={self.data_level.value}"
                 )
             if self.wip_id is not None:
                 raise ValueError(
-                    "wip_id must be None when data_level='LOT'"
+                    f"wip_id must be None when data_level='LOT'. "
+                    f"Current: wip_id={self.wip_id}, data_level={self.data_level.value}"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_defects_result_consistency(self) -> "ProcessDataBase":
+        """
+        Validate defects field consistency with result.
+
+        Rules:
+            - If result=FAIL: defects MUST be provided (non-empty dict)
+            - If result=PASS: defects should be None or empty
+            - If result=FAIL and no notes: recommend adding notes
+
+        Returns:
+            Self instance if valid
+
+        Raises:
+            ValueError: If defects/result are inconsistent
+        """
+        if self.result == ProcessResult.FAIL:
+            if not self.defects:
+                raise ValueError(
+                    f"defects information is required when result='FAIL'. "
+                    f"Current: result={self.result.value}, defects={self.defects}. "
+                    f"Please provide defect details such as type, location, and severity."
+                )
+
+            # Recommend notes for FAIL results
+            if not self.notes:
+                warnings.warn(
+                    f"Notes are recommended when result='FAIL' to provide additional context. "
+                    f"Current: result={self.result.value}, notes={self.notes}",
+                    UserWarning
+                )
+
+        elif self.result == ProcessResult.PASS:
+            if self.defects:
+                raise ValueError(
+                    f"defects should be None or empty when result='PASS'. "
+                    f"Current: result={self.result.value}, defects={self.defects}"
+                )
+
+        elif self.result == ProcessResult.REWORK:
+            # REWORK can have defects (documenting the reason for rework) or not
+            if self.defects and not self.notes:
+                warnings.warn(
+                    f"Notes are recommended when result='REWORK' with defects to explain the rework reason. "
+                    f"Current: result={self.result.value}, defects={self.defects}, notes={self.notes}",
+                    UserWarning
+                )
+
         return self
 
     @model_validator(mode="after")
@@ -312,9 +462,107 @@ class ProcessDataBase(BaseModel):
         """
         if self.completed_at is not None:
             if self.completed_at < self.started_at:
+                duration = (self.started_at - self.completed_at).total_seconds()
                 raise ValueError(
-                    "completed_at must be greater than or equal to started_at"
+                    f"completed_at must be greater than or equal to started_at. "
+                    f"Current: started_at={self.started_at.isoformat()}, "
+                    f"completed_at={self.completed_at.isoformat()}, "
+                    f"invalid duration={duration} seconds"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_comprehensive_business_rules(self) -> "ProcessDataBase":
+        """
+        Comprehensive business rules validation.
+
+        This validator checks all business logic constraints at once to provide
+        clear, actionable error messages with full context.
+
+        Business Rules:
+        1. Data consistency: lot_id, process_id, operator_id are always required
+        2. Equipment tracking: Some processes may require equipment_id
+        3. Result documentation: FAIL/REWORK results need proper documentation
+        4. Timestamp logic: Process must have valid start time, completion is optional
+
+        Returns:
+            Self instance if valid
+
+        Raises:
+            ValueError: If any business rule is violated
+        """
+        errors = []
+        warnings_list = []
+
+        # Rule 1: Core fields validation
+        if self.lot_id <= 0:
+            errors.append(f"Invalid lot_id={self.lot_id}. Must be a positive integer.")
+
+        if self.process_id <= 0:
+            errors.append(f"Invalid process_id={self.process_id}. Must be a positive integer.")
+
+        if self.operator_id <= 0:
+            errors.append(f"Invalid operator_id={self.operator_id}. Must be a positive integer.")
+
+        # Rule 2: Data level specific validation
+        if self.data_level == DataLevel.SERIAL and self.serial_id and self.serial_id <= 0:
+            errors.append(
+                f"Invalid serial_id={self.serial_id} for data_level='SERIAL'. "
+                f"Must be a positive integer."
+            )
+
+        if self.data_level == DataLevel.WIP and self.wip_id and self.wip_id <= 0:
+            errors.append(
+                f"Invalid wip_id={self.wip_id} for data_level='WIP'. "
+                f"Must be a positive integer."
+            )
+
+        # Rule 3: Equipment validation
+        if self.equipment_id is not None and self.equipment_id <= 0:
+            errors.append(
+                f"Invalid equipment_id={self.equipment_id}. "
+                f"Must be a positive integer or None."
+            )
+
+        # Rule 4: Result documentation
+        if self.result in [ProcessResult.FAIL, ProcessResult.REWORK]:
+            if not self.defects and not self.notes:
+                warnings_list.append(
+                    f"Result '{self.result.value}' should have either defects or notes "
+                    f"to document the reason."
+                )
+
+        # Rule 5: Measurement validation for specific processes
+        # This is a placeholder for process-specific validation
+        # Different processes may require different measurements
+        if not self.measurements:
+            warnings_list.append(
+                f"No measurements provided for process_id={self.process_id}. "
+                f"Consider adding relevant process measurements."
+            )
+
+        # Raise all errors at once with clear context
+        if errors:
+            error_msg = (
+                "Business rules validation failed:\n" +
+                "\n".join(f"  - {error}" for error in errors) +
+                f"\n\nCurrent data state:" +
+                f"\n  data_level: {self.data_level.value}" +
+                f"\n  result: {self.result.value}" +
+                f"\n  lot_id: {self.lot_id}" +
+                f"\n  serial_id: {self.serial_id}" +
+                f"\n  wip_id: {self.wip_id}" +
+                f"\n  process_id: {self.process_id}" +
+                f"\n  has_defects: {bool(self.defects)}" +
+                f"\n  has_notes: {bool(self.notes)}" +
+                f"\n  has_measurements: {bool(self.measurements)}"
+            )
+            raise ValueError(error_msg)
+
+        # Issue warnings for non-critical issues
+        for warning in warnings_list:
+            warnings.warn(warning, UserWarning)
+
         return self
 
 
@@ -324,6 +572,25 @@ class ProcessDataCreate(ProcessDataBase):
 
     Inherits all validation from ProcessDataBase.
     All required fields must be provided on creation.
+
+    Example:
+        Valid creation request:
+        {
+            "lot_id": 1,
+            "serial_id": 100,
+            "process_id": 5,
+            "operator_id": 2,
+            "equipment_id": 3,
+            "data_level": "SERIAL",
+            "result": "PASS",
+            "measurements": {
+                "temperature": 25.5,
+                "pressure": 1.0,
+                "humidity": 45
+            },
+            "started_at": "2024-01-01T10:00:00",
+            "completed_at": "2024-01-01T10:15:00"
+        }
     """
     pass
 
@@ -343,6 +610,9 @@ class ProcessDataUpdate(BaseModel):
         defects: Defect information (optional)
         completed_at: Process completion timestamp (optional)
         notes: Additional comments (optional)
+
+    Note: lot_id, serial_id, wip_id, process_id, operator_id, and started_at
+          cannot be updated after creation for data integrity.
     """
 
     equipment_id: Optional[int] = Field(
@@ -381,10 +651,14 @@ class ProcessDataUpdate(BaseModel):
             try:
                 return DataLevel(v.upper())
             except ValueError:
+                valid_values = [e.value for e in DataLevel]
                 raise ValueError(
-                    f"data_level must be one of {[e.value for e in DataLevel]}, got '{v}'"
+                    f"Invalid data_level '{v}'. Must be one of {valid_values}. "
+                    f"Current value: '{v}'"
                 )
-        raise ValueError(f"data_level must be a string or DataLevel enum, got {type(v)}")
+        raise ValueError(
+            f"data_level must be a string or DataLevel enum, got {type(v).__name__}"
+        )
 
     @field_validator("result", mode="before")
     @classmethod
@@ -406,10 +680,14 @@ class ProcessDataUpdate(BaseModel):
             try:
                 return ProcessResult(v.upper())
             except ValueError:
+                valid_values = [e.value for e in ProcessResult]
                 raise ValueError(
-                    f"result must be one of {[e.value for e in ProcessResult]}, got '{v}'"
+                    f"Invalid result '{v}'. Must be one of {valid_values}. "
+                    f"Current value: '{v}'"
                 )
-        raise ValueError(f"result must be a string or ProcessResult enum, got {type(v)}")
+        raise ValueError(
+            f"result must be a string or ProcessResult enum, got {type(v).__name__}"
+        )
 
     @field_validator("measurements")
     @classmethod
@@ -423,8 +701,25 @@ class ProcessDataUpdate(BaseModel):
         Returns:
             Validated measurements dict or None
         """
-        if v is not None and not isinstance(v, dict):
-            raise ValueError("measurements must be a dictionary")
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise ValueError(
+                f"measurements must be a dictionary, got {type(v).__name__}"
+            )
+
+        # Validate measurement structure
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"measurement keys must be strings, got {type(key).__name__} for key {key}"
+                )
+            if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                raise ValueError(
+                    f"measurement value for '{key}' must be JSON-serializable, "
+                    f"got {type(value).__name__}"
+                )
+
         return v
 
     @field_validator("defects")
@@ -439,9 +734,58 @@ class ProcessDataUpdate(BaseModel):
         Returns:
             Validated defects dict or None
         """
-        if v is not None and not isinstance(v, dict):
-            raise ValueError("defects must be a dictionary")
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise ValueError(
+                f"defects must be a dictionary, got {type(v).__name__}"
+            )
+
+        # Empty dict is treated as None
+        if not v:
+            return None
+
+        # Validate defect structure
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"defect keys must be strings, got {type(key).__name__} for key {key}"
+                )
+            if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                raise ValueError(
+                    f"defect value for '{key}' must be JSON-serializable, "
+                    f"got {type(value).__name__}"
+                )
+
         return v
+
+    @model_validator(mode="after")
+    def validate_update_consistency(self) -> "ProcessDataUpdate":
+        """
+        Validate update consistency for partial updates.
+
+        When updating result to FAIL, defects should be provided.
+        When updating result to PASS, defects should be cleared.
+
+        Returns:
+            Self instance if valid
+        """
+        # Only validate if result is being updated
+        if self.result is not None:
+            if self.result == ProcessResult.FAIL and self.defects is None:
+                warnings.warn(
+                    f"Updating result to 'FAIL' without providing defects. "
+                    f"Consider adding defect information.",
+                    UserWarning
+                )
+            elif self.result == ProcessResult.PASS and self.defects:
+                warnings.warn(
+                    f"Updating result to 'PASS' with defects present. "
+                    f"Defects should be cleared for PASS results.",
+                    UserWarning
+                )
+
+        return self
 
 
 class ProcessDataInDB(ProcessDataBase):
@@ -456,6 +800,7 @@ class ProcessDataInDB(ProcessDataBase):
         created_at: Record creation timestamp
         process: Nested Process relationship data
         operator: Nested User relationship data for the operator
+        equipment: Nested Equipment relationship data
 
     Configuration:
         - Uses from_attributes=True for SQLAlchemy ORM compatibility
@@ -509,3 +854,86 @@ class ProcessDataInDB(ProcessDataBase):
             return int(delta.total_seconds())
 
         return None
+
+
+def validate_process_data_context(
+    lot_id: int,
+    serial_id: Optional[int],
+    wip_id: Optional[int],
+    process_id: int,
+    operator_id: int,
+    equipment_id: Optional[int],
+    data_level: DataLevel,
+    db_session: Any  # SQLAlchemy session
+) -> Dict[str, Any]:
+    """
+    Validate process data context against database constraints.
+
+    This function performs comprehensive validation of process data against
+    the current database state to ensure referential integrity and business rules.
+
+    Args:
+        lot_id: Lot identifier to validate
+        serial_id: Serial identifier to validate (if SERIAL level)
+        wip_id: WIP item identifier to validate (if WIP level)
+        process_id: Process identifier to validate
+        operator_id: Operator identifier to validate
+        equipment_id: Equipment identifier to validate (if provided)
+        data_level: Data level (LOT, WIP, or SERIAL)
+        db_session: Database session for validation queries
+
+    Returns:
+        Dict with validation results:
+        {
+            "valid": bool,
+            "errors": List[str],
+            "warnings": List[str],
+            "context": {
+                "lot": {...},
+                "serial": {...},
+                "wip": {...},
+                "process": {...},
+                "operator": {...},
+                "equipment": {...},
+                "duplicate_check": bool
+            }
+        }
+
+    Example:
+        result = validate_process_data_context(
+            lot_id=1,
+            serial_id=100,
+            wip_id=None,
+            process_id=5,
+            operator_id=2,
+            equipment_id=3,
+            data_level=DataLevel.SERIAL,
+            db_session=db
+        )
+
+        if not result["valid"]:
+            raise ValueError("Validation failed: " + "; ".join(result["errors"]))
+    """
+    # This is a placeholder for the actual implementation
+    # The actual implementation would query the database to validate:
+    # 1. Lot exists and is active
+    # 2. Serial exists and belongs to the lot (if SERIAL level)
+    # 3. WIP item exists and is active (if WIP level)
+    # 4. Process exists and is active
+    # 5. Operator exists and has proper permissions
+    # 6. Equipment exists and is active (if provided)
+    # 7. No duplicate process execution for same entity
+
+    errors = []
+    warnings = []
+    context = {}
+
+    # Placeholder validation logic
+    # In actual implementation, these would be database queries
+
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+        "context": context
+    }

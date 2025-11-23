@@ -19,13 +19,11 @@ Endpoints:
 """
 
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Query, status
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app import crud
 from app.api import deps
 from app.models import User
 from app.models.alert import AlertType, AlertSeverity, AlertStatus
@@ -38,10 +36,7 @@ from app.schemas.alert import (
     AlertMarkRead,
     AlertBulkMarkRead,
 )
-from app.core.exceptions import (
-    AlertNotFoundException,
-    DatabaseException,
-)
+from app.services.notification_service import notification_service
 
 
 # Create APIRouter
@@ -102,57 +97,17 @@ def list_alerts(
     Returns:
         AlertListResponse with alerts list, total count, and unread count
     """
-    try:
-        # Get filtered alerts
-        alerts = crud.alert.get_multi(
-            db,
-            skip=skip,
-            limit=limit,
-            status=status,
-            severity=severity,
-            alert_type=alert_type,
-            lot_id=lot_id,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Get total count (for pagination)
-        total = crud.alert.get_multi(
-            db,
-            skip=0,
-            limit=10000,  # Get all for count
-            status=status,
-            severity=severity,
-            alert_type=alert_type,
-            lot_id=lot_id,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Get unread count
-        unread_count = crud.alert.get_unread_count(db)
-
-        # Convert to response format with related entity names
-        alert_responses = []
-        for alert in alerts:
-            alert_dict = {
-                **alert.to_dict(),
-                "lot_number": alert.lot.lot_number if alert.lot else None,
-                "serial_number": alert.serial.serial_number if alert.serial else None,
-                "process_name": alert.process.process_name if alert.process else None,
-            }
-            alert_responses.append(AlertResponse(**alert_dict))
-
-        return AlertListResponse(
-            alerts=alert_responses,
-            total=len(total),
-            unread_count=unread_count,
-            skip=skip,
-            limit=limit,
-        )
-
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Database error: {str(e)}")
+    return notification_service.list_alerts(
+        db,
+        skip=skip,
+        limit=limit,
+        status=status,
+        severity=severity,
+        alert_type=alert_type,
+        lot_id=lot_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 @router.get(
@@ -172,11 +127,7 @@ def get_unread_count(
     Returns:
         Dictionary with unread_count field
     """
-    try:
-        count = crud.alert.get_unread_count(db)
-        return {"unread_count": count}
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Database error: {str(e)}")
+    return notification_service.get_unread_count(db)
 
 
 @router.put(
@@ -207,18 +158,11 @@ def bulk_mark_alerts_as_read(
     Raises:
         500: Database error
     """
-    try:
-        updated_count = crud.alert.bulk_mark_as_read(
-            db,
-            alert_ids=bulk_read.alert_ids,
-            read_by_id=bulk_read.read_by_id
-        )
-        return {
-            "updated_count": updated_count,
-            "alert_ids": bulk_read.alert_ids,
-        }
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to bulk mark alerts as read: {str(e)}")
+    return notification_service.bulk_mark_as_read(
+        db,
+        alert_ids=bulk_read.alert_ids,
+        read_by_id=bulk_read.read_by_id
+    )
 
 
 @router.get(
@@ -245,25 +189,7 @@ def get_alert(
     Raises:
         404: Alert not found
     """
-    try:
-        alert = crud.alert.get(db, alert_id=alert_id)
-        if not alert:
-            raise AlertNotFoundException(alert_id=alert_id)
-
-        # Convert to response format with related entity names
-        alert_dict = {
-            **alert.to_dict(),
-            "lot_number": alert.lot.lot_number if alert.lot else None,
-            "serial_number": alert.serial.serial_number if alert.serial else None,
-            "process_name": alert.process.process_name if alert.process else None,
-        }
-
-        return AlertResponse(**alert_dict)
-
-    except (AlertNotFoundException, DatabaseException):
-        raise
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Database error: {str(e)}")
+    return notification_service.get_alert(db, alert_id=alert_id)
 
 
 @router.post(
@@ -291,11 +217,7 @@ def create_alert(
     Raises:
         500: Database error
     """
-    try:
-        alert = crud.alert.create(db, alert_in=alert_in)
-        return alert
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to create alert: {str(e)}")
+    return notification_service.create_alert(db, alert_in=alert_in)
 
 
 @router.put(
@@ -327,15 +249,7 @@ def update_alert(
         404: Alert not found
         500: Database error
     """
-    try:
-        alert = crud.alert.update(db, alert_id=alert_id, alert_in=alert_in)
-        if not alert:
-            raise AlertNotFoundException(alert_id=alert_id)
-        return alert
-    except (AlertNotFoundException, DatabaseException):
-        raise
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to update alert: {str(e)}")
+    return notification_service.update_alert(db, alert_id=alert_id, alert_in=alert_in)
 
 
 @router.put(
@@ -367,19 +281,11 @@ def mark_alert_as_read(
         404: Alert not found
         500: Database error
     """
-    try:
-        alert = crud.alert.mark_as_read(
-            db,
-            alert_id=alert_id,
-            read_by_id=mark_read.read_by_id
-        )
-        if not alert:
-            raise AlertNotFoundException(alert_id=alert_id)
-        return alert
-    except (AlertNotFoundException, DatabaseException):
-        raise
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to mark alert as read: {str(e)}")
+    return notification_service.mark_as_read(
+        db,
+        alert_id=alert_id,
+        read_by_id=mark_read.read_by_id
+    )
 
 
 @router.delete(
@@ -410,12 +316,4 @@ def delete_alert(
         404: Alert not found
         500: Database error
     """
-    try:
-        deleted = crud.alert.delete(db, alert_id=alert_id)
-        if not deleted:
-            raise AlertNotFoundException(alert_id=alert_id)
-        return None
-    except (AlertNotFoundException, DatabaseException):
-        raise
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to delete alert: {str(e)}")
+    notification_service.delete_alert(db, alert_id=alert_id)

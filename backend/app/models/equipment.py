@@ -9,7 +9,7 @@ Database table: equipment
 Primary key: id (BIGINT)
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -28,7 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB
+from app.database import Base, JSONBDict
 
 
 class Equipment(Base):
@@ -188,7 +188,7 @@ class Equipment(Base):
 
     # Configuration (JSONB)
     specifications: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
         default=dict,
         server_default=text("'{}'"),
@@ -196,7 +196,7 @@ class Equipment(Base):
     )
 
     maintenance_schedule: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
         default=dict,
         server_default=text("'{}'"),
@@ -207,7 +207,7 @@ class Equipment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="Record creation timestamp",
     )
@@ -215,8 +215,8 @@ class Equipment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="Last update timestamp",
     )

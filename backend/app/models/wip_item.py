@@ -21,7 +21,7 @@ Foreign keys:
     - serial_id -> serials.id (nullable, set when converted)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
 
@@ -186,7 +186,7 @@ class WIPItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="WIP creation timestamp",
     )
@@ -194,8 +194,8 @@ class WIPItem(Base):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="Last modification timestamp",
     )

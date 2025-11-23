@@ -32,7 +32,7 @@ Example Usage:
     >>> db.commit()
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -49,7 +49,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB
+from app.database import Base, JSONBDict
 
 
 class AuditAction(str, Enum):
@@ -174,12 +174,12 @@ class AuditLog(Base):
     # DATA SNAPSHOTS (JSONB)
     # =========================================================================
     old_values: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
     )
 
     new_values: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
     )
 

@@ -32,18 +32,12 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models import User
-from app.crud import equipment as crud
 from app.schemas.equipment import (
     EquipmentCreate,
     EquipmentUpdate,
     EquipmentInDB,
 )
-from app.core.exceptions import (
-    EquipmentNotFoundException,
-    DuplicateResourceException,
-    ConstraintViolationException,
-    ValidationException,
-)
+from app.services.equipment_service import equipment_service
 
 
 router = APIRouter(
@@ -83,7 +77,7 @@ def list_equipment(
     Returns:
         List[EquipmentInDB]: List of equipment records with database fields.
     """
-    return crud.get_multi(db, skip=skip, limit=limit)
+    return equipment_service.list_equipment(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -112,7 +106,7 @@ def get_active_equipment(
     Returns:
         List[EquipmentInDB]: List of active equipment records.
     """
-    return crud.get_active(db, skip=skip, limit=limit)
+    return equipment_service.get_active_equipment(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -141,7 +135,7 @@ def get_equipment_needs_maintenance(
     Returns:
         List[EquipmentInDB]: List of equipment needing maintenance.
     """
-    return crud.get_needs_maintenance(db, skip=skip, limit=limit)
+    return equipment_service.get_equipment_needs_maintenance(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -172,7 +166,7 @@ def get_equipment_by_type(
     Returns:
         List[EquipmentInDB]: List of equipment of the specified type.
     """
-    return crud.get_by_type(db, equipment_type=equipment_type, skip=skip, limit=limit)
+    return equipment_service.get_equipment_by_type(db, equipment_type=equipment_type, skip=skip, limit=limit)
 
 
 @router.get(
@@ -203,7 +197,7 @@ def get_equipment_by_production_line(
     Returns:
         List[EquipmentInDB]: List of equipment for the specified production line.
     """
-    return crud.get_by_production_line(
+    return equipment_service.get_equipment_by_production_line(
         db, production_line_id=production_line_id, skip=skip, limit=limit
     )
 
@@ -236,7 +230,7 @@ def get_equipment_by_process(
     Returns:
         List[EquipmentInDB]: List of equipment for the specified process.
     """
-    return crud.get_by_process(db, process_id=process_id, skip=skip, limit=limit)
+    return equipment_service.get_equipment_by_process(db, process_id=process_id, skip=skip, limit=limit)
 
 
 @router.get(
@@ -266,10 +260,7 @@ def get_equipment_by_code(
     Raises:
         EquipmentNotFoundException: If equipment does not exist.
     """
-    obj = crud.get_by_code(db, equipment_code=equipment_code)
-    if not obj:
-        raise EquipmentNotFoundException(equipment_id=equipment_code)
-    return obj
+    return equipment_service.get_equipment_by_code(db, equipment_code=equipment_code)
 
 
 @router.get(
@@ -300,10 +291,7 @@ def get_equipment(
     Raises:
         EquipmentNotFoundException: If equipment does not exist with given ID.
     """
-    obj = crud.get(db, equipment_id=id)
-    if not obj:
-        raise EquipmentNotFoundException(equipment_id=id)
-    return obj
+    return equipment_service.get_equipment(db, equipment_id=id)
 
 
 @router.post(
@@ -335,28 +323,7 @@ def create_equipment(
         ValidationException: If validation fails (invalid references).
         DuplicateResourceException: If duplicate equipment code exists.
     """
-    # Check if equipment_code already exists
-    existing = crud.get_by_code(db, equipment_code=obj_in.equipment_code)
-    if existing:
-        raise DuplicateResourceException(
-            resource_type="Equipment",
-            identifier=f"code='{obj_in.equipment_code}'"
-        )
-
-    try:
-        return crud.create(db, equipment_in=obj_in)
-    except Exception as e:
-        error_str = str(e).lower()
-        if "unique constraint" in error_str or "duplicate" in error_str:
-            raise DuplicateResourceException(
-                resource_type="Equipment",
-                identifier="constraint violation during creation"
-            )
-        if "foreign key" in error_str:
-            raise ValidationException(
-                message="Invalid process_id or production_line_id reference"
-            )
-        raise
+    return equipment_service.create_equipment(db, obj_in=obj_in)
 
 
 @router.put(
@@ -395,33 +362,7 @@ def update_equipment(
         ValidationException: If validation fails (invalid references).
         DuplicateResourceException: If duplicate equipment code exists.
     """
-    obj = crud.get(db, equipment_id=id)
-    if not obj:
-        raise EquipmentNotFoundException(equipment_id=id)
-
-    # Check if updating equipment_code to an existing code
-    if obj_in.equipment_code and obj_in.equipment_code.upper() != obj.equipment_code:
-        existing = crud.get_by_code(db, equipment_code=obj_in.equipment_code)
-        if existing:
-            raise DuplicateResourceException(
-                resource_type="Equipment",
-                identifier=f"code='{obj_in.equipment_code}'"
-            )
-
-    try:
-        return crud.update(db, equipment_id=id, equipment_in=obj_in)
-    except Exception as e:
-        error_str = str(e).lower()
-        if "unique constraint" in error_str or "duplicate" in error_str:
-            raise DuplicateResourceException(
-                resource_type="Equipment",
-                identifier="constraint violation during update"
-            )
-        if "foreign key" in error_str:
-            raise ValidationException(
-                message="Invalid process_id or production_line_id reference"
-            )
-        raise
+    return equipment_service.update_equipment(db, equipment_id=id, obj_in=obj_in)
 
 
 @router.delete(
@@ -452,20 +393,4 @@ def delete_equipment(
         EquipmentNotFoundException: If equipment does not exist.
         ConstraintViolationException: If deletion violates constraints (has associated records).
     """
-    obj = crud.get(db, equipment_id=id)
-    if not obj:
-        raise EquipmentNotFoundException(equipment_id=id)
-
-    try:
-        deleted = crud.delete(db, equipment_id=id)
-        if not deleted:
-            raise EquipmentNotFoundException(equipment_id=id)
-    except (EquipmentNotFoundException, DuplicateResourceException, ConstraintViolationException, ValidationException):
-        raise
-    except Exception as e:
-        error_str = str(e).lower()
-        if "foreign key" in error_str or "constraint" in error_str:
-            raise ConstraintViolationException(
-                message="Cannot delete equipment with associated records"
-            )
-        raise
+    equipment_service.delete_equipment(db, equipment_id=id)

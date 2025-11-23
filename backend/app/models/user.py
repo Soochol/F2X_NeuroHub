@@ -16,7 +16,7 @@ Database Table: users
     - Audit Fields: created_at, updated_at
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 import enum
 
@@ -26,6 +26,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -143,14 +144,16 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
     # Relationships
@@ -162,6 +165,12 @@ class User(Base):
 
     error_logs: Mapped[List["ErrorLog"]] = relationship(
         "ErrorLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    saved_filters: Mapped[List["SavedFilter"]] = relationship(
+        "SavedFilter",
         back_populates="user",
         cascade="all, delete-orphan"
     )
@@ -208,3 +217,12 @@ class User(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+# Type hint imports for forward references
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.process_data import ProcessData
+    from app.models.error_log import ErrorLog
+    from app.models.saved_filter import SavedFilter

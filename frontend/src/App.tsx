@@ -2,34 +2,37 @@
  * F2X NeuroHub MES - Main Application
  */
 
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App as AntApp, ConfigProvider, theme as antTheme } from 'antd';
+import { App as AntApp, ConfigProvider, theme as antTheme, Spin } from 'antd';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { LotsPage } from './pages/LotsPage';
-import { SerialsPage } from './pages/SerialsPage';
-import { WipTrackingPage } from './pages/WipTrackingPage';
 
-import { SerialGenerationPage } from './pages/SerialGenerationPage';
-import { WipGenerationPage } from './pages/WipGenerationPage';
-import {
-  SerialInspectorPage,
-  LotMonitorPage,
-  AdminUsersPage,
-  AdminProcessesPage,
-  AdminProductsPage,
-  AdminProductionLinesPage,
-  AdminEquipmentPage
-} from './pages/admin';
-import { QualityPage } from './pages/QualityPage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
-import { AlertsPage } from './pages/AlertsPage';
-import ErrorDashboardPage from './pages/ErrorDashboardPage';
+// Lazy load pages
+const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const LotsPage = lazy(() => import('./pages/LotsPage').then(module => ({ default: module.LotsPage })));
+
+// WIP Pages
+const WipTrackingPage = lazy(() => import('./pages/WipTrackingPage').then(module => ({ default: module.WipTrackingPage })));
+const WipGenerationPage = lazy(() => import('./pages/WipGenerationPage').then(module => ({ default: module.WipGenerationPage })));
+
+// Serial Pages
+const SerialsPage = lazy(() => import('./pages/SerialsPage').then(module => ({ default: module.SerialsPage })));
+const SerialGenerationPage = lazy(() => import('./pages/SerialGenerationPage').then(module => ({ default: module.SerialGenerationPage })));
+
+// Admin Pages
+const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
+const AdminEquipmentPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminEquipmentPage })));
+const AdminUsersPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminUsersPage })));
+const AdminProcessesPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProcessesPage })));
+const AdminProductsPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProductsPage })));
+const AdminProductionLinesPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProductionLinesPage })));
+const SerialInspectorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.SerialInspectorPage })));
+const LotMonitorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.LotMonitorPage })));
 
 // Create QueryClient for react-query
 const queryClient = new QueryClient({
@@ -86,13 +89,32 @@ function AppContent() {
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
-              <Route path="/login" element={<LoginPage />} />
+              <Route path="/login" element={
+                <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><Spin size="large" /></div>}>
+                  <LoginPage />
+                </Suspense>
+              } />
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/lots" element={<LotsPage />} />
+
+                  {/* WIP Routes */}
+                  <Route path="/wip" element={<WipTrackingPage />} />
+                  <Route path="/wip/generate" element={<WipGenerationPage />} />
+
+                  {/* Serial Routes */}
+                  <Route path="/serials" element={<SerialsPage />} />
+                  <Route path="/serials/generate" element={<SerialGenerationPage />} />
+
+                  {/* Admin Routes */}
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin/users" element={<AdminUsersPage />} />
+                  <Route path="/admin/processes" element={<AdminProcessesPage />} />
+                  <Route path="/admin/products" element={<AdminProductsPage />} />
+                  <Route path="/admin/production-lines" element={<AdminProductionLinesPage />} />
                   <Route path="/admin/equipment" element={<AdminEquipmentPage />} />
                   <Route path="/admin/serial-inspector" element={<SerialInspectorPage />} />
                   <Route path="/admin/lot-monitor" element={<LotMonitorPage />} />

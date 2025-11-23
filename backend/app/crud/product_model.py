@@ -21,9 +21,8 @@ All operations include:
     - Pydantic schema validation
 """
 
-from typing import Optional, List
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from typing import Optional, List, Literal
+from sqlalchemy.orm import Session, selectinload, joinedload, Query
 
 from app.models import ProductModel
 from app.schemas.product_model import (
@@ -33,7 +32,56 @@ from app.schemas.product_model import (
 )
 
 
-def get(db: Session, id: int) -> Optional[ProductModel]:
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load lots relationship
+    - full: Load all relationships including nested ones
+
+    Strategy explanation:
+    - selectinload: Best for one-to-many relationships with potentially many items.
+      Uses a separate SELECT IN query, avoiding cartesian products.
+    - joinedload: Best for many-to-one relationships (single row).
+      Uses LEFT OUTER JOIN in the same query.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Load lots relationship if it exists
+        options = []
+        if hasattr(ProductModel, 'lots'):
+            options.append(selectinload(ProductModel.lots))
+        return query.options(*options) if options else query
+    elif eager_loading == "full":
+        # Load all relationships including nested ones
+        options = []
+        if hasattr(ProductModel, 'lots'):
+            from app.models import Lot
+            options.append(
+                selectinload(ProductModel.lots).selectinload(Lot.serials)
+            )
+        return query.options(*options) if options else query
+    return query
+
+
+def get(
+    db: Session,
+    id: int,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> Optional[ProductModel]:
     """Get product model by primary key ID.
 
     Retrieves a single product model record from the database using its
@@ -42,6 +90,7 @@ def get(db: Session, id: int) -> Optional[ProductModel]:
     Args:
         db: SQLAlchemy database session for executing queries.
         id: Primary key identifier of the product model to retrieve.
+        eager_loading: Control eager loading depth
 
     Returns:
         ProductModel instance if found, None if not found.
@@ -60,11 +109,17 @@ def get(db: Session, id: int) -> Optional[ProductModel]:
         >>> product is None
         True
     """
-    return db.query(ProductModel).filter(ProductModel.id == id).first()
+    query = db.query(ProductModel).filter(ProductModel.id == id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
-    db: Session, *, skip: int = 0, limit: int = 100
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
 ) -> List[ProductModel]:
     """Get multiple product models with pagination support.
 
@@ -77,9 +132,11 @@ def get_multi(
             Defaults to 0 (start from beginning).
         limit: Maximum number of records to return.
             Defaults to 100. Must be positive integer.
+        eager_loading: Control eager loading depth
 
     Returns:
-        List of ProductModel instances. Empty list if no records match criteria.
+        List of ProductModel instances. Empty list if no records
+        match criteria.
 
     Raises:
         Exception: May raise SQLAlchemy exceptions on database errors.
@@ -95,24 +152,26 @@ def get_multi(
         >>> for product in all_products:
         ...     print(product.model_code)
     """
-    return (
-        db.query(ProductModel)
-        .order_by(ProductModel.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(ProductModel).order_by(ProductModel.created_at.desc())
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
-def get_by_code(db: Session, model_code: str) -> Optional[ProductModel]:
+def get_by_code(
+    db: Session,
+    model_code: str,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> Optional[ProductModel]:
     """Get product model by unique model code.
 
-    Retrieves a product model using its unique identifier code (e.g., "NH-F2X-001").
-    Model codes are case-sensitive and globally unique in the system.
+    Retrieves a product model using its unique identifier code
+    (e.g., "NH-F2X-001"). Model codes are case-sensitive and globally
+    unique in the system.
 
     Args:
         db: SQLAlchemy database session for executing queries.
         model_code: Unique model code identifier (e.g., "NH-F2X-001").
+        eager_loading: Control eager loading depth
 
     Returns:
         ProductModel instance if found, None if not found.
@@ -132,15 +191,19 @@ def get_by_code(db: Session, model_code: str) -> Optional[ProductModel]:
         >>> product = get_by_code(db, "NH-F2X-002")
         >>> print(f"Category: {product.category}")
     """
-    return (
-        db.query(ProductModel)
-        .filter(ProductModel.model_code == model_code)
-        .first()
+    query = db.query(ProductModel).filter(
+        ProductModel.model_code == model_code
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_active(
-    db: Session, *, skip: int = 0, limit: int = 100
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
 ) -> List[ProductModel]:
     """Get active product models with pagination.
 
@@ -153,9 +216,11 @@ def get_active(
             Defaults to 0 (start from beginning).
         limit: Maximum number of records to return.
             Defaults to 100. Must be positive integer.
+        eager_loading: Control eager loading depth
 
     Returns:
-        List of active ProductModel instances. Empty list if no active records found.
+        List of active ProductModel instances. Empty list if no active
+        records found.
 
     Raises:
         Exception: May raise SQLAlchemy exceptions on database errors.
@@ -177,14 +242,11 @@ def get_active(
         >>> model_codes = [p.model_code for p in active]
         >>> "NH-F2X-001" in model_codes
     """
-    return (
-        db.query(ProductModel)
-        .filter(ProductModel.status == ProductStatusEnum.ACTIVE)
-        .order_by(ProductModel.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(ProductModel).filter(
+        ProductModel.status == ProductStatusEnum.ACTIVE
+    ).order_by(ProductModel.created_at.desc())
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def get_by_category(
@@ -193,6 +255,7 @@ def get_by_category(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
 ) -> List[ProductModel]:
     """Get product models filtered by category with pagination.
 
@@ -201,15 +264,17 @@ def get_by_category(
 
     Args:
         db: SQLAlchemy database session for executing queries.
-        category: Product category to filter by (e.g., "Standard", "Premium").
-            Filter is case-sensitive and exact match.
+        category: Product category to filter by (e.g., "Standard",
+            "Premium"). Filter is case-sensitive and exact match.
         skip: Number of records to skip (offset) for pagination.
             Defaults to 0 (start from beginning).
         limit: Maximum number of records to return.
             Defaults to 100. Must be positive integer.
+        eager_loading: Control eager loading depth
 
     Returns:
-        List of ProductModel instances matching category. Empty list if no matches.
+        List of ProductModel instances matching category. Empty list
+        if no matches.
 
     Raises:
         Exception: May raise SQLAlchemy exceptions on database errors.
@@ -220,22 +285,19 @@ def get_by_category(
         ...     print(f"{product.model_code}: {product.model_name}")
 
         >>> # Paginate through category results
-        >>> all_category_products = get_by_category(db, "Standard", limit=10000)
-        >>> print(f"Total Standard products: {len(all_category_products)}")
+        >>> all_products = get_by_category(db, "Standard", limit=10000)
+        >>> print(f"Total Standard products: {len(all_products)}")
 
         >>> # Check count of products in category
-        >>> category_products = get_by_category(db, "Enterprise", limit=100)
-        >>> if len(category_products) == 0:
+        >>> products = get_by_category(db, "Enterprise", limit=100)
+        >>> if len(products) == 0:
         ...     print("No Enterprise products found")
     """
-    return (
-        db.query(ProductModel)
-        .filter(ProductModel.category == category)
-        .order_by(ProductModel.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(ProductModel).filter(
+        ProductModel.category == category
+    ).order_by(ProductModel.created_at.desc())
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def create(db: Session, *, obj_in: ProductModelCreate) -> ProductModel:

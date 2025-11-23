@@ -13,11 +13,15 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, wrapperStyle, ...props }, ref: Ref<HTMLSelectElement>) => {
+  ({ label, error, options, wrapperStyle, id, ...props }, ref: Ref<HTMLSelectElement>) => {
+    // Generate unique ID if not provided
+    const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
+
     return (
       <div style={{ marginBottom: '15px', ...wrapperStyle }}>
         {label && (
           <label
+            htmlFor={selectId}
             style={{
               display: 'block',
               marginBottom: '5px',
@@ -31,6 +35,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </label>
         )}
         <select
+          id={selectId}
           ref={ref}
           style={{
             width: '100%',

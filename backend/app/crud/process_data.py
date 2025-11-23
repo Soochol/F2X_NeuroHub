@@ -28,10 +28,10 @@ Key Features:
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from sqlalchemy import and_, desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload, Query
 
 from app.models.process_data import ProcessData, ProcessResult, DataLevel
 from app.models.process import Process
@@ -41,16 +41,78 @@ from app.models.user import User
 from app.schemas.process_data import ProcessDataCreate, ProcessDataUpdate
 
 
-def get(db: Session, *, process_data_id: int) -> Optional[ProcessData]:
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load common relationships (lot, serial, process, operator)
+    - full: Load all relationships including nested ones and equipment
+
+    Strategy explanation:
+    - joinedload: Best for many-to-one relationships (single row).
+      Uses LEFT OUTER JOIN in the same query. Used for: lot, serial,
+      process, operator as they are single parent records.
+    - selectinload: Best for one-to-many relationships.
+      Uses separate SELECT IN query to avoid cartesian products.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Load all commonly accessed relationships using joinedload
+        # This converts N+1 queries into a single JOIN query
+        return query.options(
+            joinedload(ProcessData.lot),
+            joinedload(ProcessData.serial),
+            joinedload(ProcessData.process),
+            joinedload(ProcessData.operator),
+            joinedload(ProcessData.wip_item)
+        )
+    elif eager_loading == "full":
+        # Load relationships and their nested relationships
+        return query.options(
+            joinedload(ProcessData.lot).joinedload("product_model"),
+            joinedload(ProcessData.lot).joinedload("production_line"),
+            joinedload(ProcessData.serial).joinedload("lot"),
+            joinedload(ProcessData.process),
+            joinedload(ProcessData.operator),
+            joinedload(ProcessData.wip_item),
+            joinedload(ProcessData.equipment)
+        )
+    return query
+
+
+def get(
+    db: Session,
+    *,
+    process_data_id: int,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Optional[ProcessData]:
     """
     Retrieve a single ProcessData record by ID.
 
-    Fetches a specific process data record with all relationships loaded,
-    enabling access to related lot, serial, process, and operator information.
+    Fetches a specific process data record with relationships loaded,
+    enabling access to related lot, serial, process, and operator info.
+
+    Query optimization:
+    - Standard loading: 1 query with JOINs for all relationships
+    - Without optimization: 1 + 4+ queries when accessing relationships
 
     Args:
         db: SQLAlchemy Session for database operations
         process_data_id: Primary key identifier of the ProcessData record
+        eager_loading: Control eager loading depth
 
     Returns:
         ProcessData object if found, None otherwise
@@ -60,29 +122,39 @@ def get(db: Session, *, process_data_id: int) -> Optional[ProcessData]:
         >>> db = SessionLocal()
         >>> process_data = get(db, process_data_id=1)
         >>> if process_data:
-        ...     print(f"Process {process_data.process_id}: {process_data.result}")
+        ...     print(f"Process: {process_data.process.name}")  # No N+1
+        ...     print(f"Operator: {process_data.operator.username}")
     """
-    return (
-        db.query(ProcessData)
-        .filter(ProcessData.id == process_data_id)
-        .first()
+    query = db.query(ProcessData).filter(
+        ProcessData.id == process_data_id
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
-    db: Session, *, skip: int = 0, limit: int = 100
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[ProcessData]:
     """
     Retrieve multiple ProcessData records with pagination.
 
-    Fetches a paginated list of process data records ordered by creation time
-    in descending order (newest first). Useful for displaying recent process
-    execution history.
+    Fetches a paginated list of process data records ordered by creation
+    time in descending order (newest first). Useful for displaying recent
+    process execution history.
+
+    Query optimization:
+    - With standard loading for 100 records: 1 query with JOINs
+    - Without optimization: 1 + 400+ queries (N+1 for each relationship)
 
     Args:
         db: SQLAlchemy Session for database operations
         skip: Number of records to skip (default 0, for pagination)
-        limit: Maximum number of records to return (default 100, max safe value)
+        limit: Maximum number of records to return (default 100)
+        eager_loading: Control eager loading depth
 
     Returns:
         List of ProcessData objects (may be empty if no records found)
@@ -92,15 +164,12 @@ def get_multi(
         >>> db = SessionLocal()
         >>> recent_data = get_multi(db, skip=0, limit=50)
         >>> for pd in recent_data:
-        ...     print(f"Serial {pd.serial_id}: {pd.result}")
+        ...     print(f"Serial: {pd.serial.serial_number}")  # No N+1
+        ...     print(f"Process: {pd.process.name}")
     """
-    return (
-        db.query(ProcessData)
-        .order_by(desc(ProcessData.created_at))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(ProcessData).order_by(desc(ProcessData.created_at))
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def create(db: Session, *, obj_in: ProcessDataCreate) -> ProcessData:
@@ -237,40 +306,48 @@ def delete(db: Session, *, process_data_id: int) -> bool:
 
 
 def get_by_serial(
-    db: Session, *, serial_id: int, skip: int = 0, limit: int = 100
+    db: Session,
+    *,
+    serial_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[ProcessData]:
     """
     Get all process data for a specific serial.
 
-    Retrieves the complete manufacturing execution history for a single unit (serial),
-    ordered by process sequence number (1→2→3→...→8). Useful for tracing the entire
-    quality and process journey of a product unit.
+    Retrieves the complete manufacturing execution history for a single
+    unit (serial), ordered by process sequence number (1→2→3→...→8).
+    Useful for tracing the entire quality and process journey of a unit.
+
+    Query optimization: Eager loads relationships to avoid N+1 queries.
 
     Args:
         db: SQLAlchemy Session for database operations
         serial_id: Primary key of the serial to fetch process data for
         skip: Number of records to skip for pagination (default 0)
         limit: Maximum number of records to return (default 100)
+        eager_loading: Control eager loading depth
 
     Returns:
-        List of ProcessData objects for the serial, ordered by process sequence
+        List of ProcessData objects for the serial, ordered by sequence
 
     Example:
         >>> from app.database import SessionLocal
         >>> db = SessionLocal()
         >>> serial_history = get_by_serial(db, serial_id=42)
         >>> for pd in serial_history:
-        ...     print(f"Process {pd.process.process_number}: {pd.result} ({pd.duration_seconds}s)")
+        ...     process_name = pd.process.name  # No additional query
+        ...     print(f"Process {pd.process.process_number}: {pd.result}")
     """
-    return (
+    query = (
         db.query(ProcessData)
         .join(Process)
         .filter(ProcessData.serial_id == serial_id)
         .order_by(Process.process_number)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def get_by_lot(

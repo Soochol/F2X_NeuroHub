@@ -4,8 +4,9 @@
  * Top-level layout with sidebar, header, and content area
  */
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import { Spin } from 'antd';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -28,7 +29,13 @@ export const MainLayout = () => {
           backgroundColor: 'var(--color-bg-secondary)',
           color: 'var(--color-text-primary)',
         }}>
-          <Outlet />
+          <Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Spin size="large" />
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

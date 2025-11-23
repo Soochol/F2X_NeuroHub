@@ -22,9 +22,9 @@ Functions:
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 from sqlalchemy import and_, func, desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload, joinedload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.lot import Lot, LotStatus
@@ -36,9 +36,72 @@ from app.utils.wip_number import generate_batch_wip_ids
 from app.services import wip_service
 
 
-def get(db: Session, wip_id: int) -> Optional[WIPItem]:
-    """Get a single WIP by ID."""
-    return db.query(WIPItem).filter(WIPItem.id == wip_id).first()
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load common relationships (lot, current_process, serial)
+    - full: Load all relationships including process_history
+
+    Strategy explanation:
+    - selectinload: Best for one-to-many relationships with potentially many items.
+      Uses a separate SELECT IN query, avoiding cartesian products.
+    - joinedload: Best for many-to-one relationships (single row).
+      Uses LEFT OUTER JOIN in the same query.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Use joinedload for single relationships
+        return query.options(
+            joinedload(WIPItem.lot),
+            joinedload(WIPItem.current_process),
+            joinedload(WIPItem.serial)
+        )
+    elif eager_loading == "full":
+        # Load nested relationships including process history
+        return query.options(
+            joinedload(WIPItem.lot).joinedload(Lot.product_model),
+            joinedload(WIPItem.current_process),
+            joinedload(WIPItem.serial),
+            selectinload(WIPItem.process_history).joinedload(WIPProcessHistory.process)
+        )
+    return query
+
+
+def get(db: Session, wip_id: int, eager_loading: Literal["minimal", "standard", "full"] = "standard") -> Optional[WIPItem]:
+    """
+    Get a single WIP by ID.
+
+    Retrieves a WIP record with optimized eager loading to avoid N+1 queries.
+
+    Query strategy:
+    - Standard loading: 1-3 queries total (1 for WIP + joins for relationships)
+    - Without optimization: 1 + N queries where N is number of accessed relationships
+
+    Args:
+        db: Database session
+        wip_id: WIP primary key ID
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
+
+    Returns:
+        WIPItem instance if found, None otherwise
+    """
+    query = db.query(WIPItem).filter(WIPItem.id == wip_id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
@@ -46,20 +109,48 @@ def get_multi(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[WIPItem]:
-    """Get multiple WIPs with pagination."""
-    return (
-        db.query(WIPItem)
-        .order_by(desc(WIPItem.created_at), desc(WIPItem.id))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """
+    Get multiple WIPs with pagination.
+
+    Retrieves WIP records with optimized eager loading to avoid N+1 queries.
+
+    Query strategy:
+    - Standard loading: 2-4 queries total regardless of result count
+    - Without optimization: 1 + (N * M) queries where N is result count and M is relationships
+
+    Args:
+        db: Database session
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
+
+    Returns:
+        List of WIPItem instances
+    """
+    query = db.query(WIPItem).order_by(desc(WIPItem.created_at), desc(WIPItem.id))
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
-def get_by_wip_id(db: Session, wip_id: str) -> Optional[WIPItem]:
-    """Get WIP by unique WIP ID."""
-    return db.query(WIPItem).filter(WIPItem.wip_id == wip_id).first()
+def get_by_wip_id(db: Session, wip_id: str, eager_loading: Literal["minimal", "standard", "full"] = "standard") -> Optional[WIPItem]:
+    """
+    Get WIP by unique WIP ID.
+
+    Retrieves a WIP by its unique string identifier with optimized eager loading.
+
+    Args:
+        db: Database session
+        wip_id: Unique WIP identifier (e.g., "WIP-KR01PSA2511-001")
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
+
+    Returns:
+        WIPItem instance if found, None otherwise
+    """
+    query = db.query(WIPItem).filter(WIPItem.wip_id == wip_id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_by_lot(
@@ -68,16 +159,26 @@ def get_by_lot(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[WIPItem]:
-    """Get all WIPs for a LOT."""
-    return (
-        db.query(WIPItem)
-        .filter(WIPItem.lot_id == lot_id)
-        .order_by(WIPItem.sequence_in_lot)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """
+    Get all WIPs for a LOT.
+
+    Retrieves WIP items belonging to a specific LOT with optimized eager loading.
+
+    Args:
+        db: Database session
+        lot_id: LOT identifier to filter by
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
+
+    Returns:
+        List of WIPItem instances for the specified LOT
+    """
+    query = db.query(WIPItem).filter(WIPItem.lot_id == lot_id).order_by(WIPItem.sequence_in_lot)
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def get_by_status(
@@ -86,16 +187,26 @@ def get_by_status(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[WIPItem]:
-    """Get WIPs by status."""
-    return (
-        db.query(WIPItem)
-        .filter(WIPItem.status == status)
-        .order_by(desc(WIPItem.created_at))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """
+    Get WIPs by status.
+
+    Retrieves WIP items filtered by status with optimized eager loading.
+
+    Args:
+        db: Database session
+        status: WIP status to filter by (CREATED, IN_PROGRESS, etc.)
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
+
+    Returns:
+        List of WIPItem instances with the specified status
+    """
+    query = db.query(WIPItem).filter(WIPItem.status == status).order_by(desc(WIPItem.created_at))
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def create_batch(
@@ -219,7 +330,8 @@ def scan(
     Returns:
         WIP item if found and valid, None otherwise
     """
-    wip_item = get_by_wip_id(db, wip_id_str)
+    # Use minimal loading for initial scan, relationships loaded only if needed
+    wip_item = get_by_wip_id(db, wip_id_str, eager_loading="minimal")
     if not wip_item:
         return None
 

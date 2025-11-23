@@ -306,7 +306,7 @@ class PrinterService:
             logger.info(f"Sending print job to {self.printer_ip}:{self.printer_port}")
             
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(10)
+            sock.settimeout(5)
             sock.connect((self.printer_ip, self.printer_port))
             
             sock.send(zpl.encode('utf-8'))

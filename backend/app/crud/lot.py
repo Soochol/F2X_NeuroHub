@@ -22,10 +22,10 @@ Functions:
 """
 
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from sqlalchemy import and_, desc, func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.lot import Lot, LotStatus
@@ -33,31 +33,85 @@ from app.models.serial import Serial, SerialStatus
 from app.schemas.lot import LotCreate, LotUpdate
 
 
-def get(db: Session, lot_id: int) -> Optional[Lot]:
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load common relationships (serials, wip_items)
+    - full: Load all relationships including nested ones
+
+    Strategy explanation:
+    - selectinload: Best for one-to-many relationships with potentially many items.
+      Uses a separate SELECT IN query, avoiding cartesian products.
+    - joinedload: Best for many-to-one relationships (single row).
+      Uses LEFT OUTER JOIN in the same query.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Use selectinload for collections to avoid cartesian product
+        return query.options(
+            selectinload(Lot.serials),
+            selectinload(Lot.wip_items),
+            # Use joinedload for single relationships
+            joinedload(Lot.product_model),
+            joinedload(Lot.production_line)
+        )
+    elif eager_loading == "full":
+        # Load nested relationships as well
+        return query.options(
+            selectinload(Lot.serials).joinedload(Serial.lot),
+            selectinload(Lot.wip_items),
+            joinedload(Lot.product_model),
+            joinedload(Lot.production_line)
+        )
+    return query
+
+
+def get(db: Session, lot_id: int, eager_loading: Literal["minimal", "standard", "full"] = "standard") -> Optional[Lot]:
     """
     Get a single LOT by ID.
 
     Retrieves a LOT record from the database by its primary key.
-    Eager loads serials relationship for serial_count calculation.
+    By default, eager loads common relationships to avoid N+1 queries.
+
+    Query strategy:
+    - Standard loading: 3 queries total (1 for LOT + 1 for serials + 1 for wip_items)
+    - Without optimization: 1 + N queries where N is number of accessed relationships
 
     Args:
         db: SQLAlchemy database session
         lot_id: Primary key ID of the LOT to retrieve
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         Lot instance if found, None otherwise
 
     Example:
+        # Standard usage with optimized loading
         lot = get(db, lot_id=1)
         if lot:
             print(f"Found LOT: {lot.lot_number}")
+            print(f"Serials: {len(lot.serials)}")  # No additional query
+
+        # Minimal loading when relationships aren't needed
+        lot = get(db, lot_id=1, eager_loading="minimal")
     """
-    return (
-        db.query(Lot)
-        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
-        .filter(Lot.id == lot_id)
-        .first()
-    )
+    query = db.query(Lot).filter(Lot.id == lot_id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
@@ -65,6 +119,7 @@ def get_multi(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[Lot]:
     """
     Get multiple LOTs with pagination.
@@ -72,31 +127,32 @@ def get_multi(
     Retrieves a list of LOTs with support for offset/limit pagination.
     Results are ordered by created_at (descending) and id (descending) to show
     most recently created LOTs first.
-    Eager loads serials relationship for serial_count calculation.
+
+    Query optimization:
+    - With standard loading for 100 LOTs: ~4 queries total
+    - Without optimization for 100 LOTs: 1 + 200+ queries (N+1 problem)
 
     Args:
         db: SQLAlchemy database session
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100)
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         List of Lot instances matching the criteria
 
     Example:
-        # Get first 10 LOTs
+        # Get first 10 LOTs with optimized loading
         lots = get_multi(db, skip=0, limit=10)
+        for lot in lots:
+            print(f"{lot.lot_number}: {len(lot.serials)} serials")  # No N+1
 
-        # Get all LOTs (with default limit)
-        all_lots = get_multi(db)
+        # Get LOTs without relationship loading for listing
+        lots = get_multi(db, eager_loading="minimal")
     """
-    return (
-        db.query(Lot)
-        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
-        .order_by(Lot.created_at.desc(), Lot.id.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(Lot).order_by(Lot.created_at.desc(), Lot.id.desc())
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def create(
@@ -337,18 +393,20 @@ def delete(db: Session, lot_id: int) -> bool:
     return True
 
 
-def get_by_number(db: Session, lot_number: str) -> Optional[Lot]:
+def get_by_number(db: Session, lot_number: str, eager_loading: Literal["minimal", "standard", "full"] = "standard") -> Optional[Lot]:
     """
     Get a LOT by unique LOT number.
 
     Retrieves a single LOT by its unique lot_number identifier.
     LOT number format: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars
     (e.g., KR01PSA251101)
-    Eager loads serials relationship for serial_count calculation.
+
+    Query optimization: Uses eager loading to prevent N+1 queries when accessing relationships.
 
     Args:
         db: SQLAlchemy database session
         lot_number: Unique LOT identifier
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         Lot instance if found, None otherwise
@@ -357,13 +415,11 @@ def get_by_number(db: Session, lot_number: str) -> Optional[Lot]:
         lot = get_by_number(db, "KR01PSA251101")
         if lot:
             print(f"Found LOT: {lot.lot_number}")
+            print(f"Model: {lot.product_model.model_code}")  # No additional query
     """
-    return (
-        db.query(Lot)
-        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
-        .filter(Lot.lot_number == lot_number)
-        .first()
-    )
+    query = db.query(Lot).filter(Lot.lot_number == lot_number)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_active(
@@ -371,6 +427,7 @@ def get_active(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[Lot]:
     """
     Get active LOTs (CREATED or IN_PROGRESS status).
@@ -378,32 +435,34 @@ def get_active(
     Retrieves LOTs that are currently in active production. Results are ordered
     by production_date (descending) and lot_number (descending) to show recent
     LOTs first.
-    Eager loads serials relationship for serial_count calculation.
+
+    Query optimization: Eager loads relationships to avoid N+1 queries for active lots.
 
     Args:
         db: SQLAlchemy database session
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100)
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         List of Lot instances with CREATED or IN_PROGRESS status
 
     Example:
-        # Get active LOTs
+        # Get active LOTs with optimized loading
         active_lots = get_active(db)
+        for lot in active_lots:
+            print(f"{lot.lot_number}: {len(lot.serials)}/{lot.target_quantity}")
 
-        # Get first 50 active LOTs
-        active_lots = get_active(db, skip=0, limit=50)
+        # Get first 50 active LOTs with minimal loading
+        active_lots = get_active(db, skip=0, limit=50, eager_loading="minimal")
     """
-    return (
+    query = (
         db.query(Lot)
-        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .filter(Lot.status.in_([LotStatus.CREATED, LotStatus.IN_PROGRESS]))
         .order_by(desc(Lot.production_date), desc(Lot.lot_number))
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def get_by_date_range(
@@ -499,6 +558,7 @@ def get_by_status(
     *,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[Lot]:
     """
     Get LOTs by status.
@@ -506,33 +566,35 @@ def get_by_status(
     Retrieves LOTs with the specified status, ordered by production_date
     (descending) and lot_number (descending). Status must be one of:
     CREATED, IN_PROGRESS, COMPLETED, CLOSED
-    Eager loads serials relationship for serial_count calculation.
+
+    Query optimization: Uses eager loading to prevent N+1 queries.
 
     Args:
         db: SQLAlchemy database session
         status: LOT status to filter by (CREATED, IN_PROGRESS, COMPLETED, CLOSED)
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100)
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         List of Lot instances with the specified status
 
     Example:
-        # Get all completed LOTs
+        # Get all completed LOTs with relationships
         completed = get_by_status(db, LotStatus.COMPLETED)
+        for lot in completed:
+            print(f"{lot.lot_number}: {lot.passed_quantity}/{lot.actual_quantity}")
 
-        # Get all closed LOTs
-        closed = get_by_status(db, LotStatus.CLOSED, limit=50)
+        # Get all closed LOTs with minimal loading for listing
+        closed = get_by_status(db, LotStatus.CLOSED, limit=50, eager_loading="minimal")
     """
-    return (
+    query = (
         db.query(Lot)
-        .options(selectinload(Lot.serials), selectinload(Lot.wip_items))
         .filter(Lot.status == status)
         .order_by(desc(Lot.production_date), desc(Lot.lot_number))
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def update_quantities(db: Session, lot_id: int) -> Optional[Lot]:

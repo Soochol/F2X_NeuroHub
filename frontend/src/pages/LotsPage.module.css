@@ -1,0 +1,235 @@
+.pageContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.headerSection {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    background-color: var(--color-bg-secondary);
+    position: sticky;
+    top: -20px;
+    z-index: 10;
+    padding: 20px;
+    margin-top: -20px;
+    margin-left: -20px;
+    margin-right: -20px;
+    border-bottom: 2px solid var(--color-border);
+}
+
+.headerContent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.pageSubtitle {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.createButtonIcon {
+    margin-right: 6px;
+}
+
+.filterContainer {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filterInput {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filterSelect {
+    width: 180px;
+}
+
+.filterSelectSmall {
+    width: 120px;
+}
+
+.contentPadding {
+    padding: 20px;
+}
+
+.loadingContainer,
+.errorContainer,
+.emptyContainer {
+    text-align: center;
+    padding: 40px;
+}
+
+.loadingContainer,
+.emptyContainer {
+    color: var(--color-text-secondary);
+}
+
+.errorContainer {
+    color: var(--color-error);
+}
+
+.gridContainer {
+    display: grid;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.lotCard {
+    padding: 20px;
+    border-radius: 8px;
+    background-color: var(--color-bg-secondary);
+    transition: all 0.2s;
+    border: 1px solid var(--color-border);
+}
+
+.lotCardCompleted {
+    border: 2px solid var(--color-success);
+}
+
+.lotCardMissing {
+    border: 2px solid var(--color-warning);
+}
+
+.lotHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.lotHeaderContent {
+    flex: 1;
+}
+
+.lotTitleRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.lotNumber {
+    font-size: 18px;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.statusBadge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.statusBadgeSuccess {
+    background-color: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.statusBadgeInfo {
+    background-color: var(--color-info-light);
+    color: var(--color-info);
+}
+
+.statusBadgeWarning {
+    background-color: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.missingBadge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background-color: var(--color-warning-light);
+    color: var(--color-warning);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lotInfo {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.lotDate {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.statLabel {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+}
+
+.statValue {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.statValueSuccess {
+    color: var(--color-success);
+}
+
+.statValueError {
+    color: var(--color-error);
+}
+
+.statValueBrand {
+    color: var(--color-brand);
+}
+
+.progressBarContainer {
+    width: 100%;
+    height: 8px;
+    background-color: var(--color-bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progressBar {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.progressBarSuccess {
+    background-color: var(--color-success);
+}
+
+.progressBarBrand {
+    background-color: var(--color-brand);
+}
+
+.paginationContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.paginationText {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}

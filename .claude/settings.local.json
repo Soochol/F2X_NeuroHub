@@ -67,7 +67,8 @@
       "Bash(source ../.venv/Scripts/activate)",
       "Bash(npx tsc:*)",
       "Bash(cmd //c \"taskkill /F /PID 204384 && taskkill /F /PID 281668\")",
-      "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe check_admin_user.py)"
+      "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe check_admin_user.py)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

@@ -57,8 +57,8 @@ const navConfig: NavConfig = [
     label: 'WIP',
     icon: Layers,
     items: [
-      { path: '/wip-generation', label: 'WIP Generation', icon: PackagePlus },
-      { path: '/wip-tracking', label: 'WIP Tracking', icon: Scan },
+      { path: '/wip/generate', label: 'WIP Generation', icon: PackagePlus },
+      { path: '/wip', label: 'WIP Tracking', icon: Scan },
     ]
   },
 

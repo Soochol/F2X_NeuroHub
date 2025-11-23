@@ -18,7 +18,7 @@ Database Table: alerts
     - Audit Fields: created_at, read_at, archived_at
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import enum
 
@@ -30,6 +30,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -230,7 +231,8 @@ class Alert(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
     read_at: Mapped[Optional[datetime]] = mapped_column(

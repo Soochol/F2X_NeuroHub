@@ -41,21 +41,6 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - f2x-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-networks:
-  f2x-network:
-    driver: bridge
-    name: f2x-network
-
 volumes:
   postgres_data:
     name: f2x-postgres-data

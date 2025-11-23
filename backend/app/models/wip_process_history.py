@@ -15,7 +15,7 @@ Foreign keys:
     - equipment_id -> equipment.id (nullable)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
@@ -32,7 +32,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB
+from app.database import Base, JSONBDict, JSONBList
 
 if TYPE_CHECKING:
     from app.models.wip_item import WIPItem
@@ -155,14 +155,14 @@ class WIPProcessHistory(Base):
 
     # JSONB Measurement and Defect Data
     measurements: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
         default=dict,
         comment="Process-specific measurement data in JSONB format",
     )
 
     defects: Mapped[Optional[list]] = mapped_column(
-        JSONB,
+        JSONBList,
         nullable=True,
         default=list,
         comment="Defect information array if result=FAIL in JSONB format",
@@ -201,7 +201,7 @@ class WIPProcessHistory(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="Record creation timestamp",
     )

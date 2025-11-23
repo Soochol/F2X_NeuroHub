@@ -10,29 +10,72 @@ Provides aggregated data and statistics for:
 """
 
 from datetime import date as date_module, datetime, timedelta
+from typing import Any, Optional
 
 # Alias for clarity
 date = date_module
-from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, and_, Integer
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+import asyncio
+import json
 
 from app.api import deps
-from app.models import (
-    Lot,
-    Serial,
-    ProcessData,
-    Process,
-    User,
-    LotStatus,
-    SerialStatus,
-    ProcessResult
-)
+from app.models import User
+from app.services.analytics_service import analytics_service
+from app.analytics.metrics_aggregator import MetricsAggregator
+from app.analytics.alert_manager import AlertManager
 
 
 router = APIRouter()
+
+
+@router.get("/operations/metrics")
+def get_operations_metrics(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get real-time metrics for the Operations Dashboard.
+    """
+    return MetricsAggregator.get_realtime_dashboard_metrics(db)
+
+
+@router.websocket("/ws/metrics/live")
+async def websocket_live_metrics(
+    websocket: WebSocket,
+    db: Session = Depends(deps.get_db),
+):
+    """
+    WebSocket endpoint for streaming real-time metrics.
+    Updates every 5 seconds.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            # Fetch metrics
+            # Note: In a real async app we might want to use an async DB session here
+            # For now, we'll use the sync session in a blocking way (careful with blocking loop)
+            # or ideally, offload to thread.
+            # Since this is a simple loop, we will just call the aggregator.
+            
+            metrics = MetricsAggregator.get_realtime_dashboard_metrics(db)
+            
+            # Also check for alerts (optional, could be separate)
+            # alert_manager = AlertManager(db)
+            # alert_manager.check_process_failure_rate(1) # Example check
+            
+            await websocket.send_json(metrics)
+            await asyncio.sleep(5)  # Update every 5 seconds
+            
+    except WebSocketDisconnect:
+        print("Client disconnected from metrics websocket")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
 
 
 @router.get("/dashboard")
@@ -49,152 +92,8 @@ def get_dashboard_summary(
     - Active production (in-progress LOTs and serials)
     - Quality metrics (pass rate, defect rate)
     - Process performance summary
-
-    **Response:**
-    ```json
-    {
-        "lots": {
-            "total": 1250,
-            "today": 15,
-            "this_week": 87,
-            "active": 8,
-            "completed_today": 12
-        },
-        "serials": {
-            "total": 45000,
-            "today": 550,
-            "this_week": 3200,
-            "in_progress": 120,
-            "passed_today": 480,
-            "failed_today": 15
-        },
-        "quality": {
-            "overall_pass_rate": 98.5,
-            "today_pass_rate": 97.2,
-            "defect_rate": 1.5,
-            "rework_rate": 2.3
-        },
-        "processes": {
-            "total_executions_today": 4400,
-            "average_cycle_time_seconds": 165,
-            "failures_today": 22
-        }
-    }
-    ```
     """
-    today = date.today()
-    week_start = today - timedelta(days=today.weekday())
-
-    # LOT statistics
-    total_lots = db.query(func.count(Lot.id)).scalar()
-    lots_today = db.query(func.count(Lot.id)).filter(
-        func.date(Lot.created_at) == today
-    ).scalar()
-    lots_this_week = db.query(func.count(Lot.id)).filter(
-        func.date(Lot.created_at) >= week_start
-    ).scalar()
-    active_lots = db.query(func.count(Lot.id)).filter(
-        Lot.status.in_([LotStatus.CREATED, LotStatus.IN_PROGRESS])
-    ).scalar()
-    completed_lots_today = db.query(func.count(Lot.id)).filter(
-        and_(
-            func.date(Lot.closed_at) == today,
-            Lot.status == LotStatus.CLOSED
-        )
-    ).scalar()
-
-    # Serial statistics
-    total_serials = db.query(func.count(Serial.id)).scalar()
-    serials_today = db.query(func.count(Serial.id)).filter(
-        func.date(Serial.created_at) == today
-    ).scalar()
-    serials_this_week = db.query(func.count(Serial.id)).filter(
-        func.date(Serial.created_at) >= week_start
-    ).scalar()
-    in_progress_serials = db.query(func.count(Serial.id)).filter(
-        Serial.status == SerialStatus.IN_PROGRESS
-    ).scalar()
-    passed_today = db.query(func.count(Serial.id)).filter(
-        and_(
-            func.date(Serial.completed_at) == today,
-            Serial.status == SerialStatus.PASSED
-        )
-    ).scalar()
-    failed_today = db.query(func.count(Serial.id)).filter(
-        and_(
-            func.date(Serial.updated_at) == today,
-            Serial.status == SerialStatus.FAILED
-        )
-    ).scalar()
-
-    # Quality metrics
-    total_completed = db.query(func.count(Serial.id)).filter(
-        Serial.status.in_([SerialStatus.PASSED, SerialStatus.FAILED])
-    ).scalar() or 1  # Avoid division by zero
-
-    passed_total = db.query(func.count(Serial.id)).filter(
-        Serial.status == SerialStatus.PASSED
-    ).scalar() or 0
-
-    overall_pass_rate = round((passed_total / total_completed) * 100, 2) if total_completed > 0 else 0
-
-    today_completed = passed_today + failed_today
-    today_pass_rate = round((passed_today / today_completed) * 100, 2) if today_completed > 0 else 0
-
-    defect_rate = round(100 - overall_pass_rate, 2)
-
-    rework_serials = db.query(func.count(Serial.id)).filter(
-        Serial.rework_count > 0
-    ).scalar() or 0
-    rework_rate = round((rework_serials / total_serials) * 100, 2) if total_serials > 0 else 0
-
-    # Process statistics
-    process_executions_today = db.query(func.count(ProcessData.id)).filter(
-        func.date(ProcessData.created_at) == today
-    ).scalar() or 0
-
-    avg_cycle_time = db.query(func.avg(ProcessData.duration_seconds)).filter(
-        and_(
-            ProcessData.duration_seconds.isnot(None),
-            func.date(ProcessData.created_at) == today
-        )
-    ).scalar() or 0
-
-    failures_today = db.query(func.count(ProcessData.id)).filter(
-        and_(
-            func.date(ProcessData.created_at) == today,
-            ProcessData.result == ProcessResult.FAIL
-        )
-    ).scalar() or 0
-
-    return {
-        "lots": {
-            "total": total_lots,
-            "today": lots_today,
-            "this_week": lots_this_week,
-            "active": active_lots,
-            "completed_today": completed_lots_today,
-        },
-        "serials": {
-            "total": total_serials,
-            "today": serials_today,
-            "this_week": serials_this_week,
-            "in_progress": in_progress_serials,
-            "passed_today": passed_today,
-            "failed_today": failed_today,
-        },
-        "quality": {
-            "overall_pass_rate": overall_pass_rate,
-            "today_pass_rate": today_pass_rate,
-            "defect_rate": defect_rate,
-            "rework_rate": rework_rate,
-        },
-        "processes": {
-            "total_executions_today": process_executions_today,
-            "average_cycle_time_seconds": round(avg_cycle_time, 1) if avg_cycle_time else 0,
-            "failures_today": failures_today,
-        }
-    }
+    return analytics_service.get_analytics_summary(db)
 
 
 @router.get("/production-stats")
@@ -218,74 +117,7 @@ def get_production_statistics(
     if not start_date:
         start_date = end_date - timedelta(days=30)
 
-    # Total LOTs in date range
-    total_lots = db.query(func.count(Lot.id)).filter(
-        and_(
-            func.date(Lot.created_at) >= start_date,
-            func.date(Lot.created_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Total serials in date range
-    total_serials = db.query(func.count(Serial.id)).filter(
-        and_(
-            func.date(Serial.created_at) >= start_date,
-            func.date(Serial.created_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Completed serials in date range
-    completed_serials = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Pass count in date range
-    pass_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.status == SerialStatus.PASSED,
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Fail count in date range
-    fail_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.status == SerialStatus.FAILED,
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Rework count in date range
-    rework_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.rework_count > 0,
-            func.date(Serial.created_at) >= start_date,
-            func.date(Serial.created_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Calculate rates
-    pass_rate = round((pass_count / completed_serials * 100), 2) if completed_serials > 0 else 0
-    defect_rate = round((fail_count / completed_serials * 100), 2) if completed_serials > 0 else 0
-
-    return {
-        "total_lots": total_lots,
-        "total_serials": total_serials,
-        "completed_serials": completed_serials,
-        "pass_count": pass_count,
-        "fail_count": fail_count,
-        "rework_count": rework_count,
-        "pass_rate": pass_rate,
-        "defect_rate": defect_rate
-    }
+    return analytics_service.get_production_statistics(db, start_date, end_date)
 
 
 @router.get("/process-performance")
@@ -302,67 +134,7 @@ def get_process_performance(
     - Average cycle time
     - Failure count
     """
-    # Get all 8 processes
-    processes = db.query(Process).order_by(Process.process_number).all()
-
-    performance_data = []
-    for process in processes:
-        # Total executions
-        total_executions = db.query(func.count(ProcessData.id)).filter(
-            ProcessData.process_id == process.id
-        ).scalar() or 0
-
-        # Success count
-        success_count = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.result == ProcessResult.PASS
-            )
-        ).scalar() or 0
-
-        # Failure count
-        failure_count = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.result == ProcessResult.FAIL
-            )
-        ).scalar() or 0
-
-        # Average cycle time
-        avg_duration = db.query(func.avg(ProcessData.duration_seconds)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.duration_seconds.isnot(None)
-            )
-        ).scalar() or 0
-
-        # Success rate
-        success_rate = round((success_count / total_executions) * 100, 2) if total_executions > 0 else 0
-
-        performance_data.append({
-            "process_number": process.process_number,
-            "process_code": process.process_code,
-            "process_name_ko": process.process_name_ko,
-            "process_name_en": process.process_name_en,
-            "total_executions": total_executions,
-            "success_count": success_count,
-            "failure_count": failure_count,
-            "success_rate": success_rate,
-            "average_cycle_time_seconds": round(avg_duration, 1) if avg_duration else 0,
-            "estimated_duration_seconds": process.estimated_duration_seconds,
-        })
-
-    return {
-        "processes": performance_data,
-        "summary": {
-            "total_processes": len(processes),
-            "total_executions": sum(p["total_executions"] for p in performance_data),
-            "overall_success_rate": round(
-                sum(p["success_count"] for p in performance_data) /
-                sum(p["total_executions"] for p in performance_data) * 100, 2
-            ) if sum(p["total_executions"] for p in performance_data) > 0 else 0
-        }
-    }
+    return analytics_service.get_process_performance(db)
 
 
 @router.get("/quality-metrics")
@@ -386,118 +158,7 @@ def get_quality_metrics(
     if not start_date:
         start_date = end_date - timedelta(days=30)
 
-    # Total inspected (completed serials in date range)
-    total_inspected = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Pass count
-    pass_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.status == SerialStatus.PASSED,
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Fail count
-    fail_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.status == SerialStatus.FAILED,
-            Serial.completed_at.isnot(None),
-            func.date(Serial.completed_at) >= start_date,
-            func.date(Serial.completed_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Rework count (serials with rework_count > 0)
-    rework_count = db.query(func.count(Serial.id)).filter(
-        and_(
-            Serial.rework_count > 0,
-            func.date(Serial.created_at) >= start_date,
-            func.date(Serial.created_at) <= end_date
-        )
-    ).scalar() or 0
-
-    # Calculate rates
-    pass_rate = round((pass_count / total_inspected * 100), 2) if total_inspected > 0 else 0
-    defect_rate = round((fail_count / total_inspected * 100), 2) if total_inspected > 0 else 0
-    rework_rate = round((rework_count / total_inspected * 100), 2) if total_inspected > 0 else 0
-
-    # Quality metrics by process
-    processes = db.query(Process).filter(Process.is_active == True).order_by(Process.process_number).all()
-
-    by_process = []
-    for process in processes:
-        # Total process executions
-        proc_total = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.completed_at.isnot(None),
-                func.date(ProcessData.completed_at) >= start_date,
-                func.date(ProcessData.completed_at) <= end_date
-            )
-        ).scalar() or 0
-
-        # Pass count for process
-        proc_pass = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.result == ProcessResult.PASS,
-                ProcessData.completed_at.isnot(None),
-                func.date(ProcessData.completed_at) >= start_date,
-                func.date(ProcessData.completed_at) <= end_date
-            )
-        ).scalar() or 0
-
-        # Fail count for process
-        proc_fail = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.result == ProcessResult.FAIL,
-                ProcessData.completed_at.isnot(None),
-                func.date(ProcessData.completed_at) >= start_date,
-                func.date(ProcessData.completed_at) <= end_date
-            )
-        ).scalar() or 0
-
-        # Rework count for process
-        proc_rework = db.query(func.count(ProcessData.id)).filter(
-            and_(
-                ProcessData.process_id == process.id,
-                ProcessData.result == ProcessResult.REWORK,
-                ProcessData.completed_at.isnot(None),
-                func.date(ProcessData.completed_at) >= start_date,
-                func.date(ProcessData.completed_at) <= end_date
-            )
-        ).scalar() or 0
-
-        proc_pass_rate = round((proc_pass / proc_total * 100), 2) if proc_total > 0 else 0
-
-        by_process.append({
-            "process_name": process.process_name_en or process.process_name_ko,
-            "total": proc_total,
-            "pass": proc_pass,
-            "fail": proc_fail,
-            "rework": proc_rework,
-            "pass_rate": proc_pass_rate
-        })
-
-    return {
-        "total_inspected": total_inspected,
-        "pass_count": pass_count,
-        "fail_count": fail_count,
-        "rework_count": rework_count,
-        "pass_rate": pass_rate,
-        "defect_rate": defect_rate,
-        "rework_rate": rework_rate,
-        "by_process": by_process
-    }
+    return analytics_service.get_quality_metrics(db, start_date, end_date)
 
 
 @router.get("/operator-performance")
@@ -514,44 +175,7 @@ def get_operator_performance(
 
     Returns productivity and quality metrics per operator.
     """
-    start_date = date.today() - timedelta(days=days)
-
-    operator_stats = db.query(
-        User.id,
-        User.full_name,
-        User.username,
-        func.count(ProcessData.id).label('total_operations'),
-        func.sum(func.cast(ProcessData.result == ProcessResult.PASS, Integer)).label('successful_operations'),
-        func.sum(func.cast(ProcessData.result == ProcessResult.FAIL, Integer)).label('failed_operations'),
-        func.avg(ProcessData.duration_seconds).label('avg_cycle_time')
-    ).join(
-        ProcessData, ProcessData.operator_id == User.id
-    ).filter(
-        func.date(ProcessData.created_at) >= start_date
-    ).group_by(
-        User.id, User.full_name, User.username
-    ).order_by(
-        func.count(ProcessData.id).desc()
-    ).all()
-
-    return {
-        "analysis_period_days": days,
-        "operators": [
-            {
-                "operator_id": row.id,
-                "full_name": row.full_name,
-                "username": row.username,
-                "total_operations": row.total_operations,
-                "successful_operations": row.successful_operations or 0,
-                "failed_operations": row.failed_operations or 0,
-                "success_rate": round(
-                    (row.successful_operations or 0) / row.total_operations * 100, 2
-                ) if row.total_operations > 0 else 0,
-                "average_cycle_time_seconds": round(row.avg_cycle_time, 1) if row.avg_cycle_time else 0
-            }
-            for row in operator_stats
-        ]
-    }
+    return analytics_service.get_operator_performance(db, days)
 
 
 @router.get("/realtime-status")
@@ -564,54 +188,7 @@ def get_realtime_status(
 
     Returns current status of active LOTs and in-progress serials.
     """
-    # Active LOTs
-    active_lots = db.query(Lot).filter(
-        Lot.status.in_([LotStatus.CREATED, LotStatus.IN_PROGRESS])
-    ).order_by(Lot.production_date.desc(), Lot.lot_number.desc()).limit(10).all()
-
-    # In-progress serials
-    in_progress_serials = db.query(Serial).filter(
-        Serial.status == SerialStatus.IN_PROGRESS
-    ).order_by(Serial.created_at.desc()).limit(20).all()
-
-    # Latest process executions
-    recent_processes = db.query(ProcessData).order_by(
-        ProcessData.created_at.desc()
-    ).limit(10).all()
-
-    return {
-        "timestamp": datetime.utcnow().isoformat(),
-        "active_lots": [
-            {
-                "lot_number": lot.lot_number,
-                "status": lot.status,
-                "target_quantity": lot.target_quantity,
-                "actual_quantity": lot.actual_quantity,
-                "passed_quantity": lot.passed_quantity,
-                "failed_quantity": lot.failed_quantity,
-            }
-            for lot in active_lots
-        ],
-        "in_progress_serials": [
-            {
-                "serial_number": serial.serial_number,
-                "lot_number": serial.lot.lot_number if serial.lot else None,
-                "status": serial.status,
-                "rework_count": serial.rework_count,
-            }
-            for serial in in_progress_serials
-        ],
-        "recent_process_executions": [
-            {
-                "id": pd.id,
-                "serial_number": pd.serial.serial_number if pd.serial else None,
-                "process_code": pd.process.process_code if pd.process else None,
-                "result": pd.result,
-                "created_at": pd.created_at.isoformat() if pd.created_at else None,
-            }
-            for pd in recent_processes
-        ]
-    }
+    return analytics_service.get_realtime_status(db)
 
 
 @router.get("/defects")
@@ -634,130 +211,8 @@ def get_defects_analysis(
     **Query Parameters:**
     - start_date: Filter defects from this date (optional)
     - end_date: Filter defects until this date (optional)
-
-    **Response:**
-    ```json
-    {
-        "total_defects": 45,
-        "defect_rate": 4.5,
-        "date_range": {
-            "start": "2025-01-01",
-            "end": "2025-01-10"
-        },
-        "by_process": {
-            "PROC-002": {
-                "process_name": "LMA 조립",
-                "count": 15,
-                "percentage": 33.3
-            },
-            "PROC-003": {
-                "process_name": "센서 검사",
-                "count": 8,
-                "percentage": 17.8
-            }
-        },
-        "by_defect_type": {
-            "PART_DEFECT": 12,
-            "SENSOR_TEMP_FAIL": 8,
-            "ASSEMBLY_ERROR": 10
-        },
-        "top_defects": [
-            {
-                "defect_code": "PART_DEFECT",
-                "count": 12,
-                "percentage": 26.7
-            }
-        ]
-    }
-    ```
     """
-    # Set default date range if not provided
-    if not end_date:
-        end_date = date.today()
-    if not start_date:
-        start_date = end_date - timedelta(days=30)
-
-    # Query failed process data within date range
-    failed_query = db.query(ProcessData).filter(
-        ProcessData.result == ProcessResult.FAIL
-    )
-
-    if start_date:
-        failed_query = failed_query.filter(
-            func.date(ProcessData.created_at) >= start_date
-        )
-    if end_date:
-        failed_query = failed_query.filter(
-            func.date(ProcessData.created_at) <= end_date
-        )
-
-    failed_processes = failed_query.all()
-    total_defects = len(failed_processes)
-
-    # Calculate defect rate
-    total_processes = db.query(func.count(ProcessData.id)).filter(
-        and_(
-            func.date(ProcessData.created_at) >= start_date,
-            func.date(ProcessData.created_at) <= end_date,
-            ProcessData.result.in_([ProcessResult.PASS, ProcessResult.FAIL])
-        )
-    ).scalar() or 0
-
-    defect_rate = (total_defects / total_processes * 100) if total_processes > 0 else 0
-
-    # Group by process
-    by_process_dict = {}
-    for pd in failed_processes:
-        process_code = pd.process.process_code if pd.process else "UNKNOWN"
-        process_name = pd.process.process_name_en if pd.process else "Unknown"
-
-        if process_code not in by_process_dict:
-            by_process_dict[process_code] = {
-                "process_name": process_name,
-                "count": 0,
-            }
-        by_process_dict[process_code]["count"] += 1
-
-    # Convert to list with correct field names for frontend
-    by_process = [
-        {
-            "process_name": data["process_name"],
-            "defect_count": data["count"],
-            "defect_rate": round(data["count"] / total_defects * 100, 1) if total_defects > 0 else 0
-        }
-        for process_code, data in sorted(by_process_dict.items(), key=lambda x: x[1]["count"], reverse=True)
-    ]
-
-    # Extract defect types from JSONB defects field
-    by_defect_type = {}
-    for pd in failed_processes:
-        if pd.defects and isinstance(pd.defects, list):
-            for defect in pd.defects:
-                if isinstance(defect, dict) and "defect_code" in defect:
-                    defect_code = defect["defect_code"]
-                    by_defect_type[defect_code] = by_defect_type.get(defect_code, 0) + 1
-
-    # Top defects (sorted by count)
-    top_defects = [
-        {
-            "defect_code": code,
-            "count": count,
-            "percentage": round(count / total_defects * 100, 1) if total_defects > 0 else 0
-        }
-        for code, count in sorted(by_defect_type.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    return {
-        "total_defects": total_defects,
-        "defect_rate": round(defect_rate, 2),
-        "date_range": {
-            "start": start_date.isoformat(),
-            "end": end_date.isoformat()
-        },
-        "by_process": by_process,
-        "by_defect_type": by_defect_type,
-        "top_defects": top_defects[:10]  # Top 10
-    }
+    return analytics_service.get_defects_analysis(db, start_date, end_date)
 
 
 @router.get("/defect-trends")
@@ -775,389 +230,5 @@ def get_defect_trends(
     **Query Parameters:**
     - period: Aggregation period (daily, weekly, monthly)
     - days: Number of days to look back (1-365)
-
-    **Response:**
-    ```json
-    {
-        "period": "daily",
-        "days_analyzed": 30,
-        "trends": [
-            {
-                "date": "2025-01-01",
-                "total_processes": 120,
-                "defects": 5,
-                "defect_rate": 4.2
-            },
-            {
-                "date": "2025-01-02",
-                "total_processes": 135,
-                "defects": 4,
-                "defect_rate": 3.0
-            }
-        ],
-        "summary": {
-            "average_defect_rate": 3.8,
-            "max_defect_rate": 6.5,
-            "min_defect_rate": 1.2,
-            "total_defects": 115
-        }
-    }
-    ```
     """
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days)
-
-    # Query all process data in date range
-    all_processes = db.query(
-        func.date(ProcessData.created_at).label("date"),
-        func.count(ProcessData.id).label("total"),
-        func.sum(
-            func.cast(ProcessData.result == ProcessResult.FAIL, Integer)
-        ).label("defects")
-    ).filter(
-        and_(
-            func.date(ProcessData.created_at) >= start_date,
-            func.date(ProcessData.created_at) <= end_date,
-            ProcessData.result.in_([ProcessResult.PASS, ProcessResult.FAIL])
-        )
-    ).group_by(
-        func.date(ProcessData.created_at)
-    ).order_by(
-        func.date(ProcessData.created_at)
-    ).all()
-
-    # Build trends data
-    trends = []
-    total_defects_sum = 0
-    defect_rates = []
-
-    for row in all_processes:
-        total = row.total or 0
-        defects = row.defects or 0
-        defect_rate = (defects / total * 100) if total > 0 else 0
-
-        # Handle date conversion - row.date might be string or date object
-        date_str = row.date if isinstance(row.date, str) else row.date.isoformat()
-
-        trends.append({
-            "date": date_str,
-            "total_processes": total,
-            "defects": defects,
-            "defect_rate": round(defect_rate, 2)
-        })
-
-        total_defects_sum += defects
-        defect_rates.append(defect_rate)
-
-    # Calculate summary statistics
-    avg_defect_rate = sum(defect_rates) / len(defect_rates) if defect_rates else 0
-    max_defect_rate = max(defect_rates) if defect_rates else 0
-    min_defect_rate = min(defect_rates) if defect_rates else 0
-
-    return {
-        "period": period,
-        "days_analyzed": days,
-        "trends": trends,
-        "summary": {
-            "average_defect_rate": round(avg_defect_rate, 2),
-            "max_defect_rate": round(max_defect_rate, 2),
-            "min_defect_rate": round(min_defect_rate, 2),
-            "total_defects": total_defects_sum
-        }
-    }
-
-
-@router.get("/daily")
-def get_daily_statistics(
-    process_id: Optional[str] = Query(None, description="Process ID filter (e.g., PROC-001)"),
-    date: Optional[date] = Query(None, description="Date for statistics (default: today)"),
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    Get daily production statistics (일일 통계).
-
-    Returns aggregated statistics for a specific day including:
-    - Total production count
-    - Pass/Fail counts
-    - Pass rate percentage
-    - Process execution summary
-
-    **Query Parameters:**
-    - process_id: Filter by process ID (optional, e.g., PROC-001)
-    - date: Date for statistics (default: today)
-
-    **Response:**
-    ```json
-    {
-        "date": "2025-01-17",
-        "summary": {
-            "total_production": 150,
-            "passed": 145,
-            "failed": 5,
-            "pass_rate": 96.67,
-            "in_progress": 12
-        },
-        "by_process": [
-            {
-                "process_id": 1,
-                "process_name": "레이저 마킹",
-                "total": 150,
-                "passed": 148,
-                "failed": 2,
-                "pass_rate": 98.67
-            }
-        ],
-        "hourly_trend": [
-            {"hour": 9, "count": 25},
-            {"hour": 10, "count": 30}
-        ]
-    }
-    ```
-    """
-    from datetime import datetime as dt
-
-    target_date = date if date else date_module.today()
-
-    # Base query for the day
-    day_start = dt.combine(target_date, dt.min.time())
-    day_end = dt.combine(target_date, dt.max.time())
-
-    # Total process executions for the day
-    base_query = db.query(ProcessData).filter(
-        and_(
-            ProcessData.created_at >= day_start,
-            ProcessData.created_at <= day_end
-        )
-    )
-
-    # Filter by process if specified
-    if process_id:
-        # Convert PROC-001 format to process number
-        try:
-            if process_id.startswith("PROC-"):
-                proc_num = int(process_id.replace("PROC-", ""))
-                process_obj = db.query(Process).filter(
-                    Process.process_number == proc_num
-                ).first()
-                if process_obj:
-                    base_query = base_query.filter(
-                        ProcessData.process_id == process_obj.id
-                    )
-        except (ValueError, AttributeError):
-            pass
-
-    all_data = base_query.all()
-
-    # Calculate summary
-    total = len(all_data)
-    passed = sum(1 for d in all_data if d.result == ProcessResult.PASS and d.completed_at)
-    failed = sum(1 for d in all_data if d.result == ProcessResult.FAIL and d.completed_at)
-    in_progress = sum(1 for d in all_data if d.completed_at is None)
-    pass_rate = round((passed / (passed + failed) * 100), 2) if (passed + failed) > 0 else 0
-
-    # By process breakdown
-    processes = db.query(Process).order_by(Process.process_number).all()
-    by_process = []
-
-    for process in processes:
-        proc_data = [d for d in all_data if d.process_id == process.id]
-        proc_total = len(proc_data)
-        proc_passed = sum(1 for d in proc_data if d.result == ProcessResult.PASS and d.completed_at)
-        proc_failed = sum(1 for d in proc_data if d.result == ProcessResult.FAIL and d.completed_at)
-        proc_rate = round((proc_passed / (proc_passed + proc_failed) * 100), 2) if (proc_passed + proc_failed) > 0 else 0
-
-        by_process.append({
-            "process_id": process.id,
-            "process_number": process.process_number,
-            "process_name": process.process_name_ko or process.process_name_en,
-            "total": proc_total,
-            "passed": proc_passed,
-            "failed": proc_failed,
-            "pass_rate": proc_rate
-        })
-
-    # Hourly trend
-    hourly_counts = {}
-    for d in all_data:
-        if d.created_at:
-            hour = d.created_at.hour
-            hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
-
-    hourly_trend = [
-        {"hour": hour, "count": count}
-        for hour, count in sorted(hourly_counts.items())
-    ]
-
-    return {
-        "date": target_date.isoformat(),
-        "summary": {
-            "total_production": total,
-            "passed": passed,
-            "failed": failed,
-            "pass_rate": pass_rate,
-            "in_progress": in_progress
-        },
-        "by_process": by_process,
-        "hourly_trend": hourly_trend
-    }
-
-
-@router.get("/cycle-time")
-def get_cycle_time_analysis(
-    db: Session = Depends(deps.get_db),
-    process_id: Optional[int] = Query(None, description="Filter by specific process ID"),
-    start_date: Optional[date] = Query(None, description="Start date for analysis"),
-    end_date: Optional[date] = Query(None, description="End date for analysis"),
-    current_user: User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    Get cycle time analysis by process.
-
-    Provides statistical analysis of process cycle times including:
-    - Average, minimum, maximum cycle times
-    - Process bottleneck identification
-    - Cycle time distribution
-
-    **Query Parameters:**
-    - process_id: Filter by specific process (optional)
-    - days: Number of days to analyze (1-365)
-
-    **Response:**
-    ```json
-    {
-        "date_range": {
-            "start": "2024-12-18",
-            "end": "2025-01-17"
-        },
-        "by_process": {
-            "PROC-001": {
-                "process_name": "레이저 마킹",
-                "average_seconds": 60,
-                "min_seconds": 55,
-                "max_seconds": 75,
-                "median_seconds": 58,
-                "executions": 1250,
-                "is_bottleneck": false
-            },
-            "PROC-002": {
-                "process_name": "LMA 조립",
-                "average_seconds": 3600,
-                "min_seconds": 3200,
-                "max_seconds": 4500,
-                "median_seconds": 3550,
-                "executions": 1200,
-                "is_bottleneck": true
-            }
-        },
-        "bottlenecks": [
-            {
-                "process_code": "PROC-002",
-                "process_name": "LMA 조립",
-                "average_seconds": 3600,
-                "wip_count": 45
-            }
-        ]
-    }
-    ```
-    """
-    # Use provided dates or default to last 30 days
-    if not end_date:
-        end_date = date.today()
-    if not start_date:
-        start_date = end_date - timedelta(days=30)
-
-    # Query process data with duration
-    query = db.query(ProcessData).filter(
-        and_(
-            func.date(ProcessData.created_at) >= start_date,
-            func.date(ProcessData.created_at) <= end_date,
-            ProcessData.duration_seconds.isnot(None),
-            ProcessData.duration_seconds > 0
-        )
-    )
-
-    if process_id:
-        query = query.filter(ProcessData.process_id == process_id)
-
-    process_data = query.all()
-
-    # Group by process and calculate statistics
-    by_process = {}
-    for pd in process_data:
-        process_code = pd.process.process_code if pd.process else "UNKNOWN"
-        process_name = pd.process.process_name_en if pd.process else "Unknown"
-
-        if process_code not in by_process:
-            by_process[process_code] = {
-                "process_name": process_name,
-                "durations": [],
-                "executions": 0
-            }
-
-        by_process[process_code]["durations"].append(pd.duration_seconds)
-        by_process[process_code]["executions"] += 1
-
-    # Calculate statistics for each process
-    result_by_process_dict = {}
-    max_avg_time = 0
-
-    for process_code, data in by_process.items():
-        durations = sorted(data["durations"])
-        avg_time = sum(durations) / len(durations)
-
-        result_by_process_dict[process_code] = {
-            "process_name": data["process_name"],
-            "avg_cycle_time": round(avg_time, 1),
-            "min_cycle_time": round(min(durations), 1),
-            "max_cycle_time": round(max(durations), 1),
-            "median_cycle_time": round(durations[len(durations) // 2], 1),
-            "total_records": data["executions"],
-            "is_bottleneck": False
-        }
-
-        if avg_time > max_avg_time:
-            max_avg_time = avg_time
-
-    # Identify bottlenecks (processes with highest average time)
-    bottleneck_threshold = max_avg_time * 0.8  # Top 20% longest processes
-    bottlenecks = []
-
-    for process_code, stats in result_by_process_dict.items():
-        if stats["avg_cycle_time"] >= bottleneck_threshold:
-            stats["is_bottleneck"] = True
-
-            # Get current WIP for bottleneck processes
-            wip_count = db.query(func.count(ProcessData.id)).filter(
-                and_(
-                    ProcessData.process.has(process_code=process_code),
-                    ProcessData.completed_at.is_(None)
-                )
-            ).scalar() or 0
-
-            bottlenecks.append({
-                "process_name": stats["process_name"],
-                "avg_cycle_time": stats["avg_cycle_time"],
-                "wip_count": wip_count
-            })
-
-    # Sort bottlenecks by average time
-    bottlenecks.sort(key=lambda x: x["avg_cycle_time"], reverse=True)
-
-    # Convert by_process dict to array for frontend
-    result_by_process = [
-        {
-            "process_name": stats["process_name"],
-            "avg_cycle_time": stats["avg_cycle_time"],
-            "min_cycle_time": stats["min_cycle_time"],
-            "max_cycle_time": stats["max_cycle_time"],
-            "median_cycle_time": stats["median_cycle_time"],
-            "total_records": stats["total_records"]
-        }
-        for process_code, stats in sorted(result_by_process_dict.items(), key=lambda x: x[1]["avg_cycle_time"], reverse=True)
-    ]
-
-    return {
-        "by_process": result_by_process,
-        "bottlenecks": bottlenecks
-    }
+    return analytics_service.get_defect_trends(db, period, days)

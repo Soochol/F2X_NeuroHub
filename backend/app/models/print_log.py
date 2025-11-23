@@ -8,7 +8,7 @@ Database table: print_logs
 Primary key: id (INTEGER AUTOINCREMENT)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from enum import Enum
 
@@ -123,7 +123,7 @@ class PrintLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
         comment="Print timestamp"
     )

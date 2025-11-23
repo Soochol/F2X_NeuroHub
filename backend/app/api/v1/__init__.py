@@ -38,6 +38,8 @@ from app.api.v1 import (
     production_lines,
     equipment,
     error_logs,
+    async_operations,
+    search,
 )
 
 __all__ = [
@@ -57,4 +59,6 @@ __all__ = [
     "production_lines",
     "equipment",
     "error_logs",
+    "async_operations",
+    "search",
 ]

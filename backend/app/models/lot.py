@@ -17,18 +17,18 @@ Example: KR01PSA251101 (13 characters total)
 Status Lifecycle: CREATED → IN_PROGRESS → COMPLETED → CLOSED
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Optional, List
 
 from sqlalchemy import (
-    BIGINT,
     VARCHAR,
     DATE,
     INTEGER,
     TIMESTAMP,
     Index,
     ForeignKey,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -183,15 +183,17 @@ class Lot(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="LOT creation timestamp"
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="Last modification timestamp (auto-updated)"
     )
 

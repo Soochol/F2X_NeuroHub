@@ -8,7 +8,7 @@ Database table: processes
 Primary key: id (BIGSERIAL)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from enum import Enum
 
@@ -25,7 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB, is_postgresql
+from app.database import Base, JSONBDict, is_postgresql
 
 
 class LabelTemplateType(str, Enum):
@@ -109,7 +109,7 @@ class Process(Base):
     )
 
     quality_criteria: Mapped[dict] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=False,
         default=dict,
     )
@@ -146,15 +146,15 @@ class Process(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
     )
 

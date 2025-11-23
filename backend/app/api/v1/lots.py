@@ -30,14 +30,11 @@ All endpoints include:
 
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
+from fastapi import APIRouter, Depends, Query, status, Path
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError, InternalError
 
 from app.api import deps
 from app.models import User
-from app.crud import lot as crud
-from app.crud import wip_item as wip_crud
 from app.schemas.lot import (
     LotCreate,
     LotUpdate,
@@ -45,15 +42,7 @@ from app.schemas.lot import (
     LotStatus,
 )
 from app.schemas.wip_item import WIPItemInDB
-from app.core.exceptions import (
-    LotNotFoundException,
-    DuplicateResourceException,
-    ValidationException,
-    ConstraintViolationException,
-    DatabaseException,
-    BusinessRuleException,
-)
-from app.services.wip_service import WIPValidationError
+from app.services.lot_service import lot_service
 
 
 router = APIRouter(
@@ -76,7 +65,7 @@ router = APIRouter(
 def list_lots(
     skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
     limit: int = Query(100, ge=1, le=10000, description="Maximum number of records to return"),
-    status: Optional[LotStatus] = Query(None, description="Filter by LOT status (CREATED, IN_PROGRESS, COMPLETED, CLOSED)"),
+    status: Optional[str] = Query(None, description="Filter by LOT status (CREATED, IN_PROGRESS, COMPLETED, CLOSED)"),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> List[LotInDB]:
@@ -100,54 +89,20 @@ def list_lots(
     Returns:
         List[LotInDB]: List of LOT records with database fields.
             Empty list if no records match criteria.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get first 10 LOTs:
-        >>> GET /api/v1/lots/?skip=0&limit=10
-
-        Get next page (items 10-20):
-        >>> GET /api/v1/lots/?skip=10&limit=10
-
-        Get all records (large limit):
-        >>> GET /api/v1/lots/?skip=0&limit=10000
-
-        Get only COMPLETED LOTs:
-        >>> GET /api/v1/lots/?status=COMPLETED
-
-        Get IN_PROGRESS LOTs with pagination:
-        >>> GET /api/v1/lots/?status=IN_PROGRESS&skip=0&limit=20
-
-    OpenAPI Parameters:
-        skip: Query parameter, non-negative integer
-        limit: Query parameter, positive integer (1-10000)
-        status: Query parameter, optional LOT status enum
     """
-    # Debug - Status Filter Investigation
-    print(f"\n{'='*80}")
-    print(f"[STATUS FILTER DEBUG] list_lots called")
-    print(f"  status parameter: {status}")
-    print(f"  status type: {type(status)}")
-    print(f"  skip: {skip}, limit: {limit}")
-    print(f"{'='*80}\n")
-
-    # If status filter is provided, use get_by_status
-    if status:
-        print(f"[FILTER] Using get_by_status with status={status.value}")
-        result = crud.get_by_status(db, status=status.value, skip=skip, limit=limit)
-        print(f"[FILTER] Returned {len(result)} LOTs")
-        return result
-
-    # Otherwise, return all LOTs
-    print(f"[NO FILTER] Returning all LOTs")
-    result = crud.get_multi(db, skip=skip, limit=limit)
-    print(f"[NO FILTER] Returned {len(result)} LOTs")
-    return result
-
-
-
+    # Convert empty string to None, validate non-empty strings
+    status_enum: Optional[LotStatus] = None
+    if status and status.strip():
+        try:
+            status_enum = LotStatus(status.upper())
+        except ValueError:
+            from app.exceptions import ValidationException
+            raise ValidationException(
+                message=f"Invalid status value: '{status}'. Must be one of: CREATED, IN_PROGRESS, COMPLETED, CLOSED",
+                details={"field": "status", "value": status, "allowed_values": [s.value for s in LotStatus]}
+            )
+    
+    return lot_service.get_lots(db, skip=skip, limit=limit, status=status_enum)
 
 
 @router.get(
@@ -179,30 +134,9 @@ def get_lot_by_number(
         LotInDB: LOT record with all database fields.
 
     Raises:
-        HTTPException: 404 Not Found if LOT does not exist with given number.
-
-    Examples:
-        Get LOT by number:
-        >>> GET /api/v1/lots/number/KR01PSA2511
-
-        Get LOT with different number:
-        >>> GET /api/v1/lots/number/KR02WFA2511
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "KR01PSA2511",
-            "product_model_id": 1,
-            "production_date": "2025-11-18",
-            "target_quantity": 100,
-            "actual_quantity": 95,
-            ...
-        }
+        LotNotFoundException: 404 Not Found if LOT does not exist with given number.
     """
-    obj = crud.get_by_number(db, lot_number=lot_number)
-    if not obj:
-        raise LotNotFoundException(lot_number=lot_number)
-    return obj
+    return lot_service.get_lot_by_number(db, lot_number=lot_number)
 
 
 @router.get(
@@ -233,35 +167,8 @@ def get_active_lots(
     Returns:
         List[LotInDB]: List of active LOT records.
             Empty list if no active LOTs exist.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get all active LOTs:
-        >>> GET /api/v1/lots/active
-
-        Paginate through active LOTs (10 per page):
-        >>> GET /api/v1/lots/active?skip=0&limit=10
-        >>> GET /api/v1/lots/active?skip=10&limit=10
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "lot_number": "WF-KR-251118D-001",
-                "status": "IN_PROGRESS",
-                ...
-            },
-            {
-                "id": 2,
-                "lot_number": "WF-KR-251118N-002",
-                "status": "CREATED",
-                ...
-            }
-        ]
     """
-    return crud.get_active(db, skip=skip, limit=limit)
+    return lot_service.get_active_lots(db, skip=skip, limit=limit)
 
 
 @router.get(
@@ -295,37 +202,8 @@ def get_lots_by_date_range(
     Returns:
         List[LotInDB]: List of LOTs within the date range.
             Empty list if no LOTs exist in range.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get LOTs from specific date:
-        >>> GET /api/v1/lots/date-range?start_date=2025-11-18&end_date=2025-11-18
-
-        Get LOTs from November 2025:
-        >>> GET /api/v1/lots/date-range?start_date=2025-11-01&end_date=2025-11-30
-
-        Get last 7 days with pagination:
-        >>> GET /api/v1/lots/date-range?start_date=2025-11-11&end_date=2025-11-18&limit=50
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "lot_number": "WF-KR-251118D-001",
-                "production_date": "2025-11-18",
-                ...
-            },
-            {
-                "id": 2,
-                "lot_number": "WF-KR-251118N-002",
-                "production_date": "2025-11-18",
-                ...
-            }
-        ]
     """
-    return crud.get_by_date_range(db, start_date=start_date, end_date=end_date, skip=skip, limit=limit)
+    return lot_service.get_lots_by_date_range(db, start_date=start_date, end_date=end_date, skip=skip, limit=limit)
 
 
 @router.get(
@@ -358,32 +236,8 @@ def get_lots_by_product_model(
     Returns:
         List[LotInDB]: List of LOTs for the specified product model.
             Empty list if no LOTs exist for product.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get all LOTs for product model 1:
-        >>> GET /api/v1/lots/product/1
-
-        Get first 50 LOTs for product model 2:
-        >>> GET /api/v1/lots/product/2?skip=0&limit=50
-
-        Get LOTs with pagination:
-        >>> GET /api/v1/lots/product/1?skip=100&limit=25
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "lot_number": "WF-KR-251118D-001",
-                "product_model_id": 1,
-                "production_date": "2025-11-18",
-                ...
-            }
-        ]
     """
-    return crud.get_by_product_model(db, product_model_id=product_model_id, skip=skip, limit=limit)
+    return lot_service.get_lots_by_product_model(db, product_model_id=product_model_id, skip=skip, limit=limit)
 
 
 @router.get(
@@ -416,31 +270,8 @@ def get_lots_by_status(
     Returns:
         List[LotInDB]: List of LOTs with specified status.
             Empty list if no LOTs exist with status.
-
-    Raises:
-        HTTPException: May raise 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Get all completed LOTs:
-        >>> GET /api/v1/lots/status/COMPLETED
-
-        Get all closed LOTs:
-        >>> GET /api/v1/lots/status/CLOSED?limit=50
-
-        Get in-progress LOTs with pagination:
-        >>> GET /api/v1/lots/status/IN_PROGRESS?skip=0&limit=20
-
-    Response Example (200 OK):
-        [
-            {
-                "id": 1,
-                "lot_number": "WF-KR-251118D-001",
-                "status": "COMPLETED",
-                ...
-            }
-        ]
     """
-    return crud.get_by_status(db, status=status, skip=skip, limit=limit)
+    return lot_service.get_lots_by_status(db, status=status, skip=skip, limit=limit)
 
 
 @router.get(
@@ -468,38 +299,9 @@ def get_lot(
         LotInDB: LOT record with all database fields.
 
     Raises:
-        HTTPException: 404 Not Found if LOT does not exist with given ID.
-
-    Examples:
-        Get LOT with ID 1:
-        >>> GET /api/v1/lots/1
-
-        Get LOT with ID 42:
-        >>> GET /api/v1/lots/42
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "product_model_id": 1,
-            "production_date": "2025-11-18",
-            "target_quantity": 100,
-            "actual_quantity": 95,
-            "passed_quantity": 92,
-            "failed_quantity": 3,
-            "status": "IN_PROGRESS",
-            "created_at": "2025-11-18T08:30:00",
-            "updated_at": "2025-11-18T14:15:00",
-            "closed_at": null,
-            "product_model": {...},
-            "defect_rate": 3.16,
-            "pass_rate": 96.84
-        }
+        LotNotFoundException: 404 Not Found if LOT does not exist with given ID.
     """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(id)
-    return obj
+    return lot_service.get_lot(db, lot_id=id)
 
 
 @router.get(
@@ -534,28 +336,9 @@ def get_lot_quantities(
         LotInDB: LOT record with all quantity fields and calculated metrics.
 
     Raises:
-        HTTPException: 404 Not Found if LOT does not exist.
-
-    Examples:
-        Get quantities for LOT ID 1:
-        >>> GET /api/v1/lots/1/quantities
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "actual_quantity": 95,
-            "passed_quantity": 92,
-            "failed_quantity": 3,
-            "defect_rate": 3.16,
-            "pass_rate": 96.84,
-            ...
-        }
+        LotNotFoundException: 404 Not Found if LOT does not exist.
     """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(id)
-    return obj
+    return lot_service.get_lot(db, lot_id=id)
 
 
 @router.post(
@@ -587,69 +370,11 @@ def create_lot(
             database-generated lot_number, ID, and timestamps.
 
     Raises:
-        HTTPException: 400 Bad Request if validation fails.
-        HTTPException: 409 Conflict if constraint violation occurs.
-        HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Create minimal LOT:
-        >>> POST /api/v1/lots/
-        >>> {
-        ...     "product_model_id": 1,
-        ...     "production_date": "2025-11-18",
-        ...     "shift": "D",
-        ...     "target_quantity": 100
-        ... }
-
-        Create LOT with specific status:
-        >>> POST /api/v1/lots/
-        >>> {
-        ...     "product_model_id": 1,
-        ...     "production_date": "2025-11-18",
-        ...     "shift": "N",
-        ...     "target_quantity": 50,
-        ...     "status": "CREATED"
-        ... }
-
-    Response Example (201 Created):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "product_model_id": 1,
-            "production_date": "2025-11-18",
-            "shift": "D",
-            "target_quantity": 100,
-            "actual_quantity": 0,
-            "passed_quantity": 0,
-            "failed_quantity": 0,
-            "status": "CREATED",
-            "created_at": "2025-11-18T08:30:00",
-            "updated_at": "2025-11-18T08:30:00",
-            "closed_at": null,
-            "product_model": {...},
-            "defect_rate": null,
-            "pass_rate": null
-        }
+        ValidationException: 400 Bad Request if validation fails.
+        DuplicateResourceException: 409 Conflict if constraint violation occurs.
+        DatabaseException: 500 Internal Server Error on unexpected database errors.
     """
-    try:
-        return crud.create(db, lot_in=obj_in)
-    except ValueError as e:
-        # Handle invalid product_model_id, production_line_id, or other validation errors
-        raise ValidationException(message=str(e))
-    except IntegrityError as e:
-        error_str = str(e).lower()
-        if "unique constraint" in error_str or "duplicate" in error_str:
-            raise DuplicateResourceException(
-                resource_type="Lot",
-                identifier=f"lot_number={obj_in.lot_number}"
-            )
-        if "foreign key" in error_str:
-            raise ConstraintViolationException(
-                message="Invalid product_model_id or other foreign key reference"
-            )
-        raise DatabaseException(message=f"Database integrity error: {str(e)}")
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Database operation failed: {str(e)}")
+    return lot_service.create_lot(db, lot_in=obj_in)
 
 
 @router.post(
@@ -686,15 +411,10 @@ def start_wip_generation(
         List of created WIP items
 
     Raises:
-        HTTPException: 404 if LOT not found, 400 if validation fails
+        LotNotFoundException: 404 if LOT not found
+        WIPValidationError: 400 if validation fails
     """
-    try:
-        wip_items = wip_crud.create_batch(db, id, quantity)
-        return wip_items
-    except WIPValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return lot_service.start_wip_generation(db, lot_id=id, quantity=quantity, current_user=current_user)
 
 
 @router.put(
@@ -731,286 +451,9 @@ def update_lot(
         LotInDB: Updated LOT record with all fields.
 
     Raises:
-        HTTPException: 404 Not Found if LOT does not exist.
-        HTTPException: 400 Bad Request if validation fails.
-        HTTPException: 409 Conflict if constraint violation occurs.
-        HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Update status to IN_PROGRESS:
-        >>> PUT /api/v1/lots/1
-        >>> {
-        ...     "status": "IN_PROGRESS"
-        ... }
-
-        Update quantities after production:
-        >>> PUT /api/v1/lots/1
-        >>> {
-        ...     "actual_quantity": 95,
-        ...     "passed_quantity": 92,
-        ...     "failed_quantity": 3
-        ... }
-
-        Update multiple fields:
-        >>> PUT /api/v1/lots/1
-        >>> {
-        ...     "status": "COMPLETED",
-        ...     "actual_quantity": 100,
-        ...     "passed_quantity": 98,
-        ...     "failed_quantity": 2
-        ... }
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "status": "IN_PROGRESS",
-            "actual_quantity": 95,
-            "passed_quantity": 92,
-            "failed_quantity": 3,
-            "updated_at": "2025-11-18T14:15:00",
-            ...
-        }
+        LotNotFoundException: 404 Not Found if LOT does not exist.
+        ValidationException: 400 Bad Request if validation fails.
+        DuplicateResourceException: 409 Conflict if constraint violation occurs.
+        DatabaseException: 500 Internal Server Error on unexpected database errors.
     """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(lot_id=id)
-
-    try:
-        return crud.update(db, lot_id=id, lot_in=obj_in)
-    except IntegrityError as e:
-        error_str = str(e).lower()
-        if "unique constraint" in error_str or "duplicate" in error_str:
-            raise DuplicateResourceException(
-                resource_type="Lot",
-                identifier=f"lot_id={id}"
-            )
-        if "foreign key" in error_str:
-            raise ConstraintViolationException(
-                message="Invalid reference in update"
-            )
-        raise DatabaseException(message=f"Database integrity error: {str(e)}")
-    except InternalError as e:
-        error_str = str(e)
-        if "Invalid status transition" in error_str:
-            # Extract the message from the trigger
-            # Format: (psycopg2.errors.RaiseException) Invalid status transition: ...
-            msg = error_str.split("RaiseException) ")[-1].split("\n")[0] if "RaiseException)" in error_str else "Invalid status transition"
-            raise BusinessRuleException(message=msg)
-        raise DatabaseException(message=f"Database internal error: {str(e)}")
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Database operation failed: {str(e)}")
-    except ValueError as e:
-        raise ValidationException(message=str(e))
-    except Exception as e:
-        # Log the full error for debugging
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Unexpected error updating LOT {id}: {str(e)}", exc_info=True)
-        raise DatabaseException(message=f"An unexpected error occurred: {str(e)}")
-
-
-@router.post(
-    "/{id}/close",
-    response_model=LotInDB,
-    summary="Close completed LOT",
-    description="Transition a completed LOT to CLOSED status and set closure timestamp",
-    responses={404: {"description": "Lot not found"}},
-)
-def close_lot(
-    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
-    db: Session = Depends(deps.get_db),
-) -> LotInDB:
-    """Close a completed LOT.
-
-    Transitions a LOT to CLOSED status and sets the closed_at timestamp to
-    the current UTC time. This operation typically happens after a LOT has been
-    COMPLETED and all quality checks are done. The closed LOT is then archived.
-
-    Status Transition Rules:
-    - Any status can transition to CLOSED
-    - closed_at timestamp is automatically set to current UTC time
-    - updated_at timestamp is also automatically updated
-
-    Args:
-        id: Primary key identifier of the LOT to close.
-            Must be a positive integer.
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        LotInDB: Updated LOT with CLOSED status and closed_at timestamp set.
-
-    Raises:
-        HTTPException: 404 Not Found if LOT does not exist.
-        HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Close a completed LOT:
-        >>> POST /api/v1/lots/1/close
-
-        Close LOT with ID 42:
-        >>> POST /api/v1/lots/42/close
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "status": "CLOSED",
-            "closed_at": "2025-11-18T18:45:00",
-            "updated_at": "2025-11-18T18:45:00",
-            ...
-        }
-    """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(lot_id=id)
-
-    try:
-        return crud.close_lot(db, lot_id=id)
-    except IntegrityError as e:
-        raise DatabaseException(message=f"Database integrity error while closing lot: {str(e)}")
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to close Lot: {str(e)}")
-
-
-@router.put(
-    "/{id}/quantities",
-    response_model=LotInDB,
-    summary="Recalculate LOT quantities",
-    description="Recalculate quantities (actual, passed, failed) from associated serials",
-    responses={404: {"description": "Lot not found"}},
-)
-def recalculate_lot_quantities(
-    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
-    db: Session = Depends(deps.get_db),
-) -> LotInDB:
-    """Recalculate LOT quantities from serials.
-
-    Recalculates actual_quantity, passed_quantity, and failed_quantity by
-    counting associated serial records with different statuses. This is typically
-    called after bulk serial status updates to synchronize LOT-level metrics.
-
-    Quantities Calculated:
-        - actual_quantity: Count of all serials in this LOT
-        - passed_quantity: Count of serials with status PASSED
-        - failed_quantity: Count of serials with status FAILED
-        - defect_rate: Calculated percentage of failed units
-        - pass_rate: Calculated percentage of passed units
-
-    Args:
-        id: Primary key identifier of the LOT.
-            Must be a positive integer.
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        LotInDB: Updated LOT with recalculated quantities and metrics.
-
-    Raises:
-        HTTPException: 404 Not Found if LOT does not exist.
-        HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Recalculate quantities for LOT ID 1:
-        >>> PUT /api/v1/lots/1/quantities
-
-        Sync after bulk serial updates:
-        >>> PUT /api/v1/lots/42/quantities
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "actual_quantity": 95,
-            "passed_quantity": 92,
-            "failed_quantity": 3,
-            "defect_rate": 3.16,
-            "pass_rate": 96.84,
-            "updated_at": "2025-11-18T15:20:00",
-            ...
-        }
-    """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(lot_id=id)
-
-    try:
-        return crud.update_quantities(db, lot_id=id)
-    except IntegrityError as e:
-        raise DatabaseException(message=f"Database integrity error while recalculating: {str(e)}")
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to recalculate Lot quantities: {str(e)}")
-
-
-@router.delete(
-    "/{id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete LOT",
-    description="Delete an existing LOT (protected by database trigger)",
-    responses={
-        404: {"description": "Lot not found"},
-        409: {"description": "Cannot delete LOT with associated serials"},
-    },
-)
-def delete_lot(
-    id: int = Path(..., gt=0, description="Primary key identifier of the LOT"),
-    db: Session = Depends(deps.get_db),
-):
-    """Delete LOT by ID.
-
-    Removes a LOT record from the database. Note: LOT deletion is restricted
-    by a database trigger to prevent deletion of LOTs that have associated
-    serial records. Delete all related serials first if deletion is required.
-    Returns the deleted record for confirmation.
-
-    Args:
-        id: Primary key identifier of LOT to delete.
-            Must be a positive integer.
-        db: SQLAlchemy database session (injected via dependency).
-
-    Returns:
-        LotInDB: Deleted LOT record (as it was before deletion).
-
-    Raises:
-        HTTPException: 404 Not Found if LOT does not exist.
-        HTTPException: 409 Conflict if deletion violates trigger constraints
-            (e.g., has associated serials).
-        HTTPException: 500 Internal Server Error on unexpected database errors.
-
-    Examples:
-        Delete LOT with ID 1:
-        >>> DELETE /api/v1/lots/1
-
-        Delete LOT with ID 42:
-        >>> DELETE /api/v1/lots/42
-
-    Response Example (200 OK):
-        {
-            "id": 1,
-            "lot_number": "WF-KR-251118D-001",
-            "product_model_id": 1,
-            ...
-        }
-
-    Error Example (409 Conflict):
-        If LOT has associated serials, deletion is blocked:
-        {
-            "detail": "Cannot delete Lot with associated serials"
-        }
-    """
-    obj = crud.get(db, lot_id=id)
-    if not obj:
-        raise LotNotFoundException(lot_id=id)
-
-    try:
-        deleted = crud.delete(db, lot_id=id)
-        if not deleted:
-            raise LotNotFoundException(lot_id=id)
-    except IntegrityError as e:
-        error_str = str(e).lower()
-        if "foreign key" in error_str or "constraint" in error_str:
-            raise ConstraintViolationException(
-                message="Cannot delete Lot with associated serials"
-            )
-        raise DatabaseException(message=f"Database integrity error: {str(e)}")
-    except SQLAlchemyError as e:
-        raise DatabaseException(message=f"Failed to delete Lot: {str(e)}")
+    return lot_service.update_lot(db, lot_id=id, lot_in=obj_in)

@@ -22,33 +22,86 @@ Functions:
 """
 
 from datetime import datetime
-from typing import List, Optional
-from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional, Literal
+from sqlalchemy.orm import Session, joinedload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.serial import Serial, SerialStatus
-from app.schemas.serial import SerialCreate, SerialUpdate, SerialInDB
+from app.schemas.serial import SerialCreate, SerialUpdate
 
 
-def get(db: Session, serial_id: int) -> Optional[Serial]:
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load lot relationship (most common need)
+    - full: Load lot and its nested relationships
+
+    Strategy explanation:
+    - joinedload: Used for many-to-one relationships (lot).
+      Single JOIN query is efficient for single parent record.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Use joinedload for the many-to-one relationship
+        return query.options(
+            joinedload(Serial.lot)
+        )
+    elif eager_loading == "full":
+        # Load lot and its relationships
+        return query.options(
+            joinedload(Serial.lot).selectinload("serials"),
+            joinedload(Serial.lot).joinedload("product_model"),
+            joinedload(Serial.lot).joinedload("production_line")
+        )
+    return query
+
+
+def get(db: Session, serial_id: int, eager_loading: Literal["minimal", "standard", "full"] = "standard") -> Optional[Serial]:
     """
     Get a single serial by ID.
 
     Retrieves a serial record from the database by its primary key.
+    By default, eager loads the lot relationship to avoid N+1 queries.
+
+    Query optimization:
+    - Standard loading: 1 query with JOIN for lot
+    - Without optimization: 1 + 1 query when accessing lot
 
     Args:
         db: SQLAlchemy database session
         serial_id: Primary key ID of the serial to retrieve
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         Serial instance if found, None otherwise
 
     Example:
+        # Standard usage with optimized loading
         serial = get(db, serial_id=42)
         if serial:
             print(f"Serial: {serial.serial_number}, Status: {serial.status.value}")
+            print(f"LOT: {serial.lot.lot_number}")  # No additional query
+
+        # Minimal loading when lot isn't needed
+        serial = get(db, serial_id=42, eager_loading="minimal")
     """
-    return db.query(Serial).filter(Serial.id == serial_id).first()
+    query = db.query(Serial).filter(Serial.id == serial_id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
@@ -56,6 +109,7 @@ def get_multi(
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = None,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[Serial]:
     """
     Get multiple serials with pagination and optional filtering.
@@ -64,11 +118,16 @@ def get_multi(
     and optional filtering by status. Results are ordered by sequence_in_lot
     for consistent ordering within each lot.
 
+    Query optimization:
+    - With standard loading for 100 serials: 1-2 queries total
+    - Without optimization: 1 + 100 queries if accessing lot relationships
+
     Args:
         db: SQLAlchemy database session
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100, max: 100)
-        status: Optional filter for serial status (CREATED, IN_PROGRESS, PASSED, FAILED)
+        status: Optional filter for serial status
+        eager_loading: Control eager loading depth
 
     Returns:
         List of Serial instances matching the criteria
@@ -77,14 +136,15 @@ def get_multi(
         ValueError: If status is provided but invalid
 
     Example:
-        # Get first 10 serials
+        # Get first 10 serials with optimized loading
         serials = get_multi(db, skip=0, limit=10)
+        for serial in serials:
+            print(f"{serial.serial_number}: LOT {serial.lot.lot_number}")
 
-        # Get all failed serials
-        failed_serials = get_multi(db, status="FAILED", limit=100)
-
-        # Get passed serials with pagination
-        passed_serials = get_multi(db, skip=20, limit=10, status="PASSED")
+        # Get all failed serials without loading relationships
+        failed_serials = get_multi(
+            db, status="FAILED", limit=100, eager_loading="minimal"
+        )
     """
     query = db.query(Serial)
 
@@ -97,6 +157,7 @@ def get_multi(
             )
         query = query.filter(Serial.status == status)
 
+    query = _build_optimized_query(query, eager_loading)
     return (
         query.order_by(Serial.sequence_in_lot)
         .offset(skip)
@@ -318,6 +379,7 @@ def get_by_lot(
     lot_id: int,
     skip: int = 0,
     limit: int = 100,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
 ) -> List[Serial]:
     """
     Get all serials in a LOT with pagination.
@@ -325,35 +387,36 @@ def get_by_lot(
     Retrieves all serials belonging to a specific lot, ordered by their
     sequence within the lot for proper unit tracking.
 
+    Query optimization: Eager loads lot by default since we're filtering by it.
+
     Args:
         db: SQLAlchemy database session
         lot_id: ID of the lot to retrieve serials from
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100)
+        eager_loading: Control eager loading depth
 
     Returns:
-        List of Serial instances in the specified lot, ordered by sequence_in_lot
+        List of Serial instances in the specified lot, ordered by sequence
 
     Example:
-        # Get all serials in a lot
+        # Get all serials in a lot with optimized loading
         lot_serials = get_by_lot(db, lot_id=5)
-
-        # Get serials with pagination (10 per page, page 2)
-        page_2 = get_by_lot(db, lot_id=5, skip=10, limit=10)
-
-        # Display serials
         for serial in lot_serials:
-            print(f"{serial.sequence_in_lot}: {serial.serial_number} - {serial.status.value}")
+            print(f"{serial.sequence_in_lot}: {serial.serial_number}")
+            print(f"  LOT: {serial.lot.lot_number}")  # No extra query
+
+        # Get serials with minimal loading for simple listing
+        page_2 = get_by_lot(db, lot_id=5, skip=10, limit=10,
+                           eager_loading="minimal")
     """
-    return (
+    query = (
         db.query(Serial)
         .filter(Serial.lot_id == lot_id)
-        .options(joinedload(Serial.lot))
         .order_by(Serial.sequence_in_lot)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.offset(skip).limit(limit).all()
 
 
 def get_by_status(
@@ -583,7 +646,7 @@ def update_status(
     if new_status == SerialStatus.FAILED:
         if not failure_reason:
             raise ValueError(
-                f"failure_reason is required when updating serial to FAILED status"
+                "failure_reason is required when updating serial to FAILED status"
             )
         db_serial.failure_reason = failure_reason
 

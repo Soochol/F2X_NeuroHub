@@ -5,13 +5,13 @@ model definitions and specifications. It implements F2X NeuroHub MES database
 schema using SQLAlchemy 2.0 syntax.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from sqlalchemy import Index, String, Text, CheckConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB, is_postgresql
+from app.database import Base, JSONBDict, is_postgresql
 
 
 class ProductModel(Base):
@@ -85,7 +85,7 @@ class ProductModel(Base):
     )
 
     specifications: Mapped[dict[str, Any]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=False,
         default=lambda: {}
     )
@@ -102,15 +102,15 @@ class ProductModel(Base):
     # =========================================================================
     created_at: Mapped[datetime] = mapped_column(
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now()
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
-        onupdate=datetime.utcnow
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # =========================================================================

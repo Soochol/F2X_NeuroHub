@@ -12,6 +12,7 @@ import {
   ERROR_MESSAGES_KO,
   ERROR_ACTION_SUGGESTIONS,
 } from '@/types/error';
+import Logger from '@/utils/logger';
 import { toast, notify } from '@/utils/toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -51,7 +52,7 @@ function handleStandardError(
 ): void {
   const { error_code, message, details, trace_id } = errorResponse;
 
-  console.error('API Error:', {
+  Logger.error('API Error:', {
     code: error_code,
     message,
     details,
@@ -140,7 +141,7 @@ function handleStandardError(
           ? `문제가 지속되면 관리자에게 문의하세요\n(추적 ID: ${trace_id.substring(0, 8)}...)`
           : ERROR_ACTION_SUGGESTIONS[error_code] || '잠시 후 다시 시도해주세요',
       });
-      console.error(`[Trace ID: ${trace_id}]`, message);
+      Logger.error(`[Trace ID: ${trace_id}]`, message);
       break;
 
     // 알 수 없는 에러 코드
@@ -158,7 +159,7 @@ function handleLegacyError(error: AxiosError<APIError>): void {
   const statusCode = error.response?.status;
   const message = error.response?.data?.detail || error.message || '오류가 발생했습니다';
 
-  console.warn('Legacy error format detected:', { statusCode, message });
+  Logger.warn('Legacy error format detected:', { statusCode, message });
 
   if (statusCode === 401) {
     localStorage.removeItem('access_token');

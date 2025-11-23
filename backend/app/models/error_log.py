@@ -16,7 +16,7 @@ Database Table: error_logs
     - Partitioning: Monthly partitions by timestamp for performance
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -28,10 +28,11 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB
+from app.database import Base, JSONBDict
 
 
 class ErrorLog(Base):
@@ -133,7 +134,7 @@ class ErrorLog(Base):
 
     # Additional details (flexible JSONB for stack traces, field errors, etc.)
     details: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
         default=None
     )
@@ -142,7 +143,8 @@ class ErrorLog(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=text("CURRENT_TIMESTAMP"),
         # primary_key=True  # Removed for SQLite compatibility
     )
 

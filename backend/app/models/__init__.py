@@ -38,6 +38,8 @@ from app.models.alert import Alert, AlertType, AlertSeverity, AlertStatus
 from app.models.error_log import ErrorLog
 from app.models.print_log import PrintLog, PrintStatus
 
+from app.models.saved_filter import SavedFilter
+
 
 __all__ = [
     # Models
@@ -55,6 +57,7 @@ __all__ = [
     "Equipment",
     "ErrorLog",
     "PrintLog",
+    "SavedFilter",
     # Enums
     "UserRole",
     "LotStatus",

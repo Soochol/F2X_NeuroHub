@@ -18,7 +18,7 @@ Foreign keys:
     - operator_id -> users.id
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, List
 
@@ -37,7 +37,7 @@ from sqlalchemy import (
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONB
+from app.database import Base, JSONBDict, JSONBList
 
 
 class DataLevel(str, Enum):
@@ -205,13 +205,13 @@ class ProcessData(Base):
 
     # JSONB Measurement and Defect Data
     measurements: Mapped[Optional[dict]] = mapped_column(
-        JSONB,
+        JSONBDict,
         nullable=True,
         default=dict,
     )
 
     defects: Mapped[Optional[list]] = mapped_column(
-        JSONB,
+        JSONBList,
         nullable=True,
         default=list,
     )
@@ -245,7 +245,7 @@ class ProcessData(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default=text("CURRENT_TIMESTAMP"),
     )
 

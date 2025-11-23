@@ -133,6 +133,12 @@ class ErrorLoggingMiddleware(BaseHTTPMiddleware):
                 )
                 return
 
+            # Extract and normalize details field
+            details = error_data.get("details")
+            # If details is a list (e.g., from validation errors), wrap it in a dict
+            if isinstance(details, list):
+                details = {"validation_errors": details}
+            
             # Create error log entry
             error_log_data = ErrorLogCreate(
                 trace_id=trace_id,
@@ -142,7 +148,7 @@ class ErrorLoggingMiddleware(BaseHTTPMiddleware):
                 method=request.method,
                 status_code=response.status_code,
                 user_id=user_id,
-                details=error_data.get("details"),
+                details=details,
             )
 
             # Save to database

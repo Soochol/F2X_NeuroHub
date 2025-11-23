@@ -1,24 +1,15 @@
-/**
- * LOT Issuance Page
- * Create and manage LOTs
- */
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Select, Input, Card } from '@/components/common';
 import { LotCreateModal } from '@/components/lots';
-import { lotsApi, productionLinesApi, serialsApi } from '@/api';
-import apiClient from '@/api/client';
-import { LotStatus, SerialStatus, type Lot, type ProductModel, type ProductionLine, type Serial, getErrorMessage } from '@/types/api';
+import { LotStatus, SerialStatus, type Lot } from '@/types/api';
 import { format } from 'date-fns';
 import { AlertCircle, Plus } from 'lucide-react';
+import styles from './LotsPage.module.css';
+import { useLots, useProductModels, useProductionLines, useSerials } from '@/hooks';
 
 export const LotsPage = () => {
-  const [lots, setLots] = useState<Lot[]>([]);
-  const [serials, setSerials] = useState<Serial[]>([]);
-  const [productModels, setProductModels] = useState<ProductModel[]>([]);
-  const [productionLines, setProductionLines] = useState<ProductionLine[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<LotStatus | ''>('');
@@ -29,9 +20,7 @@ export const LotsPage = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalLots, setTotalLots] = useState(0);
   const lotsPerPage = 20;
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Sorting
   type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'passed_quantity' | 'production_date' | 'created_at' | null;
@@ -39,60 +28,23 @@ export const LotsPage = () => {
   const [sortColumn, setSortColumn] = useState<SortColumn>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  useEffect(() => {
-    fetchProductModels();
-    fetchProductionLines();
-    fetchData();
-  }, [statusFilter, currentPage, refreshTrigger, sortColumn, sortDirection]);
+  // Data Fetching
+  const { data, isLoading: isLotsLoading, error: lotsError } = useLots({
+    skip: currentPage * lotsPerPage,
+    limit: lotsPerPage,
+    status: statusFilter,
+  });
 
-  const fetchProductModels = async () => {
-    try {
-      const response = await apiClient.get<ProductModel[]>('/product-models/');
-      setProductModels(response.data);
-    } catch (err: unknown) {
-      console.error('Failed to fetch product models:', err);
-    }
-  };
+  const { data: productModels = [] } = useProductModels();
+  const { data: productionLines = [] } = useProductionLines();
+  const { data: serialsResponse } = useSerials({ limit: 500 });
 
-  const fetchProductionLines = async () => {
-    try {
-      const lines = await productionLinesApi.getActiveProductionLines();
-      setProductionLines(lines);
-    } catch (err: unknown) {
-      console.error('Failed to fetch production lines:', err);
-    }
-  };
+  const lots = data?.lots || [];
+  const totalLots = data?.total || 0;
+  const serials = Array.isArray(serialsResponse) ? serialsResponse : serialsResponse?.items || [];
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const params: { skip?: number; limit?: number; status?: LotStatus } = {
-        skip: currentPage * lotsPerPage,
-        limit: lotsPerPage,
-      };
-      if (statusFilter) {
-        params.status = statusFilter;
-      }
-
-      const response = await lotsApi.getLots(params);
-      if (Array.isArray(response)) {
-        setLots(response);
-        setTotalLots(response.length);
-      } else {
-        setLots(response.items);
-        setTotalLots(response.total);
-      }
-
-      const serialsResponse = await serialsApi.getSerials({ limit: 500 });
-      const serialsList = Array.isArray(serialsResponse) ? serialsResponse : serialsResponse.items || [];
-      setSerials(serialsList);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Failed to load LOT list'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = isLotsLoading;
+  const error = lotsError ? 'Failed to load LOT list' : '';
 
   const getLotSerialStats = (lot: Lot) => {
     const lotSerials = serials.filter((s) => s.lot_id === lot.id);
@@ -108,7 +60,7 @@ export const LotsPage = () => {
   const handleCreateSuccess = () => {
     setIsCreateModalOpen(false);
     setCurrentPage(0);
-    setRefreshTrigger(prev => prev + 1);
+    queryClient.invalidateQueries({ queryKey: ['lots'] });
   };
 
   const filteredAndSortedLots = lots
@@ -154,48 +106,29 @@ export const LotsPage = () => {
   const totalPages = Math.ceil(totalLots / lotsPerPage);
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%'
-    }}>
+    <div className={styles.pageContainer}>
       {/* Fixed Header Section - Page Header and Filters */}
-      <div style={{
-        flexShrink: 0,
-        marginBottom: '20px',
-        backgroundColor: 'var(--color-bg-secondary)',
-        position: 'sticky',
-        top: '-20px',
-        zIndex: 10,
-        paddingTop: '20px',
-        paddingBottom: '20px',
-        marginTop: '-20px',
-        paddingLeft: '20px',
-        paddingRight: '20px',
-        marginLeft: '-20px',
-        marginRight: '-20px',
-        borderBottom: '2px solid var(--color-border)'
-      }}>
+      <div className={styles.headerSection}>
         {/* Page Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={styles.headerContent}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
+            <h1 className={styles.pageTitle}>
               LOT Issuance
             </h1>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+            <p className={styles.pageSubtitle}>
               Create and manage production LOTs
             </p>
           </div>
           <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus size={16} style={{ marginRight: '6px' }} />
+            <Plus size={16} className={styles.createButtonIcon} />
             Create LOT
           </Button>
         </div>
 
         {/* Filters */}
         <Card>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1', minWidth: '200px' }}>
+          <div className={styles.filterContainer}>
+            <div className={styles.filterInput}>
               <Input
                 label="Search"
                 placeholder="LOT number, product model..."
@@ -204,7 +137,7 @@ export const LotsPage = () => {
                 wrapperStyle={{ marginBottom: 0 }}
               />
             </div>
-            <div style={{ width: '180px' }}>
+            <div className={styles.filterSelect}>
               <Select
                 label="Status"
                 value={statusFilter}
@@ -222,7 +155,7 @@ export const LotsPage = () => {
                 wrapperStyle={{ marginBottom: 0 }}
               />
             </div>
-            <div style={{ width: '180px' }}>
+            <div className={styles.filterSelect}>
               <Select
                 label="Sort By"
                 value={sortColumn || ''}
@@ -237,7 +170,7 @@ export const LotsPage = () => {
                 wrapperStyle={{ marginBottom: 0 }}
               />
             </div>
-            <div style={{ width: '120px' }}>
+            <div className={styles.filterSelectSmall}>
               <Select
                 label="Direction"
                 value={sortDirection}
@@ -249,7 +182,7 @@ export const LotsPage = () => {
                 wrapperStyle={{ marginBottom: 0 }}
               />
             </div>
-            <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); setRefreshTrigger(prev => prev + 1); }}>
+            <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter(''); setCurrentPage(0); }}>
               Reset
             </Button>
           </div>
@@ -259,143 +192,116 @@ export const LotsPage = () => {
       {/* Scrollable Content Section - LOT Cards */}
       <div>
         <Card>
-          <div style={{ padding: '20px' }}>
+          <div className={styles.contentPadding}>
             {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+              <div className={styles.loadingContainer}>
                 Loading...
               </div>
             ) : error ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
+              <div className={styles.errorContainer}>
                 {error}
               </div>
             ) : filteredAndSortedLots.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+              <div className={styles.emptyContainer}>
                 No LOTs found
               </div>
             ) : (
               <>
-                <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
+                <div className={styles.gridContainer}>
                   {filteredAndSortedLots.map((lot) => {
                     const stats = getLotSerialStats(lot);
                     const hasMissing = stats.missing > 0;
                     const completionRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;
 
                     const isCompleted = lot.status === LotStatus.COMPLETED || lot.status === LotStatus.CLOSED;
-                    const borderColor = isCompleted
-                      ? '2px solid var(--color-success)'
-                      : hasMissing
-                        ? '2px solid var(--color-warning)'
-                        : '1px solid var(--color-border)';
+
+                    let cardClassName = styles.lotCard;
+                    if (isCompleted) {
+                      cardClassName += ` ${styles.lotCardCompleted}`;
+                    } else if (hasMissing) {
+                      cardClassName += ` ${styles.lotCardMissing}`;
+                    }
 
                     return (
                       <div
                         key={lot.id}
-                        style={{
-                          padding: '20px',
-                          border: borderColor,
-                          borderRadius: '8px',
-                          backgroundColor: 'var(--color-bg-secondary)',
-                          transition: 'all 0.2s',
-                        }}
+                        className={cardClassName}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                        <div className={styles.lotHeader}>
+                          <div className={styles.lotHeaderContent}>
+                            <div className={styles.lotTitleRow}>
+                              <span className={styles.lotNumber}>
                                 {lot.lot_number}
                               </span>
                               <span
-                                style={{
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  fontSize: '12px',
-                                  backgroundColor:
-                                    lot.status === LotStatus.COMPLETED
-                                      ? 'var(--color-success-bg)'
-                                      : lot.status === LotStatus.IN_PROGRESS
-                                        ? 'var(--color-info-bg)'
-                                        : 'var(--color-warning-bg)',
-                                  color:
-                                    lot.status === LotStatus.COMPLETED
-                                      ? 'var(--color-success)'
-                                      : lot.status === LotStatus.IN_PROGRESS
-                                        ? 'var(--color-info)'
-                                        : 'var(--color-warning)',
-                                }}
+                                className={`${styles.statusBadge} ${lot.status === LotStatus.COMPLETED
+                                    ? styles.statusBadgeSuccess
+                                    : lot.status === LotStatus.IN_PROGRESS
+                                      ? styles.statusBadgeInfo
+                                      : styles.statusBadgeWarning
+                                  }`}
                               >
                                 {lot.status}
                               </span>
                               {hasMissing && (
-                                <span
-                                  style={{
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '12px',
-                                    backgroundColor: 'var(--color-warning-bg)',
-                                    color: 'var(--color-warning)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                  }}
-                                >
+                                <span className={styles.missingBadge}>
                                   <AlertCircle size={12} />
                                   Missing {stats.missing} serials
                                 </span>
                               )}
                             </div>
                             {lot.product_model && (
-                              <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                              <div className={styles.lotInfo}>
                                 {lot.product_model.model_code} - {lot.product_model.model_name}
                               </div>
                             )}
-                            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                            <div className={styles.lotDate}>
                               Created: {format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm')}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '15px' }}>
+                        <div className={styles.statsGrid}>
                           <div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                            <div className={styles.statLabel}>
                               Generated
                             </div>
-                            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                            <div className={styles.statValue}>
                               {stats.total} / {lot.target_quantity}
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                            <div className={styles.statLabel}>
                               Passed
                             </div>
-                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-success)' }}>
+                            <div className={`${styles.statValue} ${styles.statValueSuccess}`}>
                               {stats.passed}
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                            <div className={styles.statLabel}>
                               Failed
                             </div>
-                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-error)' }}>
+                            <div className={`${styles.statValue} ${styles.statValueError}`}>
                               {stats.failed}
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                            <div className={styles.statLabel}>
                               Completion
                             </div>
-                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-brand)' }}>
+                            <div className={`${styles.statValue} ${styles.statValueBrand}`}>
                               {completionRate.toFixed(0)}%
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div className={styles.progressBarContainer}>
                           <div
+                            className={`${styles.progressBar} ${completionRate === 100 ? styles.progressBarSuccess : styles.progressBarBrand
+                              }`}
                             style={{
                               width: `${completionRate}%`,
-                              height: '100%',
-                              backgroundColor: completionRate === 100 ? 'var(--color-success)' : 'var(--color-brand)',
-                              transition: 'width 0.3s',
                             }}
                           />
                         </div>
@@ -405,7 +311,7 @@ export const LotsPage = () => {
                 </div>
 
                 {totalPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
+                  <div className={styles.paginationContainer}>
                     <Button
                       variant="secondary"
                       onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
@@ -413,7 +319,7 @@ export const LotsPage = () => {
                     >
                       Previous
                     </Button>
-                    <span style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                    <span className={styles.paginationText}>
                       Page {currentPage + 1} of {totalPages} ({totalLots} total LOTs)
                     </span>
                     <Button

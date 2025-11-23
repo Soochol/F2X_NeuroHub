@@ -18,23 +18,78 @@ Functions:
     get_sequence: Get all 8 processes in sequential order (1-8)
 """
 
-from typing import List, Optional
-from sqlalchemy.orm import Session
+from typing import List, Optional, Literal
+from sqlalchemy.orm import Session, selectinload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.process import Process
-from app.schemas.process import ProcessCreate, ProcessUpdate, ProcessInDB
+from app.schemas.process import ProcessCreate, ProcessUpdate
 
 
-def get(db: Session, process_id: int) -> Optional[Process]:
+def _build_optimized_query(
+    query: Query,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Query:
+    """
+    Build an optimized query with appropriate eager loading strategy.
+
+    Query strategies to avoid N+1 problems:
+    - minimal: No eager loading (use when relationships aren't needed)
+    - standard: Load equipment_types relationship
+    - full: Load all relationships including nested ones
+
+    Strategy explanation:
+    - selectinload: Best for one-to-many relationships with potentially many items.
+      Uses a separate SELECT IN query, avoiding cartesian products.
+    - joinedload: Best for many-to-one relationships (single row).
+      Uses LEFT OUTER JOIN in the same query.
+
+    Args:
+        query: Base SQLAlchemy query
+        eager_loading: Level of eager loading to apply
+
+    Returns:
+        Query with optimized eager loading
+    """
+    if eager_loading == "minimal":
+        return query
+    elif eager_loading == "standard":
+        # Load equipment_types relationship if it exists
+        # Note: Process model may have relationships to lot_processes, etc.
+        options = []
+        if hasattr(Process, 'equipment_types'):
+            options.append(selectinload(Process.equipment_types))
+        return query.options(*options) if options else query
+    elif eager_loading == "full":
+        # Load all relationships including nested ones
+        options = []
+        if hasattr(Process, 'equipment_types'):
+            options.append(selectinload(Process.equipment_types))
+        if hasattr(Process, 'lot_processes'):
+            options.append(selectinload(Process.lot_processes))
+        return query.options(*options) if options else query
+    return query
+
+
+def get(
+    db: Session,
+    process_id: int,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> Optional[Process]:
     """
     Get a single process by ID.
 
     Retrieves a process record from the database by its primary key.
+    Uses minimal eager loading by default since Process has fewer relationships.
+
+    Query strategy:
+    - Minimal loading: 1 query (process only)
+    - Standard/Full loading: Additional queries for relationships if they exist
 
     Args:
         db: SQLAlchemy database session
         process_id: Primary key ID of the process to retrieve
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         Process instance if found, None otherwise
@@ -44,7 +99,9 @@ def get(db: Session, process_id: int) -> Optional[Process]:
         if process:
             print(f"Found: {process.process_name_en}")
     """
-    return db.query(Process).filter(Process.id == process_id).first()
+    query = db.query(Process).filter(Process.id == process_id)
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
 def get_multi(
@@ -52,19 +109,25 @@ def get_multi(
     skip: int = 0,
     limit: int = 100,
     is_active: Optional[bool] = None,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
 ) -> List[Process]:
     """
     Get multiple processes with pagination and optional filtering.
 
     Retrieves a list of processes with support for offset/limit pagination
     and optional filtering by active status. Results are ordered by sort_order
-    for consistent UI display.
+    for consistent UI display. Uses minimal eager loading by default.
+
+    Query strategy:
+    - Minimal loading: 1 query (processes only)
+    - Standard/Full loading: Additional queries for relationships if needed
 
     Args:
         db: SQLAlchemy database session
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100, max: 100)
         is_active: Optional filter for active status (True/False/None for all)
+        eager_loading: Control eager loading depth ("minimal", "standard", "full")
 
     Returns:
         List of Process instances matching the criteria
@@ -81,6 +144,7 @@ def get_multi(
     if is_active is not None:
         query = query.filter(Process.is_active == is_active)
 
+    query = _build_optimized_query(query, eager_loading)
     return query.order_by(Process.sort_order).offset(skip).limit(limit).all()
 
 
@@ -248,7 +312,11 @@ def delete(db: Session, process_id: int) -> bool:
     return True
 
 
-def get_by_number(db: Session, process_number: int) -> Optional[Process]:
+def get_by_number(
+    db: Session,
+    process_number: int,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> Optional[Process]:
     """
     Get a process by unique process_number.
 
@@ -258,6 +326,7 @@ def get_by_number(db: Session, process_number: int) -> Optional[Process]:
     Args:
         db: SQLAlchemy database session
         process_number: Process sequence number (1-8)
+        eager_loading: Control eager loading depth
 
     Returns:
         Process instance if found, None otherwise
@@ -271,14 +340,18 @@ def get_by_number(db: Session, process_number: int) -> Optional[Process]:
         # Get process 5
         process_5 = get_by_number(db, 5)
     """
-    return (
-        db.query(Process)
-        .filter(Process.process_number == process_number)
-        .first()
+    query = db.query(Process).filter(
+        Process.process_number == process_number
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
-def get_by_code(db: Session, process_code: str) -> Optional[Process]:
+def get_by_code(
+    db: Session,
+    process_code: str,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> Optional[Process]:
     """
     Get a process by unique process_code.
 
@@ -288,6 +361,7 @@ def get_by_code(db: Session, process_code: str) -> Optional[Process]:
     Args:
         db: SQLAlchemy database session
         process_code: Unique process code (e.g., 'LASER_MARKING')
+        eager_loading: Control eager loading depth
 
     Returns:
         Process instance if found, None otherwise
@@ -300,14 +374,17 @@ def get_by_code(db: Session, process_code: str) -> Optional[Process]:
         # Code will be uppercased automatically
         process = get_by_code(db, "laser_marking")  # Also works
     """
-    return (
-        db.query(Process)
-        .filter(Process.process_code == process_code.upper())
-        .first()
+    query = db.query(Process).filter(
+        Process.process_code == process_code.upper()
     )
+    query = _build_optimized_query(query, eager_loading)
+    return query.first()
 
 
-def get_active(db: Session) -> List[Process]:
+def get_active(
+    db: Session,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> List[Process]:
     """
     Get all active processes ordered by sort_order.
 
@@ -317,6 +394,7 @@ def get_active(db: Session) -> List[Process]:
 
     Args:
         db: SQLAlchemy database session
+        eager_loading: Control eager loading depth
 
     Returns:
         List of active Process instances ordered by sort_order
@@ -326,15 +404,15 @@ def get_active(db: Session) -> List[Process]:
         for process in active_processes:
             print(f"{process.sort_order}. {process.process_name_en}")
     """
-    return (
-        db.query(Process)
-        .filter(Process.is_active == True)
-        .order_by(Process.sort_order)
-        .all()
-    )
+    query = db.query(Process).filter(Process.is_active.is_(True))
+    query = _build_optimized_query(query, eager_loading)
+    return query.order_by(Process.sort_order).all()
 
 
-def get_sequence(db: Session) -> List[Process]:
+def get_sequence(
+    db: Session,
+    eager_loading: Literal["minimal", "standard", "full"] = "minimal"
+) -> List[Process]:
     """
     Get all 8 processes in sequential order (1-8).
 
@@ -344,6 +422,7 @@ def get_sequence(db: Session) -> List[Process]:
 
     Args:
         db: SQLAlchemy database session
+        eager_loading: Control eager loading depth
 
     Returns:
         List of Process instances ordered by process_number (1-8)
@@ -352,16 +431,15 @@ def get_sequence(db: Session) -> List[Process]:
         # Display the complete manufacturing workflow
         sequence = get_sequence(db)
         for process in sequence:
-            print(f"Step {process.process_number}: {process.process_name_en}")
+            step = process.process_number
+            name = process.process_name_en
+            print(f"Step {step}: {name}")
 
         # Expected output:
         # Step 1: Laser Marking
         # Step 2: Quality Check
         # ... (through Step 8)
     """
-    return (
-        db.query(Process)
-        .filter(Process.is_active == True)
-        .order_by(Process.process_number)
-        .all()
-    )
+    query = db.query(Process).filter(Process.is_active.is_(True))
+    query = _build_optimized_query(query, eager_loading)
+    return query.order_by(Process.process_number).all()

@@ -1,13 +1,10 @@
-/**
- * Dashboard Page Component with improved layout and Process Flow visualization
- */
-
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '@/api';
 import type { DashboardSummary } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
 import { ProcessFlowDiagram } from '@/components/charts';
 import { LotHistoryTabs } from '@/components/organisms/dashboard/LotHistoryTabs';
+import styles from './DashboardPage.module.css';
 
 export const DashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -34,13 +31,7 @@ export const DashboardPage = () => {
 
   if (isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '200px',
-        color: 'var(--color-text-secondary)',
-      }}>
+      <div className={styles.loadingContainer}>
         Loading dashboard...
       </div>
     );
@@ -48,12 +39,7 @@ export const DashboardPage = () => {
 
   if (error) {
     return (
-      <div style={{
-        padding: '24px',
-        backgroundColor: 'var(--color-badge-error-bg)',
-        color: 'var(--color-error)',
-        borderRadius: '6px',
-      }}>
+      <div className={styles.errorContainer}>
         Error: {error}
       </div>
     );
@@ -61,7 +47,7 @@ export const DashboardPage = () => {
 
   if (!summary) {
     return (
-      <div style={{ color: 'var(--color-text-secondary)', padding: '24px' }}>
+      <div className={styles.emptyContainer}>
         No data available
       </div>
     );
@@ -72,161 +58,91 @@ export const DashboardPage = () => {
     ? (summary.total_completed / summary.total_started) * 100
     : 0;
 
-
-
   return (
     <div>
-      <h1 style={{
-        fontSize: '1.5rem',
-        fontWeight: 700,
-        marginBottom: '24px',
-        color: 'var(--color-text-primary)',
-      }}>
+      <h1 className={styles.pageTitle}>
         Production Dashboard
       </h1>
 
       {/* KPI Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px',
-      }}>
+      <div className={styles.gridContainer}>
         {/* Started */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className={`${styles.card} ${styles.cardCenter}`}>
+          <div className={styles.cardTitle}>
             Started
           </div>
-          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-info)', marginBottom: '8px' }}>
+          <div className={`${styles.cardValue} ${styles.textInfo}`}>
             {summary.total_started}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+          <div className={styles.cardSubtext}>
             units in production
           </div>
         </div>
 
         {/* In Progress */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className={`${styles.card} ${styles.cardCenter}`}>
+          <div className={styles.cardTitle}>
             In Progress
           </div>
-          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-warning)', marginBottom: '8px' }}>
+          <div className={`${styles.cardValue} ${styles.textWarning}`}>
             {summary.total_in_progress}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+          <div className={styles.cardSubtext}>
             units being processed
           </div>
         </div>
 
         {/* Completed */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className={`${styles.card} ${styles.cardCenter}`}>
+          <div className={styles.cardTitle}>
             Completed
           </div>
-          <div style={{ fontSize: '36px', fontWeight: 700, color: 'var(--color-success)', marginBottom: '8px' }}>
+          <div className={`${styles.cardValue} ${styles.textSuccess}`}>
             {summary.total_completed}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+          <div className={styles.cardSubtext}>
             units finished
           </div>
         </div>
 
         {/* Completion Rate */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className={`${styles.card} ${styles.cardCenter}`}>
+          <div className={styles.cardTitle}>
             Completion Rate
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-brand)', marginBottom: '4px' }}>
+          <div className={`${styles.cardValueSmall} ${styles.textBrand}`}>
             {summary.total_completed} / {summary.total_started}
           </div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-brand)', marginBottom: '8px' }}>
+          <div className={`${styles.cardValueMedium} ${styles.textBrand}`}>
             ({completionRate.toFixed(1)}%)
           </div>
         </div>
 
         {/* Defect Rate */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-          textAlign: 'center',
-        }}>
-          <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className={`${styles.card} ${styles.cardCenter}`}>
+          <div className={styles.cardTitle}>
             Defect Rate
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: summary.defect_rate > 5 ? 'var(--color-error)' : 'var(--color-warning)', marginBottom: '4px' }}>
+          <div className={`${styles.cardValueSmall} ${summary.defect_rate > 5 ? styles.textError : styles.textWarning}`}>
             {summary.total_defective} / {summary.total_completed}
           </div>
-          <div style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            color: summary.defect_rate > 5 ? 'var(--color-error)' : 'var(--color-warning)',
-            marginBottom: '8px',
-          }}>
+          <div className={`${styles.cardValueMedium} ${summary.defect_rate > 5 ? styles.textError : styles.textWarning}`}>
             ({summary.defect_rate.toFixed(1)}%)
           </div>
         </div>
       </div>
 
       {/* Process Flow Diagram */}
-      <div style={{
-        backgroundColor: 'var(--color-bg-secondary)',
-        border: '1px solid var(--color-border)',
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '24px',
-      }}>
-        <h2 style={{
-          fontSize: '1rem',
-          fontWeight: 600,
-          marginBottom: '12px',
-          color: 'var(--color-text-primary)',
-        }}>
+      <div className={styles.sectionContainer}>
+        <h2 className={styles.sectionTitle}>
           Process Flow Status
         </h2>
         <ProcessFlowDiagram data={summary.process_wip} />
       </div>
 
-
-
       {/* LOT History Tabs */}
-      <div style={{
-        backgroundColor: 'var(--color-bg-secondary)',
-        border: '1px solid var(--color-border)',
-        borderRadius: '8px',
-        padding: '20px',
-      }}>
-        <h2 style={{
-          fontSize: '1rem',
-          fontWeight: 600,
-          marginBottom: '16px',
-          color: 'var(--color-text-primary)',
-        }}>
+      <div className={styles.card}>
+        <h2 className={`${styles.sectionTitle} ${styles.sectionTitleLarge}`}>
           LOT History
         </h2>
         <LotHistoryTabs lots={summary.lots} />
@@ -234,3 +150,4 @@ export const DashboardPage = () => {
     </div>
   );
 };
+
