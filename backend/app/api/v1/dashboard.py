@@ -173,22 +173,79 @@ def get_dashboard_summary(
                 "created_at": lot.created_at.isoformat() if lot.created_at else None
             })
 
-        # Get process WIP (Work In Progress) - count WIP items at each process
+        # Get process WIP (Work In Progress) - count WIP items at each process stage
+        # Strategy: For each process, count WIPs that have started but not yet completed all 6 processes
+        # This shows the "flow" of WIPs through the production line
         process_wip = []
         processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()
 
         for process in processes:
-            # Count WIP items currently at this process
-            wip_count = db.query(func.count(WIPItem.id)).filter(
+            # Count WIP items that:
+            # 1. Are currently at this process (current_process_id matches)
+            # 2. OR have completed this process but not all processes yet
+            
+            # Option 1: Currently at this process (being worked on)
+            wip_at_process = db.query(func.count(WIPItem.id)).filter(
                 and_(
                     WIPItem.current_process_id == process.id,
                     WIPItem.status == WIPStatus.IN_PROGRESS
                 )
             ).scalar() or 0
+            
+            # Option 2: Waiting for this process (last completed process is before this one)
+            # Get WIPs that have completed previous process but not this one yet
+            
+            # Count WIPs that have NOT completed this process yet
+            # Include both CREATED (not started any process) and IN_PROGRESS (started but not finished all)
+            wips_active = db.query(WIPItem.id).filter(
+                WIPItem.status.in_([WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value])
+            ).all()
+            
+            waiting_count = 0
+            for (wip_id,) in wips_active:
+                # Check if this WIP has completed this process using ProcessData
+                has_completed = db.query(func.count(ProcessData.id)).filter(
+                    and_(
+                        ProcessData.wip_id == wip_id,
+                        ProcessData.process_id == process.id,
+                        ProcessData.result == ProcessResult.PASS.value,
+                        ProcessData.completed_at.isnot(None)
+                    )
+                ).scalar() or 0
+                
+                if has_completed == 0:
+                    # This WIP hasn't completed this process yet
+                    # Check if it's ready (previous process completed or this is process 1)
+                    if process.process_number == 1:
+                        waiting_count += 1
+                    else:
+                        # Check if previous process is completed
+                        prev_process = db.query(Process).filter(
+                            and_(
+                                Process.process_number == process.process_number - 1,
+                                Process.is_active == True
+                            )
+                        ).first()
+                        
+                        if prev_process:
+                            prev_completed = db.query(func.count(ProcessData.id)).filter(
+                                and_(
+                                    ProcessData.wip_id == wip_id,
+                                    ProcessData.process_id == prev_process.id,
+                                    ProcessData.result == ProcessResult.PASS.value,
+                                    ProcessData.completed_at.isnot(None)
+                                )
+                            ).scalar() or 0
+                            
+                            if prev_completed > 0:
+                                waiting_count += 1
+            
+            # Total WIP at this process stage = currently working + waiting
+            total_wip = wip_at_process + waiting_count
 
             process_wip.append({
                 "process_name": process.process_name_ko,
-                "wip_count": wip_count
+                "wip_count": total_wip
             })
 
         return {
