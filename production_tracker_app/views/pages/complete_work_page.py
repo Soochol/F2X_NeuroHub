@@ -176,11 +176,11 @@ class CompleteWorkPage(QWidget):
                 background-color: {success_main};
                 border: none;
                 border-radius: 6px;
-                padding: 16px 24px;
+                padding: 12px 24px;
                 color: {text_on_dark};
                 font-size: 14px;
                 font-weight: 600;
-                min-height: 32px;
+                min-height: 24px;
             }}
             QPushButton:hover {{
                 background-color: {success_dark};
@@ -202,11 +202,11 @@ class CompleteWorkPage(QWidget):
                 background-color: {danger_main};
                 border: none;
                 border-radius: 6px;
-                padding: 16px 24px;
+                padding: 12px 24px;
                 color: {text_on_dark};
                 font-size: 14px;
                 font-weight: 600;
-                min-height: 32px;
+                min-height: 24px;
             }}
             QPushButton:hover {{
                 background-color: {danger_dark};

@@ -3,7 +3,7 @@
  * Real-time WIP monitoring and serial tracking
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Input, Select } from '@/components/common';
 import { dashboardApi, serialsApi, wipItemsApi } from '@/api';
 import { SerialStatus, type Serial, type ProcessWIP, getErrorMessage } from '@/types/api';
@@ -29,6 +29,12 @@ export const SerialDashboard = () => {
   // Search & filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<SerialStatus | ''>('');
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -273,6 +279,7 @@ export const SerialDashboard = () => {
           <div style={{ display: 'flex', gap: '15px' }}>
             <div style={{ flex: 1 }}>
               <Input
+                ref={inputRef}
                 placeholder="Search serial number or LOT number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

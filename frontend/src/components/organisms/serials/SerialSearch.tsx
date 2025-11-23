@@ -2,7 +2,7 @@
  * Serial Search Component
  */
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useRef, useEffect } from 'react';
 import { Button } from '../../atoms';
 import { Card } from '../../molecules';
 import { QrCode, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
@@ -16,6 +16,11 @@ interface SerialSearchProps {
 export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
   const [serialNumber, setSerialNumber] = useState('');
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -58,6 +63,7 @@ export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
                 }}
               />
               <input
+                ref={inputRef}
                 id="serialNumber"
                 type="text"
                 value={serialNumber}

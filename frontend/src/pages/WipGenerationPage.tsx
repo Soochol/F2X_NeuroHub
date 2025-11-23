@@ -3,7 +3,7 @@
  * Generate WIP IDs for CREATED status LOTs
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Modal } from '@/components/common';
 import { lotsApi } from '@/api';
 import { LotStatus, type Lot, getErrorMessage } from '@/types/api';
@@ -25,6 +25,13 @@ export const WipGenerationPage = () => {
     const [generatedTotal, setGeneratedTotal] = useState(0);
 
     const [lastGeneratedWipIds, setLastGeneratedWipIds] = useState<any[]>([]);
+
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Focus input on mount
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, []);
 
     useEffect(() => {
         fetchCreatedLots();
@@ -129,6 +136,7 @@ export const WipGenerationPage = () => {
                                 }}
                             />
                             <input
+                                ref={inputRef}
                                 id="searchQuery"
                                 type="text"
                                 placeholder="Search LOT number or product model..."

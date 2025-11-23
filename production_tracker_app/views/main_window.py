@@ -18,11 +18,9 @@ from views.pages.complete_work_page import CompleteWorkPage
 from views.pages.settings_page import SettingsPage
 from views.pages.help_page import HelpPage
 from views.pages.wip_generation_page import WIPGenerationPage
-from views.pages.wip_scan_page import WIPScanPage
 from views.pages.wip_dashboard_page import WIPDashboardPage
 from views.defect_dialog import DefectDialog
 from viewmodels.wip_generation_viewmodel import WIPGenerationViewModel
-from viewmodels.wip_scan_viewmodel import WIPScanViewModel
 from viewmodels.wip_dashboard_viewmodel import WIPDashboardViewModel
 from widgets.base_components import StatusIndicator
 from widgets.toast_notification import Toast
@@ -48,8 +46,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"F2X NeuroHub - {config.process_name}")
 
         # Window size for sidebar layout
-        self.setMinimumSize(900, 700)
-        self.resize(1100, 800)
+        self.setMinimumSize(900, 726)
+        self.resize(1100, 826)
 
         # Work state tracking
         self.current_lot = None
@@ -101,7 +99,6 @@ class MainWindow(QMainWindow):
             ("홈", "home"),
             ("착공", "start"),
             ("완공", "complete"),
-            ("WIP 스캔", "wip-scan"),
             ("설정", "settings"),
             ("도움말", "help"),
         ]
@@ -138,12 +135,10 @@ class MainWindow(QMainWindow):
 
         # Create WIP ViewModels
         # self.wip_generation_vm = WIPGenerationViewModel(api_client, print_service)
-        self.wip_scan_vm = WIPScanViewModel(api_client)
         # self.wip_dashboard_vm = WIPDashboardViewModel(api_client)
 
         # Create WIP pages
         # self.wip_generation_page = WIPGenerationPage(self.wip_generation_vm, self.config)
-        self.wip_scan_page = WIPScanPage(self.wip_scan_vm, self.config)
         # self.wip_dashboard_page = WIPDashboardPage(self.wip_dashboard_vm, self.config)
 
         # Create settings page
@@ -155,7 +150,6 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.start_page)
         self.stack.addWidget(self.complete_page)
         # self.stack.addWidget(self.wip_generation_page)
-        self.stack.addWidget(self.wip_scan_page)
         # self.stack.addWidget(self.wip_dashboard_page)
         self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.help_page)
@@ -319,8 +313,6 @@ class MainWindow(QMainWindow):
         # Focus on input when switching to specific pages
         if page_type == "start":
             self.start_page.focus_input()
-        elif page_type == "wip-scan":
-            self.wip_scan_page.focus_input()
 
     def _on_start_work_requested(self, lot_number: str):
         """Handle start work request from start page (LOT-level)."""
@@ -601,12 +593,6 @@ class MainWindow(QMainWindow):
             self.start_page.set_serial_number(serial_number)
             Toast.success(self, f"Serial 스캔: {serial_number}")
 
-        elif current_page_data == "wip-scan":
-            # Trigger WIP scan
-            self.wip_scan_page.barcode_input.setText(serial_number)
-            self.wip_scan_page._on_scan()
-            Toast.success(self, f"WIP 스캔: {serial_number}")
-
         else:
             # Generic notification
             Toast.info(self, f"Serial 스캔: {serial_number}")
@@ -636,7 +622,6 @@ class MainWindow(QMainWindow):
             cleanup.add(Toast.clear_all, "토스트 정리")
             cleanup.add(self.home_page.cleanup, "홈페이지 정리")
             # cleanup.add(self.wip_generation_page.cleanup, "WIP 생성 페이지 정리")
-            cleanup.add(self.wip_scan_page.cleanup, "WIP 스캔 페이지 정리")
             # cleanup.add(self.wip_dashboard_page.cleanup, "WIP 대시보드 정리")
             cleanup.add(self.viewmodel.cleanup, "ViewModel 정리")
 

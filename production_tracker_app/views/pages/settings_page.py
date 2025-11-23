@@ -114,10 +114,10 @@ class SettingsPage(QWidget):
                 background-color: {bg_elevated};
                 border: 1px solid {border_light};
                 border-radius: 4px;
-                padding: 6px 10px;
+                padding: 0 10px;
                 color: {text_primary};
                 font-size: 12px;
-                min-height: 16px;
+                height: 32px;
             }}
 
             QLineEdit:focus, QComboBox:focus {{
@@ -148,11 +148,12 @@ class SettingsPage(QWidget):
                 background-color: {bg_elevated};
                 border: 1px solid {border_light};
                 border-radius: 4px;
-                padding: 6px 12px;
+                padding: 0 12px;
                 color: {text_primary};
                 font-size: 12px;
                 font-weight: 500;
                 min-width: 60px;
+                height: 32px;
             }}
 
             QPushButton:hover {{

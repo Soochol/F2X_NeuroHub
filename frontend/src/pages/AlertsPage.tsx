@@ -2,7 +2,7 @@
  * Alerts Page
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Select } from '@/components/common';
 import { alertsApi } from '@/api';
 import { AlertSeverity, AlertStatus, type Alert } from '@/types/api';
@@ -28,6 +28,12 @@ export const AlertsPage = () => {
   // Bulk selection
   const [selectedAlertIds, setSelectedAlertIds] = useState<Set<number>>(new Set());
   const [expandedAlertIds, setExpandedAlertIds] = useState<Set<number>>(new Set());
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     fetchAlerts();
@@ -96,11 +102,11 @@ export const AlertsPage = () => {
   const getSeverityColor = (severity: AlertSeverity) => {
     switch (severity) {
       case AlertSeverity.HIGH:
-        return { bg: 'var(--color-error)', color: 'var(--color-error)', icon: '=�', label: 'High' };
+        return { bg: 'var(--color-error)', color: 'var(--color-error)', icon: '=', label: 'High' };
       case AlertSeverity.MEDIUM:
-        return { bg: 'var(--color-warning)', color: 'var(--color-warning)', icon: '�', label: 'Medium' };
+        return { bg: 'var(--color-warning)', color: 'var(--color-warning)', icon: ' ', label: 'Medium' };
       case AlertSeverity.LOW:
-        return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-brand)', icon: '9', label: 'Low' };
+        return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-brand)', icon: '9 ', label: 'Low' };
     }
   };
 
@@ -169,6 +175,7 @@ export const AlertsPage = () => {
                 🔍
               </span>
               <input
+                ref={inputRef}
                 id="searchQuery"
                 type="text"
                 value={searchQuery}
