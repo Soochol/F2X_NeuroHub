@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 type TabType = 'users' | 'processes' | 'products' | 'productionLines' | 'equipment';
 
 interface UserFormData { username: string; full_name: string; email: string; password: string; role: UserRole; is_active: boolean; }
-interface ProcessFormData { process_number: number; process_code: string; process_name_ko: string; process_name_en: string; description: string; sort_order: number; is_active: boolean; estimated_duration_seconds: number | ''; quality_criteria: string; }
+interface ProcessFormData { process_number: number; process_code: string; process_name_ko: string; process_name_en: string; description: string; sort_order: number; is_active: boolean; estimated_duration_seconds: number | ''; quality_criteria: string; auto_print_label: boolean; label_template_type: string | null; }
 interface ProductFormData { model_code: string; model_name: string; category: string; status: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED'; }
 interface ProductionLineFormData { line_code: string; line_name: string; description: string; cycle_time_sec: number | ''; location: string; is_active: boolean; }
 interface EquipmentFormData { equipment_code: string; equipment_name: string; equipment_type: string; description: string; process_id: number | ''; production_line_id: number | ''; manufacturer: string; model_number: string; serial_number: string; status: string; is_active: boolean; }
@@ -158,11 +158,11 @@ const ProcessManagement = () => {
     initialData: [], errorMessage: 'Failed to load processes'
   });
   const modal = useModalState<Process>();
-  const form = useFormState<ProcessFormData>({ process_number: 1, process_code: '', process_name_ko: '', process_name_en: '', description: '', sort_order: 1, is_active: true, estimated_duration_seconds: '', quality_criteria: '{}' });
+  const form = useFormState<ProcessFormData>({ process_number: 1, process_code: '', process_name_ko: '', process_name_en: '', description: '', sort_order: 1, is_active: true, estimated_duration_seconds: '', quality_criteria: '{}', auto_print_label: false, label_template_type: null });
 
   const handleOpenModal = (process?: Process) => {
-    process ? form.setFormData({ process_number: process.process_number, process_code: process.process_code, process_name_ko: process.process_name_ko, process_name_en: process.process_name_en, description: process.description || '', sort_order: process.sort_order, is_active: process.is_active, estimated_duration_seconds: process.estimated_duration_seconds ?? '', quality_criteria: JSON.stringify(process.quality_criteria || {}, null, 2) })
-      : form.setFormData({ process_number: (processes?.length || 0) + 1, process_code: '', process_name_ko: '', process_name_en: '', description: '', sort_order: (processes?.length || 0) + 1, is_active: true, estimated_duration_seconds: '', quality_criteria: '{}' });
+    process ? form.setFormData({ process_number: process.process_number, process_code: process.process_code, process_name_ko: process.process_name_ko, process_name_en: process.process_name_en, description: process.description || '', sort_order: process.sort_order, is_active: process.is_active, estimated_duration_seconds: process.estimated_duration_seconds ?? '', quality_criteria: JSON.stringify(process.quality_criteria || {}, null, 2), auto_print_label: (process as any).auto_print_label || false, label_template_type: (process as any).label_template_type || null })
+      : form.setFormData({ process_number: (processes?.length || 0) + 1, process_code: '', process_name_ko: '', process_name_en: '', description: '', sort_order: (processes?.length || 0) + 1, is_active: true, estimated_duration_seconds: '', quality_criteria: '{}', auto_print_label: false, label_template_type: null });
     modal.open(process);
   };
 
@@ -179,6 +179,8 @@ const ProcessManagement = () => {
         is_active: form.formData.is_active,
         estimated_duration_seconds: form.formData.estimated_duration_seconds || undefined,
         quality_criteria: form.formData.quality_criteria ? JSON.parse(form.formData.quality_criteria) : undefined,
+        auto_print_label: form.formData.auto_print_label,
+        label_template_type: form.formData.label_template_type || undefined,
       };
       modal.editingItem ? await processesApi.updateProcess(modal.editingItem.id, submitData) : await processesApi.createProcess(submitData);
       modal.close(); refetch();
@@ -249,6 +251,52 @@ const ProcessManagement = () => {
               }}
             />
           </div>
+
+          {/* Auto Print Label Settings */}
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: 'var(--color-bg-secondary)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+            <h4 style={{ marginBottom: '15px', fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)' }}>🖨️ 라벨 자동 출력 설정</h4>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={form.formData.auto_print_label}
+                  onChange={(e) => form.setField('auto_print_label', e.target.checked)}
+                  style={{ marginRight: '8px', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '14px', fontWeight: '500' }}>완공 시 자동 라벨 출력</span>
+              </label>
+              <p style={{ marginTop: '5px', marginLeft: '24px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                ✅ 활성화 시: 모든 이전 공정이 PASS인 경우 자동으로 라벨 출력
+              </p>
+            </div>
+
+            {form.formData.auto_print_label && (
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--color-text-primary)' }}>라벨 종류</label>
+                <select
+                  value={form.formData.label_template_type || ''}
+                  onChange={(e) => form.setField('label_template_type', e.target.value || null)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    backgroundColor: 'var(--color-bg-primary)',
+                    color: 'var(--color-text-primary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">선택하세요</option>
+                  <option value="WIP_LABEL">WIP 라벨 (60x30mm, QR코드)</option>
+                  <option value="SERIAL_LABEL">Serial 라벨 (60x30mm, QR코드)</option>
+                  <option value="LOT_LABEL">LOT 라벨 (60x30mm, QR코드)</option>
+                </select>
+              </div>
+            )}
+          </div>
+
           <div style={styles.checkbox}><label style={styles.checkboxLabel}>
             <input type="checkbox" checked={form.formData.is_active} onChange={(e) => form.setField('is_active', e.target.checked)} style={styles.checkboxInput} />
             <span style={styles.checkboxText}>Active</span>
