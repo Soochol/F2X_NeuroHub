@@ -8,8 +8,9 @@ import { Card, Button, Modal } from '@/components/common';
 import { lotsApi } from '@/api';
 import { LotStatus, type Lot, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
-import { Calendar, TrendingUp, CheckCircle, Layers, QrCode } from 'lucide-react';
+import { Calendar, TrendingUp, CheckCircle, Layers, QrCode, Printer } from 'lucide-react';
 import { notify } from '@/utils/toast';
+import { printWIPLabel } from '@/utils/zebraPrint';
 
 export const WipGenerationPage = () => {
     const [lots, setLots] = useState<Lot[]>([]);
@@ -25,6 +26,7 @@ export const WipGenerationPage = () => {
     const [generatedTotal, setGeneratedTotal] = useState(0);
 
     const [lastGeneratedWipIds, setLastGeneratedWipIds] = useState<any[]>([]);
+    const [isPrinting, setIsPrinting] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -361,6 +363,37 @@ export const WipGenerationPage = () => {
                 width="600px"
                 footer={
                     <>
+                        {lastGeneratedWipIds.length === 1 && (
+                            <Button
+                                onClick={async () => {
+                                    console.log('Print button clicked');
+                                    console.log('WIP ID:', (lastGeneratedWipIds[0] as any).wip_id);
+
+                                    setIsPrinting(true);
+                                    try {
+                                        console.log('Calling printWIPLabel...');
+                                        await printWIPLabel((lastGeneratedWipIds[0] as any).wip_id);
+                                        console.log('Print successful');
+                                        notify.success({
+                                            title: 'Print Successful',
+                                            description: 'Label sent to printer'
+                                        });
+                                    } catch (error: any) {
+                                        console.error('Print error:', error);
+                                        notify.error({
+                                            title: 'Print Failed',
+                                            description: error.message || 'Unknown error'
+                                        });
+                                    } finally {
+                                        setIsPrinting(false);
+                                    }
+                                }}
+                                disabled={isPrinting}
+                            >
+                                <Printer size={16} style={{ marginRight: '6px' }} />
+                                {isPrinting ? 'Printing...' : 'Print Label'}
+                            </Button>
+                        )}
                         <Button variant="secondary" onClick={() => setShowSuccessModal(false)}>
                             Close
                         </Button>

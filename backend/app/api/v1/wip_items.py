@@ -37,6 +37,7 @@ from app.schemas.wip_item import (
 )
 from app.utils.barcode_generator import generate_barcode_image
 from app.services.wip_service import WIPValidationError
+from app.services.printer_service import printer_service
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
 
@@ -190,6 +191,61 @@ def get_wip_barcode(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to generate barcode: {str(e)}"
         )
+
+
+@router.post(
+    "/{wip_id}/print-label",
+    summary="Print WIP label",
+    description="Print WIP label to Zebra printer (60mm x 30mm)",
+)
+def print_wip_label(
+    wip_id: str = Path(..., description="WIP ID (e.g., WIP-KR01PSA2511-001)"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Print WIP label to Zebra printer.
+
+    Args:
+        wip_id: WIP ID string
+        db: Database session
+        current_user: Current authenticated user
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: 404 if WIP not found, 500 if print fails
+    """
+    # Verify WIP exists
+    wip_item = crud.get_by_wip_id(db, wip_id)
+    if not wip_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"WIP {wip_id} not found"
+        )
+
+    try:
+        # Print label
+        success = printer_service.print_wip_label(wip_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send print job to printer"
+            )
+        
+        return {
+            "success": True,
+            "message": f"Label for {wip_id} sent to printer",
+            "wip_id": wip_id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Print failed: {str(e)}"
+        )
+
 
 
 @router.post(
