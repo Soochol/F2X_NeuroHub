@@ -10,6 +10,7 @@ Primary key: id (BIGSERIAL)
 
 from datetime import datetime
 from typing import Optional, List
+from enum import Enum
 
 from sqlalchemy import (
     CheckConstraint,
@@ -25,6 +26,13 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, JSONB, is_postgresql
+
+
+class LabelTemplateType(str, Enum):
+    """라벨 템플릿 종류"""
+    WIP_LABEL = "WIP_LABEL"          # WIP 라벨 (60x30mm, QR코드)
+    SERIAL_LABEL = "SERIAL_LABEL"    # Serial 라벨 (60x30mm, QR코드)
+    LOT_LABEL = "LOT_LABEL"          # LOT 라벨 (60x30mm, QR코드)
 
 
 class Process(Base):
@@ -118,6 +126,22 @@ class Process(Base):
         nullable=False,
     )
 
+    # Auto Print Label Settings
+    auto_print_label: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+        comment="완공 시 자동 라벨 출력 여부"
+    )
+
+    label_template_type: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None,
+        comment="출력할 라벨 템플릿 종류 (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
+    )
+
     # Timestamp Columns
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -207,6 +231,9 @@ class Process(Base):
             "quality_criteria": self.quality_criteria,
             "is_active": self.is_active,
             "sort_order": self.sort_order,
+            "auto_print_label": self.auto_print_label,
+            "label_template_type": self.label_template_type,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+

@@ -17,22 +17,7 @@ class PrinterService:
         self.printer_port = printer_port
         self.use_network_printer = True  # Use network printer by default
 
-    def print_label(self, serial_number: str, model_code: str, production_date: str) -> bool:
-        """
-        Print a label for the given serial number.
-
-        Args:
-            serial_number: The serial number to print (e.g., KR01PSA2511001)
-            model_code: Product model code (e.g., PSA)
-            production_date: Production date string
-
-        Returns:
-            True if printing was successful, False otherwise.
-        """
-        zpl = self._generate_serial_zpl(serial_number, model_code, production_date)
-        return self._send_to_printer(zpl, f"Serial: {serial_number}")
-
-    def print_wip_label(self, wip_id: str) -> bool:
+    def print_wip_label(self, wip_id: str) -> dict:
         """
         Print a WIP label (60mm x 30mm).
 
@@ -40,17 +25,79 @@ class PrinterService:
             wip_id: WIP ID to print
 
         Returns:
-            True if printing was successful, False otherwise.
+            dict: {"success": bool, "message": str}
         """
-        zpl = self._generate_wip_zpl(wip_id)
-        return self._send_to_printer(zpl, f"WIP: {wip_id}")
+        try:
+            zpl = self._generate_wip_zpl(wip_id)
+            self._send_to_printer(zpl)
+            
+            return {
+                "success": True,
+                "message": f"WIP label printed: {wip_id}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to print WIP label: {e}")
+            return {
+                "success": False,
+                "message": f"Print failed: {str(e)}"
+            }
 
-    def _send_to_printer(self, zpl: str, description: str) -> bool:
+    def print_serial_label(self, serial_number: str) -> dict:
+        """
+        Print Serial label.
+        
+        Args:
+            serial_number: Serial number (e.g., 'WF-KR-251118D-001-0001')
+            
+        Returns:
+            dict: {"success": bool, "message": str}
+        """
+        try:
+            zpl = self._generate_serial_zpl(serial_number)
+            self._send_to_printer(zpl)
+            
+            return {
+                "success": True,
+                "message": f"Serial label printed: {serial_number}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to print serial label: {e}")
+            return {
+                "success": False,
+                "message": f"Print failed: {str(e)}"
+            }
+
+    def print_lot_label(self, lot_number: str) -> dict:
+        """
+        Print LOT label.
+        
+        Args:
+            lot_number: LOT number (e.g., 'DT01A10251101')
+            
+        Returns:
+            dict: {"success": bool, "message": str}
+        """
+        try:
+            zpl = self._generate_lot_zpl(lot_number)
+            self._send_to_printer(zpl)
+            
+            return {
+                "success": True,
+                "message": f"LOT label printed: {lot_number}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to print LOT label: {e}")
+            return {
+                "success": False,
+                "message": f"Print failed: {str(e)}"
+            }
+
+    def _send_to_printer(self, zpl: str) -> bool:
         """
         Send ZPL to network printer via TCP/IP.
         """
         try:
-            logger.info(f"Sending print job to {self.printer_ip}:{self.printer_port} - {description}")
+            logger.info(f"Sending print job to {self.printer_ip}:{self.printer_port}")
             
             # Create socket connection
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -61,42 +108,23 @@ class PrinterService:
             sock.send(zpl.encode('utf-8'))
             
             sock.close()
-            logger.info(f"Print job sent successfully - {description}")
+            logger.info(f"Print job sent successfully")
             return True
             
         except socket.timeout:
             logger.error(f"Printer connection timeout - {self.printer_ip}:{self.printer_port}")
-            return False
+            raise Exception("Printer connection timeout")
         except socket.error as e:
             logger.error(f"Printer connection failed - {self.printer_ip}:{self.printer_port}: {e}")
-            return False
+            raise Exception(f"Printer connection failed: {e}")
         except Exception as e:
-            logger.error(f"Failed to print - {description}: {e}")
-            return False
+            logger.error(f"Failed to print: {e}")
+            raise
 
     def _generate_wip_zpl(self, wip_id: str) -> str:
         """
         Generate ZPL for WIP label (60mm x 30mm).
         203 DPI: 60mm = 472 dots, 30mm = 236 dots
-        
-        Layout (clean design):
-        ┌────────────────────────────────────────┐
-        │                                        │
-        │                                        │
-        │    F2X NEUROHUB - WIP LABEL            │
-        │                                        │
-        │    WIP ID:                 ████████    │
-        │    WIP-KR01PSA2511-001     ████████    │
-        │                            ████████    │
-        │                            ████████    │
-        └────────────────────────────────────────┘
-        
-        Print Quality Settings:
-        - Speed: 1 (slowest, maximum quality)
-        - Darkness: 29 (maximum darkness)
-        - QR Code: Model 2, Magnification 5
-        - Left Padding: 30 dots (~4mm)
-        - Top Padding: 30 dots (~4mm)
         """
         zpl = f"""^XA
 ^MMT
@@ -116,23 +144,52 @@ class PrinterService:
 ^XZ"""
         return zpl
 
-    def _generate_serial_zpl(self, serial_number: str, model_code: str, production_date: str) -> str:
+    def _generate_serial_zpl(self, serial_number: str) -> str:
         """
-        Generate ZPL code for serial label.
-        
-        Label Size: 40mm x 20mm (approx)
-        Content:
-        - Data Matrix Code (Serial Number)
-        - Text: Serial Number
-        - Text: Model Code
+        Generate ZPL for Serial label (60mm x 30mm).
+        203 DPI: 60mm = 472 dots, 30mm = 236 dots
         """
         zpl = f"""^XA
-^FO20,20^BXN,4,200^FD{serial_number}^FS
-^FO100,30^ADN,36,20^FD{serial_number}^FS
-^FO100,70^ADN,36,20^FDModel: {model_code}^FS
-^FO100,110^ADN,36,20^FDDate: {production_date}^FS
-^XZ"""
-        return zpl.strip()
+^MMT
+^PW472
+^LL236
+^PR1,1
+~SD29
 
-# Global instance
+^FO30,30^A0N,16,16^FDF2X NEUROHUB - SERIAL LABEL^FS
+
+^FO30,65^A0N,14,14^FDSerial No:^FS
+^FO30,85^A0N,20,20^FD{serial_number}^FS
+
+^FO340,65^BQN,2,5^FDQA,{serial_number}^FS
+
+^PQ1
+^XZ"""
+        return zpl
+
+    def _generate_lot_zpl(self, lot_number: str) -> str:
+        """
+        Generate ZPL for LOT label (60mm x 30mm).
+        203 DPI: 60mm = 472 dots, 30mm = 236 dots
+        """
+        zpl = f"""^XA
+^MMT
+^PW472
+^LL236
+^PR1,1
+~SD29
+
+^FO30,30^A0N,16,16^FDF2X NEUROHUB - LOT LABEL^FS
+
+^FO30,65^A0N,14,14^FDLOT No:^FS
+^FO30,85^A0N,24,24^FD{lot_number}^FS
+
+^FO340,65^BQN,2,5^FDQA,{lot_number}^FS
+
+^PQ1
+^XZ"""
+        return zpl
+
+
+# Singleton instance
 printer_service = PrinterService()

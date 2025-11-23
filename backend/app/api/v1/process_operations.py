@@ -672,6 +672,17 @@ def complete_process(
                 serial.status = SerialStatus.FAILED
                 db.commit()
 
+        # Auto-print label if configured
+        from app.api.v1.auto_print_helper import check_and_print_label
+        
+        auto_print_result = check_and_print_label(
+            db=db,
+            process_data=process_data,
+            wip_item=wip_for_query,
+            serial=serial_for_query,
+            lot=lot
+        )
+
         return ProcessCompleteResponse(
             success=True,
             message=f"Process completed with result: {result.value}",
