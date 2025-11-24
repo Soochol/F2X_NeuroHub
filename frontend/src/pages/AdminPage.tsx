@@ -575,9 +575,9 @@ const EquipmentManagement = () => {
           <Input label="Equipment Type" value={form.formData.equipment_type} onChange={(e) => form.setField('equipment_type', e.target.value)} required placeholder="e.g., LASER_MARKER" />
           <Input label="Description" value={form.formData.description} onChange={(e) => form.setField('description', e.target.value)} placeholder="Equipment description" />
           <Select label="Production Line" value={form.formData.production_line_id} onChange={(e) => form.setField('production_line_id', e.target.value ? parseInt(e.target.value) : '')}
-            options={[{ value: '', label: '- Select Line -' }, ...productionLines?.map(l => ({ value: l.id, label: l.line_name })) || []]} />
+            options={productionLines?.map(l => ({ value: String(l.id), label: l.line_name })) || []} />
           <Select label="Process" value={form.formData.process_id} onChange={(e) => form.setField('process_id', e.target.value ? parseInt(e.target.value) : '')}
-            options={[{ value: '', label: '- Select Process -' }, ...processes?.map(p => ({ value: p.id, label: p.process_name_en })) || []]} />
+            options={processes?.map(p => ({ value: String(p.id), label: p.process_name_en })) || []} />
           <Input label="Manufacturer" value={form.formData.manufacturer} onChange={(e) => form.setField('manufacturer', e.target.value)} placeholder="e.g., KEYENCE" />
           <Input label="Model Number" value={form.formData.model_number} onChange={(e) => form.setField('model_number', e.target.value)} placeholder="e.g., MD-X1000" />
           <Input label="Serial Number" value={form.formData.serial_number} onChange={(e) => form.setField('serial_number', e.target.value)} placeholder="Equipment S/N (e.g., LASER01-2024-001)" />

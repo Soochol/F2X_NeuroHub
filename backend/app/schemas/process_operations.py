@@ -30,7 +30,7 @@ class ProcessCompleteRequest(BaseModel):
     """Request schema for completing a process (완공 등록)."""
     lot_number: str = Field(..., description="LOT number")
     serial_number: Optional[str] = Field(None, description="Serial number")
-    process_id: int = Field(..., gt=0, description="Process ID")
+    process_id: str = Field(..., description="Process ID, code, or name")
     result: str = Field(..., description="Result: PASS, FAIL, or REWORK")
     measurement_data: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description="Measurement data"

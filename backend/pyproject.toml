@@ -26,6 +26,7 @@ dependencies = [
     "zebra>=0.1.0",
     "celery>=5.4.0",
     "redis>=5.0.4",
+    "faker>=38.2.0",
 ]
 
 [project.optional-dependencies]

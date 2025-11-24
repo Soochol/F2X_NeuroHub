@@ -312,9 +312,9 @@ class ProcessService(BaseService[Process]):
                 try:
                     started_at = datetime.fromisoformat(request.start_time.replace('Z', '+00:00'))
                 except ValueError:
-                    started_at = datetime.utcnow()
+                    started_at = datetime.now(tz=timezone.utc)
             else:
-                started_at = datetime.utcnow()
+                started_at = datetime.now(tz=timezone.utc)
 
             process_data_create = ProcessDataCreate(
                 lot_id=lot.id,
@@ -399,8 +399,10 @@ class ProcessService(BaseService[Process]):
                     if wip:
                         lot = wip.lot
                         wip_for_query = wip
-                        if wip.serial:
-                            serial_for_query = wip.serial
+                        if wip.serial:
+
+                            serial_for_query = wip.serial
+
 
                 # 3. Try as Unit Barcode
                 elif len(lot_number) > 13 and lot_number[-3:].isdigit():
@@ -451,8 +453,7 @@ class ProcessService(BaseService[Process]):
                 )
 
             # Update process data
-            korea_tz = timezone(timedelta(hours=9))
-            completed_at = datetime.now(korea_tz)
+            completed_at = datetime.now(tz=timezone.utc)
 
             process_data.result = result
             process_data.completed_at = completed_at

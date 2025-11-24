@@ -1,21 +1,27 @@
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '@/api';
-import type { DashboardSummary } from '@/types/api';
+import type { DashboardSummary, ProcessCycleTime } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
 import { ProcessFlowDiagram } from '@/components/charts';
+import { CycleTimeChart } from '@/components/charts/CycleTimeChart';
 import { LotHistoryTabs } from '@/components/organisms/dashboard/LotHistoryTabs';
 import styles from './DashboardPage.module.css';
 
 export const DashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [cycleTimes, setCycleTimes] = useState<ProcessCycleTime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchData = async () => {
       try {
-        const data = await dashboardApi.getSummary();
-        setSummary(data);
+        const [summaryData, cycleTimeData] = await Promise.all([
+          dashboardApi.getSummary(),
+          dashboardApi.getCycleTimes()
+        ]);
+        setSummary(summaryData);
+        setCycleTimes(cycleTimeData);
       } catch (err: unknown) {
         setError(getErrorMessage(err, 'Failed to load dashboard data'));
       } finally {
@@ -23,9 +29,9 @@ export const DashboardPage = () => {
       }
     };
 
-    fetchSummary();
+    fetchData();
 
-    const interval = setInterval(fetchSummary, 10000);
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -138,6 +144,11 @@ export const DashboardPage = () => {
           Process Flow Status
         </h2>
         <ProcessFlowDiagram data={summary.process_wip} />
+      </div>
+
+      {/* Cycle Time Chart */}
+      <div className={styles.sectionContainer}>
+        <CycleTimeChart data={cycleTimes} />
       </div>
 
       {/* LOT History Tabs */}

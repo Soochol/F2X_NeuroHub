@@ -97,3 +97,18 @@ def get_process_wip(
         WIP count for each process with process details
     """
     return analytics_service.get_process_wip(db)
+
+
+@router.get("/cycle-times")
+def get_cycle_times(
+    db: Session = Depends(deps.get_db),
+    days: int = Query(7, ge=1, le=30, description="Number of days to analyze"),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get average cycle time by process.
+
+    Returns:
+        List of processes with their average cycle time
+    """
+    return analytics_service.get_process_cycle_times(db, days)

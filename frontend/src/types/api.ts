@@ -374,6 +374,11 @@ export interface ProcessWIP {
   avg_cycle_time_seconds?: number;
 }
 
+export interface ProcessCycleTime {
+  process_name: string;
+  average_cycle_time: number;
+}
+
 // ============================================================================
 // Analytics Types
 // ============================================================================

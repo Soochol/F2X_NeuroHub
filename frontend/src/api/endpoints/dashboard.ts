@@ -3,7 +3,7 @@
  */
 
 import apiClient from '../client';
-import type { DashboardSummary, DashboardLot, ProcessWIP, LotStatus } from '@/types/api';
+import type { DashboardSummary, DashboardLot, ProcessWIP, LotStatus, ProcessCycleTime } from '@/types/api';
 
 export const dashboardApi = {
   /**
@@ -32,6 +32,14 @@ export const dashboardApi = {
    */
   getProcessWIP: async (): Promise<{ processes: ProcessWIP[]; total_wip: number; bottleneck_process?: string }> => {
     const response = await apiClient.get<{ processes: ProcessWIP[]; total_wip: number; bottleneck_process?: string }>('/dashboard/process-wip');
+    return response.data;
+  },
+
+  /**
+   * Get average cycle time by process
+   */
+  getCycleTimes: async (days = 7): Promise<ProcessCycleTime[]> => {
+    const response = await apiClient.get<ProcessCycleTime[]>('/dashboard/cycle-times', { params: { days } });
     return response.data;
   },
 };

@@ -304,7 +304,7 @@ class ProcessData(Base):
         ),
         CheckConstraint(
             "(data_level = 'LOT' AND serial_id IS NULL AND wip_id IS NULL) OR "
-            "(data_level = 'WIP' AND wip_id IS NOT NULL AND serial_id IS NULL) OR "
+            "(data_level = 'WIP' AND wip_id IS NOT NULL) OR "
             "(data_level = 'SERIAL' AND serial_id IS NOT NULL)",
             name="chk_process_data_wip_serial_consistency"
         ),

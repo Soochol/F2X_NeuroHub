@@ -102,7 +102,7 @@ class ProductionLine(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("1"),
+        server_default=text("TRUE"),
         comment="Whether this line is currently operational",
     )
 

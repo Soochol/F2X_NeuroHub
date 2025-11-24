@@ -124,7 +124,7 @@ class Process(Base):
         Boolean,
         nullable=False,
         default=True,
-        server_default=text("1"),
+        server_default=text("TRUE"),
     )
 
     sort_order: Mapped[int] = mapped_column(
@@ -137,7 +137,7 @@ class Process(Base):
         Boolean,
         nullable=False,
         default=False,
-        server_default=text("0"),
+        server_default=text("FALSE"),
         comment="완공 시 자동 라벨 출력 여부"
     )
 

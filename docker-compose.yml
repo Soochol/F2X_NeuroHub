@@ -26,7 +26,7 @@ services:
     networks:
       - f2x-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d f2x_neurohub_mes"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d f2x_neurohub_mes" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,11 +41,20 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - f2x-network
+
 volumes:
   postgres_data:
     name: f2x-postgres-data
   pgadmin_data:
     name: f2x-pgadmin-data
+
+networks:
+  f2x-network:
+    driver: bridge
 
 # =============================================================================
 # Quick Start Guide

@@ -827,4 +827,33 @@ class AnalyticsService:
             "bottleneck_process": bottleneck_process
         }
 
+    def get_process_cycle_times(self, db: Session, days: int = 7) -> List[Dict[str, Any]]:
+        """Get average cycle time for each process."""
+        start_date = date.today() - timedelta(days=days)
+
+        results = db.query(
+            Process.process_name_en,
+            func.avg(ProcessData.duration_seconds).label('avg_cycle_time')
+        ).join(
+            ProcessData, Process.id == ProcessData.process_id
+        ).filter(
+            and_(
+                Process.is_active == True,
+                ProcessData.duration_seconds.isnot(None),
+                func.date(ProcessData.created_at) >= start_date
+            )
+        ).group_by(
+            Process.id, Process.process_name_en, Process.sort_order
+        ).order_by(
+            Process.sort_order
+        ).all()
+
+        return [
+            {
+                "process_name": row.process_name_en,
+                "average_cycle_time": round(row.avg_cycle_time, 1) if row.avg_cycle_time else 0
+            }
+            for row in results
+        ]
+
 analytics_service = AnalyticsService()
