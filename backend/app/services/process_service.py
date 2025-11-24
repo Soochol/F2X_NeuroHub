@@ -323,6 +323,10 @@ class ProcessService(BaseService[Process]):
 
                 if lot.status == LotStatus.CREATED:
                     lot.status = LotStatus.IN_PROGRESS
+
+                # Update WIP status if needed
+                if wip_item and wip_item.status == WIPStatus.CREATED.value:
+                    wip_item.status = WIPStatus.IN_PROGRESS.value
 
                 db.refresh(process_data)
 
