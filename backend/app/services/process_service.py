@@ -267,12 +267,18 @@ class ProcessService(BaseService[Process]):
                     wip_item_id = wip_item.id
                 data_level = DataLevel.WIP
 
-
-            # Validate Data Level for Manufacturing Processes
-            if process.process_number in [1, 2, 3, 4, 5, 6] and data_level == DataLevel.LOT:
-                raise BusinessRuleException(
-                    message=f"Process {process.process_number} requires a specific WIP ID or Serial Number. LOT level start is not allowed."
-                )
+
+
+            # Validate Data Level for Manufacturing Processes
+
+            if process.process_number in [1, 2, 3, 4, 5, 6] and data_level == DataLevel.LOT:
+
+                raise BusinessRuleException(
+
+                    message=f"Process {process.process_number} requires a specific WIP ID or Serial Number. LOT level start is not allowed."
+
+                )
+
             # Find operator
             operator = self._resolve_operator(db, request.worker_id)
             if not operator:
@@ -393,6 +399,8 @@ class ProcessService(BaseService[Process]):
                     if wip:
                         lot = wip.lot
                         wip_for_query = wip
+                        if wip.serial:
+                            serial_for_query = wip.serial
 
                 # 3. Try as Unit Barcode
                 elif len(lot_number) > 13 and lot_number[-3:].isdigit():
