@@ -267,6 +267,12 @@ class ProcessService(BaseService[Process]):
                     wip_item_id = wip_item.id
                 data_level = DataLevel.WIP
 
+
+            # Validate Data Level for Manufacturing Processes
+            if process.process_number in [1, 2, 3, 4, 5, 6] and data_level == DataLevel.LOT:
+                raise BusinessRuleException(
+                    message=f"Process {process.process_number} requires a specific WIP ID or Serial Number. LOT level start is not allowed."
+                )
             # Find operator
             operator = self._resolve_operator(db, request.worker_id)
             if not operator:
@@ -323,10 +329,14 @@ class ProcessService(BaseService[Process]):
 
                 if lot.status == LotStatus.CREATED:
                     lot.status = LotStatus.IN_PROGRESS
-
-                # Update WIP status if needed
-                if wip_item and wip_item.status == WIPStatus.CREATED.value:
-                    wip_item.status = WIPStatus.IN_PROGRESS.value
+
+
+                # Update WIP status if needed
+
+                if wip_item and wip_item.status == WIPStatus.CREATED.value:
+
+                    wip_item.status = WIPStatus.IN_PROGRESS.value
+
 
                 db.refresh(process_data)
 
