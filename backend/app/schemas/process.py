@@ -86,6 +86,15 @@ class ProcessBase(BaseModel):
         gt=0,
         description="Display sort order for UI presentation (must be > 0)"
     )
+    auto_print_label: bool = Field(
+        default=False,
+        description="Whether to automatically print labels when all previous processes are PASS"
+    )
+    label_template_type: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Type of label template to use (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
+    )
 
     @field_validator("process_code")
     @classmethod
@@ -234,6 +243,15 @@ class ProcessUpdate(BaseModel):
         default=None,
         gt=0,
         description="Display sort order for UI presentation (must be > 0)"
+    )
+    auto_print_label: Optional[bool] = Field(
+        default=None,
+        description="Whether to automatically print labels when all previous processes are PASS"
+    )
+    label_template_type: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Type of label template to use (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
     )
 
     model_config = ConfigDict(validate_assignment=True)

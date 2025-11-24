@@ -248,14 +248,18 @@ class WIPProcessHistory(Base):
             name="chk_wip_history_timestamps",
         ),
 
-        # UNIQUE CONSTRAINT: Prevent duplicate PASS for same WIP + Process
-        # (Only one PASS result per WIP per process - BR-004)
+
+        # UNIQUE CONSTRAINT: Removed to allow multiple attempts (rework scenarios)
+        # Previously: Only one PASS result per WIP per process (BR-004)
+        # Now: Multiple PASS/FAIL results allowed, latest result determines status
+        
+        # INDEX: Support queries for latest result per WIP + Process
+        # Used to find the most recent completion when determining WIP status
         Index(
-            "uk_wip_history_wip_process_pass",
+            "idx_wip_history_wip_process_completed",
             wip_item_id,
             process_id,
-            unique=True,
-            postgresql_where=text("result = 'PASS'"),
+            text("completed_at DESC"),
         ),
 
         # FOREIGN KEY INDEXES

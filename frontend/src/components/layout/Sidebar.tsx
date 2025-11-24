@@ -58,7 +58,8 @@ const navConfig: NavConfig = [
     icon: Layers,
     items: [
       { path: '/wip/generate', label: 'WIP Generation', icon: PackagePlus },
-      { path: '/wip', label: 'WIP Tracking', icon: Scan },
+      { path: '/wip/tracking', label: 'WIP Tracking', icon: Scan },
+      { path: '/wip/list', label: 'WIP List by LOT', icon: Package },
     ]
   },
 
@@ -68,7 +69,7 @@ const navConfig: NavConfig = [
     icon: Box,
     items: [
       { path: '/serials/generate', label: 'Serial Generation', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-      { path: '/serials', label: 'Serial Tracking', icon: Search },
+      { path: '/serials/tracking', label: 'Serial Tracking', icon: Search },
     ]
   },
 

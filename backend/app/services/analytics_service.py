@@ -713,7 +713,7 @@ class AnalyticsService:
             total_wip = wip_at_process + waiting_count
 
             process_wip.append({
-                "process_name": process.process_name_ko,
+                "process_name": process.process_name_en,
                 "wip_count": total_wip
             })
 

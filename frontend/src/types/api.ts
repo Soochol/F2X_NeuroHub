@@ -149,6 +149,10 @@ export interface Process {
   description?: string;
   sort_order: number;
   is_active: boolean;
+  estimated_duration_seconds?: number;
+  quality_criteria?: Record<string, unknown>;
+  auto_print_label: boolean;
+  label_template_type?: string | null;
   created_at: string;
   updated_at: string;
 }

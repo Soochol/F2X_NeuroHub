@@ -113,7 +113,7 @@ def list_lots(
     responses={404: {"description": "Lot not found"}},
 )
 def get_lot_by_number(
-    lot_number: str = Path(..., pattern=r"^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$", description="Unique LOT identifier (11 chars)"),
+    lot_number: str = Path(..., pattern=r"^[A-Z0-9]{10,15}$", description="Unique LOT identifier"),
     db: Session = Depends(deps.get_db),
 ) -> LotInDB:
     """Get LOT by unique LOT number.

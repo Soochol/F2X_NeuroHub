@@ -39,7 +39,7 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
         status: data.status,
       });
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'LOT 정보를 불러오지 못했습니다'));
+      setError(getErrorMessage(err, 'Failed to load LOT information'));
     } finally {
       setIsLoading(false);
     }
@@ -53,21 +53,21 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
       onUpdate();
       onClose(); // 저장 완료 후 모달 닫기
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'LOT 업데이트 실패'));
+      setError(getErrorMessage(err, 'Failed to update LOT'));
     }
   };
 
   if (isLoading) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="LOT 상세 정보">
-        <div style={{ textAlign: 'center', padding: '20px' }}>로딩 중...</div>
+      <Modal isOpen={isOpen} onClose={onClose} title="LOT Details">
+        <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
       </Modal>
     );
   }
 
   if (error && !lot) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="LOT 상세 정보">
+      <Modal isOpen={isOpen} onClose={onClose} title="LOT Details">
         <div style={{ color: 'var(--color-error)', padding: '20px' }}>{error}</div>
       </Modal>
     );
@@ -79,23 +79,23 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`LOT 상세: ${lot.lot_number}`}
+      title={`LOT Details: ${lot.lot_number}`}
       width="800px"
       footer={
         <>
           {isEditing ? (
             <>
               <Button variant="secondary" onClick={() => setIsEditing(false)}>
-                취소
+                Cancel
               </Button>
-              <Button onClick={handleUpdate}>저장</Button>
+              <Button onClick={handleUpdate}>Save</Button>
             </>
           ) : (
             <>
               <Button variant="secondary" onClick={onClose}>
-                닫기
+                Close
               </Button>
-              <Button onClick={() => setIsEditing(true)}>수정</Button>
+              <Button onClick={() => setIsEditing(true)}>Edit</Button>
             </>
           )}
         </>
@@ -104,24 +104,24 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
       <div>
         {/* Basic Info */}
         <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>기본 정보</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>Basic Information</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>LOT 번호</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>LOT Number</div>
               <div style={{ fontWeight: 'bold' }}>{lot.lot_number}</div>
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>제품 모델</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Product Model</div>
               <div style={{ fontWeight: 'bold' }}>
                 {lot.product_model ? `${lot.product_model.model_code} - ${lot.product_model.model_name}` : 'N/A'}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>목표 수량</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Target Quantity</div>
               <div style={{ fontWeight: 'bold' }}>{lot.target_quantity}</div>
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>생산 날짜</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Production Date</div>
               <div style={{ fontWeight: 'bold' }}>
                 {format(new Date(lot.production_date), 'yyyy-MM-dd')}
               </div>
@@ -129,19 +129,19 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
             <div>
               {isEditing ? (
                 <Select
-                  label="상태"
+                  label="Status"
                   value={editData.status || lot.status}
                   onChange={(e) => setEditData({ ...editData, status: e.target.value as LotStatus })}
                   options={[
-                    { value: LotStatus.CREATED, label: '생성됨' },
-                    { value: LotStatus.IN_PROGRESS, label: '진행중' },
-                    { value: LotStatus.COMPLETED, label: '완료' },
-                    { value: LotStatus.CLOSED, label: '종료' },
+                    { value: LotStatus.CREATED, label: 'Created' },
+                    { value: LotStatus.IN_PROGRESS, label: 'In Progress' },
+                    { value: LotStatus.COMPLETED, label: 'Completed' },
+                    { value: LotStatus.CLOSED, label: 'Closed' },
                   ]}
                 />
               ) : (
                 <>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>상태</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Status</div>
                   <div>
                     <span
                       style={{
@@ -173,25 +173,25 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
 
         {/* Timestamps */}
         <div style={{ paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>타임스탬프</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>Timestamps</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '13px' }}>
             <div>
-              <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>생성일시</div>
+              <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Created At</div>
               <div>{format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm:ss')}</div>
             </div>
             <div>
-              <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>수정일시</div>
+              <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Updated At</div>
               <div>{format(new Date(lot.updated_at), 'yyyy-MM-dd HH:mm:ss')}</div>
             </div>
             {lot.completed_at && (
               <div>
-                <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>완료일시</div>
+                <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Completed At</div>
                 <div>{format(new Date(lot.completed_at), 'yyyy-MM-dd HH:mm:ss')}</div>
               </div>
             )}
             {lot.closed_at && (
               <div>
-                <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>종료일시</div>
+                <div style={{ color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Closed At</div>
                 <div>{format(new Date(lot.closed_at), 'yyyy-MM-dd HH:mm:ss')}</div>
               </div>
             )}

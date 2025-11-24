@@ -13,8 +13,7 @@ from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtGui import QKeyEvent
 
 from views.pages.home_page import HomePage
-from views.pages.start_work_page import StartWorkPage
-from views.pages.complete_work_page import CompleteWorkPage
+
 from views.pages.settings_page import SettingsPage
 from views.pages.help_page import HelpPage
 from views.pages.wip_generation_page import WIPGenerationPage
@@ -47,7 +46,7 @@ class MainWindow(QMainWindow):
 
         # Window size for sidebar layout
         self.setMinimumSize(900, 726)
-        self.resize(1100, 826)
+        self.resize(900, 726)
 
         # Work state tracking
         self.current_lot = None
@@ -97,8 +96,7 @@ class MainWindow(QMainWindow):
         # Add navigation items
         nav_items = [
             ("홈", "home"),
-            ("착공", "start"),
-            ("완공", "complete"),
+
             ("설정", "settings"),
             ("도움말", "help"),
         ]
@@ -126,11 +124,9 @@ class MainWindow(QMainWindow):
 
         # Create pages
         self.home_page = HomePage(self.config)
-        self.start_page = StartWorkPage(self.config)
-        self.complete_page = CompleteWorkPage(self.config)
+
 
         # Get services from viewmodel
-        print_service = getattr(self.viewmodel, 'print_service', None)
         api_client = getattr(self.viewmodel, 'api_client', None)
 
         # Create WIP ViewModels
@@ -142,13 +138,12 @@ class MainWindow(QMainWindow):
         # self.wip_dashboard_page = WIPDashboardPage(self.wip_dashboard_vm, self.config)
 
         # Create settings page
-        self.settings_page = SettingsPage(self.config, print_service, api_client)
+        self.settings_page = SettingsPage(self.config, api_client)
         self.help_page = HelpPage(self.config)
 
         # Add pages to stack
         self.stack.addWidget(self.home_page)
-        self.stack.addWidget(self.start_page)
-        self.stack.addWidget(self.complete_page)
+
         # self.stack.addWidget(self.wip_generation_page)
         # self.stack.addWidget(self.wip_dashboard_page)
         self.stack.addWidget(self.settings_page)
@@ -234,19 +229,15 @@ class MainWindow(QMainWindow):
         """Connect page signals to handlers."""
         connector = SignalConnector()
         connector.connect(
-            self.start_page.start_requested,
+            self.home_page.start_requested,
             self._on_start_work_requested,
             "start_requested -> _on_start_work_requested"
         ).connect(
-            self.start_page.serial_start_requested,
-            self._on_serial_start_work_requested,
-            "serial_start_requested -> _on_serial_start_work_requested"
-        ).connect(
-            self.complete_page.pass_requested,
+            self.home_page.pass_requested,
             self._on_pass_requested,
             "pass_requested -> _on_pass_requested"
         ).connect(
-            self.complete_page.fail_requested,
+            self.home_page.fail_requested,
             self._on_fail_requested,
             "fail_requested -> _on_fail_requested"
         ).connect(
@@ -264,8 +255,7 @@ class MainWindow(QMainWindow):
     def _on_settings_saved(self):
         """Handle settings saved - refresh page info."""
         self.home_page.refresh_info()
-        self.start_page.refresh_info()
-        self.complete_page.refresh_info()
+
 
     def connect_signals(self):
         """Connect ViewModel signals to UI updates."""
@@ -311,8 +301,8 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
 
         # Focus on input when switching to specific pages
-        if page_type == "start":
-            self.start_page.focus_input()
+        if page_type == "home":
+            self.home_page.focus_input()
 
     def _on_start_work_requested(self, lot_number: str):
         """Handle start work request from start page (LOT-level)."""
@@ -321,31 +311,15 @@ class MainWindow(QMainWindow):
             return
 
         # Disable start controls during request
-        self.start_page.set_enabled(False)
+        self.home_page.set_enabled(False)
 
         # Call viewmodel to start work (LOT-level)
         self.viewmodel.start_work(lot_number)
 
-    def _on_serial_start_work_requested(self, lot_number: str, serial_number: str):
-        """Handle start work request with serial number (SERIAL-level)."""
-        if not lot_number:
-            Toast.warning(self, "LOT 번호를 입력하세요.")
-            return
-
-        if not serial_number:
-            Toast.warning(self, "Serial 번호를 입력하세요.")
-            return
-
-        # Disable start controls during request
-        self.start_page.set_enabled(False)
-
-        # Call viewmodel to start work (SERIAL-level)
-        self.viewmodel.start_work(lot_number, serial_number)
-
     def _on_serial_received(self, serial_number: str):
         """Handle serial number received (from barcode or server)."""
-        # Update StartWorkPage serial input
-        self.start_page.set_serial_number(serial_number)
+        # Update HomePage serial input - REMOVED as requested
+        # self.home_page.set_serial_number(serial_number)
         Toast.success(self, f"Serial 스캔: {serial_number}")
 
     def _on_pass_requested(self):
@@ -381,7 +355,7 @@ class MainWindow(QMainWindow):
         }
 
         # Disable buttons during request
-        self.complete_page.set_enabled(False)
+        self.home_page.set_enabled(False)
 
         # Call viewmodel to complete work
         self.viewmodel.complete_work(completion_data)
@@ -426,7 +400,7 @@ class MainWindow(QMainWindow):
             }
 
             # Disable buttons during request
-            self.complete_page.set_enabled(False)
+            self.home_page.set_enabled(False)
 
             # Call viewmodel to complete work
             self.viewmodel.complete_work(completion_data)
@@ -453,13 +427,7 @@ class MainWindow(QMainWindow):
         self.home_page.start_work(lot_number, start_time_str)
         self.home_page.set_status(f"착공 완료: {lot_number}", "success")
 
-        # Update complete page (with serial if available)
-        self.complete_page.set_work_info(lot_number, "00:00:00", serial_number=serial_number)
-        self.complete_page.set_enabled(True)
 
-        # Update start page
-        self.start_page.clear_input()
-        self.start_page.set_enabled(False)
 
         # Start elapsed timer
         self.elapsed_timer.start(1000)
@@ -467,8 +435,7 @@ class MainWindow(QMainWindow):
         # Show toast
         Toast.success(self, f"착공 완료: {lot_number}")
 
-        # Switch to home page to show status
-        self.nav_list.setCurrentRow(0)
+
 
     @safe_slot("완공 처리 실패", show_dialog=True)
     def _on_work_completed(self, message: str):
@@ -481,13 +448,8 @@ class MainWindow(QMainWindow):
         # Update home page
         self.home_page.complete_work(complete_time)
         self.home_page.set_status(message, "success")
-        self.home_page.set_recent_message(message)
 
-        # Reset complete page
-        self.complete_page.reset()
 
-        # Enable start page for next work
-        self.start_page.set_enabled(True)
 
         # Reset state
         self.current_lot = None
@@ -502,9 +464,9 @@ class MainWindow(QMainWindow):
 
         # Re-enable controls based on current state
         if self.current_lot:
-            self.complete_page.set_enabled(True)
+            self.home_page.set_enabled(True)  # This might need refinement depending on exactly what we want to enable
         else:
-            self.start_page.set_enabled(True)
+            self.home_page.set_enabled(True)
 
         # Update home page
         self.home_page.set_status(f"오류: {error_msg}", "danger")
@@ -527,8 +489,8 @@ class MainWindow(QMainWindow):
             minutes, seconds = divmod(remainder, 60)
             elapsed_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-            # Update complete page
-            self.complete_page.update_elapsed_time(elapsed_str)
+            # Update home page
+            self.home_page.work_card.update_time(elapsed_str)
 
     def eventFilter(self, obj, event):
         """
@@ -562,14 +524,12 @@ class MainWindow(QMainWindow):
         current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
 
         # Route to appropriate handler based on current page
-        if current_page_data == "start":
-            # Auto-fill LOT input on start page
-            self.start_page.set_lot_number(lot_number)
+        if current_page_data == "home":
+            # Auto-fill LOT input on home page
+            self.home_page.set_lot_number(lot_number)
             Toast.success(self, f"LOT 스캔: {lot_number}")
 
-        elif current_page_data == "complete":
-            # Show info on complete page
-            Toast.info(self, f"LOT 스캔: {lot_number} (완공 페이지에서는 Serial 스캔이 필요합니다)")
+
 
         else:
             # Generic notification
@@ -588,9 +548,9 @@ class MainWindow(QMainWindow):
         current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
 
         # Route to appropriate handler based on current page
-        if current_page_data == "start":
-            # Auto-fill Serial input on start page
-            self.start_page.set_serial_number(serial_number)
+        if current_page_data == "home":
+            # Auto-fill Serial input on home page - REMOVED as requested
+            # self.home_page.set_serial_number(serial_number)
             Toast.success(self, f"Serial 스캔: {serial_number}")
 
         else:
@@ -602,34 +562,3 @@ class MainWindow(QMainWindow):
         """Handle invalid barcode scanned."""
         logger.warning(f"Invalid barcode scanned: {barcode}")
         Toast.warning(self, f"잘못된 바코드 형식: {barcode}")
-
-    def closeEvent(self, event):
-        """Handle window close event with proper cleanup."""
-        reply = QMessageBox.question(
-            self,
-            "종료 확인",
-            "앱을 종료하시겠습니까?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-
-        if reply == QMessageBox.Yes:
-            logger.info("Application closing - initiating cleanup")
-
-            # Use CleanupManager for safe cleanup
-            cleanup = CleanupManager()
-            cleanup.add(self.elapsed_timer.stop, "타이머 정지")
-            cleanup.add(Toast.clear_all, "토스트 정리")
-            cleanup.add(self.home_page.cleanup, "홈페이지 정리")
-            # cleanup.add(self.wip_generation_page.cleanup, "WIP 생성 페이지 정리")
-            # cleanup.add(self.wip_dashboard_page.cleanup, "WIP 대시보드 정리")
-            cleanup.add(self.viewmodel.cleanup, "ViewModel 정리")
-
-            failed = cleanup.execute()
-            if failed:
-                logger.warning(f"일부 정리 작업 실패: {failed}")
-
-            logger.info("Application cleanup completed")
-            event.accept()
-        else:
-            event.ignore()

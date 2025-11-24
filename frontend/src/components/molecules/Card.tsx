@@ -15,7 +15,7 @@ type PaddingSize = 'sm' | 'md' | 'lg';
 
 interface CardProps {
   children: ReactNode;
-  title?: string;
+  title?: ReactNode;
   variant?: CardVariant;
   padding?: PaddingSize;
   style?: CSSProperties;

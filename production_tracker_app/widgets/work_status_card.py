@@ -138,6 +138,10 @@ class WorkStatusCard(QGroupBox):
             minutes, seconds = divmod(remainder, 60)
             self.elapsed_value.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
 
+    def update_time(self, time_str: str):
+        """Update elapsed time display from external source."""
+        self.elapsed_value.setText(time_str)
+
     def set_lot(self, lot_number: str):
         """Set LOT number."""
         self.lot_value.setText(lot_number if lot_number else "대기중")

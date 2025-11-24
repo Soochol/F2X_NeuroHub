@@ -64,7 +64,7 @@ export const SerialGenerationPage = () => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%'
+      minHeight: '100%'
     }}>
       {/* Fixed Header Section - Title and Input */}
       <div style={{
@@ -83,9 +83,14 @@ export const SerialGenerationPage = () => {
         marginRight: '-20px',
         borderBottom: '2px solid var(--color-border)'
       }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
-          Serial Generation
-        </h1>
+        <div style={{ marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px', color: 'var(--color-text-primary)' }}>
+            Serial Generation
+          </h1>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+            Generate serials from WIP ID
+          </p>
+        </div>
 
         <Card>
           <form onSubmit={handleGenerate}>

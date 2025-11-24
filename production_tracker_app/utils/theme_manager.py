@@ -594,6 +594,10 @@ QStatusBar {{
     border-top: 1px solid {border_default};
 }}
 
+QStatusBar::item {{
+    border: none;
+}}
+
 /* ========== Toast Notification ========== */
 QFrame[variant="toast"] {{
     background-color: {bg_elevated};

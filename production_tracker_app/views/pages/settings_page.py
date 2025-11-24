@@ -11,17 +11,9 @@ from PySide6.QtCore import Signal
 
 from utils.theme_manager import get_theme
 from services.api_client import APIClient
-from views.dialogs.printer_config_dialog import PrinterConfigDialog
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
-
-# Try to import PrintService for printer list
-try:
-    from services.print_service import PrintService
-    PRINT_SERVICE_AVAILABLE = True
-except ImportError:
-    PRINT_SERVICE_AVAILABLE = False
 
 
 class SettingsPage(QWidget):
@@ -30,22 +22,26 @@ class SettingsPage(QWidget):
     # Signal emitted when settings are saved
     settings_saved = Signal()
 
-    def __init__(self, config, print_service: Optional['PrintService'] = None, api_client: Optional[APIClient] = None, parent=None):
+    def __init__(self, config, api_client: Optional[APIClient] = None, parent=None):
         super().__init__(parent)
         self.config = config
-        self.print_service = print_service
         self.api_client = api_client
 
         # Cache for API data
         self._production_lines = []
         self._equipment_list = []
         self._processes = []
+        self._is_loading = True  # Start with True to prevent saves during init
 
         self.setup_ui()
         self._apply_styles()
 
         # Load data from API after UI setup
         self._load_api_data()
+        
+        # Ensure loading flag is reset if it wasn't already
+        if self._is_loading and not self.api_client:
+             self._is_loading = False
 
     def setup_ui(self):
         """Setup UI components."""
@@ -76,21 +72,8 @@ class SettingsPage(QWidget):
         # API settings
         layout.addWidget(self._create_api_section())
 
-        # Printer settings
-        layout.addWidget(self._create_printer_section())
-
         layout.addStretch()
 
-        # Save button
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        self.save_button = QPushButton("설정 저장")
-        self.save_button.setObjectName("save_button")
-        self.save_button.clicked.connect(self.save_settings)
-        button_layout.addWidget(self.save_button)
-
-        layout.addLayout(button_layout)
 
     def _apply_styles(self):
         """Apply styles for the settings page."""
@@ -208,6 +191,7 @@ class SettingsPage(QWidget):
         # Process selection with refresh button
         process_layout = QHBoxLayout()
         self.process_combo = QComboBox()
+        self.process_combo.currentIndexChanged.connect(self.save_settings)
         self.process_combo.addItem("(공정 선택)", None)
         process_layout.addWidget(self.process_combo, 1)
 
@@ -228,6 +212,7 @@ class SettingsPage(QWidget):
 
         folder_layout = QHBoxLayout()
         self.folder_input = QLineEdit(self.config.watch_folder)
+        self.folder_input.textChanged.connect(self.save_settings)
         folder_layout.addWidget(self.folder_input)
 
         browse_button = QPushButton("찾아보기")
@@ -247,6 +232,7 @@ class SettingsPage(QWidget):
         # Production line selection
         line_layout = QHBoxLayout()
         self.line_combo = QComboBox()
+        self.line_combo.currentIndexChanged.connect(self.save_settings)
         self.line_combo.addItem("(생산라인 선택)", None)
         line_layout.addWidget(self.line_combo, 1)
 
@@ -261,6 +247,7 @@ class SettingsPage(QWidget):
         # Equipment selection
         equip_layout = QHBoxLayout()
         self.equipment_combo = QComboBox()
+        self.equipment_combo.currentIndexChanged.connect(self.save_settings)
         self.equipment_combo.addItem("(장비 선택)", None)
         equip_layout.addWidget(self.equipment_combo, 1)
 
@@ -291,6 +278,7 @@ class SettingsPage(QWidget):
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
             return
 
+        self._is_loading = True
         try:
             self._processes = self.api_client.get_processes()
 
@@ -338,6 +326,8 @@ class SettingsPage(QWidget):
         except Exception as e:
             logger.error(f"Failed to load processes: {e}")
             QMessageBox.warning(self, "오류", f"공정 목록 로드 실패: {str(e)}")
+        finally:
+            self._is_loading = False
 
     def _refresh_production_lines(self):
         """Refresh production lines from API."""
@@ -345,6 +335,7 @@ class SettingsPage(QWidget):
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
             return
 
+        self._is_loading = True
         try:
             self._production_lines = self.api_client.get_production_lines()
 
@@ -370,6 +361,8 @@ class SettingsPage(QWidget):
         except Exception as e:
             logger.error(f"Failed to load production lines: {e}")
             QMessageBox.warning(self, "오류", f"생산라인 목록 로드 실패: {str(e)}")
+        finally:
+            self._is_loading = False
 
     def _refresh_equipment(self):
         """Refresh equipment list from API."""
@@ -377,6 +370,7 @@ class SettingsPage(QWidget):
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
             return
 
+        self._is_loading = True
         try:
             self._equipment_list = self.api_client.get_equipment()
 
@@ -402,6 +396,8 @@ class SettingsPage(QWidget):
         except Exception as e:
             logger.error(f"Failed to load equipment: {e}")
             QMessageBox.warning(self, "오류", f"장비 목록 로드 실패: {str(e)}")
+        finally:
+            self._is_loading = False
 
     def _create_api_section(self) -> QFrame:
         """Create API settings section."""
@@ -411,50 +407,8 @@ class SettingsPage(QWidget):
         form_layout.setSpacing(8)
 
         self.api_input = QLineEdit(self.config.api_base_url)
+        self.api_input.textChanged.connect(self.save_settings)
         form_layout.addRow("백엔드 URL:", self.api_input)
-
-        layout.addLayout(form_layout)
-        return frame
-
-    def _create_printer_section(self) -> QFrame:
-        """Create printer settings section."""
-        frame, layout = self._create_section_frame("프린터 설정")
-
-        form_layout = QFormLayout()
-        form_layout.setSpacing(8)
-
-        # Printer selection
-        self.printer_combo = QComboBox()
-        self.printer_combo.addItem("(프린터 선택)", "")
-        self._populate_printers()
-        form_layout.addRow("프린터:", self.printer_combo)
-
-        # ZPL template path
-        zpl_layout = QHBoxLayout()
-        self.zpl_input = QLineEdit(self.config.zpl_template_path)
-        self.zpl_input.setPlaceholderText("ZPL 템플릿 파일 경로 (선택)")
-        zpl_layout.addWidget(self.zpl_input)
-
-        zpl_browse_button = QPushButton("찾아보기")
-        zpl_browse_button.clicked.connect(self.browse_zpl_template)
-        zpl_layout.addWidget(zpl_browse_button)
-        form_layout.addRow("ZPL 템플릿:", zpl_layout)
-
-        # Action buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        # Advanced config button
-        advanced_button = QPushButton("고급 설정")
-        advanced_button.setProperty("variant", "secondary")
-        advanced_button.clicked.connect(self.open_printer_config)
-        button_layout.addWidget(advanced_button)
-
-        test_button = QPushButton("테스트 출력")
-        test_button.clicked.connect(self.test_print)
-        button_layout.addWidget(test_button)
-
-        form_layout.addRow("", button_layout)
 
         layout.addLayout(form_layout)
         return frame
@@ -465,88 +419,11 @@ class SettingsPage(QWidget):
         if folder:
             self.folder_input.setText(folder)
 
-    def browse_zpl_template(self):
-        """Open file browser for ZPL template."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "ZPL 템플릿 선택",
-            self.zpl_input.text(),
-            "ZPL Files (*.zpl *.prn *.txt);;All Files (*)"
-        )
-        if file_path:
-            self.zpl_input.setText(file_path)
-
-    def _populate_printers(self):
-        """Populate printer combo box with available printers."""
-        printers = []
-
-        if self.print_service:
-            printers = self.print_service.get_available_printers()
-        elif PRINT_SERVICE_AVAILABLE:
-            try:
-                temp_service = PrintService(self.config)
-                printers = temp_service.get_available_printers()
-            except Exception as e:
-                logger.warning(f"Failed to get printer list: {e}")
-
-        for printer in printers:
-            self.printer_combo.addItem(printer, printer)
-
-        current_printer = self.config.printer_queue
-        if current_printer:
-            index = self.printer_combo.findData(current_printer)
-            if index >= 0:
-                self.printer_combo.setCurrentIndex(index)
-
-    def open_printer_config(self):
-        """Open advanced printer configuration dialog."""
-        dialog = PrinterConfigDialog(self.config, self.print_service, self)
-        dialog.printer_configured.connect(self._on_printer_configured)
-        dialog.exec()
-
-    def _on_printer_configured(self, config_data: dict):
-        """Handle printer configuration saved."""
-        logger.info(f"Printer configured: {config_data}")
-
-        # Refresh printer list if USB printer was configured
-        if config_data.get("printer_type") == "usb":
-            self._populate_printers()
-
-        QMessageBox.information(self, "설정 완료", "프린터 설정이 적용되었습니다.")
-
-    def test_print(self):
-        """Test print with selected printer."""
-        selected_printer = self.printer_combo.currentData()
-
-        if not selected_printer:
-            QMessageBox.warning(self, "경고", "프린터를 선택해주세요.")
-            return
-
-        self.config.printer_queue = selected_printer
-        self.config.zpl_template_path = self.zpl_input.text()
-
-        if self.print_service:
-            self.print_service.set_printer(selected_printer)
-            success = self.print_service.test_print()
-        elif PRINT_SERVICE_AVAILABLE:
-            try:
-                temp_service = PrintService(self.config)
-                temp_service.set_printer(selected_printer)
-                success = temp_service.test_print()
-            except Exception as e:
-                QMessageBox.critical(self, "오류", f"테스트 출력 실패: {str(e)}")
-                return
-        else:
-            QMessageBox.warning(self, "경고", "Zebra 라이브러리가 설치되지 않았습니다.")
-            return
-
-        if success:
-            QMessageBox.information(self, "성공", "테스트 라벨이 출력되었습니다.")
-        else:
-            QMessageBox.warning(self, "실패", "테스트 출력에 실패했습니다.")
-
     def save_settings(self):
         """Save settings to config."""
+        if self._is_loading:
+            return
+
         try:
             # Save process selection
             process_data = self.process_combo.currentData()
@@ -588,12 +465,9 @@ class SettingsPage(QWidget):
                 self.config.equipment_name = ''
 
             self.config.api_base_url = self.api_input.text()
-            self.config.printer_queue = self.printer_combo.currentData() or ""
-            self.config.zpl_template_path = self.zpl_input.text()
 
             logger.info("Settings saved successfully")
             self.settings_saved.emit()
-            QMessageBox.information(self, "저장 완료", "설정이 저장되었습니다.")
         except Exception as e:
             logger.error(f"Failed to save settings: {e}")
             QMessageBox.critical(self, "오류", f"설정 저장 실패: {str(e)}")

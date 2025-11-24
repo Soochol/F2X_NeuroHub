@@ -2,7 +2,8 @@
  * WIP Tracking Page
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { WipSearch } from '@/components/organisms/wip/WipSearch';
 import { WipTraceView } from '@/components/organisms/wip/WipTraceView';
 import { Card } from '@/components/common';
@@ -15,6 +16,15 @@ export const WipTrackingPage = () => {
     const [trace, setTrace] = useState<WipTrace | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const [searchParams] = useSearchParams();
+
+    useEffect(() => {
+        const wipId = searchParams.get('wip_id');
+        if (wipId) {
+            handleSearch(wipId);
+        }
+    }, [searchParams]);
 
     const handleSearch = async (wipId: string) => {
         setIsLoading(true);
@@ -35,7 +45,7 @@ export const WipTrackingPage = () => {
         <div style={{
             display: 'flex',
             flexDirection: 'column',
-            height: '100%'
+            minHeight: '100%'
         }}>
             {/* Fixed Header Section - Title and Search */}
             <div style={{
@@ -54,9 +64,14 @@ export const WipTrackingPage = () => {
                 marginRight: '-20px',
                 borderBottom: '2px solid var(--color-border)'
             }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
-                    WIP Tracking & Traceability
-                </h1>
+                <div style={{ marginBottom: '20px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px', color: 'var(--color-text-primary)' }}>
+                        WIP Tracking & Traceability
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                        Track WIP status and view process history
+                    </p>
+                </div>
 
                 <WipSearch onSearch={handleSearch} isLoading={isLoading} />
             </div>

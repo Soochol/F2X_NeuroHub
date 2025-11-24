@@ -7,7 +7,7 @@ from app import crud
 from app.models import (
     User, Lot, Serial, Process, ProcessData,
     WIPItem, Equipment, ProductionLine,
-    LotStatus, SerialStatus
+    LotStatus, SerialStatus, WIPProcessHistory, WIPStatus
 )
 from app.models.process import LabelTemplateType
 from app.schemas.process import ProcessCreate, ProcessUpdate, ProcessInDB
@@ -460,13 +460,110 @@ class ProcessService(BaseService[Process]):
                 process_data.duration_seconds = 0
 
             with self.transaction(db):
-                db.refresh(process_data)
+                # db.refresh(process_data)  # Bug: Discards all updates!
+
 
                 # Update serial status if FAIL
                 if result == ProcessResult.FAIL and process_data.serial_id:
                     serial = db.query(Serial).filter(Serial.id == process_data.serial_id).first()
                     if serial:
                         serial.status = SerialStatus.FAILED
+
+
+
+                # --- WIP Logic: Create WIPProcessHistory and Update Status ---
+
+                if wip_for_query:  # If processing a WIP item
+
+                    # Get process object for logging
+
+                    process = db.query(Process).filter(Process.id == process_data.process_id).first()
+
+                    
+
+                    # 1. Create WIPProcessHistory record
+
+                    wip_history = WIPProcessHistory(
+
+                        wip_item_id=wip_for_query.id,
+
+                        process_id=process_data.process_id,
+
+                        result=result.value,
+
+                        started_at=process_data.started_at,
+
+                        completed_at=completed_at,
+
+                        operator_id=process_data.operator_id
+
+                    )
+
+                    db.add(wip_history)
+
+                    if process:
+
+                        logger.info(f"Created WIPProcessHistory for WIP {wip_for_query.wip_id}, Process {process.process_number}, Result: {result.value}")
+
+
+
+                    # 2. If PASS, check if all processes are complete
+
+                    if result == ProcessResult.PASS:
+
+                        # Get all active processes (processes 1-6 are manufacturing)
+
+                        all_processes = db.query(Process).filter(
+
+                            Process.process_number.in_([1, 2, 3, 4, 5, 6]),
+
+                            Process.is_active == True
+
+                        ).all()
+
+                        
+
+                        # Check if all have PASS results in their LATEST WIPProcessHistory
+
+                        passed_process_ids = []
+
+                        for proc in all_processes:
+
+                            # Get the latest completion record for this process
+
+                            latest_history = db.query(WIPProcessHistory).filter(
+
+                                WIPProcessHistory.wip_item_id == wip_for_query.id,
+
+                                WIPProcessHistory.process_id == proc.id,
+
+                                WIPProcessHistory.completed_at.isnot(None)
+
+                            ).order_by(
+
+                                WIPProcessHistory.completed_at.desc()
+
+                            ).first()
+
+                            
+
+                            # If latest attempt is PASS, count it
+
+                            if latest_history and latest_history.result == ProcessResult.PASS.value:
+
+                                passed_process_ids.append(proc.id)
+
+                        
+
+                        # If all processes passed, mark WIP as COMPLETED
+
+                        if len(passed_process_ids) >= len(all_processes):
+
+                            wip_for_query.status = WIPStatus.COMPLETED.value
+
+                            logger.info(f"WIP {wip_for_query.wip_id} marked as COMPLETED - all processes passed ({len(passed_process_ids)}/{len(all_processes)})")
+
+
 
                 # Auto-print label
                 self._check_and_print_label(

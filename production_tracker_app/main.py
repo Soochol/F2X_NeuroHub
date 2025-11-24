@@ -16,7 +16,7 @@ from services.auth_service import AuthService
 from services.work_service import WorkService
 from services.barcode_service import BarcodeService
 from services.completion_watcher import CompletionWatcher
-from services.print_service import PrintService
+from services.completion_watcher import CompletionWatcher
 
 # Import viewmodels
 from viewmodels.main_viewmodel import MainViewModel
@@ -164,25 +164,10 @@ def main():
         logger.info("Barcode Service initialized")
 
         # Initialize services based on process type
-        print_service = None
-        completion_watcher = None
-
-        if config.is_label_printing_process:
-            # Process 7: Use PrintService instead of CompletionWatcher
-            print_service = PrintService(config)
-            logger.info("Print Service initialized (Process 7 - Label Printing)")
-
-            # Create dummy completion watcher (not used but required by ViewModel)
-            completion_watcher = CompletionWatcher(
-                config.watch_folder, config.process_id
-            )
-            completion_watcher.stop()  # Stop immediately - not needed for Process 7
-        else:
-            # Other processes: Use CompletionWatcher
-            completion_watcher = CompletionWatcher(
-                config.watch_folder, config.process_id
-            )
-            logger.info("Completion Watcher initialized")
+        completion_watcher = CompletionWatcher(
+            config.watch_folder, config.process_id
+        )
+        logger.info("Completion Watcher initialized")
 
         # Create ViewModel
         viewmodel = MainViewModel(
@@ -192,7 +177,6 @@ def main():
             work_service=work_service,
             barcode_service=barcode_service,
             completion_watcher=completion_watcher,
-            print_service=print_service,
         )
         logger.info("ViewModel created")
 

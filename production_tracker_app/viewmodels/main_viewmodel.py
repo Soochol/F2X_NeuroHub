@@ -26,9 +26,8 @@ class MainViewModel(QObject):
 
     # Process 7 (Label Printing) signals
     serial_received = Signal(str)     # Serial number received from server
-    label_printed = Signal(str)       # Label printed successfully
 
-    def __init__(self, config, api_client, auth_service, work_service, barcode_service, completion_watcher, print_service=None):
+    def __init__(self, config, api_client, auth_service, work_service, barcode_service, completion_watcher):
         super().__init__()
         self.config = config
         self.api_client = api_client
@@ -36,7 +35,6 @@ class MainViewModel(QObject):
         self.work_service = work_service
         self.barcode_service = barcode_service
         self.completion_watcher = completion_watcher
-        self.print_service = print_service  # Only for Process 7
 
         # State
         self.current_lot: Optional[str] = None
@@ -47,11 +45,6 @@ class MainViewModel(QObject):
 
         # Connect signals
         self._connect_signals()
-
-        # Connect print service signals if available (Process 7)
-        if self.print_service:
-            self.print_service.print_success.connect(self._on_print_success)
-            self.print_service.print_error.connect(self._on_print_error)
 
         # Check if already logged in and emit connection status
         if self.auth_service.current_user:
@@ -277,15 +270,9 @@ class MainViewModel(QObject):
         # Emit signal
         self.work_completed.emit(f"완공: {lot_number}")
 
-        # Check if we need to generate serial (Process 7)
-        if self.config.process_number == 7:
-            logger.info("Process 7 completed, triggering serial conversion...")
-            self.request_serial_and_print()
-            # Do not clear state yet, wait for serial conversion
-        else:
-            # Clear current LOT if matches
-            if self.current_lot == lot_number:
-                self.clear_current_lot()
+        # Clear current LOT if matches
+        if self.current_lot == lot_number:
+            self.clear_current_lot()
 
         # Update connection status
         self.is_online = True
@@ -300,38 +287,6 @@ class MainViewModel(QObject):
         if "연결" in error_msg or "Connection" in error_msg or "백엔드 서버에 연결" in error_msg:
             self.is_online = False
             self.connection_status_changed.emit(False)
-
-    # --- Process 7 (Label Printing) methods ---
-
-    def request_serial_and_print(self):
-        """Request serial number from server and print label (Process 7 only)."""
-        if not self.current_lot:
-            self.error_occurred.emit("LOT 정보가 없습니다. 먼저 바코드를 스캔하세요.")
-            return
-
-        if not self.print_service:
-            self.error_occurred.emit("프린트 서비스가 초기화되지 않았습니다.")
-            return
-
-        if not self.current_wip_id:
-            logger.warning("WIP ID not found in current session, trying to use LOT number as WIP ID string if possible, but conversion requires int ID.")
-            self.error_occurred.emit("WIP 정보를 찾을 수 없습니다. 다시 스캔해주세요.")
-            return
-
-        logger.info(f"Requesting serial conversion for WIP ID: {self.current_wip_id}")
-
-        # Call WorkService to convert
-        try:
-            # Get numeric operator ID if possible, or use 1 as fallback
-            user = self.auth_service.current_user
-            operator_id = user.get("id") if user else 1
-
-            self.work_service.convert_wip_to_serial(self.current_wip_id, operator_id)
-
-        except Exception as e:
-            error_msg = f"시리얼 요청 실패: {str(e)}"
-            logger.error(error_msg)
-            self.error_occurred.emit(error_msg)
 
     def on_serial_converted(self, result: dict):
         """Handle successful serial conversion."""
@@ -348,78 +303,8 @@ class MainViewModel(QObject):
         # Emit signal for UI update
         self.serial_received.emit(serial_number)
 
-        # Print label
-        if self.print_service:
-            if self.print_service.print_label(serial_number, self.current_lot):
-                # Success handled by _on_print_success signal
-                pass
-            else:
-                # Error handled by _on_print_error signal
-                pass
-        
-        # Clear state after successful conversion (and print attempt)
+        # Clear state after successful conversion
         self.clear_current_lot()
-
-    def reprint_label(self):
-        """Reprint last label using cached serial (Process 7 only)."""
-        if not self.print_service:
-            self.error_occurred.emit("프린트 서비스가 초기화되지 않았습니다.")
-            return
-
-        if not self.print_service.last_serial:
-            self.error_occurred.emit("재출력할 라벨이 없습니다.")
-            return
-
-        logger.info(f"Reprinting label: {self.print_service.last_serial}")
-        self.print_service.reprint()
-
-    def _on_print_success(self, serial_number: str):
-        """Handle successful label print."""
-        logger.info(f"Label printed successfully: {serial_number}")
-        self.label_printed.emit(serial_number)
-
-        # Auto-complete work after successful print is NOT needed here because
-        # we already completed the work (Process 7 PASS) BEFORE requesting serial?
-        # Wait, the workflow is:
-        # 1. User clicks PASS.
-        # 2. `complete_work` is called.
-        # 3. If success, THEN we request serial?
-        # OR
-        # 1. User clicks PASS.
-        # 2. We request serial first?
-        # BR-005 says "All processes 1-6 must have PASS results".
-        # Process 7 is Label Print.
-        # So we should Complete Process 7 first?
-        # Actually, `convert_to_serial` IS the completion of the workflow.
-        # But we also have `complete_process` for Process 7?
-        # If Process 7 is just "Label Printing", maybe `convert_to_serial` encompasses it?
-        # The backend `convert_to_serial` updates WIP status to `CONVERTED`.
-        # It does NOT create a `ProcessData` record for Process 7.
-        # But `ProcessData` for Process 7 might be needed for traceability.
-        # Let's check `complete_process` in backend.
-        # It updates `ProcessData`.
-        # So we should probably:
-        # 1. Call `complete_work` (creates ProcessData for Process 7).
-        # 2. Call `convert_wip_to_serial` (creates Serial, updates WIP).
-        #
-        # In `_on_print_success`, we previously called `complete_work`.
-        # Now, we should ensure `complete_work` happens.
-        #
-        # Let's adjust the flow in `MainWindow` (or wherever `pass_requested` is handled).
-        # If I look at `MainWindow`, it calls `complete_work`.
-        #
-        # If I change `request_serial_and_print` to be called AFTER `complete_work` success?
-        # Currently `request_serial_and_print` was called manually or by UI?
-        #
-        # Let's look at `MainWindow` logic later.
-        # For now, `_on_print_success` just emits `label_printed`.
-        # I will remove the `complete_work` call from `_on_print_success` to avoid double completion if we change the flow.
-        pass
-
-    def _on_print_error(self, error_msg: str):
-        """Handle label print error."""
-        logger.error(f"Label print error: {error_msg}")
-        self.error_occurred.emit(error_msg)
 
     @safe_cleanup("ViewModel 정리 실패")
     def cleanup(self):

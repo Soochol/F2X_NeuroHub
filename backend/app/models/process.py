@@ -35,6 +35,12 @@ class LabelTemplateType(str, Enum):
     LOT_LABEL = "LOT_LABEL"          # LOT 라벨 (60x30mm, QR코드)
 
 
+class ProcessType(str, Enum):
+    """공정 유형"""
+    MANUFACTURING = "MANUFACTURING"          # 일반 제조 공정 (조립, 검사 등)
+    SERIAL_CONVERSION = "SERIAL_CONVERSION"  # 시리얼 변환 공정 (라벨 출력 등)
+
+
 class Process(Base):
     """
     SQLAlchemy ORM model for manufacturing processes.
@@ -142,6 +148,15 @@ class Process(Base):
         comment="출력할 라벨 템플릿 종류 (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
     )
 
+    # Process Type
+    process_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default=ProcessType.MANUFACTURING.value,
+        server_default=ProcessType.MANUFACTURING.value,
+        comment="공정 유형 (MANUFACTURING, SERIAL_CONVERSION)"
+    )
+
     # Timestamp Columns
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -233,6 +248,7 @@ class Process(Base):
             "sort_order": self.sort_order,
             "auto_print_label": self.auto_print_label,
             "label_template_type": self.label_template_type,
+            "process_type": self.process_type,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

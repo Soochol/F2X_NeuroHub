@@ -18,6 +18,7 @@ const LotsPage = lazy(() => import('./pages/LotsPage').then(module => ({ default
 
 // WIP Pages
 const WipTrackingPage = lazy(() => import('./pages/WipTrackingPage').then(module => ({ default: module.WipTrackingPage })));
+const WipByLotPage = lazy(() => import('./pages/WipByLotPage').then(module => ({ default: module.WipByLotPage })));
 const WipGenerationPage = lazy(() => import('./pages/WipGenerationPage').then(module => ({ default: module.WipGenerationPage })));
 
 // Serial Pages
@@ -102,11 +103,12 @@ function AppContent() {
                   <Route path="/lots" element={<LotsPage />} />
 
                   {/* WIP Routes */}
-                  <Route path="/wip" element={<WipTrackingPage />} />
+                  <Route path="/wip/tracking" element={<WipTrackingPage />} />
+                  <Route path="/wip/list" element={<WipByLotPage />} />
                   <Route path="/wip/generate" element={<WipGenerationPage />} />
 
                   {/* Serial Routes */}
-                  <Route path="/serials" element={<SerialsPage />} />
+                  <Route path="/serials/tracking" element={<SerialsPage />} />
                   <Route path="/serials/generate" element={<SerialGenerationPage />} />
 
                   {/* Admin Routes */}

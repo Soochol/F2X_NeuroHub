@@ -121,7 +121,7 @@ export const WipSearch = ({ onSearch, isLoading }: WipSearchProps) => {
                     <Button
                         type="submit"
                         disabled={isLoading || !wipId.trim()}
-                        size="lg"
+                        style={{ minWidth: '100px' }}
                     >
                         {isLoading ? 'Searching...' : 'Search'}
                     </Button>
