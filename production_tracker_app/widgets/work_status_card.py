@@ -184,6 +184,10 @@ class WorkStatusCard(QGroupBox):
         self.complete_badge.set_status("default", "미완료")
         self.complete_time_value.setText("-")
 
+    def is_working(self) -> bool:
+        """Check if work is currently in progress."""
+        return self._is_working
+
     def cleanup(self):
         """Stop timer for cleanup."""
         self._timer.stop()

@@ -21,10 +21,43 @@ export const WipByLotPage = () => {
     const [error, setError] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Focus input on mount
+    // Active LOT list state
+    const [activeLots, setActiveLots] = useState<Lot[]>([]);
+    const [isLoadingLots, setIsLoadingLots] = useState(true);
+
+    // Focus input on mount and load active LOTs
     useEffect(() => {
         inputRef.current?.focus();
+        fetchActiveLots();
     }, []);
+
+    const fetchActiveLots = async () => {
+        setIsLoadingLots(true);
+        try {
+            const response = await lotsApi.getActiveLots();
+            setActiveLots(response);
+        } catch (err) {
+            console.error('Failed to load active LOTs:', err);
+        } finally {
+            setIsLoadingLots(false);
+        }
+    };
+
+    const handleLotCardClick = async (selectedLot: Lot) => {
+        setLotNumber(selectedLot.lot_number);
+        setLot(selectedLot);
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const wips = await wipItemsApi.getWIPItems({ lot_id: selectedLot.id });
+            setWipItems(wips);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Failed to load WIP items'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSearch = async () => {
         if (!lotNumber.trim()) return;
@@ -205,45 +238,200 @@ export const WipByLotPage = () => {
 
             {/* Scrollable Content Section */}
             <div>
+                {/* Active LOT Cards - Show when no LOT is selected */}
+                {!lot && (
+                    <Card>
+                        <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--color-text-primary)' }}>
+                                Active LOTs
+                            </h2>
+                            <Button variant="secondary" size="small" onClick={fetchActiveLots}>
+                                Refresh
+                            </Button>
+                        </div>
+                        {isLoadingLots ? (
+                            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                                Loading LOTs...
+                            </div>
+                        ) : activeLots.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                                No active LOTs found.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: '15px' }}>
+                                {activeLots.map((activeLot) => (
+                                    <div
+                                        key={activeLot.id}
+                                        onClick={() => handleLotCardClick(activeLot)}
+                                        style={{
+                                            padding: '20px',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            backgroundColor: 'var(--color-bg-secondary)',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand)';
+                                            e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                                            e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)';
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                    <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
+                                                        {activeLot.lot_number}
+                                                    </span>
+                                                    <span
+                                                        style={{
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '12px',
+                                                            backgroundColor: activeLot.status === 'IN_PROGRESS' ? 'var(--color-bg-info)' : 'var(--color-warning-bg)',
+                                                            color: activeLot.status === 'IN_PROGRESS' ? 'var(--color-info)' : 'var(--color-warning)',
+                                                        }}
+                                                    >
+                                                        {activeLot.status}
+                                                    </span>
+                                                </div>
+                                                {activeLot.product_model && (
+                                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                                                        <strong>{activeLot.product_model.model_code}</strong> - {activeLot.product_model.model_name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{
+                                                    fontSize: '16px',
+                                                    fontWeight: 'bold',
+                                                    color: 'var(--color-brand)',
+                                                    marginBottom: '4px'
+                                                }}>
+                                                    {activeLot.target_quantity} Units
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                                    Target
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                                <Calendar size={14} />
+                                                {format(new Date(activeLot.production_date), 'yyyy-MM-dd')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                )}
+
+                {/* Selected LOT Details */}
                 {lot && (
                     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-                        {/* LOT Info Header */}
+                        {/* Back Button */}
+                        <Button
+                            variant="ghost"
+                            size="small"
+                            onClick={() => {
+                                setLot(null);
+                                setWipItems([]);
+                                setLotNumber('');
+                            }}
+                            style={{ marginBottom: '15px' }}
+                        >
+                            ← Back to LOT List
+                        </Button>
+
+                        {/* LOT Info Card - Same style as WipGenerationPage */}
+                        <Card>
+                            <div
+                                style={{
+                                    padding: '20px',
+                                    border: '2px solid var(--color-brand)',
+                                    borderRadius: '8px',
+                                    backgroundColor: 'var(--color-bg-tertiary)',
+                                    marginBottom: '20px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
+                                                {lot.lot_number}
+                                            </span>
+                                            <span
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    backgroundColor: lot.status === 'IN_PROGRESS' ? 'var(--color-bg-info)' : 'var(--color-warning-bg)',
+                                                    color: lot.status === 'IN_PROGRESS' ? 'var(--color-info)' : 'var(--color-warning)',
+                                                }}
+                                            >
+                                                {lot.status}
+                                            </span>
+                                        </div>
+                                        {lot.product_model && (
+                                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                                                <strong>{lot.product_model.model_code}</strong> - {lot.product_model.model_name}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{
+                                            fontSize: '16px',
+                                            fontWeight: 'bold',
+                                            color: 'var(--color-brand)',
+                                            marginBottom: '4px'
+                                        }}>
+                                            {lot.target_quantity} Units
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                            Target
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                        <Calendar size={14} />
+                                        {format(new Date(lot.production_date), 'yyyy-MM-dd')}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                        <Package size={14} />
+                                        WIP Count: <strong style={{ color: 'var(--color-brand)' }}>{wipItems.length}</strong> / {lot.target_quantity}
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* WIP Items Header */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            marginBottom: '20px',
+                            marginBottom: '15px',
                             padding: '0 5px'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--color-text-primary)' }}>
-                                    Items in LOT: <span style={{ fontFamily: 'monospace', color: 'var(--color-brand)', fontSize: '20px' }}>{lot.lot_number}</span>
-                                </h2>
-                                {lot.product_model && (
-                                    <span style={{
-                                        padding: '4px 10px',
-                                        backgroundColor: 'var(--color-bg-secondary)',
-                                        borderRadius: '12px',
-                                        fontSize: '13px',
-                                        color: 'var(--color-text-secondary)',
-                                        border: '1px solid var(--color-border)'
-                                    }}>
-                                        {lot.product_model.model_code}
-                                    </span>
-                                )}
-                            </div>
+                            <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--color-text-primary)' }}>
+                                WIP Items
+                            </h2>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '8px',
                                 color: 'var(--color-text-secondary)',
-                                fontSize: '14px',
-                                backgroundColor: 'var(--color-bg-secondary)',
-                                padding: '6px 12px',
-                                borderRadius: '6px'
+                                fontSize: '14px'
                             }}>
                                 <Package size={16} />
-                                <span>Total Items: <strong>{wipItems.length}</strong></span>
+                                <span>Total: <strong>{wipItems.length}</strong></span>
                             </div>
                         </div>
 

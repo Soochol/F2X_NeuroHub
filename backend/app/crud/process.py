@@ -22,8 +22,169 @@ from typing import List, Optional, Literal
 from sqlalchemy.orm import Session, selectinload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.models.process import Process
+from app.models.process import Process, ProcessType
 from app.schemas.process import ProcessCreate, ProcessUpdate
+
+
+class ProcessValidationError(Exception):
+    """Custom exception for process validation errors."""
+    pass
+
+
+def _validate_serial_conversion_rules(
+    db: Session,
+    process_type: str,
+    process_number: int,
+    is_active: bool,
+    exclude_id: Optional[int] = None
+) -> None:
+    """
+    Validate SERIAL_CONVERSION process rules.
+
+    Business Rules:
+    1. Only ONE active SERIAL_CONVERSION process is allowed
+    2. SERIAL_CONVERSION must be the LAST process (highest process_number among active)
+    3. At least one MANUFACTURING process must exist if SERIAL_CONVERSION is created
+
+    Args:
+        db: SQLAlchemy database session
+        process_type: Type of the process being created/updated
+        process_number: Process number being created/updated
+        is_active: Whether the process is active
+        exclude_id: Process ID to exclude from validation (for updates)
+
+    Raises:
+        ProcessValidationError: If any validation rule is violated
+    """
+    if not is_active:
+        # Inactive processes don't need these validations
+        return
+
+    # Build query for existing SERIAL_CONVERSION processes
+    serial_conv_query = db.query(Process).filter(
+        Process.process_type == ProcessType.SERIAL_CONVERSION.value,
+        Process.is_active == True
+    )
+    if exclude_id:
+        serial_conv_query = serial_conv_query.filter(Process.id != exclude_id)
+
+    existing_serial_conv = serial_conv_query.all()
+
+    # Rule 1: Only ONE active SERIAL_CONVERSION allowed
+    if process_type == ProcessType.SERIAL_CONVERSION.value:
+        if len(existing_serial_conv) > 0:
+            raise ProcessValidationError(
+                "SERIAL_CONVERSION 공정은 1개만 존재할 수 있습니다. "
+                f"이미 존재하는 SERIAL_CONVERSION: {existing_serial_conv[0].process_code}"
+            )
+
+    # Rule 2: SERIAL_CONVERSION must be the LAST process (highest process_number)
+    if process_type == ProcessType.SERIAL_CONVERSION.value:
+        # Get highest process_number among all active processes (excluding current)
+        max_process_query = db.query(Process).filter(
+            Process.is_active == True
+        )
+        if exclude_id:
+            max_process_query = max_process_query.filter(Process.id != exclude_id)
+
+        all_active = max_process_query.all()
+
+        for proc in all_active:
+            if proc.process_number > process_number:
+                raise ProcessValidationError(
+                    f"SERIAL_CONVERSION 공정은 마지막 공정이어야 합니다. "
+                    f"현재 공정 번호({process_number})보다 높은 공정({proc.process_code}, P{proc.process_number})이 존재합니다."
+                )
+
+    # Rule 3: If creating MANUFACTURING process with higher number than existing SERIAL_CONVERSION
+    if process_type == ProcessType.MANUFACTURING.value:
+        for sc in existing_serial_conv:
+            if process_number > sc.process_number:
+                raise ProcessValidationError(
+                    f"MANUFACTURING 공정은 SERIAL_CONVERSION 공정({sc.process_code}, P{sc.process_number}) 이후에 올 수 없습니다. "
+                    f"SERIAL_CONVERSION은 항상 마지막 공정이어야 합니다."
+                )
+
+    # Rule 4: At least one MANUFACTURING process must exist with SERIAL_CONVERSION
+    if process_type == ProcessType.SERIAL_CONVERSION.value:
+        manufacturing_query = db.query(Process).filter(
+            Process.process_type == ProcessType.MANUFACTURING.value,
+            Process.is_active == True
+        )
+        if exclude_id:
+            manufacturing_query = manufacturing_query.filter(Process.id != exclude_id)
+
+        manufacturing_count = manufacturing_query.count()
+        if manufacturing_count == 0:
+            raise ProcessValidationError(
+                "SERIAL_CONVERSION 공정을 생성하려면 최소 1개 이상의 MANUFACTURING 공정이 필요합니다."
+            )
+
+
+def _validate_process_deactivation(
+    db: Session,
+    process_id: int,
+    new_is_active: bool
+) -> None:
+    """
+    Validate process deactivation rules.
+
+    Business Rules:
+    1. Cannot deactivate the only SERIAL_CONVERSION process if WIPs in COMPLETED status exist
+    2. Cannot deactivate MANUFACTURING process if it would leave no MANUFACTURING processes
+
+    Args:
+        db: SQLAlchemy database session
+        process_id: ID of process being updated
+        new_is_active: New active status
+
+    Raises:
+        ProcessValidationError: If deactivation violates business rules
+    """
+    if new_is_active:
+        # Only validate deactivation
+        return
+
+    process = db.query(Process).filter(Process.id == process_id).first()
+    if not process:
+        return
+
+    # Rule 1: Cannot deactivate SERIAL_CONVERSION if COMPLETED WIPs exist
+    if process.process_type == ProcessType.SERIAL_CONVERSION.value:
+        from app.models.wip_item import WIPItem, WIPStatus
+
+        completed_wips = db.query(WIPItem).filter(
+            WIPItem.status == WIPStatus.COMPLETED.value
+        ).count()
+
+        if completed_wips > 0:
+            raise ProcessValidationError(
+                f"SERIAL_CONVERSION 공정을 비활성화할 수 없습니다. "
+                f"COMPLETED 상태의 WIP가 {completed_wips}개 존재합니다. "
+                f"해당 WIP들을 먼저 CONVERTED로 전환하거나 처리해야 합니다."
+            )
+
+    # Rule 2: Cannot deactivate last MANUFACTURING process if SERIAL_CONVERSION exists
+    if process.process_type == ProcessType.MANUFACTURING.value:
+        # Check if there's an active SERIAL_CONVERSION
+        serial_conv_exists = db.query(Process).filter(
+            Process.process_type == ProcessType.SERIAL_CONVERSION.value,
+            Process.is_active == True
+        ).first()
+
+        if serial_conv_exists:
+            # Count remaining MANUFACTURING processes after deactivation
+            remaining_mfg = db.query(Process).filter(
+                Process.process_type == ProcessType.MANUFACTURING.value,
+                Process.is_active == True,
+                Process.id != process_id
+            ).count()
+
+            if remaining_mfg == 0:
+                raise ProcessValidationError(
+                    f"SERIAL_CONVERSION 공정({serial_conv_exists.process_code})이 활성화되어 있는 동안 "
+                    f"마지막 MANUFACTURING 공정을 비활성화할 수 없습니다."
+                )
 
 
 def _build_optimized_query(
@@ -180,6 +341,15 @@ def create(
         )
         new_process = create(db, process_data)
     """
+    # Validate SERIAL_CONVERSION rules before creating
+    _validate_serial_conversion_rules(
+        db,
+        process_type=process_in.process_type,
+        process_number=process_in.process_number,
+        is_active=process_in.is_active,
+        exclude_id=None
+    )
+
     db_process = Process(
         process_number=process_in.process_number,
         process_code=process_in.process_code,
@@ -190,6 +360,9 @@ def create(
         quality_criteria=process_in.quality_criteria,
         is_active=process_in.is_active,
         sort_order=process_in.sort_order,
+        auto_print_label=process_in.auto_print_label,
+        label_template_type=process_in.label_template_type,
+        process_type=process_in.process_type,
     )
 
     try:
@@ -248,6 +421,27 @@ def update(
         return None
 
     update_data = process_in.model_dump(exclude_unset=True)
+
+    # Validate SERIAL_CONVERSION rules before updating
+    new_process_type = update_data.get('process_type', db_process.process_type)
+    new_process_number = update_data.get('process_number', db_process.process_number)
+    new_is_active = update_data.get('is_active', db_process.is_active)
+
+    _validate_serial_conversion_rules(
+        db,
+        process_type=new_process_type,
+        process_number=new_process_number,
+        is_active=new_is_active,
+        exclude_id=process_id
+    )
+
+    # Validate deactivation rules
+    if 'is_active' in update_data:
+        _validate_process_deactivation(
+            db,
+            process_id=process_id,
+            new_is_active=new_is_active
+        )
 
     try:
         for field, value in update_data.items():

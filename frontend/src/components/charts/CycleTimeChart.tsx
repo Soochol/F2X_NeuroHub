@@ -59,7 +59,15 @@ export const CycleTimeChart = ({ data, isLoading = false }: CycleTimeChartProps)
                         />
                         <Tooltip
                             cursor={{ fill: 'transparent' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            contentStyle={{
+                                borderRadius: '8px',
+                                border: 'none',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                backgroundColor: 'var(--color-bg-primary)',
+                                color: 'var(--color-text-primary)',
+                            }}
+                            labelStyle={{ color: 'var(--color-text-primary)', fontWeight: 600 }}
+                            itemStyle={{ color: 'var(--color-text-secondary)' }}
                         />
                         <Legend />
                         <Bar

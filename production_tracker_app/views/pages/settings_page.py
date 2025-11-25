@@ -21,6 +21,8 @@ class SettingsPage(QWidget):
 
     # Signal emitted when settings are saved
     settings_saved = Signal()
+    # Signal emitted when data is refreshed from API
+    data_refreshed = Signal(str, int)  # (data_type, count)
 
     def __init__(self, config, api_client: Optional[APIClient] = None, parent=None):
         super().__init__(parent)
@@ -71,6 +73,9 @@ class SettingsPage(QWidget):
 
         # API settings
         layout.addWidget(self._create_api_section())
+
+        # TCP Communication settings
+        layout.addWidget(self._create_tcp_section())
 
         layout.addStretch()
 
@@ -322,6 +327,7 @@ class SettingsPage(QWidget):
             self.process_combo.update()
 
             logger.info(f"Loaded {len(self._processes)} processes, current index: {self.process_combo.currentIndex()}")
+            self.data_refreshed.emit("공정", len(self._processes))
 
         except Exception as e:
             logger.error(f"Failed to load processes: {e}")
@@ -357,6 +363,7 @@ class SettingsPage(QWidget):
                         break
 
             logger.info(f"Loaded {len(self._production_lines)} production lines")
+            self.data_refreshed.emit("생산라인", len(self._production_lines))
 
         except Exception as e:
             logger.error(f"Failed to load production lines: {e}")
@@ -392,6 +399,7 @@ class SettingsPage(QWidget):
                         break
 
             logger.info(f"Loaded {len(self._equipment_list)} equipment")
+            self.data_refreshed.emit("장비", len(self._equipment_list))
 
         except Exception as e:
             logger.error(f"Failed to load equipment: {e}")
@@ -409,6 +417,21 @@ class SettingsPage(QWidget):
         self.api_input = QLineEdit(self.config.api_base_url)
         self.api_input.textChanged.connect(self.save_settings)
         form_layout.addRow("백엔드 URL:", self.api_input)
+
+        layout.addLayout(form_layout)
+        return frame
+
+    def _create_tcp_section(self) -> QFrame:
+        """Create TCP server settings section."""
+        frame, layout = self._create_section_frame("TCP 통신 설정")
+
+        form_layout = QFormLayout()
+        form_layout.setSpacing(8)
+
+        self.tcp_port_input = QLineEdit(str(self.config.tcp_port))
+        self.tcp_port_input.setPlaceholderText("기본값: 9000")
+        self.tcp_port_input.textChanged.connect(self.save_settings)
+        form_layout.addRow("TCP 포트:", self.tcp_port_input)
 
         layout.addLayout(form_layout)
         return frame
@@ -465,6 +488,17 @@ class SettingsPage(QWidget):
                 self.config.equipment_name = ''
 
             self.config.api_base_url = self.api_input.text()
+
+            # Save TCP port
+            try:
+                tcp_port = int(self.tcp_port_input.text())
+                if not 1 <= tcp_port <= 65535:
+                    QMessageBox.warning(self, "경고", "TCP 포트는 1~65535 범위여야 합니다.")
+                    return
+                self.config.tcp_port = tcp_port
+            except ValueError:
+                QMessageBox.warning(self, "경고", "TCP 포트는 숫자여야 합니다.")
+                return
 
             logger.info("Settings saved successfully")
             self.settings_saved.emit()

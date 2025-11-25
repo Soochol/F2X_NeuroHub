@@ -2,14 +2,16 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+import logging
 
 from app import crud
+from app.crud.process import ProcessValidationError
 from app.models import (
     User, Lot, Serial, Process, ProcessData,
     WIPItem, Equipment, ProductionLine,
     LotStatus, SerialStatus, WIPProcessHistory, WIPStatus
 )
-from app.models.process import LabelTemplateType
+from app.models.process import LabelTemplateType, ProcessType
 from app.schemas.process import ProcessCreate, ProcessUpdate, ProcessInDB
 from app.schemas.process_data import ProcessDataCreate, ProcessResult, DataLevel
 from app.schemas.process_operations import (
@@ -23,20 +25,15 @@ from app.core.exceptions import (
     SerialNotFoundException,
     UserNotFoundException,
     DuplicateResourceException,
-    ConstraintViolationException,
-    ValidationException,
     BusinessRuleException,
-    DatabaseException,
+    ConstraintViolationException
 )
 from app.services.base_service import BaseService
-from app.services.printer_service import printer_service
-import logging
 
 logger = logging.getLogger(__name__)
 
-class ProcessService(BaseService[Process]):
+class ProcessService(BaseService):
     """
-    Service for managing Manufacturing Processes and Operations.
     Encapsulates business logic for Process definition and execution (Start/Complete).
 
     Inherits from BaseService for common functionality:
@@ -124,6 +121,8 @@ class ProcessService(BaseService[Process]):
                     "process_code": obj_in.process_code
                 })
                 return process
+        except ProcessValidationError as e:
+            raise BusinessRuleException(message=str(e))
         except IntegrityError as e:
             identifier = f"number={obj_in.process_number}" if obj_in.process_number else f"code='{obj_in.process_code}'"
             self.handle_integrity_error(e, identifier=identifier, operation="create")
@@ -147,6 +146,8 @@ class ProcessService(BaseService[Process]):
                     "updates": obj_in.dict(exclude_unset=True)
                 })
                 return process
+        except ProcessValidationError as e:
+            raise BusinessRuleException(message=str(e))
         except IntegrityError as e:
             identifier = None
             if obj_in.process_number:
@@ -184,15 +185,23 @@ class ProcessService(BaseService[Process]):
     def start_process(self, db: Session, request: ProcessStartRequest) -> ProcessStartResponse:
         """Register process start (착공 등록)."""
         try:
-            # Find LOT by number
+            # 1. Resolve Process
+            process = self._resolve_process(db, str(request.process_id))
+            if not process:
+                raise ProcessNotFoundException(process_id=request.process_id)
+
+            # 2. Resolve Operator
+            operator = self._resolve_operator(db, request.worker_id)
+            if not operator:
+                raise UserNotFoundException(user_id=request.worker_id)
+
+            # 3. Resolve LOT/Serial/WIP (Smart Lookup)
             lot_number = request.lot_number
             lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
-
-            # Track if we found WIP item in Smart Lookup
-            wip_from_smart_lookup = None
-            wip_id_from_smart_lookup = None
-
-            # If LOT not found, try to interpret as Serial, WIP ID, or Unit Barcode
+            
+            serial = None
+            wip_item = None
+            
             if not lot:
                 # 1. Try as Serial Number
                 serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
@@ -208,8 +217,7 @@ class ProcessService(BaseService[Process]):
                         lot = wip.lot
                         if not request.wip_id:
                             request.wip_id = wip.wip_id
-                        wip_from_smart_lookup = wip
-                        wip_id_from_smart_lookup = wip.id
+                        wip_item = wip
 
                 # 3. Try as Unit Barcode
                 elif len(lot_number) > 13 and lot_number[-3:].isdigit():
@@ -223,6 +231,7 @@ class ProcessService(BaseService[Process]):
                         if wip:
                             if not request.wip_id:
                                 request.wip_id = wip.wip_id
+                            wip_item = wip
 
             if not lot:
                 raise LotNotFoundException(lot_number=request.lot_number)
@@ -233,176 +242,92 @@ class ProcessService(BaseService[Process]):
                 f"LOT is not active. Current status: {lot.status}"
             )
 
-            # Find Process
-            process = self._resolve_process(db, request.process_id)
-            if not process:
-                raise ProcessNotFoundException(process_id=request.process_id)
+            # 4. Check Business Rules
+            self._validate_process_sequence(db, lot, process, serial.id if serial else None, wip_item.id if wip_item else None)
+            self._check_concurrent_work(db, lot, process, serial.id if serial else None, wip_item.id if wip_item else None)
 
-            # Determine data level, serial, and WIP
-            serial = None
-            wip_item = wip_from_smart_lookup
-            data_level = DataLevel.LOT
-            serial_id = None
-            wip_item_id = wip_id_from_smart_lookup
+            # 5. Create ProcessData
+            start_time = datetime.now(timezone.utc)
 
-            if request.serial_number:
-                serial = db.query(Serial).filter(
-                    Serial.serial_number == request.serial_number,
-                    Serial.lot_id == lot.id
-                ).first()
-                if not serial:
-                    raise SerialNotFoundException(serial_id=request.serial_number)
-                data_level = DataLevel.SERIAL
-                serial_id = serial.id
-            elif request.wip_id:
-                if not wip_item:
-                    wip_item = db.query(WIPItem).filter(
-                        WIPItem.wip_id == request.wip_id,
-                        WIPItem.lot_id == lot.id
-                    ).first()
-                    if not wip_item:
-                        raise ValidationException(
-                            message=f"WIP item '{request.wip_id}' not found for LOT {lot.lot_number}"
-                        )
-                    wip_item_id = wip_item.id
-                data_level = DataLevel.WIP
-
-
-
-            # Validate Data Level for Manufacturing Processes
-
-            if process.process_number in [1, 2, 3, 4, 5, 6] and data_level == DataLevel.LOT:
-
-                raise BusinessRuleException(
-
-                    message=f"Process {process.process_number} requires a specific WIP ID or Serial Number. LOT level start is not allowed."
-
-                )
-
-            # Find operator
-            operator = self._resolve_operator(db, request.worker_id)
-            if not operator:
-                raise UserNotFoundException(user_id=request.worker_id)
-
-            # Find equipment
-            equipment_id = None
-            if request.equipment_id:
-                equipment = db.query(Equipment).filter(
-                    Equipment.equipment_code == request.equipment_id
-                ).first()
-                if equipment:
-                    equipment_id = equipment.id
-
-            # Update LOT production line if needed
-            if request.line_id:
-                production_line = db.query(ProductionLine).filter(
-                    ProductionLine.line_code == request.line_id
-                ).first()
-                if production_line and not lot.production_line_id:
-                    lot.production_line_id = production_line.id
-
-            # Validate process sequence
-            self._validate_process_sequence(db, lot, process, serial_id, wip_item_id)
-
-            # Check for concurrent work
-            self._check_concurrent_work(db, lot, process, serial_id, wip_item_id)
-
-            # Create process data record
-            if request.start_time:
-                try:
-                    started_at = datetime.fromisoformat(request.start_time.replace('Z', '+00:00'))
-                except ValueError:
-                    started_at = datetime.now(tz=timezone.utc)
+            # Determine data level
+            if wip_item:
+                data_level = DataLevel.WIP.value
+            elif serial:
+                data_level = DataLevel.SERIAL.value
             else:
-                started_at = datetime.now(tz=timezone.utc)
+                data_level = DataLevel.LOT.value
 
-            process_data_create = ProcessDataCreate(
+            process_data = ProcessData(
                 lot_id=lot.id,
-                serial_id=serial_id,
-                wip_id=wip_item_id,
+                serial_id=serial.id if serial else None,
+                wip_id=wip_item.id if wip_item else None,
                 process_id=process.id,
                 operator_id=operator.id,
-                equipment_id=equipment_id,
+                started_at=start_time,
                 data_level=data_level,
-                result=ProcessResult.PASS,
-                measurements={},
-                started_at=started_at,
-                completed_at=None,
+                result=ProcessResult.PASS.value,
+            )
+            db.add(process_data)
+
+            # Update WIPItem status to IN_PROGRESS
+            if wip_item:
+                wip_item.status = WIPStatus.IN_PROGRESS.value
+
+            db.commit()
+            db.refresh(process_data)
+
+            return ProcessStartResponse(
+                success=True,
+                message=f"Process {process.process_name_ko} started.",
+                process_data_id=process_data.id,
+                started_at=start_time,
+                wip_id=wip_item.id if wip_item else None,
+                wip_id_str=wip_item.wip_id if wip_item else None,
             )
 
-            with self.transaction(db):
-                process_data = crud.process_data.create(db, obj_in=process_data_create)
-
-                if lot.status == LotStatus.CREATED:
-                    lot.status = LotStatus.IN_PROGRESS
-
-
-                # Update WIP status if needed
-
-                if wip_item and wip_item.status == WIPStatus.CREATED.value:
-
-                    wip_item.status = WIPStatus.IN_PROGRESS.value
-
-
-                db.refresh(process_data)
-
-                self.log_operation("start_process", process_data.id, {
-                    "lot_id": lot.id,
-                    "process_id": process.id,
-                    "wip_id": wip_item_id,
-                    "serial_id": serial_id
-                }, user_id=operator.id)
-
-                return ProcessStartResponse(
-                    success=True,
-                    message=f"Process {process.process_number} ({process.process_name_ko}) started successfully",
-                    process_data_id=process_data.id,
-                    started_at=started_at,
-                    wip_id=wip_item_id,
-                    wip_id_str=wip_item.wip_id if wip_item else None,
-                )
-
-        except (LotNotFoundException, ProcessNotFoundException, SerialNotFoundException,
-                UserNotFoundException, ValidationException, BusinessRuleException) as e:
-            # Re-raise business exceptions as-is
+        except (ProcessNotFoundException, UserNotFoundException, LotNotFoundException) as e:
             raise
         except IntegrityError as e:
-            self.handle_integrity_error(
-                e,
-                resource_type="ProcessData",
-                identifier=f"lot_id={lot.id if lot else 'unknown'}, process_id={process.id if process else 'unknown'}",
-                operation="start"
-            )
+            self.handle_integrity_error(e, resource_type="ProcessData", operation="start")
         except SQLAlchemyError as e:
             self.handle_sqlalchemy_error(e, operation="start_process")
 
     def complete_process(self, db: Session, request: ProcessCompleteRequest) -> ProcessCompleteResponse:
-        """Register process completion (완공 등록)."""
+        """Register process completion (실적 등록)."""
         try:
-            # Smart Lookup
+            # 1. Resolve Process
+            process = self._resolve_process(db, str(request.process_id))
+            if not process:
+                raise ProcessNotFoundException(process_id=request.process_id)
+
+            # 2. Resolve Operator
+            operator = self._resolve_operator(db, request.worker_id)
+            if not operator:
+                raise UserNotFoundException(user_id=request.worker_id)
+
+            # 3. Resolve LOT/Serial/WIP (Smart Lookup)
             lot_number = request.lot_number
             lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
-
-            serial_for_query = None
-            wip_for_query = None
-
+            
+            serial = None
+            wip_item = None
+            
             if not lot:
                 # 1. Try as Serial Number
                 serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
                 if serial:
                     lot = serial.lot
-                    serial_for_query = serial
+                    if not request.serial_number:
+                        request.serial_number = serial.serial_number
 
                 # 2. Try as WIP ID
                 elif lot_number.startswith("WIP-"):
                     wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
                     if wip:
                         lot = wip.lot
-                        wip_for_query = wip
-                        if wip.serial:
-
-                            serial_for_query = wip.serial
-
+                        if not request.wip_id:
+                            request.wip_id = wip.wip_id
+                        wip_item = wip
 
                 # 3. Try as Unit Barcode
                 elif len(lot_number) > 13 and lot_number[-3:].isdigit():
@@ -414,212 +339,135 @@ class ProcessService(BaseService[Process]):
                         wip_id_str = f"WIP-{potential_lot_num}-{potential_seq}"
                         wip = db.query(WIPItem).filter(WIPItem.wip_id == wip_id_str).first()
                         if wip:
-                            wip_for_query = wip
+                            if not request.wip_id:
+                                request.wip_id = wip.wip_id
+                            wip_item = wip
 
             if not lot:
                 raise LotNotFoundException(lot_number=request.lot_number)
 
-            # Find in-progress process data
+            # 4. Find Active ProcessData
             query = db.query(ProcessData).filter(
                 ProcessData.lot_id == lot.id,
-                ProcessData.process_id == request.process_id,
+                ProcessData.process_id == process.id,
                 ProcessData.completed_at.is_(None)
             )
-
-            if request.serial_number:
-                serial = db.query(Serial).filter(
-                    Serial.serial_number == request.serial_number,
-                    Serial.lot_id == lot.id
-                ).first()
-                if serial:
-                    query = query.filter(ProcessData.serial_id == serial.id)
-            elif serial_for_query:
-                query = query.filter(ProcessData.serial_id == serial_for_query.id)
-            elif wip_for_query:
-                query = query.filter(ProcessData.wip_id == wip_for_query.id)
+            
+            if serial:
+                query = query.filter(ProcessData.serial_id == serial.id)
+            elif wip_item:
+                query = query.filter(ProcessData.wip_id == wip_item.id)
 
             process_data = query.order_by(ProcessData.started_at.desc()).first()
-
+            
             if not process_data:
-                raise ValidationException(
-                    message=f"No in-progress process found for process_id {request.process_id}. Did you start the process first?"
-                )
+                raise BusinessRuleException(message="No active process found to complete.")
 
-            try:
-                result = ProcessResult(request.result.upper())
-            except ValueError:
-                raise ValidationException(
-                    message=f"Invalid result. Must be one of: PASS, FAIL, REWORK"
-                )
-
-            # Update process data
-            completed_at = datetime.now(tz=timezone.utc)
-
-            process_data.result = result
-            process_data.completed_at = completed_at
-            process_data.measurements = request.measurement_data or {}
-
-            if request.defect_data and result == ProcessResult.FAIL:
-                process_data.defects = request.defect_data
-
+            # 5. Update ProcessData
+            end_time = datetime.now(timezone.utc)
+            process_data.completed_at = end_time
+            process_data.result = request.result
+            process_data.measurements = request.measurements
+            
             # Calculate duration
-            duration_seconds = 0
             if process_data.started_at:
-                start_ts = process_data.started_at
-                end_ts = completed_at
+                started_at = process_data.started_at
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+                process_data.duration_seconds = int((end_time - started_at).total_seconds())
 
-                if start_ts.tzinfo is None:
-                    start_ts = start_ts.replace(tzinfo=korea_tz)
-                if end_ts.tzinfo is None:
-                    end_ts = end_ts.replace(tzinfo=korea_tz)
-
-                duration_seconds = int((end_ts - start_ts).total_seconds())
-                if duration_seconds < 0:
-                    logger.warning(f"Negative duration: {duration_seconds}s. Setting to 0.")
-                    duration_seconds = 0
-
-                process_data.duration_seconds = duration_seconds
-            else:
-                process_data.duration_seconds = 0
-
-            with self.transaction(db):
-                # db.refresh(process_data)  # Bug: Discards all updates!
-
-
-                # Update serial status if FAIL
-                if result == ProcessResult.FAIL and process_data.serial_id:
-                    serial = db.query(Serial).filter(Serial.id == process_data.serial_id).first()
-                    if serial:
-                        serial.status = SerialStatus.FAILED
-
-
-
-                # --- WIP Logic: Create WIPProcessHistory and Update Status ---
-
-                if wip_for_query:  # If processing a WIP item
-
-                    # Get process object for logging
-
-                    process = db.query(Process).filter(Process.id == process_data.process_id).first()
-
-                    
-
-                    # 1. Create WIPProcessHistory record
-
-                    wip_history = WIPProcessHistory(
-
-                        wip_item_id=wip_for_query.id,
-
-                        process_id=process_data.process_id,
-
-                        result=result.value,
-
-                        started_at=process_data.started_at,
-
-                        completed_at=completed_at,
-
-                        operator_id=process_data.operator_id
-
-                    )
-
-                    db.add(wip_history)
-
-                    if process:
-
-                        logger.info(f"Created WIPProcessHistory for WIP {wip_for_query.wip_id}, Process {process.process_number}, Result: {result.value}")
-
-
-
-                    # 2. If PASS, check if all processes are complete
-
-                    if result == ProcessResult.PASS:
-
-                        # Get all active processes (processes 1-6 are manufacturing)
-
-                        all_processes = db.query(Process).filter(
-
-                            Process.process_number.in_([1, 2, 3, 4, 5, 6]),
-
-                            Process.is_active == True
-
-                        ).all()
-
-                        
-
-                        # Check if all have PASS results in their LATEST WIPProcessHistory
-
-                        passed_process_ids = []
-
-                        for proc in all_processes:
-
-                            # Get the latest completion record for this process
-
-                            latest_history = db.query(WIPProcessHistory).filter(
-
-                                WIPProcessHistory.wip_item_id == wip_for_query.id,
-
-                                WIPProcessHistory.process_id == proc.id,
-
-                                WIPProcessHistory.completed_at.isnot(None)
-
-                            ).order_by(
-
-                                WIPProcessHistory.completed_at.desc()
-
-                            ).first()
-
-                            
-
-                            # If latest attempt is PASS, count it
-
-                            if latest_history and latest_history.result == ProcessResult.PASS.value:
-
-                                passed_process_ids.append(proc.id)
-
-                        
-
-                        # If all processes passed, mark WIP as COMPLETED
-
-                        if len(passed_process_ids) >= len(all_processes):
-
-                            wip_for_query.status = WIPStatus.COMPLETED.value
-
-                            logger.info(f"WIP {wip_for_query.wip_id} marked as COMPLETED - all processes passed ({len(passed_process_ids)}/{len(all_processes)})")
-
-
-
-                # Auto-print label
-                self._check_and_print_label(
-                    db=db,
-                    process_data=process_data,
-                    wip_item=wip_for_query,
-                    serial=serial_for_query,
-                    lot=lot
+            # --- WIP Logic: Create WIPProcessHistory and Update Status ---
+            if wip_item:  # If processing a WIP item
+                # 1. Create WIPProcessHistory record
+                wip_history = WIPProcessHistory(
+                    wip_item_id=wip_item.id,
+                    process_id=process_data.process_id,
+                    result=request.result,
+                    started_at=process_data.started_at,
+                    completed_at=end_time,
+                    operator_id=process_data.operator_id
                 )
+                db.add(wip_history)
+                db.flush()  # Flush to make wip_history visible in subsequent queries
+                logger.info(f"Created WIPProcessHistory for WIP {wip_item.wip_id}, Process {process.process_number}, Result: {request.result}")
 
-                self.log_operation("complete_process", process_data.id, {
-                    "result": result.value,
-                    "duration_seconds": duration_seconds
-                }, user_id=process_data.operator_id)
+                # 2. If PASS, check if all processes are complete
+                if request.result == ProcessResult.PASS.value:
+                    # Get all active MANUFACTURING processes dynamically
+                    all_processes = db.query(Process).filter(
+                        Process.process_type == ProcessType.MANUFACTURING.value,
+                        Process.is_active == True
+                    ).all()
 
-                return ProcessCompleteResponse(
-                    success=True,
-                    message=f"Process completed with result: {result.value}",
-                    process_data_id=process_data.id,
-                    completed_at=completed_at,
-                    duration_seconds=duration_seconds,
-                )
+                    # Check if all have PASS results in their LATEST WIPProcessHistory
+                    passed_process_ids = []
+                    for proc in all_processes:
+                        # Get the latest completion record for this process
+                        latest_history = db.query(WIPProcessHistory).filter(
+                            WIPProcessHistory.wip_item_id == wip_item.id,
+                            WIPProcessHistory.process_id == proc.id,
+                            WIPProcessHistory.completed_at.isnot(None)
+                        ).order_by(
+                            WIPProcessHistory.completed_at.desc()
+                        ).first()
 
-        except (LotNotFoundException, ValidationException) as e:
-            # Re-raise business exceptions as-is
+                        # If latest attempt is PASS, count it
+                        if latest_history and latest_history.result == ProcessResult.PASS.value:
+                            passed_process_ids.append(proc.id)
+
+                    # If all processes passed, mark WIP as COMPLETED
+                    if len(passed_process_ids) >= len(all_processes):
+                        wip_item.status = WIPStatus.COMPLETED.value
+                        logger.info(f"WIP {wip_item.wip_id} marked as COMPLETED - all processes passed ({len(passed_process_ids)}/{len(all_processes)})")
+
+                    # 3. If this is SERIAL_CONVERSION process with PASS, auto-convert to Serial
+                    if process.process_type == ProcessType.SERIAL_CONVERSION.value:
+                        # Import serial_service here to avoid circular imports
+                        from app.services.serial_service import serial_service
+
+                        try:
+                            # Determine if we should print serial label based on label_template_type
+                            should_print_serial = (
+                                process.auto_print_label and
+                                process.label_template_type == LabelTemplateType.SERIAL_LABEL.value
+                            )
+
+                            # Generate serial from WIP (this also sets status to CONVERTED)
+                            serial_result = serial_service.generate_from_wip(
+                                db,
+                                wip_id=wip_item.wip_id,
+                                print_label=should_print_serial  # Print only if SERIAL_LABEL selected
+                            )
+                            logger.info(f"WIP {wip_item.wip_id} auto-converted to Serial {serial_result.serial_number}")
+
+                            # Update serial variable for _check_and_print_label
+                            serial = db.query(Serial).filter(Serial.id == serial_result.id).first()
+                        except Exception as e:
+                            logger.error(f"Failed to auto-convert WIP {wip_item.wip_id} to Serial: {e}")
+                            raise BusinessRuleException(
+                                message=f"SERIAL_CONVERSION failed: {str(e)}"
+                            )
+
+            # 6. Handle Label Printing (for non-SERIAL_CONVERSION or non-SERIAL_LABEL types)
+            print_result = self._check_and_print_label(db, process_data, wip_item, serial, lot)
+
+            db.commit()
+            
+            return ProcessCompleteResponse(
+                success=True,
+                message=f"Process completed with result: {process_data.result}",
+                process_data_id=process_data.id,
+                completed_at=end_time,
+                duration_seconds=process_data.duration_seconds or 0,
+                result=process_data.result,
+                label_printed=print_result.get("printed", False),
+                label_type=print_result.get("label_type")
+            )
+
+        except (ProcessNotFoundException, UserNotFoundException, LotNotFoundException) as e:
             raise
         except IntegrityError as e:
-            self.handle_integrity_error(
-                e,
-                resource_type="ProcessData",
-                identifier=f"process_data_id={process_data.id if process_data else 'unknown'}",
-                operation="complete"
-            )
+            self.handle_integrity_error(e, resource_type="ProcessData", operation="complete")
         except SQLAlchemyError as e:
             self.handle_sqlalchemy_error(e, operation="complete_process")
 
@@ -692,20 +540,50 @@ class ProcessService(BaseService[Process]):
                 return None
 
     def _resolve_operator(self, db: Session, worker_id: str) -> Optional[User]:
-        """Resolve operator from various ID formats."""
+        """Resolve operator from various ID formats (username, full_name, id, W-prefixed id)."""
+        # 1. Try by username
         operator = db.query(User).filter(User.username == worker_id).first()
-        if not operator:
-            try:
-                operator_id = int(worker_id.replace("W", ""))
-                operator = db.query(User).filter(User.id == operator_id).first()
-            except (ValueError, AttributeError):
-                pass
+        if operator:
+            return operator
+
+        # 2. Try by full_name (supports Korean names like "박수철")
+        operator = db.query(User).filter(User.full_name == worker_id).first()
+        if operator:
+            return operator
+
+        # 3. Try by numeric ID or W-prefixed ID (e.g., "W001" -> 1)
+        try:
+            operator_id = int(worker_id.replace("W", "").replace("w", ""))
+            operator = db.query(User).filter(User.id == operator_id).first()
+        except (ValueError, AttributeError):
+            pass
+
         return operator
 
     def _validate_process_sequence(self, db: Session, lot: Lot, process: Process,
                                    serial_id: Optional[int], wip_item_id: Optional[int]):
         """Validate that process sequence requirements are met."""
         process_number = process.process_number
+
+        # Check if this process already completed with PASS - prevent re-start
+        existing_pass_query = db.query(ProcessData).filter(
+            ProcessData.lot_id == lot.id,
+            ProcessData.process_id == process.id,
+            ProcessData.result == ProcessResult.PASS.value,
+            ProcessData.completed_at.isnot(None)
+        )
+        if wip_item_id:
+            existing_pass_query = existing_pass_query.filter(ProcessData.wip_id == wip_item_id)
+        elif serial_id:
+            existing_pass_query = existing_pass_query.filter(ProcessData.serial_id == serial_id)
+
+        existing_pass = existing_pass_query.first()
+        logger.info(f"[PASS CHECK] lot_id={lot.id}, process_id={process.id}, wip_item_id={wip_item_id}, serial_id={serial_id}, existing_pass={existing_pass}")
+
+        if existing_pass:
+            raise BusinessRuleException(
+                message=f"Process {process_number} already completed with PASS. Cannot start again."
+            )
 
         # Check if previous process is completed
         if process_number > 1:
@@ -714,7 +592,7 @@ class ProcessService(BaseService[Process]):
                 prev_data_query = db.query(ProcessData).filter(
                     ProcessData.lot_id == lot.id,
                     ProcessData.process_id == prev_process.id,
-                    ProcessData.result == ProcessResult.PASS
+                    ProcessData.result == ProcessResult.PASS.value
                 )
                 if serial_id:
                     prev_data_query = prev_data_query.filter(ProcessData.serial_id == serial_id)
@@ -726,32 +604,57 @@ class ProcessService(BaseService[Process]):
                         message=f"Previous process (Process {process_number - 1}) must be completed with PASS before starting Process {process_number}"
                     )
 
-        # Special check for Process 7 - requires all previous processes
-        if process_number == 7:
-            for prev_num in range(1, 7):
-                prev_proc = db.query(Process).filter(Process.process_number == prev_num).first()
-                if prev_proc:
-                    prev_data_query = db.query(ProcessData).filter(
-                        ProcessData.lot_id == lot.id,
-                        ProcessData.process_id == prev_proc.id,
-                        ProcessData.result == ProcessResult.PASS
-                    )
-                    if serial_id:
-                        prev_data_query = prev_data_query.filter(ProcessData.serial_id == serial_id)
-                    elif wip_item_id:
-                        prev_data_query = prev_data_query.filter(ProcessData.wip_id == wip_item_id)
+        # Special check for SERIAL_CONVERSION process - requires all MANUFACTURING processes
+        current_process = db.query(Process).filter(Process.process_number == process_number).first()
+        if current_process and current_process.process_type == ProcessType.SERIAL_CONVERSION.value:
+            # Get all active MANUFACTURING processes
+            manufacturing_processes = db.query(Process).filter(
+                Process.process_type == ProcessType.MANUFACTURING.value,
+                Process.is_active == True
+            ).all()
 
-                    if not prev_data_query.first():
-                        raise BusinessRuleException(
-                            message=f"Process 7 requires all previous processes (1-6) to be PASS."
-                        )
+            for mfg_proc in manufacturing_processes:
+                prev_data_query = db.query(ProcessData).filter(
+                    ProcessData.lot_id == lot.id,
+                    ProcessData.process_id == mfg_proc.id,
+                    ProcessData.result == ProcessResult.PASS.value
+                )
+                if serial_id:
+                    prev_data_query = prev_data_query.filter(ProcessData.serial_id == serial_id)
+                elif wip_item_id:
+                    prev_data_query = prev_data_query.filter(ProcessData.wip_id == wip_item_id)
+
+                if not prev_data_query.first():
+                    raise BusinessRuleException(
+                        message=f"SERIAL_CONVERSION process requires all MANUFACTURING processes to be PASS."
+                    )
 
     def _check_concurrent_work(self, db: Session, lot: Lot, process: Process,
                                serial_id: Optional[int], wip_item_id: Optional[int]):
-        """Check for concurrent work on different items in the same process."""
-        active_records = db.query(ProcessData).filter(
+        """
+        Check for concurrent work on different items in the same process.
+
+        Only considers the LATEST record for each WIP/Serial as "in progress".
+        Earlier attempts that were superseded by newer starts are ignored.
+        """
+        from sqlalchemy import func
+
+        # Get the latest record ID for each WIP in this LOT+Process
+        # Subquery to find max id per wip_id
+        latest_per_wip = db.query(
+            ProcessData.wip_id,
+            func.max(ProcessData.id).label('max_id')
+        ).filter(
             ProcessData.lot_id == lot.id,
             ProcessData.process_id == process.id,
+            ProcessData.wip_id.isnot(None)
+        ).group_by(ProcessData.wip_id).subquery()
+
+        # Get records that are: latest for their WIP AND not completed
+        active_records = db.query(ProcessData).join(
+            latest_per_wip,
+            ProcessData.id == latest_per_wip.c.max_id
+        ).filter(
             ProcessData.completed_at.is_(None)
         ).all()
 
@@ -772,6 +675,8 @@ class ProcessService(BaseService[Process]):
     def _check_and_print_label(self, db: Session, process_data: ProcessData,
                                wip_item=None, serial=None, lot=None) -> dict:
         """Check if auto-print is enabled and print label if conditions are met."""
+        from app.services.printer_service import printer_service
+
         process = db.query(Process).filter(Process.id == process_data.process_id).first()
         if not process or not process.auto_print_label or not process.label_template_type:
             return {"printed": False}

@@ -26,6 +26,34 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
         }
     };
 
+    // Timeline dot color based on process state
+    // - PENDING (투입전): gray - no process data yet
+    // - IN_PROGRESS (진행중): blue - started but not completed
+    // - PASS: green - completed successfully
+    // - FAIL: red - completed with failure
+    type ProcessHistoryItem = typeof trace.process_history[0];
+    const getTimelineDotColor = (latestAttempt: ProcessHistoryItem | null) => {
+        // No process data = 투입전 (PENDING)
+        if (!latestAttempt) {
+            return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)' };
+        }
+
+        // Started but not completed = 진행중 (IN_PROGRESS)
+        if (latestAttempt.started_at && !latestAttempt.completed_at) {
+            return { bg: 'var(--color-info-bg)', color: 'var(--color-info)' };
+        }
+
+        // Completed with result
+        switch (latestAttempt.result) {
+            case ProcessResult.PASS:
+                return { bg: 'var(--color-success-bg)', color: 'var(--color-success)' };
+            case ProcessResult.FAIL:
+                return { bg: 'var(--color-error-bg)', color: 'var(--color-error)' };
+            default:
+                return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)' };
+        }
+    };
+
     const formatDuration = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -149,7 +177,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                         paddingBottom: '30px',
                                     }}
                                 >
-                                    {/* Timeline dot */}
+                                    {/* Timeline dot - color based on process state */}
                                     <div
                                         style={{
                                             position: 'absolute',
@@ -158,9 +186,9 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                             width: '10px',
                                             height: '10px',
                                             borderRadius: '50%',
-                                            ...getResultColor(latestAttempt.result),
+                                            ...getTimelineDotColor(latestAttempt),
                                             border: '2px solid var(--color-bg-primary)',
-                                            boxShadow: '0 0 0 2px ' + getResultColor(latestAttempt.result).color,
+                                            boxShadow: '0 0 0 2px ' + getTimelineDotColor(latestAttempt).color,
                                         }}
                                     />
 

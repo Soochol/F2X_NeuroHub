@@ -164,16 +164,27 @@ class AppConfig:
         """Set production line name."""
         self.settings.setValue("line/name", value)
 
-    # Auto-login Configuration
+    # First Run Flag
+    @property
+    def first_run_completed(self) -> bool:
+        """Check if first run login has been completed."""
+        return self.settings.value("app/first_run_completed", False, type=bool)
+
+    @first_run_completed.setter
+    def first_run_completed(self, value: bool):
+        """Set first run completed flag."""
+        self.settings.setValue("app/first_run_completed", value)
+
+    # Auto-login Configuration (DISABLED - Always require login)
     @property
     def auto_login_enabled(self) -> bool:
-        """Check if auto-login is enabled."""
-        return self.settings.value("auth/auto_login", True, type=bool)
+        """Check if auto-login is enabled (disabled - always requires login)."""
+        return False
 
     @auto_login_enabled.setter
     def auto_login_enabled(self, value: bool):
-        """Enable or disable auto-login."""
-        self.settings.setValue("auth/auto_login", value)
+        """Auto-login is disabled - this setter does nothing."""
+        pass
 
     @property
     def saved_token(self) -> str:
@@ -199,6 +210,24 @@ class AppConfig:
         """Clear all authentication data."""
         self.saved_token = ""
         self.saved_username = ""
+
+    def reset_first_run(self):
+        """Reset first run flag for testing purposes."""
+        self.settings.setValue("app/first_run_completed", False)
+        self.clear_auth()
+
+    # TCP Server Configuration
+    @property
+    def tcp_port(self) -> int:
+        """Get TCP server port."""
+        return self.settings.value("tcp/port", 9000, type=int)
+
+    @tcp_port.setter
+    def tcp_port(self, value: int):
+        """Set TCP server port."""
+        if not 1 <= value <= 65535:
+            raise ValueError("TCP port must be between 1 and 65535")
+        self.settings.setValue("tcp/port", value)
 
     # Printer Configuration (for Process 7 - Label Printing)
     @property

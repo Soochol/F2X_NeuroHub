@@ -4,8 +4,8 @@ JWT Authentication Service with threading support and automatic token refresh.
 Features:
 - Non-blocking JWT authentication
 - Automatic token refresh (25-minute interval, 5 minutes before 30-minute expiration)
-- Retry logic for refresh failures (3 attempts)
-- Prevents production interruptions from token expiration
+- Automatic re-login on refresh failure (for 24/7 production environments)
+- Credentials stored in memory for seamless re-authentication
 """
 from PySide6.QtCore import QObject, Signal, QTimer
 from typing import Optional
@@ -23,6 +23,7 @@ class AuthService(QObject):
     auth_error = Signal(str)       # Emit on auth failure
     token_validated = Signal(dict) # Emit user data on token validation
     token_refreshed = Signal()     # Emit when token is auto-refreshed
+    auto_relogin_success = Signal()  # Emit when auto re-login succeeds
 
     def __init__(self, api_client: APIClient):
         super().__init__()
@@ -31,21 +32,32 @@ class AuthService(QObject):
         self.current_user: Optional[dict] = None
         self._active_workers = []
 
+        # Stored credentials for auto re-login (PySide app only, local use)
+        self._saved_username: Optional[str] = None
+        self._saved_password: Optional[str] = None
+
         # Auto-refresh timer (25 minutes = 1,500,000 ms)
         # Refreshes 5 minutes before 30-minute expiration
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setInterval(25 * 60 * 1000)  # 25 minutes in milliseconds
         self._refresh_timer.timeout.connect(self._auto_refresh_token)
 
-        # Retry counter for refresh failures
+        # Retry counter for refresh/re-login failures
         self._refresh_retry_count = 0
         self._max_refresh_retries = 3
+        self._relogin_in_progress = False
 
     def login(self, username: str, password: str):
         """
         Login and store JWT token (non-blocking).
+
+        Credentials are saved in memory for automatic re-login on token expiry.
         """
         logger.info(f"Login (threaded) initiated for user: {username}")
+
+        # Save credentials for auto re-login (memory only, not persisted)
+        self._saved_username = username
+        self._saved_password = password
 
         worker = APIWorker(
             api_client=self.api_client,
@@ -72,7 +84,13 @@ class AuthService(QObject):
         self.current_user = None
         self.api_client.clear_token()
         self.cancel_all_operations()
-        self._refresh_retry_count = 0  # Reset retry counter
+
+        # Clear saved credentials
+        self._saved_username = None
+        self._saved_password = None
+        self._refresh_retry_count = 0
+        self._relogin_in_progress = False
+
         logger.info("User logged out")
 
     def validate_token(self):
@@ -95,7 +113,15 @@ class AuthService(QObject):
         worker.start()
 
     def get_current_user_id(self) -> str:
-        """Get current user ID."""
+        """Get current user's full name for worker identification."""
+        if self.current_user:
+            # Use full_name for worker identification (e.g., "홍길동")
+            # Falls back to username if full_name is not available
+            return self.current_user.get('full_name') or self.current_user.get('username', 'UNKNOWN')
+        return 'UNKNOWN'
+
+    def get_current_username(self) -> str:
+        """Get current user's username (login ID)."""
         if self.current_user:
             return self.current_user.get('username', 'UNKNOWN')
         return 'UNKNOWN'
@@ -106,10 +132,12 @@ class AuthService(QObject):
             self.access_token = result['access_token']
             self.current_user = result.get('user', {})
             self.api_client.set_token(self.access_token)
-            logger.info(f"Login successful for user: {self.current_user.get('username')}")
+            logger.info(
+                f"Login successful for user: {self.current_user.get('username')}"
+            )
 
             # Start auto-refresh timer (25 minutes)
-            self._refresh_retry_count = 0  # Reset retry counter
+            self._refresh_retry_count = 0
             self._refresh_timer.start()
             logger.info("Auto-refresh timer started (25-minute interval)")
 
@@ -124,9 +152,23 @@ class AuthService(QObject):
             # Update access token from refresh response
             self.access_token = result['access_token']
             self.api_client.set_token(self.access_token)
-            self._refresh_retry_count = 0  # Reset retry counter on success
+            self._refresh_retry_count = 0
             logger.info("Token auto-refreshed successfully")
             self.token_refreshed.emit()
+
+        elif operation == "auto_relogin":
+            # Auto re-login successful - restore session silently
+            self.access_token = result['access_token']
+            self.current_user = result.get('user', {})
+            self.api_client.set_token(self.access_token)
+            self._refresh_retry_count = 0
+            self._relogin_in_progress = False
+            self._refresh_timer.start()
+            logger.info(
+                f"Auto re-login successful for user: "
+                f"{self.current_user.get('username')}"
+            )
+            self.auto_relogin_success.emit()
 
     def _on_api_error(self, operation: str, error_msg: str):
         """Handle API error based on operation type."""
@@ -141,22 +183,34 @@ class AuthService(QObject):
         elif operation == "refresh_token":
             self._refresh_retry_count += 1
             logger.warning(
-                f"Token refresh failed (attempt {self._refresh_retry_count}/{self._max_refresh_retries}): "
+                f"Token refresh failed "
+                f"(attempt {self._refresh_retry_count}/{self._max_refresh_retries}): "
                 f"{error_msg}"
             )
 
-            # Retry if under max retries
+            # Retry refresh if under max retries
             if self._refresh_retry_count < self._max_refresh_retries:
-                logger.info(f"Retrying token refresh in 5 seconds...")
-                QTimer.singleShot(5000, self._auto_refresh_token)  # Retry after 5 seconds
+                logger.info("Retrying token refresh in 5 seconds...")
+                QTimer.singleShot(5000, self._auto_refresh_token)
             else:
-                # Max retries exceeded - stop timer and require re-login
-                self._refresh_timer.stop()
-                logger.error("Token refresh failed after max retries. User must re-login.")
-                self.auth_error.emit(
-                    "인증이 만료되었습니다. 다시 로그인해주세요.\n"
-                    "(자동 갱신 실패)"
+                # Refresh failed - try auto re-login with saved credentials
+                logger.warning(
+                    "Token refresh failed after max retries. "
+                    "Attempting auto re-login..."
                 )
+                self._attempt_auto_relogin()
+
+        elif operation == "auto_relogin":
+            # Auto re-login also failed - now we must ask user to re-login
+            self._relogin_in_progress = False
+            self._refresh_timer.stop()
+            logger.error(
+                "Auto re-login failed. User must manually re-login."
+            )
+            self.auth_error.emit(
+                "인증이 만료되었습니다. 다시 로그인해주세요.\n"
+                "(자동 재인증 실패)"
+            )
 
     def _cleanup_worker(self, worker):
         """Clean up finished worker."""
@@ -173,7 +227,9 @@ class AuthService(QObject):
         from interrupting 24/7 production operations.
         """
         if not self.access_token:
-            logger.warning("No access token to refresh. Stopping auto-refresh timer.")
+            logger.warning(
+                "No access token to refresh. Stopping auto-refresh timer."
+            )
             self._refresh_timer.stop()
             return
 
@@ -184,6 +240,54 @@ class AuthService(QObject):
             operation="refresh_token",
             method="POST",
             endpoint="/api/v1/auth/refresh"
+        )
+        worker.success.connect(self._on_api_success)
+        worker.error.connect(self._on_api_error)
+        worker.finished.connect(lambda: self._cleanup_worker(worker))
+
+        self._active_workers.append(worker)
+        worker.start()
+
+    def _attempt_auto_relogin(self):
+        """
+        Attempt automatic re-login using saved credentials.
+
+        Called when token refresh fails after max retries.
+        This ensures 24/7 production operations continue without interruption.
+        """
+        # Prevent multiple concurrent re-login attempts
+        if self._relogin_in_progress:
+            logger.warning("Auto re-login already in progress, skipping...")
+            return
+
+        # Check if credentials are available
+        if not self._saved_username or not self._saved_password:
+            logger.error(
+                "No saved credentials for auto re-login. "
+                "User must manually re-login."
+            )
+            self._refresh_timer.stop()
+            self.auth_error.emit(
+                "인증이 만료되었습니다. 다시 로그인해주세요.\n"
+                "(저장된 인증정보 없음)"
+            )
+            return
+
+        self._relogin_in_progress = True
+        self._refresh_retry_count = 0  # Reset for re-login attempts
+        logger.info(
+            f"Attempting auto re-login for user: {self._saved_username}"
+        )
+
+        worker = APIWorker(
+            api_client=self.api_client,
+            operation="auto_relogin",
+            method="POST",
+            endpoint="/api/v1/auth/login/json",
+            data={
+                "username": self._saved_username,
+                "password": self._saved_password
+            }
         )
         worker.success.connect(self._on_api_success)
         worker.error.connect(self._on_api_error)

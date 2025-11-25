@@ -99,9 +99,9 @@ class User(Base):
         unique=True
     )
 
-    email: Mapped[str] = mapped_column(
+    email: Mapped[Optional[str]] = mapped_column(
         String(255),
-        nullable=False,
+        nullable=True,
         unique=True
     )
 

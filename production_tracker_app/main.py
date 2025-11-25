@@ -16,7 +16,7 @@ from services.auth_service import AuthService
 from services.work_service import WorkService
 from services.barcode_service import BarcodeService
 from services.completion_watcher import CompletionWatcher
-from services.completion_watcher import CompletionWatcher
+from services.tcp_server import TCPServer
 
 # Import viewmodels
 from viewmodels.main_viewmodel import MainViewModel
@@ -35,6 +35,8 @@ logger = setup_logger()
 
 # Install global exception handler
 ExceptionHandler.install_global_handler()
+
+# Note: TCP_SERVER_PORT is now configured in AppConfig (tcp_port property)
 
 
 def main():
@@ -78,38 +80,22 @@ def main():
         auth_service = AuthService(api_client)
         logger.info("Auth Service initialized")
 
-        # Authentication flow
-        authenticated = False
+        # Authentication flow - Always require login
+        logger.info("Always requiring login - auto-login disabled")
 
-        # Check for auto-login
-        if config.auto_login_enabled and config.saved_token:
-            logger.info("Attempting auto-login...")
-            api_client.set_token(config.saved_token)
-
-            # Synchronous token validation
-            try:
-                response = api_client.get("/api/v1/auth/me")
-                if response:
-                    auth_service.current_user = response
-                    logger.info("Auto-login successful")
-                    authenticated = True
-                else:
-                    logger.info("Auto-login failed: Invalid response")
-            except Exception as e:
-                logger.info(f"Auto-login failed: {e}")
-
-            if not authenticated:
-                config.clear_auth()
-                api_client.clear_token()
-
-        # Show login dialog if not authenticated
-        if not authenticated:
+        # Show login dialog
+        if True:
             logger.info("Showing login dialog")
             login_dialog = LoginDialog(auth_service, config)
             if login_dialog.exec() != LoginDialog.DialogCode.Accepted:
                 logger.info("Login cancelled by user")
                 return 0
             logger.info("Login successful")
+
+            # Mark first run as completed after successful login
+            if not config.first_run_completed:
+                config.first_run_completed = True
+                logger.info("First run completed - future auto-login enabled")
 
         # Load production lines and equipment from API
         logger.info("Loading production lines and equipment from API...")
@@ -169,6 +155,11 @@ def main():
         )
         logger.info("Completion Watcher initialized")
 
+        # Initialize TCP Server for equipment communication
+        tcp_port = config.tcp_port
+        tcp_server = TCPServer(port=tcp_port)
+        logger.info(f"TCP Server initialized (port: {tcp_port})")
+
         # Create ViewModel
         viewmodel = MainViewModel(
             config=config,
@@ -177,8 +168,15 @@ def main():
             work_service=work_service,
             barcode_service=barcode_service,
             completion_watcher=completion_watcher,
+            tcp_server=tcp_server,
         )
         logger.info("ViewModel created")
+
+        # Start TCP server
+        if tcp_server.start():
+            logger.info("TCP Server started successfully")
+        else:
+            logger.warning("TCP Server failed to start")
 
         # Create Main Window
         window = MainWindow(viewmodel, config)

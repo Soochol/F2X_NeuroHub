@@ -6,16 +6,15 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QStatusBar, QMessageBox, QPushButton, QFrame, QListWidget,
-    QListWidgetItem, QStackedWidget
+    QStatusBar, QMessageBox, QPushButton, QFrame, QStackedWidget,
+    QGraphicsOpacityEffect, QButtonGroup
 )
-from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtCore import Qt, QTimer, QEvent, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QKeyEvent
 
 from views.pages.home_page import HomePage
-
+from views.pages.history_page import HistoryPage
 from views.pages.settings_page import SettingsPage
-from views.pages.help_page import HelpPage
 from views.pages.wip_generation_page import WIPGenerationPage
 from views.pages.wip_dashboard_page import WIPDashboardPage
 from views.defect_dialog import DefectDialog
@@ -29,9 +28,93 @@ from utils.exception_handler import (
     SignalConnector, CleanupManager, safe_slot, safe_cleanup
 )
 from services.barcode_service import BarcodeService
+from services.history_manager import get_history_manager, EventType
+from widgets.svg_icon import SvgIcon
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
+
+
+class NavItemWidget(QPushButton):
+    """Navigation item widget with SVG icon and label."""
+
+    def __init__(self, icon_name: str, label: str, parent=None):
+        super().__init__(parent)
+        self._icon_name = icon_name
+        self._label_text = label
+        self._is_selected = False
+
+        self.setCheckable(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(44)
+
+        # Layout
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 0, 12, 0)
+        layout.setSpacing(12)
+
+        # Icon
+        self._icon = SvgIcon(icon_name, theme.get('colors.grey.400'), 20)
+        layout.addWidget(self._icon)
+
+        # Label
+        self._label = QLabel(label)
+        self._label.setObjectName("nav_label")
+        layout.addWidget(self._label)
+        layout.addStretch()
+
+        self._apply_style()
+
+    def _apply_style(self):
+        """Apply button styling."""
+        bg_default = theme.get('colors.background.default')
+        bg_elevated = theme.get('colors.background.elevated')
+        border = theme.get('colors.border.default')
+        grey_400 = theme.get('colors.grey.400')
+        brand = theme.get('colors.brand.main')
+
+        self.setStyleSheet(f"""
+            NavItemWidget {{
+                background-color: transparent;
+                border: none;
+                border-left: 3px solid transparent;
+                text-align: left;
+            }}
+            NavItemWidget:hover {{
+                background-color: {bg_default};
+            }}
+            NavItemWidget:checked {{
+                background-color: {border};
+                border-left: 3px solid {brand};
+            }}
+            #nav_label {{
+                color: {grey_400};
+                font-size: 13px;
+                background: transparent;
+            }}
+        """)
+
+    def set_selected(self, selected: bool):
+        """Set selection state."""
+        self._is_selected = selected
+        self.setChecked(selected)
+
+        brand = theme.get('colors.brand.main')
+        grey_400 = theme.get('colors.grey.400')
+
+        if selected:
+            self._icon.set_color(brand)
+            self._label.setStyleSheet(f"color: {brand}; font-weight: 600; background: transparent;")
+        else:
+            self._icon.set_color(grey_400)
+            self._label.setStyleSheet(f"color: {grey_400}; font-weight: normal; background: transparent;")
+
+    def set_expanded(self, expanded: bool):
+        """Show/hide label based on sidebar state."""
+        self._label.setVisible(expanded)
+
+    def get_icon_name(self) -> str:
+        return self._icon_name
 
 
 class MainWindow(QMainWindow):
@@ -45,12 +128,17 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"F2X NeuroHub - {config.process_name}")
 
         # Window size for sidebar layout
-        self.setMinimumSize(900, 726)
-        self.resize(900, 726)
+        self.setMinimumSize(900, 771)
+        self.resize(900, 771)
 
         # Work state tracking
         self.current_lot = None
         self.start_time = None
+
+        # Sidebar state
+        self._sidebar_expanded = True
+        self._sidebar_width_expanded = 160
+        self._sidebar_width_collapsed = 50
 
         # Timer for elapsed time updates
         self.elapsed_timer = QTimer()
@@ -70,6 +158,25 @@ class MainWindow(QMainWindow):
 
         logger.info("MainWindow initialized with sidebar navigation and barcode scanner")
 
+    def showEvent(self, event):
+        """Refresh home page when window is first shown (after login)."""
+        super().showEvent(event)
+        # Validate and refresh user info after login
+        auth_service = getattr(self.viewmodel, 'auth_service', None)
+        if auth_service and auth_service.access_token:
+            # Validate current token by fetching user info from /me endpoint
+            logger.info("Validating user info after login...")
+            auth_service.validate_token()
+            # Small delay to ensure validation completes before refresh
+            from PySide6.QtCore import QTimer
+            if hasattr(self, 'home_page'):
+                QTimer.singleShot(500, self.home_page.refresh_info)
+                logger.info("Home page info refresh scheduled")
+        elif hasattr(self, 'home_page'):
+            # No token, just refresh immediately
+            self.home_page.refresh_info()
+            logger.info("Home page info refreshed on window show")
+
     def setup_ui(self):
         """Setup UI components with sidebar navigation."""
         central_widget = QWidget()
@@ -81,36 +188,76 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Sidebar
-        sidebar = QWidget()
-        sidebar.setObjectName("main_sidebar")
-        sidebar.setFixedWidth(160)
-        sidebar_layout = QVBoxLayout(sidebar)
+        self.sidebar = QWidget()
+        self.sidebar.setObjectName("main_sidebar")
+        self.sidebar.setFixedWidth(self._sidebar_width_expanded)
+        sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # Navigation list
-        self.nav_list = QListWidget()
-        self.nav_list.setObjectName("main_nav")
-        self.nav_list.setFrameShape(QListWidget.NoFrame)
+        # Hamburger button container
+        hamburger_container = QWidget()
+        hamburger_container.setObjectName("hamburger_container")
+        hamburger_layout = QHBoxLayout(hamburger_container)
+        hamburger_layout.setContentsMargins(8, 8, 8, 8)
+        hamburger_layout.setSpacing(0)
 
-        # Add navigation items
-        nav_items = [
-            ("홈", "home"),
+        # Hamburger button
+        self.hamburger_btn = QPushButton()
+        self.hamburger_btn.setObjectName("hamburger_btn")
+        self.hamburger_btn.setCursor(Qt.PointingHandCursor)
+        self.hamburger_btn.setFixedSize(34, 34)
+        self.hamburger_btn.clicked.connect(self._toggle_sidebar)
 
-            ("설정", "settings"),
-            ("도움말", "help"),
+        # SVG icon for hamburger
+        self._hamburger_icon = SvgIcon(
+            "hamburger",
+            theme.get('colors.grey.400'),
+            20
+        )
+        hamburger_btn_layout = QHBoxLayout(self.hamburger_btn)
+        hamburger_btn_layout.setContentsMargins(0, 0, 0, 0)
+        hamburger_btn_layout.addWidget(
+            self._hamburger_icon, alignment=Qt.AlignCenter
+        )
+
+        hamburger_layout.addWidget(self.hamburger_btn)
+        hamburger_layout.addStretch()
+        sidebar_layout.addWidget(hamburger_container)
+
+        # Navigation container
+        nav_container = QWidget()
+        nav_container.setObjectName("nav_container")
+        nav_layout = QVBoxLayout(nav_container)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(2)
+
+        # Navigation items with icons
+        self._nav_items_data = [
+            ("홈", "home", "home"),
+            ("작업 이력", "history", "history"),
+            ("설정", "settings", "settings"),
         ]
 
-        for label, data in nav_items:
-            item = QListWidgetItem(label)
-            item.setData(Qt.UserRole, data)
-            self.nav_list.addItem(item)
+        # Create nav item widgets
+        self._nav_buttons = []
+        self._nav_button_group = QButtonGroup(self)
+        self._nav_button_group.setExclusive(True)
 
-        self.nav_list.currentRowChanged.connect(self._on_nav_changed)
-        sidebar_layout.addWidget(self.nav_list)
+        for idx, (label, data, icon_name) in enumerate(self._nav_items_data):
+            nav_item = NavItemWidget(icon_name, label)
+            nav_item.setProperty("page_data", data)
+            nav_item.setProperty("page_index", idx)
+            nav_item.clicked.connect(lambda checked, i=idx: self._on_nav_clicked(i))
+            self._nav_buttons.append(nav_item)
+            self._nav_button_group.addButton(nav_item, idx)
+            nav_layout.addWidget(nav_item)
+
+        nav_layout.addStretch()
+        sidebar_layout.addWidget(nav_container)
         sidebar_layout.addStretch()
 
-        main_layout.addWidget(sidebar)
+        main_layout.addWidget(self.sidebar)
 
         # Content area
         content_widget = QWidget()
@@ -122,32 +269,26 @@ class MainWindow(QMainWindow):
         # Stacked widget for pages
         self.stack = QStackedWidget()
 
-        # Create pages
-        self.home_page = HomePage(self.config)
-
-
         # Get services from viewmodel
+        auth_service = getattr(self.viewmodel, 'auth_service', None)
         api_client = getattr(self.viewmodel, 'api_client', None)
 
-        # Create WIP ViewModels
-        # self.wip_generation_vm = WIPGenerationViewModel(api_client, print_service)
-        # self.wip_dashboard_vm = WIPDashboardViewModel(api_client)
+        # Create pages
+        self.home_page = HomePage(self.config, auth_service)
 
-        # Create WIP pages
-        # self.wip_generation_page = WIPGenerationPage(self.wip_generation_vm, self.config)
-        # self.wip_dashboard_page = WIPDashboardPage(self.wip_dashboard_vm, self.config)
+        # History manager for tracking events
+        self.history_manager = get_history_manager()
+
+        # Create history page
+        self.history_page = HistoryPage(self.config)
 
         # Create settings page
         self.settings_page = SettingsPage(self.config, api_client)
-        self.help_page = HelpPage(self.config)
 
-        # Add pages to stack
-        self.stack.addWidget(self.home_page)
-
-        # self.stack.addWidget(self.wip_generation_page)
-        # self.stack.addWidget(self.wip_dashboard_page)
-        self.stack.addWidget(self.settings_page)
-        self.stack.addWidget(self.help_page)
+        # Add pages to stack (order must match nav_items)
+        self.stack.addWidget(self.home_page)      # index 0: home
+        self.stack.addWidget(self.history_page)   # index 1: history
+        self.stack.addWidget(self.settings_page)  # index 2: settings
 
         content_layout.addWidget(self.stack)
         main_layout.addWidget(content_widget)
@@ -157,12 +298,16 @@ class MainWindow(QMainWindow):
         self.status_bar.setObjectName("status_bar")
         self.setStatusBar(self.status_bar)
 
-        # Connection status indicator
-        self.connection_indicator = StatusIndicator("연결 중...", "warning")
+        # TCP Client status indicator (equipment connection)
+        self.tcp_client_indicator = StatusIndicator("장비: 대기 중", "body")
+        self.status_bar.addPermanentWidget(self.tcp_client_indicator)
+
+        # Backend connection status indicator
+        self.connection_indicator = StatusIndicator("백엔드: 연결 중", "body")
         self.status_bar.addPermanentWidget(self.connection_indicator)
 
         # Select first item (Home)
-        self.nav_list.setCurrentRow(0)
+        self._select_nav_item(0)
 
         # Apply styles
         self._apply_styles()
@@ -174,6 +319,7 @@ class MainWindow(QMainWindow):
         """Apply styles for sidebar navigation."""
         bg_dark = theme.get('colors.background.dark')
         bg_default = theme.get('colors.background.default')
+        bg_elevated = theme.get('colors.background.elevated')
         border = theme.get('colors.border.default')
         grey_400 = theme.get('colors.grey.400')
         grey_600 = theme.get('colors.grey.600')
@@ -189,28 +335,22 @@ class MainWindow(QMainWindow):
                 border-right: 1px solid {border};
             }}
 
-            #main_nav {{
+            #hamburger_container {{
+                background-color: transparent;
+            }}
+
+            #hamburger_btn {{
                 background-color: transparent;
                 border: none;
-                outline: none;
+                border-radius: 6px;
             }}
 
-            #main_nav::item {{
-                padding: 14px 16px;
-                border-left: 3px solid transparent;
-                color: {grey_400};
-                font-size: 13px;
+            #hamburger_btn:hover {{
+                background-color: {bg_elevated};
             }}
 
-            #main_nav::item:selected {{
-                background-color: {border};
-                border-left: 3px solid {brand};
-                color: {brand};
-                font-weight: 600;
-            }}
-
-            #main_nav::item:hover:!selected {{
-                background-color: {bg_default};
+            #nav_container {{
+                background-color: transparent;
             }}
 
             #main_content {{
@@ -241,9 +381,21 @@ class MainWindow(QMainWindow):
             self._on_fail_requested,
             "fail_requested -> _on_fail_requested"
         ).connect(
+            self.home_page.measurement_confirmed,
+            self._on_measurement_confirmed,
+            "measurement_confirmed -> _on_measurement_confirmed"
+        ).connect(
+            self.home_page.measurement_cancelled,
+            self._on_measurement_cancelled,
+            "measurement_cancelled -> _on_measurement_cancelled"
+        ).connect(
             self.settings_page.settings_saved,
             self._on_settings_saved,
             "settings_saved -> _on_settings_saved"
+        ).connect(
+            self.settings_page.data_refreshed,
+            self._on_settings_data_refreshed,
+            "data_refreshed -> _on_settings_data_refreshed"
         )
 
         if not connector.all_connected():
@@ -256,6 +408,43 @@ class MainWindow(QMainWindow):
         """Handle settings saved - refresh page info."""
         self.home_page.refresh_info()
 
+    @safe_slot("설정 데이터 새로고침 처리 실패")
+    def _on_settings_data_refreshed(self, data_type: str, count: int):
+        """Handle settings data refreshed from API."""
+        Toast.success(self, f"{data_type} 목록 새로고침 완료 ({count}건)")
+
+    def _toggle_sidebar(self):
+        """Toggle sidebar between expanded and collapsed state."""
+        self._sidebar_expanded = not self._sidebar_expanded
+
+        if self._sidebar_expanded:
+            target_width = self._sidebar_width_expanded
+        else:
+            target_width = self._sidebar_width_collapsed
+
+        # Show/hide labels in nav items
+        for nav_btn in self._nav_buttons:
+            nav_btn.set_expanded(self._sidebar_expanded)
+
+        # Animate sidebar width
+        self._sidebar_animation = QPropertyAnimation(
+            self.sidebar, b"minimumWidth"
+        )
+        self._sidebar_animation.setDuration(200)
+        self._sidebar_animation.setStartValue(self.sidebar.width())
+        self._sidebar_animation.setEndValue(target_width)
+        self._sidebar_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self._sidebar_animation.start()
+
+        # Also animate maximum width
+        self._sidebar_max_animation = QPropertyAnimation(
+            self.sidebar, b"maximumWidth"
+        )
+        self._sidebar_max_animation.setDuration(200)
+        self._sidebar_max_animation.setStartValue(self.sidebar.width())
+        self._sidebar_max_animation.setEndValue(target_width)
+        self._sidebar_max_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self._sidebar_max_animation.start()
 
     def connect_signals(self):
         """Connect ViewModel signals to UI updates."""
@@ -284,25 +473,47 @@ class MainWindow(QMainWindow):
             self.viewmodel.serial_received,
             self._on_serial_received,
             "serial_received -> _on_serial_received"
+        ).connect(
+            self.viewmodel.measurement_received,
+            self._on_measurement_received,
+            "measurement_received -> _on_measurement_received"
         )
+
+        # TCP Server signals
+        if self.viewmodel.tcp_server:
+            connector.connect(
+                self.viewmodel.tcp_server.signals.client_connected,
+                self._on_tcp_client_connected,
+                "tcp_client_connected -> _on_tcp_client_connected"
+            ).connect(
+                self.viewmodel.tcp_server.signals.client_disconnected,
+                self._on_tcp_client_disconnected,
+                "tcp_client_disconnected -> _on_tcp_client_disconnected"
+            )
 
         if not connector.all_connected():
             logger.error(
                 f"일부 시그널 연결 실패: {connector.failed_connections}"
             )
 
-    def _on_nav_changed(self, index):
-        """Handle navigation item change."""
-        item = self.nav_list.item(index)
-        if not item:
-            return
+    def _select_nav_item(self, index: int):
+        """Select a navigation item by index."""
+        if 0 <= index < len(self._nav_buttons):
+            for i, btn in enumerate(self._nav_buttons):
+                btn.set_selected(i == index)
+            self._current_nav_index = index
 
-        page_type = item.data(Qt.UserRole)
-        self.stack.setCurrentIndex(index)
+    def _on_nav_clicked(self, index: int):
+        """Handle navigation item click."""
+        self._select_nav_item(index)
 
-        # Focus on input when switching to specific pages
-        if page_type == "home":
-            self.home_page.focus_input()
+        if 0 <= index < len(self._nav_buttons):
+            page_data = self._nav_buttons[index].property("page_data")
+            self.stack.setCurrentIndex(index)
+
+            # Focus on input when switching to specific pages
+            if page_data == "home":
+                self.home_page.focus_input()
 
     def _on_start_work_requested(self, lot_number: str):
         """Handle start work request from start page (LOT-level)."""
@@ -420,14 +631,18 @@ class MainWindow(QMainWindow):
         self.start_time = datetime.now()
         start_time_str = self.start_time.strftime("%H:%M:%S")
 
-        # Get serial number from viewmodel (if SERIAL-level work)
-        serial_number = self.viewmodel.current_serial
-
         # Update home page
         self.home_page.start_work(lot_number, start_time_str)
         self.home_page.set_status(f"착공 완료: {lot_number}", "success")
 
-
+        # Record to history
+        self.history_manager.add_start_event(
+            wip_id=lot_number,
+            lot_number=lot_number,
+            process_name=self.config.process_name,
+            success=True,
+            message="착공 완료"
+        )
 
         # Start elapsed timer
         self.elapsed_timer.start(1000)
@@ -440,7 +655,13 @@ class MainWindow(QMainWindow):
     @safe_slot("완공 처리 실패", show_dialog=True)
     def _on_work_completed(self, message: str):
         """Handle work completed event."""
-        complete_time = datetime.now().strftime("%H:%M:%S")
+        complete_time_dt = datetime.now()
+        complete_time = complete_time_dt.strftime("%H:%M:%S")
+
+        # Calculate duration
+        duration = None
+        if self.start_time:
+            duration = int((complete_time_dt - self.start_time).total_seconds())
 
         # Stop elapsed timer
         self.elapsed_timer.stop()
@@ -449,7 +670,18 @@ class MainWindow(QMainWindow):
         self.home_page.complete_work(complete_time)
         self.home_page.set_status(message, "success")
 
+        # Determine result from message
+        result = "PASS" if "PASS" in message.upper() else "FAIL"
 
+        # Record to history
+        self.history_manager.add_complete_event(
+            wip_id=self.current_lot or "",
+            lot_number=self.current_lot or "",
+            result=result,
+            process_name=self.config.process_name,
+            duration_seconds=duration,
+            message=message
+        )
 
         # Reset state
         self.current_lot = None
@@ -464,12 +696,20 @@ class MainWindow(QMainWindow):
 
         # Re-enable controls based on current state
         if self.current_lot:
-            self.home_page.set_enabled(True)  # This might need refinement depending on exactly what we want to enable
+            self.home_page.set_enabled(True)
         else:
             self.home_page.set_enabled(True)
 
-        # Update home page
-        self.home_page.set_status(f"오류: {error_msg}", "danger")
+        # Update home page - show error banner
+        self.home_page.show_error(error_msg)
+
+        # Record error to history
+        self.history_manager.add_error_event(
+            wip_id=self.current_lot or "",
+            lot_number=self.current_lot or "",
+            error_message=error_msg,
+            process_name=self.config.process_name
+        )
 
         # Show toast
         Toast.danger(self, f"오류: {error_msg}")
@@ -477,9 +717,9 @@ class MainWindow(QMainWindow):
     def _on_connection_status_changed(self, is_online: bool):
         """Handle connection status change."""
         if is_online:
-            self.connection_indicator.set_status("success", "온라인")
+            self.connection_indicator.set_status("success", "백엔드: 온라인")
         else:
-            self.connection_indicator.set_status("danger", "오프라인")
+            self.connection_indicator.set_status("danger", "백엔드: 오프라인")
 
     def _update_elapsed_time(self):
         """Update elapsed time display."""
@@ -521,7 +761,7 @@ class MainWindow(QMainWindow):
         logger.info(f"LOT barcode scanned: {lot_number}")
 
         current_index = self.stack.currentIndex()
-        current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
+        current_page_data = self._nav_buttons[current_index].property("page_data") if current_index < len(self._nav_buttons) else None
 
         # Route to appropriate handler based on current page
         if current_page_data == "home":
@@ -545,7 +785,7 @@ class MainWindow(QMainWindow):
         logger.info(f"Serial barcode scanned: {serial_number}")
 
         current_index = self.stack.currentIndex()
-        current_page_data = self.nav_list.item(current_index).data(Qt.UserRole) if current_index < self.nav_list.count() else None
+        current_page_data = self._nav_buttons[current_index].property("page_data") if current_index < len(self._nav_buttons) else None
 
         # Route to appropriate handler based on current page
         if current_page_data == "home":
@@ -562,3 +802,120 @@ class MainWindow(QMainWindow):
         """Handle invalid barcode scanned."""
         logger.warning(f"Invalid barcode scanned: {barcode}")
         Toast.warning(self, f"잘못된 바코드 형식: {barcode}")
+
+    # --- Measurement Panel Handlers ---
+
+    @safe_slot("측정 데이터 수신 실패")
+    def _on_measurement_received(self, equipment_data):
+        """
+        Handle measurement data received from TCP server.
+
+        Args:
+            equipment_data: EquipmentData object from TCP server
+        """
+        logger.info(f"Measurement received: result={equipment_data.result}")
+
+        if not self.current_lot:
+            logger.warning("Measurement received but no active work")
+            Toast.warning(self, "진행 중인 작업이 없습니다.")
+            return
+
+        # Show measurement panel on home page
+        self.home_page.show_measurement(equipment_data)
+        Toast.info(self, f"측정 데이터 수신: {equipment_data.result}")
+
+    @safe_slot("측정 확인 처리 실패")
+    def _on_measurement_confirmed(self):
+        """Handle measurement confirmation - complete work with measurement data."""
+        if not self.current_lot:
+            Toast.warning(self, "진행 중인 작업이 없습니다.")
+            return
+
+        pending = self.viewmodel.pending_measurement
+        if not pending:
+            Toast.warning(self, "측정 데이터가 없습니다.")
+            return
+
+        # Generate completion time
+        complete_time = datetime.now()
+
+        # Build process data from measurement
+        process_data = {
+            "measurements": [
+                {
+                    "code": m.code,
+                    "name": m.name,
+                    "value": m.value,
+                    "unit": m.unit,
+                    "spec": {
+                        "min": m.spec.min if m.spec else None,
+                        "max": m.spec.max if m.spec else None,
+                        "target": m.spec.target if m.spec else None,
+                    } if m.spec else None,
+                    "result": m.result
+                }
+                for m in pending.measurements
+            ],
+            "defects": [
+                {"code": d.code, "reason": d.reason}
+                for d in pending.defects
+            ]
+        }
+
+        # Get worker_id from auth service
+        worker_id = self.viewmodel.auth_service.get_current_user_id()
+
+        # Build completion data
+        completion_data = {
+            "lot_number": self.current_lot,
+            "line_id": self.config.line_id,
+            "process_id": self.config.process_id,
+            "process_name": self.config.process_name,
+            "equipment_id": self.config.equipment_id,
+            "worker_id": worker_id,
+            "start_time": self.start_time.isoformat(),
+            "complete_time": complete_time.isoformat(),
+            "result": pending.result,
+            "process_data": process_data
+        }
+
+        # Disable buttons during request
+        self.home_page.set_enabled(False)
+
+        # Clear pending measurement
+        self.viewmodel.clear_pending_measurement()
+
+        # Call viewmodel to complete work
+        self.viewmodel.complete_work(completion_data)
+
+    @safe_slot("측정 취소 처리 실패")
+    def _on_measurement_cancelled(self):
+        """Handle measurement cancellation - discard measurement data."""
+        logger.info("Measurement cancelled by user")
+
+        # Clear pending measurement
+        self.viewmodel.clear_pending_measurement()
+
+        # Re-enable PASS/FAIL buttons if work is in progress
+        if self.current_lot:
+            self.home_page.pass_button.setEnabled(True)
+            self.home_page.fail_button.setEnabled(True)
+
+        Toast.info(self, "측정이 취소되었습니다.")
+
+    # --- TCP Server Client Status Handlers ---
+
+    @safe_slot("TCP 클라이언트 연결 처리 실패")
+    def _on_tcp_client_connected(self, client_addr: str):
+        """Handle TCP client connected."""
+        logger.info(f"TCP client connected: {client_addr}")
+        msg = f"장비: 연결됨 ({client_addr})"
+        self.tcp_client_indicator.set_status("success", msg)
+        Toast.info(self, f"장비 클라이언트 연결: {client_addr}")
+
+    @safe_slot("TCP 클라이언트 해제 처리 실패")
+    def _on_tcp_client_disconnected(self, client_addr: str):
+        """Handle TCP client disconnected."""
+        logger.info(f"TCP client disconnected: {client_addr}")
+        self.tcp_client_indicator.set_status("body", "장비: 대기 중")
+        Toast.warning(self, f"장비 클라이언트 해제: {client_addr}")

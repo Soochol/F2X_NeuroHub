@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app import crud
 from app.models.serial import SerialStatus, Serial
+from app.models.lot import Lot, LotStatus
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
 from app.models.wip_item import WIPItem, WIPStatus
@@ -178,14 +180,18 @@ class SerialService(BaseService[Serial]):
                     f"Target quantity ({lot.target_quantity}) reached for LOT {lot.lot_number}"
                 )
 
-                # 5. Create Serial
+                # 5. Create Serial with PASSED status (WIP conversion means all processes passed)
                 serial_in = SerialCreate(
                     lot_id=lot.id,
                     sequence_in_lot=next_sequence,
-                    status=SerialStatus.CREATED
+                    status=SerialStatus.PASSED  # Serial is PASSED when converted from WIP
                 )
 
                 serial = crud.serial.create(db, serial_in=serial_in)
+
+                # 5-1. Set completed_at timestamp for PASSED serial
+                serial.completed_at = datetime.now(timezone.utc)
+                db.add(serial)
 
                 # 6. Update WIP Item
                 wip_item.serial_id = serial.id
@@ -193,11 +199,23 @@ class SerialService(BaseService[Serial]):
                 wip_item.converted_at = serial.created_at
                 db.add(wip_item)
 
+                # 7. Update LOT passed_quantity and check completion
+                lot.passed_quantity = (lot.passed_quantity or 0) + 1
+                lot.actual_quantity = (lot.actual_quantity or 0) + 1
+
+                # Check if LOT is complete
+                total_completed = (lot.passed_quantity or 0) + (lot.failed_quantity or 0)
+                if total_completed >= lot.target_quantity:
+                    lot.status = LotStatus.COMPLETED.value
+                    lot.closed_at = datetime.now(timezone.utc)
+                    logger.info(f"LOT {lot.lot_number} marked as COMPLETED (passed={lot.passed_quantity}, failed={lot.failed_quantity})")
+                db.add(lot)
+
                 # Log the operation
                 self.log_operation(
                     "generate_from_wip",
                     serial.id,
-                    {"wip_id": wip_id, "serial_number": serial.serial_number}
+                    {"wip_id": wip_id, "serial_number": serial.serial_number, "lot_passed_qty": lot.passed_quantity}
                 )
 
             # 7. Print Label (outside transaction)

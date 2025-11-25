@@ -29,7 +29,19 @@ class UserBase(BaseModel):
         max_length=50,
         description="Username (3-50 characters, alphanumeric and underscore)",
     )
-    email: EmailStr = Field(..., description="User email address")
+    email: Optional[EmailStr] = Field(
+        None,
+        description="User email address (optional)",
+    )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def empty_email_to_none(cls, v):
+        """Convert empty string to None for optional email."""
+        if v == "" or v is None:
+            return None
+        return v
+
     full_name: str = Field(
         ...,
         min_length=1,
@@ -50,10 +62,13 @@ class UserBase(BaseModel):
     @field_validator("username")
     @classmethod
     def validate_username(cls, v: str) -> str:
-        """Validate username format (alphanumeric and underscore only)."""
-        if not v.replace("_", "").isalnum():
+        """Validate username format (alphanumeric, underscore, and Korean characters)."""
+        import re
+        # Allow: letters (including Korean), numbers, underscores
+        # Pattern: ^[a-zA-Z0-9_가-힣]+$
+        if not re.match(r'^[a-zA-Z0-9_가-힣]+$', v):
             raise ValueError(
-                "Username must contain only alphanumeric characters and underscores"
+                "Username must contain only letters, numbers, underscores, or Korean characters"
             )
         return v.lower()
 
@@ -63,33 +78,10 @@ class UserCreate(UserBase):
 
     password: str = Field(
         ...,
-        min_length=8,
+        min_length=4,
         max_length=128,
-        description="User password (min 8 chars, must contain upper, lower, and digit)",
+        description="User password (min 4 characters)",
     )
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        """Validate password meets security requirements.
-
-        Password must:
-        - Be at least 8 characters long
-        - Contain at least one uppercase letter
-        - Contain at least one lowercase letter
-        - Contain at least one digit
-        """
-        if not any(c.isupper() for c in v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter"
-            )
-        if not any(c.islower() for c in v):
-            raise ValueError(
-                "Password must contain at least one lowercase letter"
-            )
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
-        return v
 
 
 class UserUpdate(BaseModel):
@@ -129,11 +121,13 @@ class UserUpdate(BaseModel):
     @classmethod
     def validate_username(cls, v: Optional[str]) -> Optional[str]:
         """Validate username format if provided."""
+        import re
         if v is None:
             return v
-        if not v.replace("_", "").isalnum():
+        # Allow: letters (including Korean), numbers, underscores
+        if not re.match(r'^[a-zA-Z0-9_가-힣]+$', v):
             raise ValueError(
-                "Username must contain only alphanumeric characters and underscores"
+                "Username: letters, numbers, underscores, Korean only"
             )
         return v.lower()
 

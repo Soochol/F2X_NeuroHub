@@ -95,6 +95,11 @@ class ProcessBase(BaseModel):
         max_length=50,
         description="Type of label template to use (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
     )
+    process_type: str = Field(
+        default="MANUFACTURING",
+        max_length=50,
+        description="Process type: MANUFACTURING (standard production P1-P6) or SERIAL_CONVERSION (serial assignment P7+)"
+    )
 
     @field_validator("process_code")
     @classmethod
@@ -252,6 +257,11 @@ class ProcessUpdate(BaseModel):
         default=None,
         max_length=50,
         description="Type of label template to use (WIP_LABEL, SERIAL_LABEL, LOT_LABEL)"
+    )
+    process_type: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Process type: MANUFACTURING or SERIAL_CONVERSION"
     )
 
     model_config = ConfigDict(validate_assignment=True)

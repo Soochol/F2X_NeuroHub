@@ -13,7 +13,9 @@ interface LotSummary {
   progress?: number;
   progress_percentage?: number;
   started_count?: number;
+  created_count?: number;
   in_progress_count?: number;
+  converted_count?: number;
   target_quantity?: number;
   completed_count: number;
   defective_count?: number;
@@ -127,9 +129,10 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
                 <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Time</th>
                 <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>LOT Number</th>
                 <th style={{ padding: '12px', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Product</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Target</th>
                 <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Started</th>
                 <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>In Progress</th>
-                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Completed</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Converted</th>
                 <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Completion Rate</th>
                 <th style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>Status</th>
               </tr>
@@ -137,7 +140,7 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
             <tbody>
               {lots.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  <td colSpan={9} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                     No LOT data available
                   </td>
                 </tr>
@@ -155,22 +158,25 @@ export const LotHistoryTabs = ({ lots }: LotHistoryTabsProps) => {
                     </td>
                     <td style={{ padding: '12px', fontSize: '13px', fontWeight: '500', color: 'var(--color-text-primary)' }}>{lot.lot_number}</td>
                     <td style={{ padding: '12px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{lot.product_model_name}</td>
-                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                      {getStartedCount(lot)}
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
+                      {lot.target_quantity ?? 0}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-info)' }}>
+                      {lot.created_count ?? lot.started_count ?? 0}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-warning)' }}>
                       {lot.in_progress_count ?? 0}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-success)' }}>
-                      {lot.completed_count}
+                      {lot.converted_count ?? 0}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-brand)' }}>
-                          {lot.completed_count} / {getStartedCount(lot)}
+                          {lot.converted_count ?? 0} / {lot.target_quantity ?? 0}
                         </span>
                         <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                          ({getProgress(lot).toFixed(1)}%)
+                          ({lot.target_quantity ? (((lot.converted_count ?? 0) / lot.target_quantity) * 100).toFixed(1) : 0}%)
                         </span>
                       </div>
                     </td>

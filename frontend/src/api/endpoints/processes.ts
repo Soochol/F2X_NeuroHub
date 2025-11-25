@@ -13,6 +13,11 @@ export interface ProcessCreate {
   description?: string;
   sort_order: number;
   is_active?: boolean;
+  estimated_duration_seconds?: number;
+  quality_criteria?: Record<string, unknown>;
+  auto_print_label?: boolean;
+  label_template_type?: string;
+  process_type?: string;
 }
 
 export interface ProcessUpdate {
@@ -23,6 +28,11 @@ export interface ProcessUpdate {
   description?: string;
   sort_order?: number;
   is_active?: boolean;
+  estimated_duration_seconds?: number;
+  quality_criteria?: Record<string, unknown>;
+  auto_print_label?: boolean;
+  label_template_type?: string;
+  process_type?: string;
 }
 
 export const processesApi = {

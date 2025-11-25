@@ -3,7 +3,7 @@ Main ViewModel for Production Tracker App.
 """
 from PySide6.QtCore import QObject, Signal
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import logging
 
 from utils.exception_handler import (
@@ -12,6 +12,10 @@ from utils.exception_handler import (
 from utils.serial_validator import validate_serial_number_v1
 
 logger = logging.getLogger(__name__)
+
+
+# TCP Server default port
+DEFAULT_TCP_PORT = 9000
 
 
 class MainViewModel(QObject):
@@ -27,7 +31,11 @@ class MainViewModel(QObject):
     # Process 7 (Label Printing) signals
     serial_received = Signal(str)     # Serial number received from server
 
-    def __init__(self, config, api_client, auth_service, work_service, barcode_service, completion_watcher):
+    # TCP Server / Equipment measurement signals
+    measurement_received = Signal(object)  # EquipmentData from TCP
+    tcp_server_status = Signal(bool, str)  # (is_running, status_message)
+
+    def __init__(self, config, api_client, auth_service, work_service, barcode_service, completion_watcher, tcp_server=None):
         super().__init__()
         self.config = config
         self.api_client = api_client
@@ -35,6 +43,7 @@ class MainViewModel(QObject):
         self.work_service = work_service
         self.barcode_service = barcode_service
         self.completion_watcher = completion_watcher
+        self.tcp_server = tcp_server
 
         # State
         self.current_lot: Optional[str] = None
@@ -42,6 +51,9 @@ class MainViewModel(QObject):
         self.current_worker: Optional[str] = None
         self.current_serial: Optional[str] = None  # For SERIAL-level work
         self.is_online: bool = True
+
+        # Equipment measurement data (from TCP)
+        self.pending_measurement: Optional[Any] = None
 
         # Connect signals
         self._connect_signals()
@@ -120,6 +132,26 @@ class MainViewModel(QObject):
             "work_error -> on_work_service_error"
         )
 
+        # TCP Server signals
+        if self.tcp_server:
+            connector.connect(
+                self.tcp_server.signals.data_received,
+                self.on_measurement_received,
+                "tcp_data_received -> on_measurement_received"
+            ).connect(
+                self.tcp_server.signals.server_started,
+                lambda port: self.tcp_server_status.emit(True, f"TCP 서버 시작 (포트: {port})"),
+                "tcp_server_started -> tcp_server_status"
+            ).connect(
+                self.tcp_server.signals.server_stopped,
+                lambda: self.tcp_server_status.emit(False, "TCP 서버 중지"),
+                "tcp_server_stopped -> tcp_server_status"
+            ).connect(
+                self.tcp_server.signals.error_occurred,
+                lambda msg: self.error_occurred.emit(f"TCP 오류: {msg}"),
+                "tcp_error -> error_occurred"
+            )
+
         if not connector.all_connected():
             logger.error(
                 f"일부 시그널 연결 실패: {connector.failed_connections}"
@@ -168,6 +200,10 @@ class MainViewModel(QObject):
         lot_number = completion_data.get("lot_number", "UNKNOWN")
         logger.info(f"Completing work for LOT: {lot_number}")
 
+        # Add worker_id if not present
+        if "worker_id" not in completion_data:
+            completion_data["worker_id"] = self.auth_service.get_current_user_id()
+
         # Submit completion to backend (threaded - result will come via signal)
         self.work_service.complete_work(completion_data)
 
@@ -202,6 +238,10 @@ class MainViewModel(QObject):
         """
         lot_number = json_data.get("lot_number", "UNKNOWN")
         logger.info(f"Processing completion for LOT: {lot_number}")
+
+        # Add worker_id if not present
+        if "worker_id" not in json_data:
+            json_data["worker_id"] = self.auth_service.get_current_user_id()
 
         # Submit completion to backend (threaded - result will come via signal)
         self.work_service.complete_work(json_data)
@@ -306,6 +346,98 @@ class MainViewModel(QObject):
         # Clear state after successful conversion
         self.clear_current_lot()
 
+    # --- TCP Server / Equipment Measurement Methods ---
+
+    def on_measurement_received(self, equipment_data):
+        """
+        Handle measurement data received from equipment via TCP.
+
+        Args:
+            equipment_data: EquipmentData object from TCP server
+        """
+        logger.info(
+            f"Measurement received: result={equipment_data.result}, "
+            f"items={len(equipment_data.measurements)}"
+        )
+
+        # Store pending measurement for later use in complete_work
+        self.pending_measurement = equipment_data
+
+        # Emit signal for UI to display measurement data
+        self.measurement_received.emit(equipment_data)
+
+    def complete_with_measurement(self):
+        """
+        Complete work with pending measurement data.
+
+        Called when user confirms completion after receiving measurement.
+        """
+        if not self.current_lot:
+            self.error_occurred.emit("착공된 작업이 없습니다.")
+            return
+
+        if not self.pending_measurement:
+            self.error_occurred.emit("측정 데이터가 없습니다.")
+            return
+
+        # Build completion data
+        completion_data = {
+            "lot_number": self.current_lot,
+            "worker_id": self.auth_service.get_current_user_id(),
+            "result": self.pending_measurement.result,
+            "measurements": self.pending_measurement.to_api_format(),
+        }
+
+        # Add defects if FAIL
+        if self.pending_measurement.result == "FAIL":
+            completion_data["defect_data"] = {
+                "defects": [
+                    {"code": d.code, "reason": d.reason}
+                    for d in self.pending_measurement.defects
+                ]
+            }
+
+        logger.info(f"Completing work with measurement: {self.current_lot}")
+
+        # Submit completion
+        self.work_service.complete_work(completion_data)
+
+        # Clear pending measurement
+        self.pending_measurement = None
+
+    def clear_pending_measurement(self):
+        """Clear pending measurement data without completing."""
+        self.pending_measurement = None
+        logger.info("Pending measurement cleared")
+
+    def start_tcp_server(self, port: int = DEFAULT_TCP_PORT) -> bool:
+        """
+        Start TCP server for receiving equipment data.
+
+        Args:
+            port: TCP port to listen on
+
+        Returns:
+            True if server started successfully
+        """
+        if not self.tcp_server:
+            from services.tcp_server import TCPServer
+            self.tcp_server = TCPServer(port=port)
+            # Connect signals
+            self.tcp_server.signals.data_received.connect(
+                self.on_measurement_received
+            )
+            self.tcp_server.signals.error_occurred.connect(
+                lambda msg: self.error_occurred.emit(f"TCP 오류: {msg}")
+            )
+
+        return self.tcp_server.start()
+
+    def stop_tcp_server(self):
+        """Stop TCP server."""
+        if self.tcp_server:
+            self.tcp_server.stop()
+
     @safe_cleanup("ViewModel 정리 실패")
     def cleanup(self):
         """Clean up resources and cancel pending operations."""
@@ -323,6 +455,10 @@ class MainViewModel(QObject):
             "인증 서비스 작업 취소"
         )
         cleanup.add(self.completion_watcher.stop, "완료 감시자 정지")
+
+        # Stop TCP server if running
+        if self.tcp_server:
+            cleanup.add(self.tcp_server.stop, "TCP 서버 정지")
 
         failed = cleanup.execute()
         if failed:

@@ -566,6 +566,20 @@ export type ApiCatchError = Error & {
 export const getErrorMessage = (err: unknown, defaultMessage: string): string => {
   const error = err as any;
 
+  // StandardErrorResponse format with details (validation errors)
+  if (error?.response?.data?.details && Array.isArray(error.response.data.details)) {
+    const details = error.response.data.details;
+    if (details.length > 0) {
+      // Format: "field: message" for each validation error
+      const messages = details.map((d: { field?: string; message?: string }) => {
+        const field = d.field || 'unknown';
+        const message = d.message || 'validation failed';
+        return `${field}: ${message}`;
+      });
+      return messages.join(', ');
+    }
+  }
+
   // StandardErrorResponse format
   if (error?.response?.data?.message) {
     return error.response.data.message;

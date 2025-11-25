@@ -212,7 +212,7 @@ def create(db: Session, user_in: UserCreate) -> User:
         # Create user instance
         db_user = User(
             username=user_in.username.lower(),  # Normalize username
-            email=user_in.email.lower(),  # Normalize email
+            email=user_in.email.lower() if user_in.email else None,
             password_hash=password_hash,
             full_name=user_in.full_name,
             role=user_in.role,
@@ -228,24 +228,12 @@ def create(db: Session, user_in: UserCreate) -> User:
 
         return db_user
 
-    except IntegrityError as e:
+    except IntegrityError:
         db.rollback()
-        if "username" in str(e):
-            raise IntegrityError(
-                "statement",
-                "params",
-                "User with this username already exists",
-            )
-        elif "email" in str(e):
-            raise IntegrityError(
-                "statement",
-                "params",
-                "User with this email already exists",
-            )
         raise
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         db.rollback()
-        raise SQLAlchemyError(f"Failed to create user: {str(e)}") from e
+        raise
 
 
 def update(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User]:
@@ -309,24 +297,12 @@ def update(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User]:
 
         return db_user
 
-    except IntegrityError as e:
+    except IntegrityError:
         db.rollback()
-        if "username" in str(e):
-            raise IntegrityError(
-                "statement",
-                "params",
-                "User with this username already exists",
-            )
-        elif "email" in str(e):
-            raise IntegrityError(
-                "statement",
-                "params",
-                "User with this email already exists",
-            )
         raise
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         db.rollback()
-        raise SQLAlchemyError(f"Failed to update user: {str(e)}") from e
+        raise
 
 
 def delete(db: Session, user_id: int) -> bool:

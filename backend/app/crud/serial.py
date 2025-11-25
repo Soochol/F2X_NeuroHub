@@ -706,5 +706,27 @@ def can_rework(db: Session, serial_id: int) -> bool:
     return db_serial.can_rework()
 
 
+def count_by_lot(db: Session, lot_id: int) -> int:
+    """
+    Count total serials in a specific LOT.
+
+    Returns the number of serial records associated with the given lot.
+    Used for determining the next sequence number when generating new serials.
+
+    Args:
+        db: SQLAlchemy database session
+        lot_id: ID of the lot to count serials for
+
+    Returns:
+        Integer count of serials in the lot
+
+    Example:
+        current_count = count_by_lot(db, lot_id=5)
+        next_sequence = current_count + 1
+        print(f"Next serial will be #{next_sequence}")
+    """
+    return db.query(Serial).filter(Serial.lot_id == lot_id).count()
+
+
 # Alias for backward compatibility
 get_by_serial_number = get_by_number

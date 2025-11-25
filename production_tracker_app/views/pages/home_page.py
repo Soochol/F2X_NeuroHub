@@ -2,12 +2,14 @@
 Home Page - Work status display and controls.
 """
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame, 
+    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
     QLineEdit, QPushButton
 )
 from PySide6.QtCore import Qt, Signal
 from widgets.work_status_card import WorkStatusCard
 from widgets.base_components import ThemedLabel
+from widgets.error_banner import ErrorBanner
+from widgets.measurement_panel import MeasurementPanel
 from utils.theme_manager import get_theme
 
 theme = get_theme()
@@ -20,10 +22,13 @@ class HomePage(QWidget):
     start_requested = Signal(str)  # lot_number
     pass_requested = Signal()
     fail_requested = Signal()
+    measurement_confirmed = Signal()  # User confirmed measurement completion
+    measurement_cancelled = Signal()  # User cancelled measurement
 
-    def __init__(self, config, parent=None):
+    def __init__(self, config, auth_service=None, parent=None):
         super().__init__(parent)
         self.config = config
+        self.auth_service = auth_service
         self.setup_ui()
 
     def setup_ui(self):
@@ -97,6 +102,17 @@ class HomePage(QWidget):
         equip_layout.addWidget(self.equip_value)
         equip_layout.addStretch()
         process_layout.addLayout(equip_layout)
+
+        # Worker info
+        worker_layout = QHBoxLayout()
+        worker_label = QLabel("작업자:")
+        worker_label.setStyleSheet(f"color: {grey_400}; font-size: 13px;")
+        self.worker_value = QLabel(self._get_worker_display())
+        self.worker_value.setStyleSheet(f"color: {text_primary}; font-size: 13px;")
+        worker_layout.addWidget(worker_label)
+        worker_layout.addWidget(self.worker_value)
+        worker_layout.addStretch()
+        process_layout.addLayout(worker_layout)
 
         layout.addWidget(process_group)
 
@@ -173,7 +189,18 @@ class HomePage(QWidget):
         self.work_card = WorkStatusCard()
         layout.addWidget(self.work_card)
 
-        # 4. Complete Work Section
+        # 4. Measurement Panel (hidden until data received)
+        self.measurement_panel = MeasurementPanel()
+        self.measurement_panel.setVisible(False)
+        self.measurement_panel.confirm_clicked.connect(
+            self._on_measurement_confirmed
+        )
+        self.measurement_panel.cancel_clicked.connect(
+            self._on_measurement_cancelled
+        )
+        layout.addWidget(self.measurement_panel)
+
+        # 5. Complete Work Section
         complete_group = QFrame()
         complete_group.setObjectName("complete_group_frame")
         complete_group.setStyleSheet(f"""
@@ -255,23 +282,44 @@ class HomePage(QWidget):
 
         layout.addStretch()
 
+        # Error banner at bottom
+        self.error_banner = ErrorBanner()
+        layout.addWidget(self.error_banner)
+
     def _on_start_clicked(self):
         """Handle start button click or enter press."""
         lot_number = self.lot_input.text().strip()
         if lot_number:
+            self.error_banner.clear()  # Clear error on new action
             self.start_requested.emit(lot_number)
 
     def _on_pass_clicked(self):
         """Handle PASS button click."""
+        # Disable buttons immediately to prevent double-click
+        self.pass_button.setEnabled(False)
+        self.fail_button.setEnabled(False)
+        self.error_banner.clear()  # Clear error on new action
         self.pass_requested.emit()
 
     def _on_fail_clicked(self):
         """Handle FAIL button click."""
+        # Disable buttons immediately to prevent double-click
+        self.pass_button.setEnabled(False)
+        self.fail_button.setEnabled(False)
+        self.error_banner.clear()  # Clear error on new action
         self.fail_requested.emit()
 
     def set_status(self, message: str, variant: str = "default"):
         """Set status message (No-op as label is hidden, but kept for interface compatibility)."""
         pass
+
+    def show_error(self, message: str):
+        """Show error message in the error banner."""
+        self.error_banner.show_error(message)
+
+    def clear_error(self):
+        """Clear the error banner."""
+        self.error_banner.clear()
 
     def start_work(self, lot_number: str, start_time: str):
         """Update UI for work started."""
@@ -347,12 +395,56 @@ class HomePage(QWidget):
             return code
         return "(미설정)"
 
+    def _get_worker_display(self) -> str:
+        """Get worker (current user) display name from auth service."""
+        if self.auth_service and self.auth_service.current_user:
+            # Use full_name (user's real name) from the user schema
+            return self.auth_service.current_user.get("full_name", "미지정")
+        return "미지정"
+
     def refresh_info(self):
         """Refresh displayed equipment/line info from config."""
         self.process_name_value.setText(self.config.process_name)
+        self.worker_value.setText(self._get_worker_display())
         self.line_value.setText(self._get_line_display())
         self.equip_value.setText(self._get_equipment_display())
 
     def cleanup(self):
         """Cleanup resources."""
         self.work_card.cleanup()
+
+    # --- Measurement Panel Methods ---
+
+    def _on_measurement_confirmed(self):
+        """Handle measurement confirmation button click."""
+        self.measurement_confirmed.emit()
+        self.hide_measurement_panel()
+
+    def _on_measurement_cancelled(self):
+        """Handle measurement cancel button click."""
+        self.measurement_cancelled.emit()
+        self.hide_measurement_panel()
+
+    def show_measurement(self, equipment_data):
+        """
+        Show measurement data in the panel.
+
+        Args:
+            equipment_data: EquipmentData object from TCP server
+        """
+        self.measurement_panel.set_data(equipment_data)
+        self.measurement_panel.setVisible(True)
+
+        # Disable PASS/FAIL buttons while measurement panel is visible
+        self.pass_button.setEnabled(False)
+        self.fail_button.setEnabled(False)
+
+    def hide_measurement_panel(self):
+        """Hide the measurement panel."""
+        self.measurement_panel.setVisible(False)
+        self.measurement_panel.clear()
+
+        # Re-enable PASS/FAIL buttons if work is in progress
+        if self.work_card.is_working():
+            self.pass_button.setEnabled(True)
+            self.fail_button.setEnabled(True)

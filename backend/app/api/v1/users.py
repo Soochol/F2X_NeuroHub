@@ -28,6 +28,7 @@ Endpoints:
     PUT    /users/{id}/password - Change user password (admin only)
 """
 
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Path, Query, status
@@ -36,18 +37,20 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.api import deps
+from app.core.exceptions import (
+    DatabaseException,
+    DuplicateResourceException,
+    UserNotFoundException,
+    ValidationException,
+)
 from app.models.user import UserRole
 from app.schemas.user import (
     UserCreate,
     UserInDB,
     UserUpdate,
 )
-from app.core.exceptions import (
-    UserNotFoundException,
-    DuplicateResourceException,
-    ValidationException,
-    DatabaseException,
-)
+
+logger = logging.getLogger(__name__)
 
 
 # Create APIRouter
@@ -281,21 +284,40 @@ def create_user(
             identifier=f"username='{user_in.username}'"
         )
 
-    # Check if email already exists
-    existing_user = crud.user.get_by_email(db, email=user_in.email)
-    if existing_user:
-        raise DuplicateResourceException(
-            resource_type="User",
-            identifier=f"email='{user_in.email}'"
-        )
+    # Check if email already exists (only if email is provided)
+    if user_in.email:
+        existing_user = crud.user.get_by_email(db, email=user_in.email)
+        if existing_user:
+            raise DuplicateResourceException(
+                resource_type="User",
+                identifier=f"email='{user_in.email}'"
+            )
 
     try:
         db_user = crud.user.create(db, user_in=user_in)
         db.commit()
         db.refresh(db_user)
         return db_user
-    except (IntegrityError, SQLAlchemyError) as e:
+    except IntegrityError as e:
         db.rollback()
+        error_msg = str(e).lower()
+        # Check for unique constraint violations (duplicate key)
+        if "unique" in error_msg or "duplicate" in error_msg:
+            if "username" in error_msg:
+                raise DuplicateResourceException(
+                    resource_type="User",
+                    identifier=f"username='{user_in.username}'"
+                )
+            elif "email" in error_msg:
+                raise DuplicateResourceException(
+                    resource_type="User",
+                    identifier=f"email='{user_in.email}'"
+                )
+        logger.error(f"[CREATE_USER] IntegrityError: {e}")
+        raise DatabaseException(message="Failed to create user account")
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"[CREATE_USER] SQLAlchemyError: {e}")
         raise DatabaseException(message="Failed to create user account")
 
 

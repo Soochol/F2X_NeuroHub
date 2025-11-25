@@ -338,16 +338,19 @@ class WIPItem(Base):
         """Check if WIP can start a specific process.
 
         Business Rule BR-003: Process can only start if:
-        - Process 1: WIP must be CREATED or IN_PROGRESS
-        - Process 2-6: Previous process must be PASS
+        - First process: WIP must be CREATED or IN_PROGRESS
+        - Subsequent processes: Previous process must be PASS
+
+        Note: Actual process count is determined dynamically by active MANUFACTURING
+        processes in the database. This method only performs basic status checks.
 
         Args:
-            process_number: Process number to check (1-6)
+            process_number: Process number to check (must be >= 1)
 
         Returns:
             True if WIP can start the process, False otherwise
         """
-        if process_number < 1 or process_number > 6:
+        if process_number < 1:
             return False
 
         if self.status == WIPStatus.FAILED.value:
@@ -356,19 +359,20 @@ class WIPItem(Base):
         if self.status == WIPStatus.CONVERTED.value:
             return False
 
-        # Process 1 can always start if WIP is CREATED or IN_PROGRESS
+        # First process can always start if WIP is CREATED or IN_PROGRESS
         if process_number == 1:
             return self.status in (WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value)
 
-        # For processes 2-6, check if previous process is completed
-        # This will be validated in the service layer with actual process history
+        # For subsequent processes, check if WIP is IN_PROGRESS
+        # Detailed validation (previous process PASS) is done in the service layer
         return self.status == WIPStatus.IN_PROGRESS.value
 
     def can_convert_to_serial(self) -> bool:
         """Check if WIP can be converted to serial number.
 
-        Business Rule BR-005: WIP can only be converted if all processes 1-6 are PASS.
-        This is checked in the service layer.
+        Business Rule BR-005: WIP can only be converted if all MANUFACTURING
+        processes are PASS. The actual process count is determined dynamically
+        in the service layer based on active MANUFACTURING processes.
 
         Returns:
             True if WIP status allows conversion, False otherwise

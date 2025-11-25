@@ -269,7 +269,10 @@ export const LotMonitorPage = () => {
                             {filteredAndSortedLots.map((lot) => {
                                 const stats = getLotSerialStats(lot);
                                 const hasMissing = stats.missing > 0;
-                                const completionRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;
+                                // Use LOT's passed_quantity from backend, not frontend serial filtering
+                                const completionRate = lot.target_quantity > 0
+                                    ? ((lot.passed_quantity || 0) / lot.target_quantity) * 100
+                                    : 0;
 
                                 // 테두리 색상 결정 로직
                                 const isCompleted = lot.status === LotStatus.COMPLETED || lot.status === LotStatus.CLOSED;

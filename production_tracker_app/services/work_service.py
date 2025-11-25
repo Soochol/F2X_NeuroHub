@@ -129,8 +129,9 @@ class WorkService(QObject):
                 "lot_number": lot_number,
                 # Database PK as integer
                 "process_id": str(self.config.process_db_id),
+                "worker_id": json_data.get('worker_id', 'W001'),
                 "result": json_data.get('result', 'PASS'),
-                "measurement_data": json_data.get('measurement_data'),
+                "measurements": json_data.get('measurements') or json_data.get('measurement_data'),
                 "defect_data": json_data.get('defect_data')
             }
 

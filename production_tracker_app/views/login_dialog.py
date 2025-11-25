@@ -54,6 +54,10 @@ class LoginDialog(QDialog):
         self.password_input.setEchoMode(QLineEdit.Password)
         layout.addWidget(self.password_input)
 
+        # Set focus to password field if username was pre-filled
+        if self.config.saved_username:
+            self.password_input.setFocus()
+
         # Auto-login checkbox
         self.auto_login_check = QCheckBox("자동 로그인")
         self.auto_login_check.setChecked(self.config.auto_login_enabled)
@@ -111,13 +115,17 @@ class LoginDialog(QDialog):
         username = user_data.get('username', 'UNKNOWN')
         logger.info(f"Login successful (dialog): {username}")
 
-        # Save credentials if auto-login enabled
+        # Always save last login username (for auto-fill on next login)
+        self.config.saved_username = username
+
+        # Save token only if auto-login enabled
         if self.auto_login_check.isChecked():
-            self.config.saved_username = username
             self.config.saved_token = self.auth_service.access_token
             self.config.auto_login_enabled = True
+            logger.info("Auto-login enabled")
         else:
             self.config.auto_login_enabled = False
+            logger.info("Auto-login disabled")
 
         # Re-enable button
         self.login_button.setEnabled(True)

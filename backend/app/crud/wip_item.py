@@ -30,7 +30,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app.models.lot import Lot, LotStatus
 from app.models.wip_item import WIPItem, WIPStatus
 from app.models.wip_process_history import WIPProcessHistory, ProcessResult
-from app.models.process import Process
+from app.models.process import Process, ProcessType
 from app.models.serial import Serial, SerialStatus
 from app.utils.wip_number import generate_batch_wip_ids
 from app.services import wip_service
@@ -489,11 +489,17 @@ def complete_process(
 
         # Update WIP status based on result
         if result == ProcessResult.PASS.value:
-            # Check if all processes 1-6 are completed
+            # Get count of active MANUFACTURING processes dynamically
+            active_manufacturing_count = db.query(Process).filter(
+                Process.process_type == ProcessType.MANUFACTURING.value,
+                Process.is_active == True
+            ).count()
+
+            # Check if all MANUFACTURING processes are completed
             completed_processes = wip_service.get_completed_processes(db, wip_item)
             completed_processes.append(process.process_number)  # Add current
 
-            if len(set(completed_processes)) == 6:  # All 6 processes done
+            if len(set(completed_processes)) >= active_manufacturing_count:
                 wip_item.status = WIPStatus.COMPLETED.value
                 wip_item.completed_at = datetime.utcnow()
                 wip_item.current_process_id = None

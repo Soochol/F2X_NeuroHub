@@ -594,10 +594,14 @@ class AnalyticsService:
             WIPItem.status == WIPStatus.IN_PROGRESS
         ).scalar() or 0
 
+        # Count both COMPLETED and CONVERTED WIPs as finished
         total_completed = db.query(func.count(WIPItem.id)).filter(
             and_(
-                WIPItem.completed_at.between(start_of_day, end_of_day),
-                WIPItem.status == WIPStatus.COMPLETED
+                or_(
+                    WIPItem.completed_at.between(start_of_day, end_of_day),
+                    WIPItem.converted_at.between(start_of_day, end_of_day)
+                ),
+                WIPItem.status.in_([WIPStatus.COMPLETED, WIPStatus.CONVERTED])
             )
         ).scalar() or 0
 
@@ -645,18 +649,38 @@ class AnalyticsService:
                 )
             ).scalar() or 0
 
-            progress = (wip_completed / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
+            # Count WIPs with CREATED status (newly created, not started)
+            wip_created = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.lot_id == lot.id,
+                    WIPItem.status == WIPStatus.CREATED
+                )
+            ).scalar() or 0
+
+            # Count only CONVERTED WIPs (converted to serial)
+            wip_converted = db.query(func.count(WIPItem.id)).filter(
+                and_(
+                    WIPItem.lot_id == lot.id,
+                    WIPItem.status == WIPStatus.CONVERTED
+                )
+            ).scalar() or 0
+
+            # Progress based on converted/target
+            progress = (wip_converted / lot.target_quantity * 100) if lot.target_quantity > 0 else 0
 
             lots_summary.append({
                 "lot_number": lot.lot_number,
                 "product_model_name": lot.product_model.model_name if lot.product_model else "Unknown",
                 "status": lot.status,
                 "target_quantity": lot.target_quantity,
-                "started_count": wip_started,
+                "started_count": wip_started,  # Total WIPs created for this LOT
+                "created_count": wip_created,  # WIPs in CREATED status
                 "in_progress_count": wip_in_progress,
-                "completed_count": wip_completed,
+                "converted_count": wip_converted,  # WIPs converted to serial
+                "completed_count": wip_completed,  # Keep for backward compatibility (COMPLETED + CONVERTED)
                 "defective_count": wip_failed,
                 "progress": round(progress, 1),
+                "progress_percentage": round(progress, 1),  # Alias for frontend compatibility
                 "created_at": lot.created_at.isoformat() if lot.created_at else None
             })
 

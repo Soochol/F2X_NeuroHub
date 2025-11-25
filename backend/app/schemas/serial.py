@@ -258,8 +258,8 @@ class SerialInDB(SerialBase):
         ...,
         min_length=16,
         max_length=16,
-        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{2}\d{3}$',
-        description="Auto-generated unique serial number (16 chars, format: KR01PSA251101001)"
+        pattern=r'^[A-Z0-9]{13}\d{3}$',
+        description="Auto-generated unique serial number (16 chars: LOT number 13 chars + sequence 3 digits)"
     )
     created_at: datetime = Field(
         ...,

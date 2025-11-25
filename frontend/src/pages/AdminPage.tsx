@@ -9,6 +9,7 @@ import { usersApi, processesApi, productModelsApi, productionLinesApi, equipment
 import type { User, Process, ProductModel, ProductionLine, Equipment, UserRole } from '@/types/api';
 import { UserRole as UserRoleEnum, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
+import { App } from 'antd';
 
 type TabType = 'users' | 'processes' | 'products' | 'productionLines' | 'equipment';
 
@@ -74,6 +75,7 @@ export const AdminPage = () => {
 };
 
 const UserManagement = () => {
+  const { message } = App.useApp();
   const { data: users, isLoading, error, refetch, setError } = useAsyncData<User[]>({
     fetchFn: () => usersApi.getUsers(), initialData: [], errorMessage: 'Failed to load users'
   });
@@ -85,14 +87,64 @@ const UserManagement = () => {
     modal.open(user);
   };
 
+  // Frontend validation for user form
+  const validateUserForm = (): string | null => {
+    const { username, full_name, email, password } = form.formData;
+    const isNewUser = !modal.editingItem;
+
+    // Username validation (3-50 chars, alphanumeric, underscore, Korean)
+    if (isNewUser) {
+      if (username.length < 3 || username.length > 50) {
+        return 'Username must be 3-50 characters';
+      }
+      if (!/^[a-zA-Z0-9_가-힣]+$/.test(username)) {
+        return 'Username: letters, numbers, underscores, Korean only';
+      }
+    }
+
+    // Full name validation (required, max 100 chars)
+    if (!full_name || full_name.length < 1) {
+      return 'Full name is required';
+    }
+    if (full_name.length > 100) {
+      return 'Full name max 100 characters';
+    }
+
+    // Email validation (optional, but must be valid format if provided)
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return 'Invalid email format';
+    }
+
+    // Password validation (only for new users, min 4 chars)
+    if (isNewUser) {
+      if (password.length < 4) {
+        return 'Password must be at least 4 characters';
+      }
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Frontend validation
+    const validationError = validateUserForm();
+    if (validationError) {
+      message.error(validationError, 5);
+      return;
+    }
+
     try {
       modal.editingItem
         ? await usersApi.updateUser(modal.editingItem.id, { full_name: form.formData.full_name, role: form.formData.role, is_active: form.formData.is_active })
         : await usersApi.createUser(form.formData);
       modal.close(); form.resetForm(); refetch();
-    } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to save user')); }
+      message.success(modal.editingItem ? 'User updated successfully' : 'User created successfully');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to save user');
+      message.error(errorMsg, 5);
+    }
   };
 
   const handleDelete = async (userId: number) => {
@@ -131,13 +183,13 @@ const UserManagement = () => {
       <Modal isOpen={modal.isOpen} onClose={modal.close} title={modal.editingItem ? 'Edit User' : 'Add New User'}
         footer={<div style={styles.modalFooter}><Button variant="secondary" onClick={modal.close}>Cancel</Button><Button onClick={handleSubmit}>Save</Button></div>}>
         <form onSubmit={handleSubmit}>
-          <Input label="Username" value={form.formData.username} onChange={(e) => form.setField('username', e.target.value)} required disabled={!!modal.editingItem} />
+          <Input label="User ID" value={form.formData.username} onChange={(e) => form.setField('username', e.target.value)} required disabled={!!modal.editingItem} />
           <Input label="Full Name" value={form.formData.full_name} onChange={(e) => form.setField('full_name', e.target.value)} required />
           {!modal.editingItem && <>
-            <Input label="Email" type="email" value={form.formData.email} onChange={(e) => form.setField('email', e.target.value)} required />
+            <Input label="Email (optional)" type="email" value={form.formData.email} onChange={(e) => form.setField('email', e.target.value)} />
             <Input label="Password" type="password" value={form.formData.password} onChange={(e) => form.setField('password', e.target.value)} required />
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
-              Min 8 chars, uppercase, lowercase, and digit required
+              Min 4 characters
             </div>
           </>}
           <Select label="Role" value={form.formData.role} onChange={(e) => form.setField('role', e.target.value as UserRole)}
@@ -153,6 +205,7 @@ const UserManagement = () => {
 };
 
 const ProcessManagement = () => {
+  const { message } = App.useApp();
   const { data: processes, isLoading, error, refetch, setError } = useAsyncData<Process[]>({
     fetchFn: async () => (await processesApi.getProcesses()).sort((a, b) => a.sort_order - b.sort_order),
     initialData: [], errorMessage: 'Failed to load processes'
@@ -185,12 +238,25 @@ const ProcessManagement = () => {
       };
       modal.editingItem ? await processesApi.updateProcess(modal.editingItem.id, submitData) : await processesApi.createProcess(submitData);
       modal.close(); refetch();
-    } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to save process')); }
+      message.success('공정이 저장되었습니다.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to save process');
+      message.error(errorMsg, 5);
+      // 모달은 유지하고 토스트만 표시 (setError 호출하지 않음)
+    }
   };
 
   const handleDelete = async (processId: number) => {
     if (!confirm('Are you sure you want to delete this process?')) return;
-    try { await processesApi.deleteProcess(processId); refetch(); } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to delete process')); }
+    try {
+      await processesApi.deleteProcess(processId);
+      refetch();
+      message.success('공정이 삭제되었습니다.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to delete process');
+      message.error(errorMsg, 5);
+      setError(errorMsg);
+    }
   };
 
   return (
@@ -248,7 +314,7 @@ const ProcessManagement = () => {
               <option value="SERIAL_CONVERSION">Serial Conversion (시리얼 변환)</option>
             </select>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Manufacturing: Standard production steps (P1-P6). Serial Conversion: Gateway to finalize and assign serial number (P7+).
+              Manufacturing: 일반 제조 공정. Serial Conversion: 시리얼 번호 부여 공정 (마지막 공정으로 1개만 허용).
             </div>
           </div>
           <Input label="Process Name (Korean)" value={form.formData.process_name_ko} onChange={(e) => form.setField('process_name_ko', e.target.value)} required />
