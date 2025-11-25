@@ -174,7 +174,7 @@ export const LotMonitorPage = () => {
                         Active LOTs
                     </div>
                     <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--color-brand)' }}>
-                        {lots.filter((l) => l.status === LotStatus.IN_PROGRESS).length}
+                        {lots.filter((l) => l.status === LotStatus.CREATED || l.status === LotStatus.IN_PROGRESS).length}
                     </div>
                 </Card>
             </div>
