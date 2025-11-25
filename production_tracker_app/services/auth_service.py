@@ -36,10 +36,10 @@ class AuthService(QObject):
         self._saved_username: Optional[str] = None
         self._saved_password: Optional[str] = None
 
-        # Auto-refresh timer (25 minutes = 1,500,000 ms)
-        # Refreshes 5 minutes before 30-minute expiration
+        # Auto-refresh timer (12 hours = 43,200,000 ms)
+        # Refreshes halfway through 24-hour token expiration
         self._refresh_timer = QTimer(self)
-        self._refresh_timer.setInterval(25 * 60 * 1000)  # 25 minutes in milliseconds
+        self._refresh_timer.setInterval(12 * 60 * 60 * 1000)  # 12 hours in milliseconds
         self._refresh_timer.timeout.connect(self._auto_refresh_token)
 
         # Retry counter for refresh/re-login failures

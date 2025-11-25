@@ -18,6 +18,7 @@ from views.pages.settings_page import SettingsPage
 from views.pages.wip_generation_page import WIPGenerationPage
 from views.pages.wip_dashboard_page import WIPDashboardPage
 from views.defect_dialog import DefectDialog
+from views.login_dialog import LoginDialog
 from viewmodels.wip_generation_viewmodel import WIPGenerationViewModel
 from viewmodels.wip_dashboard_viewmodel import WIPDashboardViewModel
 from widgets.base_components import StatusIndicator
@@ -257,6 +258,93 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(nav_container)
         sidebar_layout.addStretch()
 
+        # User info and logout at bottom of sidebar
+        bottom_container = QWidget()
+        bottom_container.setObjectName("bottom_container")
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(12, 8, 12, 8)
+        bottom_layout.setSpacing(8)
+
+        # User info section
+        self.user_info_widget = QWidget()
+        self.user_info_widget.setObjectName("user_info_widget")
+        user_info_layout = QHBoxLayout(self.user_info_widget)
+        user_info_layout.setContentsMargins(0, 0, 0, 0)
+        user_info_layout.setSpacing(8)
+
+        # User icon
+        self._user_icon = SvgIcon("user", theme.get('colors.grey.400'), 20)
+        user_info_layout.addWidget(self._user_icon)
+
+        # User name labels container
+        user_labels_widget = QWidget()
+        user_labels_layout = QVBoxLayout(user_labels_widget)
+        user_labels_layout.setContentsMargins(0, 0, 0, 0)
+        user_labels_layout.setSpacing(0)
+
+        self.user_name_label = QLabel("")
+        self.user_name_label.setObjectName("user_name_label")
+        self.user_name_label.setStyleSheet(f"""
+            QLabel#user_name_label {{
+                color: {theme.get('colors.text.primary')};
+                font-size: 12px;
+                font-weight: 600;
+            }}
+        """)
+        user_labels_layout.addWidget(self.user_name_label)
+
+        self.user_id_label = QLabel("")
+        self.user_id_label.setObjectName("user_id_label")
+        self.user_id_label.setStyleSheet(f"""
+            QLabel#user_id_label {{
+                color: {theme.get('colors.grey.500')};
+                font-size: 10px;
+            }}
+        """)
+        user_labels_layout.addWidget(self.user_id_label)
+
+        user_info_layout.addWidget(user_labels_widget)
+        user_info_layout.addStretch()
+
+        bottom_layout.addWidget(self.user_info_widget)
+
+        # Separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setStyleSheet(f"background-color: {theme.get('colors.border.default')}; max-height: 1px;")
+        bottom_layout.addWidget(separator)
+
+        # Logout button
+        self.logout_btn = NavItemWidget("logout", "로그아웃")
+        self.logout_btn.setCheckable(False)  # Not a navigation item
+        self.logout_btn.clicked.connect(self._on_logout_clicked)
+
+        # Apply danger color styling for logout
+        danger = theme.get('colors.status.danger')
+        self.logout_btn.setStyleSheet(f"""
+            NavItemWidget {{
+                background-color: transparent;
+                border: none;
+                border-left: 3px solid transparent;
+                text-align: left;
+            }}
+            NavItemWidget:hover {{
+                background-color: rgba(239, 68, 68, 0.1);
+                border-left: 3px solid {danger};
+            }}
+            #nav_label {{
+                color: {danger};
+                font-size: 13px;
+                background: transparent;
+            }}
+        """)
+
+        bottom_layout.addWidget(self.logout_btn)
+        sidebar_layout.addWidget(bottom_container)
+
+        # Initialize user info display
+        self._update_user_info_display()
+
         main_layout.addWidget(self.sidebar)
 
         # Content area
@@ -413,6 +501,74 @@ class MainWindow(QMainWindow):
         """Handle settings data refreshed from API."""
         Toast.success(self, f"{data_type} 목록 새로고침 완료 ({count}건)")
 
+    @safe_slot("로그아웃 클릭 처리 실패")
+    def _on_logout_clicked(self):
+        """Handle logout button click from sidebar."""
+        reply = QMessageBox.question(
+            self,
+            "로그아웃",
+            "로그아웃 하시겠습니까?\n\n다시 로그인해야 앱을 사용할 수 있습니다.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            self._perform_logout()
+
+    def _perform_logout(self):
+        """Perform the actual logout and show re-login dialog."""
+        logger.info("Processing logout request...")
+
+        # Get auth service
+        auth_service = getattr(self.viewmodel, 'auth_service', None)
+        if not auth_service:
+            logger.error("Auth service not available")
+            Toast.danger(self, "로그아웃 실패: 인증 서비스를 찾을 수 없습니다.")
+            return
+
+        # Stop any active work before logout
+        if self.current_lot:
+            Toast.warning(self, "진행 중인 작업이 있습니다. 먼저 작업을 완료해주세요.")
+            return
+
+        # Perform logout
+        auth_service.logout()
+        logger.info("Logout completed, minimizing window and showing login dialog...")
+
+        # Minimize main window
+        self.showMinimized()
+
+        # Show login dialog for re-login (parent=None so it appears independently)
+        login_dialog = LoginDialog(auth_service, self.config, None)
+        result = login_dialog.exec()
+
+        if result:
+            # Login successful - restore main window
+            logger.info("Re-login successful, restoring window and updating UI...")
+
+            # Restore main window
+            self.showNormal()
+            self.activateWindow()
+            self.raise_()
+
+            # Update user info in sidebar
+            self._update_user_info_display()
+
+            # Refresh home page
+            self.home_page.refresh_info()
+
+            # Update window title
+            self.setWindowTitle(f"F2X NeuroHub - {self.config.process_name}")
+
+            Toast.success(self, "로그인 성공")
+
+            # Navigate to home page
+            self._on_nav_clicked(0)
+        else:
+            # Login cancelled - close the application
+            logger.info("Re-login cancelled, closing application...")
+            self.close()
+
     def _toggle_sidebar(self):
         """Toggle sidebar between expanded and collapsed state."""
         self._sidebar_expanded = not self._sidebar_expanded
@@ -425,6 +581,13 @@ class MainWindow(QMainWindow):
         # Show/hide labels in nav items
         for nav_btn in self._nav_buttons:
             nav_btn.set_expanded(self._sidebar_expanded)
+
+        # Also update logout button
+        self.logout_btn.set_expanded(self._sidebar_expanded)
+
+        # Show/hide user info labels
+        self.user_name_label.setVisible(self._sidebar_expanded)
+        self.user_id_label.setVisible(self._sidebar_expanded)
 
         # Animate sidebar width
         self._sidebar_animation = QPropertyAnimation(
@@ -445,6 +608,24 @@ class MainWindow(QMainWindow):
         self._sidebar_max_animation.setEndValue(target_width)
         self._sidebar_max_animation.setEasingCurve(QEasingCurve.OutCubic)
         self._sidebar_max_animation.start()
+
+    def _update_user_info_display(self):
+        """Update user info display in sidebar."""
+        auth_service = getattr(self.viewmodel, 'auth_service', None)
+        if auth_service and auth_service.current_user:
+            user = auth_service.current_user
+            full_name = user.get('full_name', '')
+            username = user.get('username', '')
+
+            if full_name:
+                self.user_name_label.setText(full_name)
+                self.user_id_label.setText(f"@{username}")
+            else:
+                self.user_name_label.setText(username)
+                self.user_id_label.setText("")
+        else:
+            self.user_name_label.setText("로그인 필요")
+            self.user_id_label.setText("")
 
     def connect_signals(self):
         """Connect ViewModel signals to UI updates."""

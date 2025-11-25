@@ -206,6 +206,33 @@ class AppConfig:
         """Save username."""
         self.settings.setValue("auth/username", value)
 
+    @property
+    def recent_usernames(self) -> list:
+        """Get list of recent usernames (max 5)."""
+        usernames = self.settings.value("auth/recent_usernames", [])
+        if isinstance(usernames, str):
+            # Handle case where QSettings returns single string
+            return [usernames] if usernames else []
+        return usernames if usernames else []
+
+    @recent_usernames.setter
+    def recent_usernames(self, value: list):
+        """Save list of recent usernames."""
+        self.settings.setValue("auth/recent_usernames", value[:5])
+
+    def add_recent_username(self, username: str):
+        """Add username to recent list (max 5, most recent first)."""
+        if not username:
+            return
+        usernames = self.recent_usernames
+        # Remove if already exists
+        if username in usernames:
+            usernames.remove(username)
+        # Add to front
+        usernames.insert(0, username)
+        # Keep only 5
+        self.recent_usernames = usernames[:5]
+
     def clear_auth(self):
         """Clear all authentication data."""
         self.saved_token = ""

@@ -1,8 +1,8 @@
 """
 Login Dialog for authentication.
 """
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
-                               QPushButton, QCheckBox, QMessageBox)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit,
+                               QPushButton, QCheckBox, QMessageBox, QComboBox)
 from PySide6.QtCore import Qt
 from widgets.base_components import ThemedLabel
 from utils.exception_handler import SignalConnector, safe_slot
@@ -21,6 +21,13 @@ class LoginDialog(QDialog):
         self.setWindowTitle("로그인")
         self.setModal(True)
         self.resize(350, 250)
+        # Prevent minimize, keep on top, only show close button
+        self.setWindowFlags(
+            Qt.Dialog |
+            Qt.WindowTitleHint |
+            Qt.WindowCloseButtonHint |
+            Qt.WindowStaysOnTopHint
+        )
         self.setup_ui()
         self.connect_signals()
 
@@ -35,14 +42,63 @@ class LoginDialog(QDialog):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        # Username
+        # Username (editable combobox with recent usernames)
         username_label = ThemedLabel("사용자명:", variant="body")
         layout.addWidget(username_label)
-        self.username_input = QLineEdit()
+        self.username_input = QComboBox()
         self.username_input.setObjectName("username_input")
-        self.username_input.setPlaceholderText("사용자명을 입력하세요")
+        self.username_input.setEditable(True)
+        self.username_input.lineEdit().setPlaceholderText("사용자명을 입력하세요")
+        # Style combobox for dark mode visibility
+        self.username_input.setStyleSheet("""
+            QComboBox {
+                background-color: #2D2D2D;
+                color: #E0E0E0;
+                border: 1px solid #4A4A4A;
+                border-radius: 4px;
+                padding: 6px 10px;
+                min-height: 20px;
+            }
+            QComboBox:hover {
+                border-color: #5A5A5A;
+            }
+            QComboBox:focus {
+                border-color: #3B82F6;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 24px;
+                border-left: 1px solid #4A4A4A;
+                background-color: #3A3A3A;
+                border-top-right-radius: 4px;
+                border-bottom-right-radius: 4px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #B0B0B0;
+                margin-right: 5px;
+            }
+            QComboBox::down-arrow:hover {
+                border-top-color: #FFFFFF;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2D2D2D;
+                color: #E0E0E0;
+                border: 1px solid #4A4A4A;
+                selection-background-color: #3B82F6;
+                selection-color: white;
+            }
+        """)
+        # Populate with recent usernames
+        recent_usernames = self.config.recent_usernames
+        if recent_usernames:
+            self.username_input.addItems(recent_usernames)
+        # Set saved username as current text
         if self.config.saved_username:
-            self.username_input.setText(self.config.saved_username)
+            self.username_input.setCurrentText(self.config.saved_username)
         layout.addWidget(self.username_input)
 
         # Password
@@ -71,7 +127,7 @@ class LoginDialog(QDialog):
         layout.addWidget(self.login_button)
 
         # Connect Enter key to login
-        self.username_input.returnPressed.connect(self.on_login)
+        self.username_input.lineEdit().returnPressed.connect(self.on_login)
         self.password_input.returnPressed.connect(self.on_login)
 
     def connect_signals(self):
@@ -94,14 +150,16 @@ class LoginDialog(QDialog):
 
     def on_login(self):
         """Handle login button click (initiates threaded login)."""
-        username = self.username_input.text().strip()
+        username = self.username_input.currentText().strip()
         password = self.password_input.text()
 
         if not username or not password:
             QMessageBox.warning(self, "입력 오류", "사용자명과 비밀번호를 모두 입력해주세요.")
             return
 
-        # Disable button while login in progress
+        # Disable inputs and button while login in progress
+        self.username_input.setEnabled(False)
+        self.password_input.setEnabled(False)
         self.login_button.setEnabled(False)
         self.login_button.setText("로그인 중...")
         logger.info(f"Initiating threaded login for user: {username}")
@@ -117,6 +175,8 @@ class LoginDialog(QDialog):
 
         # Always save last login username (for auto-fill on next login)
         self.config.saved_username = username
+        # Add to recent usernames list
+        self.config.add_recent_username(username)
 
         # Save token only if auto-login enabled
         if self.auto_login_check.isChecked():
@@ -127,7 +187,9 @@ class LoginDialog(QDialog):
             self.config.auto_login_enabled = False
             logger.info("Auto-login disabled")
 
-        # Re-enable button
+        # Re-enable inputs and button
+        self.username_input.setEnabled(True)
+        self.password_input.setEnabled(True)
         self.login_button.setEnabled(True)
         self.login_button.setText("로그인")
 
@@ -139,7 +201,9 @@ class LoginDialog(QDialog):
         """Handle login error from threaded operation."""
         logger.error(f"Login error (dialog): {error_msg}")
 
-        # Re-enable button
+        # Re-enable inputs and button
+        self.username_input.setEnabled(True)
+        self.password_input.setEnabled(True)
         self.login_button.setEnabled(True)
         self.login_button.setText("로그인")
 
