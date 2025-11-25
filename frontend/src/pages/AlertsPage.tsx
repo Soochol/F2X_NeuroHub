@@ -265,10 +265,10 @@ export const AlertsPage = () => {
                 {selectedAlertIds.size} alert(s) selected
               </span>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <Button size="small" onClick={handleBulkMarkAsRead}>
+                <Button size="sm" onClick={handleBulkMarkAsRead}>
                   Mark as Read
                 </Button>
-                <Button size="small" variant="secondary" onClick={() => setSelectedAlertIds(new Set())}>
+                <Button size="sm" variant="secondary" onClick={() => setSelectedAlertIds(new Set())}>
                   Clear Selection
                 </Button>
               </div>
@@ -407,7 +407,7 @@ export const AlertsPage = () => {
                               </span>
 
                               {isUnread && (
-                                <Button size="small" variant="success" onClick={() => handleMarkAsRead(alert.id)}>
+                                <Button size="sm" variant="primary" onClick={() => handleMarkAsRead(alert.id)}>
                                   Mark Read
                                 </Button>
                               )}
@@ -511,7 +511,7 @@ export const AlertsPage = () => {
                 >
                   <Button
                     variant="secondary"
-                    size="small"
+                    size="sm"
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 0}
                   >
@@ -522,7 +522,7 @@ export const AlertsPage = () => {
                   </span>
                   <Button
                     variant="secondary"
-                    size="small"
+                    size="sm"
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage >= totalPages - 1}
                   >

@@ -74,13 +74,13 @@ python gui_analyzer.py <path_to_ui_file.py>
 ### 예시
 ```bash
 # Main window 분석
-python gui_analyzer.py ../../../../production_tracker_app/views/main_window.py
+python gui_analyzer.py ../../../../neurohub_client/views/main_window.py
 
 # Dialog 분석
-python gui_analyzer.py ../../../../production_tracker_app/views/login_dialog.py
+python gui_analyzer.py ../../../../neurohub_client/views/login_dialog.py
 
 # Widget 분석
-python gui_analyzer.py ../../../../production_tracker_app/widgets/lot_display_card.py
+python gui_analyzer.py ../../../../neurohub_client/widgets/lot_display_card.py
 ```
 
 ### 출력 결과
@@ -331,5 +331,5 @@ Copyright (c) 2025 F2X. All rights reserved.
 ## 참고 자료
 
 - [skill.md](../skill.md) - PySide6/PyQt6 Best Practices
-- [visual_debugger.py](../../../production_tracker_app/visual_debugger.py) - 동적 디버거
-- [ARCHITECTURE.md](../../../production_tracker_app/ARCHITECTURE.md) - 아키텍처 가이드
+- [visual_debugger.py](../../../neurohub_client/visual_debugger.py) - 동적 디버거
+- [ARCHITECTURE.md](../../../neurohub_client/ARCHITECTURE.md) - 아키텍처 가이드

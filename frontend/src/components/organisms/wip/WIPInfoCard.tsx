@@ -17,7 +17,7 @@ interface WIPInfoCardProps {
   serial: Serial;
 }
 
-const statusColors: Record<SerialStatus, { bg: string; text: string }> = {
+const statusColors: Record<string, { bg: string; text: string }> = {
   CREATED: {
     bg: 'var(--color-gray-200)',
     text: 'var(--color-gray-700)',
@@ -26,21 +26,13 @@ const statusColors: Record<SerialStatus, { bg: string; text: string }> = {
     bg: 'var(--color-info-bg, rgba(52, 152, 219, 0.15))',
     text: 'var(--color-info, var(--color-brand))',
   },
-  PASS: {
+  PASSED: {
     bg: 'var(--color-success-bg, rgba(39, 174, 96, 0.15))',
     text: 'var(--color-success)',
   },
-  FAIL: {
+  FAILED: {
     bg: 'var(--color-error-bg, rgba(245, 101, 101, 0.15))',
     text: 'var(--color-error)',
-  },
-  REWORK: {
-    bg: 'var(--color-warning-bg, rgba(243, 156, 18, 0.15))',
-    text: 'var(--color-warning)',
-  },
-  SCRAPPED: {
-    bg: 'var(--color-gray-200)',
-    text: 'var(--color-gray-600)',
   },
 };
 

@@ -2,7 +2,8 @@
  * Serial Tracking Page
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { SerialSearch, SerialTraceView } from '@/components/serials';
 import { Card } from '@/components/common';
 import { serialsApi } from '@/api';
@@ -14,6 +15,15 @@ export const SerialsPage = () => {
   const [trace, setTrace] = useState<SerialTrace | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const serial = searchParams.get('serial');
+    if (serial) {
+      handleSearch(serial);
+    }
+  }, [searchParams]);
 
   const handleSearch = async (serialNumber: string) => {
     setIsLoading(true);
@@ -62,7 +72,7 @@ export const SerialsPage = () => {
           </p>
         </div>
 
-        <SerialSearch onSearch={handleSearch} isLoading={isLoading} />
+        <SerialSearch onSearch={handleSearch} isLoading={isLoading} initialValue={searchParams.get('serial') || ''} />
       </div>
 
       {/* Scrollable Content Section */}

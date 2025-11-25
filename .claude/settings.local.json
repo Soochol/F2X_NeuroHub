@@ -38,7 +38,7 @@
       "Bash(timeout /t 3 /nobreak)",
       "Bash(curl:*)",
       "Bash(uv venv:*)",
-      "Bash(.venvScriptspython.exe production_tracker_appmain.py)",
+      "Bash(.venvScriptspython.exe neurohub_clientmain.py)",
       "Bash(c:/myCode/F2X_NeuroHub/.venv/Scripts/python.exe:*)",
       "Bash(c:/myCode/F2X_NeuroHub/.venv/Scripts/pip.exe install:*)",
       "Bash(uv pip install:*)",
@@ -51,7 +51,7 @@
       "Bash(npx playwright:*)",
       "Bash(npm run test:e2e:headed:*)",
       "Bash(npm run test:e2e:*)",
-      "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe production_tracker_appmain.py)",
+      "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe neurohub_clientmain.py)",
       "Bash(if not exist \"c:\\myCode\\F2X_NeuroHub\\backend\\scripts\" mkdir \"c:\\myCode\\F2X_NeuroHub\\backend\\scripts\")",
       "Bash(docker exec:*)",
       "Bash(uv run:*)",
@@ -70,7 +70,12 @@
       "Bash(c:myCodeF2X_NeuroHub.venvScriptspython.exe check_admin_user.py)",
       "Bash(done)",
       "Bash(git show:*)",
-      "Bash(/c/myCode/F2X_NeuroHub/.venv/Scripts/python.exe:*)"
+      "Bash(/c/myCode/F2X_NeuroHub/.venv/Scripts/python.exe:*)",
+      "Bash(npm run build:*)",
+      "Bash(uv add:*)",
+      "Bash(del \"c:\\myCode\\F2X_NeuroHub\\backend\\log_config.yaml\")",
+      "Bash(docker compose:*)",
+      "Bash(docker volume rm:*)"
     ],
     "deny": [],
     "ask": []

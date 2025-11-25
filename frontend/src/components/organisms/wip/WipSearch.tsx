@@ -11,16 +11,21 @@ import { validateWipId } from '@/utils/wip';
 interface WipSearchProps {
     onSearch: (wipId: string) => void;
     isLoading?: boolean;
+    initialValue?: string;
 }
 
-export const WipSearch = ({ onSearch, isLoading }: WipSearchProps) => {
-    const [wipId, setWipId] = useState('');
+export const WipSearch = ({ onSearch, isLoading, initialValue = '' }: WipSearchProps) => {
+    const [wipId, setWipId] = useState(initialValue);
     const [error, setError] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
+
+    useEffect(() => {
+        setWipId(initialValue);
+    }, [initialValue]);
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();

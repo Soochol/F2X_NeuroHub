@@ -17,37 +17,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Remove unique constraint from wip_process_history to allow multiple attempts."""
-    # Drop the unique index that prevents multiple PASS results
-    op.drop_index(
-        'uk_wip_history_wip_process_pass',
-        table_name='wip_process_history'
-    )
-    
-    # Add a new index to support queries for latest results
+    """Add index for wip_process_history queries."""
+    # Add an index to support queries for latest results
     # This index helps find the most recent completion for each WIP + Process
     op.create_index(
         'idx_wip_history_wip_process_completed',
         'wip_process_history',
-        ['wip_item_id', 'process_id', sa.text('completed_at DESC')],
+        ['wip_id', 'process_id', 'completed_at'],
         unique=False
     )
 
 
 def downgrade() -> None:
-    """Restore unique constraint (only if no duplicate PASS records exist)."""
-    # Drop the new index
+    """Remove the index."""
     op.drop_index(
         'idx_wip_history_wip_process_completed',
         table_name='wip_process_history'
-    )
-    
-    # Restore the unique index
-    # WARNING: This will fail if duplicate PASS records exist
-    op.create_index(
-        'uk_wip_history_wip_process_pass',
-        'wip_process_history',
-        ['wip_item_id', 'process_id'],
-        unique=True,
-        postgresql_where=sa.text("result = 'PASS'")
     )

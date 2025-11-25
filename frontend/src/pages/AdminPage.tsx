@@ -2,14 +2,14 @@
  * Admin Page - System Administration
  */
 
-import { useState } from 'react';
-import { Card, Button, Input, Select, Modal, StatusBadge, RoleBadge } from '@/components/common';
-import { useModalState, useFormState, useAsyncData } from '@/hooks';
-import { usersApi, processesApi, productModelsApi, productionLinesApi, equipmentApi } from '@/api';
-import type { User, Process, ProductModel, ProductionLine, Equipment, UserRole } from '@/types/api';
+import { equipmentApi, processesApi, productModelsApi, productionLinesApi, usersApi } from '@/api';
+import { Button, Card, Input, Modal, RoleBadge, Select, StatusBadge } from '@/components/common';
+import { useAsyncData, useFormState, useModalState } from '@/hooks';
+import type { Equipment, Process, ProductModel, ProductionLine, User, UserRole } from '@/types/api';
 import { UserRole as UserRoleEnum, getErrorMessage } from '@/types/api';
-import { format } from 'date-fns';
 import { App } from 'antd';
+import { format } from 'date-fns';
+import { useState } from 'react';
 
 type TabType = 'users' | 'processes' | 'products' | 'productionLines' | 'equipment';
 
@@ -171,8 +171,8 @@ const UserManagement = () => {
                   <td style={{ ...styles.td, textAlign: 'center' }}><StatusBadge isActive={user.is_active} /></td>
                   <td style={{ ...styles.td, textAlign: 'center', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{format(new Date(user.created_at), 'yyyy-MM-dd')}</td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><div style={styles.actions}>
-                    <Button size="small" variant="secondary" onClick={() => handleOpenModal(user)}>Edit</Button>
-                    <Button size="small" variant="danger" onClick={() => handleDelete(user.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenModal(user)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(user.id)}>Delete</Button>
                   </div></td>
                 </tr>
               ))}</tbody>
@@ -279,8 +279,8 @@ const ProcessManagement = () => {
                   <td style={{ ...styles.td, textAlign: 'center' }}>{process.sort_order}</td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><StatusBadge isActive={process.is_active} /></td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><div style={styles.actions}>
-                    <Button size="small" variant="secondary" onClick={() => handleOpenModal(process)}>Edit</Button>
-                    <Button size="small" variant="danger" onClick={() => handleDelete(process.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenModal(process)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(process.id)}>Delete</Button>
                   </div></td>
                 </tr>
               ))}</tbody>
@@ -444,8 +444,8 @@ const ProductModelManagement = () => {
                   <td style={{ ...styles.td, color: 'var(--color-text-secondary)', fontSize: '13px' }}>{product.category || '-'}</td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><StatusBadge isActive={product.status === 'ACTIVE'} /></td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><div style={styles.actions}>
-                    <Button size="small" variant="secondary" onClick={() => handleOpenModal(product)}>Edit</Button>
-                    <Button size="small" variant="danger" onClick={() => handleDelete(product.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenModal(product)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(product.id)}>Delete</Button>
                   </div></td>
                 </tr>
               ))}</tbody>
@@ -519,8 +519,8 @@ const ProductionLineManagement = () => {
                   <td style={{ ...styles.td, color: 'var(--color-text-secondary)', fontSize: '13px' }}>{line.location || '-'}</td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><StatusBadge isActive={line.is_active} /></td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><div style={styles.actions}>
-                    <Button size="small" variant="secondary" onClick={() => handleOpenModal(line)}>Edit</Button>
-                    <Button size="small" variant="danger" onClick={() => handleDelete(line.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenModal(line)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(line.id)}>Delete</Button>
                   </div></td>
                 </tr>
               ))}</tbody>
@@ -624,8 +624,8 @@ const EquipmentManagement = () => {
                   <td style={{ ...styles.td, color: 'var(--color-text-secondary)', fontSize: '13px' }}>{getLineName(equip.production_line_id)}</td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><StatusBadge isActive={equip.is_active} /></td>
                   <td style={{ ...styles.td, textAlign: 'center' }}><div style={styles.actions}>
-                    <Button size="small" variant="secondary" onClick={() => handleOpenModal(equip)}>Edit</Button>
-                    <Button size="small" variant="danger" onClick={() => handleDelete(equip.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenModal(equip)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(equip.id)}>Delete</Button>
                   </div></td>
                 </tr>
               ))}</tbody>
@@ -660,4 +660,5 @@ const EquipmentManagement = () => {
 };
 
 // Export individual components for use in separate routes
-export { UserManagement, ProcessManagement, ProductModelManagement, ProductionLineManagement, EquipmentManagement };
+export { EquipmentManagement, ProcessManagement, ProductModelManagement, ProductionLineManagement, UserManagement };
+

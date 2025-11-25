@@ -632,45 +632,35 @@ class ProcessService(BaseService):
     def _check_concurrent_work(self, db: Session, lot: Lot, process: Process,
                                serial_id: Optional[int], wip_item_id: Optional[int]):
         """
-        Check for concurrent work on different items in the same process.
+        Check for concurrent work on the SAME item in the same process.
 
-        Only considers the LATEST record for each WIP/Serial as "in progress".
-        Earlier attempts that were superseded by newer starts are ignored.
+        Multiple WIP items can be processed concurrently in the same LOT and process.
+        Only prevents the SAME WIP from being started again while already in progress.
         """
-        from sqlalchemy import func
-
-        # Get the latest record ID for each WIP in this LOT+Process
-        # Subquery to find max id per wip_id
-        latest_per_wip = db.query(
-            ProcessData.wip_id,
-            func.max(ProcessData.id).label('max_id')
-        ).filter(
+        # Only check if the SAME WIP/Serial is already in progress
+        query = db.query(ProcessData).filter(
             ProcessData.lot_id == lot.id,
             ProcessData.process_id == process.id,
-            ProcessData.wip_id.isnot(None)
-        ).group_by(ProcessData.wip_id).subquery()
-
-        # Get records that are: latest for their WIP AND not completed
-        active_records = db.query(ProcessData).join(
-            latest_per_wip,
-            ProcessData.id == latest_per_wip.c.max_id
-        ).filter(
             ProcessData.completed_at.is_(None)
-        ).all()
+        )
 
-        for record in active_records:
-            is_different_work = False
-            if serial_id:
-                if record.serial_id != serial_id:
-                    is_different_work = True
-            elif wip_item_id:
-                if record.wip_id != wip_item_id:
-                    is_different_work = True
+        if wip_item_id:
+            query = query.filter(ProcessData.wip_id == wip_item_id)
+        elif serial_id:
+            query = query.filter(ProcessData.serial_id == serial_id)
+        else:
+            # LOT level - check for any incomplete LOT level process
+            query = query.filter(
+                ProcessData.wip_id.is_(None),
+                ProcessData.serial_id.is_(None)
+            )
 
-            if is_different_work:
-                raise BusinessRuleException(
-                    message=f"Another WIP item in this LOT is already being processed in Process {process.process_number}. Finish that work first."
-                )
+        active_record = query.first()
+
+        if active_record:
+            raise BusinessRuleException(
+                message=f"This item is already being processed in Process {process.process_number}. Complete the current work first."
+            )
 
     def _check_and_print_label(self, db: Session, process_data: ProcessData,
                                wip_item=None, serial=None, lot=None) -> dict:

@@ -27,6 +27,8 @@ dependencies = [
     "celery>=5.4.0",
     "redis>=5.0.4",
     "faker>=38.2.0",
+    "colorama>=0.4.6",
+    "rich>=14.2.0",
 ]
 
 [project.optional-dependencies]

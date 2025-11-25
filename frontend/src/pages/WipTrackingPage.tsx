@@ -73,7 +73,7 @@ export const WipTrackingPage = () => {
                     </p>
                 </div>
 
-                <WipSearch onSearch={handleSearch} isLoading={isLoading} />
+                <WipSearch onSearch={handleSearch} isLoading={isLoading} initialValue={searchParams.get('wip_id') || ''} />
             </div>
 
             {/* Scrollable Content Section */}

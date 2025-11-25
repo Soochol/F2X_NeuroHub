@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import MainLayout from '../components/layout/MainLayout';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
+import React, { useState } from 'react';
+import { Card, Button } from '../components/common';
 import { printerApi } from '../api/endpoints/printer';
-import useAsyncData from '../hooks/useAsyncData';
-import { PrinterStatus, PrintLog, PrintStatistics } from '../types/api';
+import { useAsyncData } from '../hooks/useAsyncData';
+import type { PrinterStatus, PrintLog, PrintStatistics } from '../types/api';
 
 const PrinterMonitoringPage: React.FC = () => {
     // State for filters
@@ -73,8 +71,11 @@ const PrinterMonitoringPage: React.FC = () => {
     };
 
     return (
-        <MainLayout title="Printer Monitoring">
-            <div style={styles.container}>
+        <div style={styles.container}>
+            <div style={{ marginBottom: '20px' }}>
+                <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>Printer Monitoring</h1>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Monitor printer status and print logs</p>
+            </div>
                 {/* Header Actions */}
                 <div style={styles.header}>
                     <div style={styles.lastCheck}>
@@ -109,9 +110,9 @@ const PrinterMonitoringPage: React.FC = () => {
                                 <div style={styles.testActions}>
                                     <div style={styles.testTitle}>Test Print:</div>
                                     <div style={styles.testButtons}>
-                                        <Button size="small" variant="secondary" onClick={() => handleTestPrint('WIP_LABEL')}>WIP</Button>
-                                        <Button size="small" variant="secondary" onClick={() => handleTestPrint('SERIAL_LABEL')}>Serial</Button>
-                                        <Button size="small" variant="secondary" onClick={() => handleTestPrint('LOT_LABEL')}>LOT</Button>
+                                        <Button size="sm" variant="secondary" onClick={() => handleTestPrint('WIP_LABEL')}>WIP</Button>
+                                        <Button size="sm" variant="secondary" onClick={() => handleTestPrint('SERIAL_LABEL')}>Serial</Button>
+                                        <Button size="sm" variant="secondary" onClick={() => handleTestPrint('LOT_LABEL')}>LOT</Button>
                                     </div>
                                 </div>
                             </div>
@@ -243,8 +244,7 @@ const PrinterMonitoringPage: React.FC = () => {
                         </Button>
                     </div>
                 </Card>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 

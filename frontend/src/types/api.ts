@@ -174,6 +174,9 @@ export interface Lot {
   shift?: string;
   serial_count?: number;
   wip_count?: number;
+  actual_quantity?: number;
+  passed_quantity?: number;
+  failed_quantity?: number;
 }
 
 export interface Serial {

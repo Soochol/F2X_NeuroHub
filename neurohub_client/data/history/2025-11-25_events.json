@@ -1,0 +1,106 @@
+{
+  "date": "2025-11-25",
+  "count": 10,
+  "events": [
+    {
+      "timestamp": "2025-11-25T23:32:28.060376",
+      "event_type": "ERROR",
+      "wip_id": "WIP-DT01A10251102-013",
+      "lot_number": "WIP-DT01A10251102-013",
+      "result": "ERROR",
+      "message": "토큰 검증 실패: 백엔드 서버에 연결할 수 없습니다: http://localhost:8000",
+      "process_name": "레이저 마킹",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T20:42:11.593002",
+      "event_type": "START",
+      "wip_id": "WIP-DT01A10251102-013",
+      "lot_number": "WIP-DT01A10251102-013",
+      "result": "SUCCESS",
+      "message": "착공 완료",
+      "process_name": "레이저 마킹",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T20:41:53.335037",
+      "event_type": "COMPLETE",
+      "wip_id": "WIP-DT01A10251102-012",
+      "lot_number": "WIP-DT01A10251102-012",
+      "result": "FAIL",
+      "message": "완공: WIP-DT01A10251102-012",
+      "process_name": "레이저 마킹",
+      "duration_seconds": 16
+    },
+    {
+      "timestamp": "2025-11-25T20:41:36.615070",
+      "event_type": "START",
+      "wip_id": "WIP-DT01A10251102-012",
+      "lot_number": "WIP-DT01A10251102-012",
+      "result": "SUCCESS",
+      "message": "착공 완료",
+      "process_name": "레이저 마킹",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T15:24:30.327850",
+      "event_type": "COMPLETE",
+      "wip_id": "WIP-DT01A10251102-011",
+      "lot_number": "WIP-DT01A10251102-011",
+      "result": "FAIL",
+      "message": "완공: WIP-DT01A10251102-011",
+      "process_name": "LMA 조립",
+      "duration_seconds": 1
+    },
+    {
+      "timestamp": "2025-11-25T15:24:28.823459",
+      "event_type": "START",
+      "wip_id": "WIP-DT01A10251102-011",
+      "lot_number": "WIP-DT01A10251102-011",
+      "result": "SUCCESS",
+      "message": "착공 완료",
+      "process_name": "LMA 조립",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T15:24:20.915333",
+      "event_type": "COMPLETE",
+      "wip_id": "WIP-DT01A10251102-011",
+      "lot_number": "WIP-DT01A10251102-011",
+      "result": "FAIL",
+      "message": "완공: WIP-DT01A10251102-011",
+      "process_name": "LMA 조립",
+      "duration_seconds": 7
+    },
+    {
+      "timestamp": "2025-11-25T15:24:13.582499",
+      "event_type": "START",
+      "wip_id": "WIP-DT01A10251102-011",
+      "lot_number": "WIP-DT01A10251102-011",
+      "result": "SUCCESS",
+      "message": "착공 완료",
+      "process_name": "LMA 조립",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T15:15:30.490004",
+      "event_type": "START",
+      "wip_id": "WIP-DT01A10251102-011",
+      "lot_number": "WIP-DT01A10251102-011",
+      "result": "SUCCESS",
+      "message": "착공 완료",
+      "process_name": "LMA 조립",
+      "duration_seconds": null
+    },
+    {
+      "timestamp": "2025-11-25T15:15:21.967518",
+      "event_type": "ERROR",
+      "wip_id": "",
+      "lot_number": "",
+      "result": "ERROR",
+      "message": "착공 등록 실패: 이전 공정이 완료되지 않았습니다. 공정 순서를 확인하세요.",
+      "process_name": "라벨 프린팅",
+      "duration_seconds": null
+    }
+  ]
+}

@@ -24,6 +24,7 @@ const WipGenerationPage = lazy(() => import('./pages/WipGenerationPage').then(mo
 // Serial Pages
 const SerialsPage = lazy(() => import('./pages/SerialsPage').then(module => ({ default: module.SerialsPage })));
 const SerialGenerationPage = lazy(() => import('./pages/SerialGenerationPage').then(module => ({ default: module.SerialGenerationPage })));
+const SerialByLotPage = lazy(() => import('./pages/SerialByLotPage').then(module => ({ default: module.SerialByLotPage })));
 
 // Admin Pages
 const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -117,6 +118,7 @@ function AppContent() {
                   {/* Serial Routes */}
                   <Route path="/serials/tracking" element={<SerialsPage />} />
                   <Route path="/serials/generate" element={<SerialGenerationPage />} />
+                  <Route path="/serials/list" element={<SerialByLotPage />} />
 
                   {/* Admin Routes */}
                   <Route path="/admin" element={<AdminPage />} />

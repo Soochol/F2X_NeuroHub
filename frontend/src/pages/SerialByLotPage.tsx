@@ -1,22 +1,22 @@
 /**
- * WIP List by LOT Page
- * Search for a LOT by number and list all associated WIP items
+ * Serial List by LOT Page
+ * Search for a LOT by number and list all associated Serial items
  */
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '@/components/common';
-import { Search, Package, ArrowRight, AlertCircle, QrCode, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { lotsApi, wipItemsApi } from '@/api';
-import type { Lot, WIPItem } from '@/types/api';
+import { Search, Package, ArrowRight, AlertCircle, QrCode, Calendar, CheckCircle, XCircle, Clock, Hash } from 'lucide-react';
+import { lotsApi, serialsApi } from '@/api';
+import type { Lot, Serial } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 
-export const WipByLotPage = () => {
+export const SerialByLotPage = () => {
     const navigate = useNavigate();
     const [lotNumber, setLotNumber] = useState('');
     const [lot, setLot] = useState<Lot | null>(null);
-    const [wipItems, setWipItems] = useState<WIPItem[]>([]);
+    const [serials, setSerials] = useState<Serial[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -50,10 +50,10 @@ export const WipByLotPage = () => {
         setError('');
 
         try {
-            const wips = await wipItemsApi.getWIPItems({ lot_id: selectedLot.id });
-            setWipItems(wips);
+            const serialList = await serialsApi.getSerialsByLot(selectedLot.id);
+            setSerials(serialList);
         } catch (err: unknown) {
-            setError(getErrorMessage(err, 'Failed to load WIP items'));
+            setError(getErrorMessage(err, 'Failed to load Serial items'));
         } finally {
             setIsLoading(false);
         }
@@ -65,30 +65,27 @@ export const WipByLotPage = () => {
         setIsLoading(true);
         setError('');
         setLot(null);
-        setWipItems([]);
+        setSerials([]);
 
         try {
-            // Parse LOT number from input (supports both LOT number and WIP ID)
-            // WIP ID format: WIP-{LOT}-{SEQ} (e.g., WIP-DT01A10251101-001)
+            // Parse LOT number from input (supports both LOT number and Serial number)
+            // Serial format: {LOT}-{SEQ} (e.g., DT01A10251101-001)
             let parsedLotNumber = lotNumber.trim();
 
-            if (parsedLotNumber.startsWith('WIP-')) {
-                // Extract LOT number from WIP ID
-                // Remove "WIP-" prefix and the last "-XXX" sequence
-                const parts = parsedLotNumber.substring(4).split('-');
-                if (parts.length >= 2) {
-                    // Join all parts except the last one (which is the sequence number)
-                    parsedLotNumber = parts.slice(0, -1).join('-');
-                }
+            // If it looks like a serial number (contains dash and ends with digits)
+            const serialMatch = parsedLotNumber.match(/^(.+)-(\d{3,})$/);
+            if (serialMatch && !parsedLotNumber.startsWith('WIP-')) {
+                // Extract LOT number from Serial number
+                parsedLotNumber = serialMatch[1];
             }
 
             // 1. Get LOT by number
             const lotData = await lotsApi.getLotByNumber(parsedLotNumber);
             setLot(lotData);
 
-            // 2. Get WIP items for this LOT
-            const wips = await wipItemsApi.getWIPItems({ lot_id: lotData.id });
-            setWipItems(wips);
+            // 2. Get Serial items for this LOT
+            const serialList = await serialsApi.getSerialsByLot(lotData.id);
+            setSerials(serialList);
         } catch (err: unknown) {
             setError(getErrorMessage(err, `LOT "${lotNumber}" not found`));
         } finally {
@@ -96,13 +93,13 @@ export const WipByLotPage = () => {
         }
     };
 
-    const handleWipClick = (wipId: string) => {
-        navigate(`/wip/tracking?wip_id=${wipId}`);
+    const handleSerialClick = (serialNumber: string) => {
+        navigate(`/serials/tracking?serial=${serialNumber}`);
     };
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'COMPLETED': return 'var(--color-success)';
+            case 'PASSED': return 'var(--color-success)';
             case 'FAILED': return 'var(--color-error)';
             case 'IN_PROGRESS': return 'var(--color-info)';
             case 'CREATED': return 'var(--color-warning)';
@@ -112,7 +109,7 @@ export const WipByLotPage = () => {
 
     const getStatusBgColor = (status: string) => {
         switch (status) {
-            case 'COMPLETED': return 'var(--color-bg-success)';
+            case 'PASSED': return 'var(--color-bg-success)';
             case 'FAILED': return 'var(--color-bg-error)';
             case 'IN_PROGRESS': return 'var(--color-bg-info)';
             case 'CREATED': return 'var(--color-warning-bg)';
@@ -122,10 +119,18 @@ export const WipByLotPage = () => {
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case 'COMPLETED': return <CheckCircle size={14} />;
+            case 'PASSED': return <CheckCircle size={14} />;
             case 'FAILED': return <XCircle size={14} />;
             case 'IN_PROGRESS': return <Clock size={14} />;
-            default: return <Package size={14} />;
+            default: return <Hash size={14} />;
+        }
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'PASSED': return 'PASS';
+            case 'FAILED': return 'FAIL';
+            default: return status;
         }
     };
 
@@ -154,10 +159,10 @@ export const WipByLotPage = () => {
             }}>
                 <div style={{ marginBottom: '20px' }}>
                     <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px', color: 'var(--color-text-primary)' }}>
-                        WIP List by LOT
+                        Serial List by LOT
                     </h1>
                     <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-                        Search for a LOT to view all associated WIP items and their status
+                        Search for a LOT to view all associated Serial items and their status
                     </p>
                 </div>
 
@@ -175,7 +180,7 @@ export const WipByLotPage = () => {
                                     color: 'var(--color-text-primary)'
                                 }}
                             >
-                                LOT Number or WIP ID
+                                LOT Number or Serial Number
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <QrCode
@@ -192,7 +197,7 @@ export const WipByLotPage = () => {
                                     ref={inputRef}
                                     id="lotNumber"
                                     type="text"
-                                    placeholder="Enter LOT Number or WIP ID (e.g., DT01A10251101 or WIP-DT01A10251101-001)"
+                                    placeholder="Enter LOT Number or Serial Number (e.g., DT01A10251101 or DT01A10251101-001)"
                                     value={lotNumber}
                                     onChange={(e) => setLotNumber(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -325,8 +330,8 @@ export const WipByLotPage = () => {
                                                 {format(new Date(activeLot.production_date), 'yyyy-MM-dd')}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                                                <Package size={14} />
-                                                WIP Count: <strong style={{ color: 'var(--color-brand)' }}>{activeLot.wip_count ?? 0}</strong> / {activeLot.target_quantity}
+                                                <Hash size={14} />
+                                                Serial Count: <strong style={{ color: 'var(--color-brand)' }}>{activeLot.serial_count ?? 0}</strong> / {activeLot.target_quantity}
                                             </div>
                                         </div>
                                     </div>
@@ -345,7 +350,7 @@ export const WipByLotPage = () => {
                             size="sm"
                             onClick={() => {
                                 setLot(null);
-                                setWipItems([]);
+                                setSerials([]);
                                 setLotNumber('');
                             }}
                             style={{ marginBottom: '15px' }}
@@ -353,7 +358,7 @@ export const WipByLotPage = () => {
                             ← Back to LOT List
                         </Button>
 
-                        {/* LOT Info Card - Same style as WipGenerationPage */}
+                        {/* LOT Info Card */}
                         <Card>
                             <div
                                 style={{
@@ -409,14 +414,14 @@ export const WipByLotPage = () => {
                                         {format(new Date(lot.production_date), 'yyyy-MM-dd')}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                                        <Package size={14} />
-                                        WIP Count: <strong style={{ color: 'var(--color-brand)' }}>{wipItems.length}</strong> / {lot.target_quantity}
+                                        <Hash size={14} />
+                                        Serial Count: <strong style={{ color: 'var(--color-brand)' }}>{serials.length}</strong> / {lot.target_quantity}
                                     </div>
                                 </div>
                             </div>
                         </Card>
 
-                        {/* WIP Items Header */}
+                        {/* Serial Items Header */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -425,7 +430,7 @@ export const WipByLotPage = () => {
                             padding: '0 5px'
                         }}>
                             <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--color-text-primary)' }}>
-                                WIP Items
+                                Serial Items
                             </h2>
                             <div style={{
                                 display: 'flex',
@@ -434,24 +439,24 @@ export const WipByLotPage = () => {
                                 color: 'var(--color-text-secondary)',
                                 fontSize: '14px'
                             }}>
-                                <Package size={16} />
-                                <span>Total: <strong>{wipItems.length}</strong></span>
+                                <Hash size={16} />
+                                <span>Total: <strong>{serials.length}</strong></span>
                             </div>
                         </div>
 
-                        {wipItems.length === 0 ? (
+                        {serials.length === 0 ? (
                             <Card>
                                 <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-secondary)' }}>
-                                    <Package size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
-                                    <div style={{ fontSize: '16px' }}>No WIP items found for this LOT.</div>
+                                    <Hash size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                    <div style={{ fontSize: '16px' }}>No Serial items found for this LOT.</div>
                                 </div>
                             </Card>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {wipItems.map((wip) => (
+                                {serials.map((serial) => (
                                     <div
-                                        key={wip.id}
-                                        onClick={() => handleWipClick(wip.wip_id)}
+                                        key={serial.id}
+                                        onClick={() => handleSerialClick(serial.serial_number)}
                                         style={{
                                             backgroundColor: 'var(--color-bg-container)',
                                             border: '1px solid var(--color-border)',
@@ -475,30 +480,35 @@ export const WipByLotPage = () => {
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                             <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>
-                                                {wip.wip_id}
+                                                {serial.serial_number}
                                             </div>
                                             <div style={{
                                                 fontSize: '12px',
                                                 padding: '4px 10px',
                                                 borderRadius: '12px',
-                                                backgroundColor: getStatusBgColor(wip.status),
-                                                color: getStatusColor(wip.status),
+                                                backgroundColor: getStatusBgColor(serial.status),
+                                                color: getStatusColor(serial.status),
                                                 fontWeight: '600',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '4px'
                                             }}>
-                                                {getStatusIcon(wip.status)}
-                                                {wip.status}
+                                                {getStatusIcon(serial.status)}
+                                                {getStatusLabel(serial.status)}
                                             </div>
                                         </div>
 
                                         <div style={{ marginBottom: '15px' }}>
                                             <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                                                Current Process
+                                                Sequence in LOT
                                             </div>
                                             <div style={{ fontSize: '15px', fontWeight: '500', color: 'var(--color-text-primary)' }}>
-                                                {wip.current_process_id ? `Process #${wip.current_process_id}` : 'Not Started'}
+                                                #{serial.sequence_in_lot}
+                                                {serial.rework_count > 0 && (
+                                                    <span style={{ marginLeft: '10px', color: 'var(--color-warning)', fontSize: '13px' }}>
+                                                        (Rework: {serial.rework_count})
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -511,7 +521,7 @@ export const WipByLotPage = () => {
                                         }}>
                                             <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                 <Calendar size={12} />
-                                                {format(new Date(wip.created_at), 'yyyy-MM-dd')}
+                                                {format(new Date(serial.created_at), 'yyyy-MM-dd HH:mm')}
                                             </div>
                                             <div style={{
                                                 display: 'flex',

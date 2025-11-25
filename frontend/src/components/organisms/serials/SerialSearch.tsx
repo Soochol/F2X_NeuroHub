@@ -11,16 +11,21 @@ import { validateSerialNumber, detectSerialVersion } from '@/utils/serialNumber'
 interface SerialSearchProps {
   onSearch: (serialNumber: string) => void;
   isLoading?: boolean;
+  initialValue?: string;
 }
 
-export const SerialSearch = ({ onSearch, isLoading }: SerialSearchProps) => {
-  const [serialNumber, setSerialNumber] = useState('');
+export const SerialSearch = ({ onSearch, isLoading, initialValue = '' }: SerialSearchProps) => {
+  const [serialNumber, setSerialNumber] = useState(initialValue);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    setSerialNumber(initialValue);
+  }, [initialValue]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

@@ -354,9 +354,9 @@ Hot Reload (개발)
 
 - [skill.md](../skill.md) - PyQt/PySide Best Practices
 - [README_GUI_ANALYZER.md](README_GUI_ANALYZER.md) - GUI Analyzer 상세 가이드
-- [visual_debugger.py](../../../production_tracker_app/visual_debugger.py) - Visual Debugger 소스
-- [hot_reload.py](../../../production_tracker_app/hot_reload.py) - Hot Reload 소스
-- [GUI_ANALYSIS_REPORT.md](../../../production_tracker_app/GUI_ANALYSIS_REPORT.md) - 분석 리포트 예시
+- [visual_debugger.py](../../../neurohub_client/visual_debugger.py) - Visual Debugger 소스
+- [hot_reload.py](../../../neurohub_client/hot_reload.py) - Hot Reload 소스
+- [GUI_ANALYSIS_REPORT.md](../../../neurohub_client/GUI_ANALYSIS_REPORT.md) - 분석 리포트 예시
 
 ---
 

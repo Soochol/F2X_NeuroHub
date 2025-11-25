@@ -57,7 +57,7 @@ cd .claude/skills/pyqt-pyside-gui/tools
 python gui_analyzer.py example_ui.py
 
 # 실제 프로젝트 파일 분석
-python gui_analyzer.py ../../../../production_tracker_app/views/main_window.py
+python gui_analyzer.py ../../../../neurohub_client/views/main_window.py
 ```
 
 ### 주요 기능
@@ -142,7 +142,7 @@ Total Issues: 21
 
 #### 2. 실제 프로젝트 분석
 ```bash
-python gui_analyzer.py ../../../production_tracker_app/views/main_window.py
+python gui_analyzer.py ../../../neurohub_client/views/main_window.py
 ```
 
 **출력:**
@@ -183,7 +183,7 @@ python gui_analyzer.py ../../../production_tracker_app/views/main_window.py
 ## 📚 관련 도구
 
 ### 1. Visual Debugger (동적 분석)
-**위치**: `production_tracker_app/visual_debugger.py`
+**위치**: `neurohub_client/visual_debugger.py`
 
 **사용법:**
 ```python
@@ -201,7 +201,7 @@ sys.exit(app.exec())
 - 동적 생성 위젯 감지
 
 ### 2. Hot Reload (개발 도구)
-**위치**: `production_tracker_app/hot_reload.py`
+**위치**: `neurohub_client/hot_reload.py`
 
 **사용법:**
 ```bash

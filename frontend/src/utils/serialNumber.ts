@@ -25,8 +25,9 @@ export interface SerialNumberV0Components {
   serialSequence: string;
 }
 
-// V1 format regex: KR01PSA251101001 (16 chars)
-const SERIAL_NUMBER_V1_PATTERN = /^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{2}\d{3}$/;
+// V1 format regex: KR01PSA251101001 or DT01A10251102001 (16 chars)
+// Model code can be 3 letters (PSA) or alphanumeric (A10)
+const SERIAL_NUMBER_V1_PATTERN = /^[A-Z]{2}\d{2}[A-Z][A-Z0-9]{2}\d{4}\d{2}\d{3}$/;
 
 // V0 format regex: WF-KR-251119D-003-0038
 const SERIAL_NUMBER_V0_PATTERN = /^[A-Z]{2,}-[A-Z]{2}-\d{6}[DN]-\d{3}-\d{4}$/;

@@ -71,6 +71,7 @@ const navConfig: NavConfig = [
     items: [
       { path: '/serials/generate', label: 'Serial Generation', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
       { path: '/serials/tracking', label: 'Serial Tracking', icon: Search },
+      { path: '/serials/list', label: 'Serial List by LOT', icon: Package },
     ]
   },
 

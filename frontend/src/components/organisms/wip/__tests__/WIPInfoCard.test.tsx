@@ -5,13 +5,14 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WIPInfoCard } from '../WIPInfoCard';
-import type { Serial, SerialStatus, LotStatus, Shift } from '@/types/api';
+import type { Serial, SerialStatus, LotStatus } from '@/types/api';
 
 describe('WIPInfoCard', () => {
   const mockSerial: Serial = {
     id: 1,
     serial_number: 'KR01PSA2511001',
     lot_id: 1,
+    sequence_in_lot: 1,
     lot: {
       id: 1,
       lot_number: 'KR01PSA2511',
@@ -26,7 +27,7 @@ describe('WIPInfoCard', () => {
       },
       target_quantity: 100,
       production_date: '2025-11-21',
-      shift: 'DAY' as Shift,
+      shift: 'DAY',
       status: 'IN_PROGRESS' as LotStatus,
       created_at: '2025-01-21T08:00:00Z',
       updated_at: '2025-01-21T14:00:00Z',
@@ -261,6 +262,7 @@ describe('WIPInfoCard', () => {
       id: 1,
       serial_number: 'KR01PSA2511001',
       lot_id: 1,
+      sequence_in_lot: 1,
       lot: {
         id: 1,
         lot_number: 'KR01PSA2511',
@@ -275,12 +277,12 @@ describe('WIPInfoCard', () => {
         },
         target_quantity: 100,
         production_date: '2025-11-21',
-        shift: 'DAY' as Shift,
+        shift: 'DAY',
         status: 'COMPLETED' as LotStatus,
         created_at: '2025-01-21T08:00:00Z',
         updated_at: '2025-01-21T18:00:00Z',
       },
-      status: 'PASS' as SerialStatus,
+      status: 'PASSED' as SerialStatus,
       rework_count: 1,
       created_at: '2025-01-21T10:00:00Z',
       updated_at: '2025-01-21T16:00:00Z',
@@ -314,6 +316,7 @@ describe('WIPInfoCard', () => {
       id: 1,
       serial_number: 'KR01PSA2511001',
       lot_id: 1,
+      sequence_in_lot: 1,
       status: 'CREATED' as SerialStatus,
       rework_count: 0,
       created_at: '2025-01-21T10:00:00Z',

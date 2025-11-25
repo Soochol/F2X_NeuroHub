@@ -102,7 +102,7 @@ const ErrorDashboardPage: React.FC = () => {
   // Filters
   const [errorCodeFilter, setErrorCodeFilter] = useState<string | undefined>();
   const [statusCodeFilter, setStatusCodeFilter] = useState<number | undefined>();
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [pathFilter, setPathFilter] = useState<string | undefined>();
   const [methodFilter, setMethodFilter] = useState<string | undefined>();
 
@@ -138,7 +138,7 @@ const ErrorDashboardPage: React.FC = () => {
         filters.min_status_code = statusCodeFilter;
         filters.max_status_code = statusCodeFilter;
       }
-      if (dateRange) {
+      if (dateRange && dateRange[0] && dateRange[1]) {
         filters.start_date = dateRange[0].toISOString();
         filters.end_date = dateRange[1].toISOString();
       }

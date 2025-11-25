@@ -93,10 +93,6 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Production Date</div>
             <div>{trace.lot_info.production_date}</div>
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Shift</div>
-            <div>{trace.lot_info.shift}</div>
-          </div>
         </div>
 
         {/* Component LOTs */}

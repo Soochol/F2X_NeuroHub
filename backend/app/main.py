@@ -22,6 +22,12 @@ from app.config import settings
 from app.core.exceptions import AppException
 from app.schemas.error import StandardErrorResponse, ErrorDetail, ErrorCode
 from app.core.errors import get_http_status_for_error_code
+from app.database import SessionLocal
+from app.models import User
+from app.schemas import UserRole
+from app.core.security import get_password_hash
+from contextlib import asynccontextmanager
+
 
 # Import routers
 from app.api.v1 import (
@@ -50,6 +56,55 @@ from app.api.v1 import (
 from app.middleware import ErrorLoggingMiddleware
 
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Application Lifespan (Startup/Shutdown)
+# ============================================================================
+def init_default_admin():
+    """
+    Create default admin user if not exists.
+    Called on application startup for fresh deployments.
+    """
+    db = SessionLocal()
+    try:
+        # Check if any admin user exists
+        admin_user = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        if not admin_user:
+            logger.info("No admin user found. Creating default admin...")
+            new_admin = User(
+                username="admin",
+                email="admin@f2x.local",
+                password_hash=get_password_hash("admin123"),
+                full_name="System Administrator",
+                role=UserRole.ADMIN,
+                is_active=True
+            )
+            db.add(new_admin)
+            db.commit()
+            logger.info("Default admin created: username='admin', password='admin123'")
+        else:
+            logger.info(f"Admin user exists: {admin_user.username}")
+    except Exception as e:
+        logger.error(f"Failed to initialize admin user: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Application lifespan manager for startup/shutdown events."""
+    # Startup
+    logger.info("Starting F2X NeuroHub MES API...")
+    init_default_admin()
+    yield
+    # Shutdown
+    logger.info("Shutting down F2X NeuroHub MES API...")
+
+
 # Create FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
@@ -58,6 +113,7 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_PREFIX}/docs",
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    lifespan=lifespan,
 )
 
 
@@ -81,10 +137,6 @@ app.add_middleware(
 
 # Add Error Logging Middleware (after CORS for proper request handling)
 app.add_middleware(ErrorLoggingMiddleware)
-
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -325,9 +377,18 @@ app.include_router(search.router, prefix=f"{settings.API_V1_PREFIX}/search", tag
 
 if __name__ == "__main__":
     import uvicorn
+
+    # Uvicorn log config with timestamp
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(client_addr)s - \"%(request_line)s\" %(status_code)s"
+    log_config["formatters"]["access"]["datefmt"] = DATE_FORMAT
+    log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    log_config["formatters"]["default"]["datefmt"] = DATE_FORMAT
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=8000,
         reload=settings.DEBUG,
+        log_config=log_config,
     )
