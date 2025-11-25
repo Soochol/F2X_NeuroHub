@@ -309,25 +309,24 @@ class HistoryPage(QWidget):
             all_events = self.history_manager.load_events_by_date(self._current_date)
 
         # Apply result filter
+        # Success: SUCCESS, PASS / Fail: FAIL, ERROR
+        success_results = {EventResult.SUCCESS, EventResult.PASS}
+        fail_results = {EventResult.FAIL, EventResult.ERROR}
+
         if self._current_filter == "success":
-            events = [e for e in all_events if e.result != EventResult.ERROR]
+            events = [e for e in all_events if e.result in success_results]
         elif self._current_filter == "error":
-            events = [e for e in all_events if e.result == EventResult.ERROR]
+            events = [e for e in all_events if e.result in fail_results]
         else:
             events = all_events
 
-        # Update stats (only for today)
-        if self._current_date is None:
-            all_events_for_stats = self.history_manager.get_all_events()
-            error_count = self.history_manager.get_error_count()
-            success_count = len(all_events_for_stats) - error_count
-        else:
-            error_count = len([e for e in all_events if e.result == EventResult.ERROR])
-            success_count = len(all_events) - error_count
+        # Update stats
+        success_count = len([e for e in all_events if e.result in success_results])
+        fail_count = len([e for e in all_events if e.result in fail_results])
 
         self.total_label.setText(f"전체: {len(all_events)}")
         self.success_label.setText(f"성공: {success_count}")
-        self.error_label.setText(f"실패: {error_count}")
+        self.error_label.setText(f"실패: {fail_count}")
 
         # Populate table
         self.table.setRowCount(len(events))
