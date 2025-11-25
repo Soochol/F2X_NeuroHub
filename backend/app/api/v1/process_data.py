@@ -43,6 +43,14 @@ from app.schemas.process_data import (
     ProcessDataCreate,
     ProcessDataInDB,
     ProcessDataUpdate,
+    MeasurementHistoryItem,
+    MeasurementHistoryResponse,
+    MeasurementHistoryListResponse,
+    MeasurementSummaryResponse,
+    ProcessMeasurementSummary,
+    MeasurementSpec,
+    MeasurementCodeInfo,
+    MeasurementCodesResponse,
 )
 # New exception imports
 from app.core.exceptions import (
@@ -635,3 +643,260 @@ def delete_process_data(
     except SQLAlchemyError as e:
         db.rollback()
         raise DatabaseException(message=f"Failed to delete process data record: {str(e)}")
+
+
+# =============================================================================
+# Measurement History Endpoints
+# =============================================================================
+
+def _parse_measurements(measurements_dict: dict) -> list:
+    """
+    Parse measurements JSONB dict into list of MeasurementHistoryItem.
+
+    Handles two formats:
+    1. {"items": [...]} - Standard format from equipment
+    2. Direct dict with measurement codes as keys
+    """
+    if not measurements_dict:
+        return []
+
+    items = measurements_dict.get("items", [])
+    if items:
+        result = []
+        for item in items:
+            spec_data = item.get("spec")
+            spec = None
+            if spec_data:
+                spec = MeasurementSpec(
+                    min=spec_data.get("min"),
+                    max=spec_data.get("max"),
+                    target=spec_data.get("target")
+                )
+            result.append(MeasurementHistoryItem(
+                code=item.get("code", ""),
+                name=item.get("name", ""),
+                value=float(item.get("value", 0)),
+                unit=item.get("unit"),
+                spec=spec,
+                result=item.get("result", "PASS")
+            ))
+        return result
+
+    # Fallback: try to parse as direct key-value pairs
+    result = []
+    for key, value in measurements_dict.items():
+        if key == "items":
+            continue
+        if isinstance(value, dict):
+            spec_data = value.get("spec")
+            spec = None
+            if spec_data:
+                spec = MeasurementSpec(
+                    min=spec_data.get("min"),
+                    max=spec_data.get("max"),
+                    target=spec_data.get("target")
+                )
+            result.append(MeasurementHistoryItem(
+                code=key,
+                name=value.get("name", key),
+                value=float(value.get("value", 0)),
+                unit=value.get("unit"),
+                spec=spec,
+                result=value.get("result", "PASS")
+            ))
+        elif isinstance(value, (int, float)):
+            result.append(MeasurementHistoryItem(
+                code=key,
+                name=key,
+                value=float(value),
+                unit=None,
+                spec=None,
+                result="PASS"
+            ))
+    return result
+
+
+@router.get(
+    "/measurements/history",
+    response_model=MeasurementHistoryListResponse,
+    summary="Get measurement data history",
+    description="Retrieve measurement data history with filtering and pagination for quality analysis.",
+)
+def get_measurement_history(
+    start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
+    end_date: Optional[datetime] = Query(None, description="End date filter (inclusive)"),
+    process_id: Optional[int] = Query(None, gt=0, description="Filter by process ID"),
+    lot_id: Optional[int] = Query(None, gt=0, description="Filter by LOT ID"),
+    result: Optional[str] = Query(None, description="Filter by result: PASS, FAIL, or REWORK"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum records to return (max 500)"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get measurement data history for quality analysis.
+
+    Query Parameters:
+        start_date: Filter records from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process
+        lot_id: Filter by specific LOT
+        result: Filter by result status (PASS, FAIL, REWORK)
+        skip: Offset for pagination
+        limit: Maximum records per page (max 500)
+
+    Returns:
+        MeasurementHistoryListResponse with paginated measurement records
+
+    Raises:
+        HTTPException 400: If date range is invalid
+        HTTPException 422: If query parameters are invalid
+    """
+    if start_date and end_date and start_date > end_date:
+        raise InvalidDataFormatException(
+            "start_date",
+            "start_date must be before or equal to end_date"
+        )
+
+    records, total = crud.process_data.get_with_measurements(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        process_id=process_id,
+        lot_id=lot_id,
+        result=result,
+        skip=skip,
+        limit=limit,
+    )
+
+    # Transform to response format
+    items = []
+    for record in records:
+        measurements = _parse_measurements(record.measurements)
+
+        items.append(MeasurementHistoryResponse(
+            id=record.id,
+            lot_number=record.lot.lot_number if record.lot else "",
+            wip_id=record.wip_item.wip_id if record.wip_item else None,
+            serial_number=record.serial.serial_number if record.serial else None,
+            process_name=record.process.process_name_ko if record.process else "",
+            process_number=record.process.process_number if record.process else 0,
+            result=record.result,
+            operator_name=record.operator.full_name if record.operator else "",
+            measurements=measurements,
+            started_at=record.started_at,
+            completed_at=record.completed_at,
+            duration_seconds=record.duration_seconds,
+        ))
+
+    return MeasurementHistoryListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/measurements/summary",
+    response_model=MeasurementSummaryResponse,
+    summary="Get measurement data summary statistics",
+    description="Get aggregate statistics for measurement data including pass/fail rates and process breakdown.",
+)
+def get_measurement_summary(
+    start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
+    end_date: Optional[datetime] = Query(None, description="End date filter (inclusive)"),
+    process_id: Optional[int] = Query(None, gt=0, description="Filter by process ID"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get measurement data summary statistics.
+
+    Query Parameters:
+        start_date: Filter records from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process
+
+    Returns:
+        MeasurementSummaryResponse with aggregate statistics
+
+    Raises:
+        HTTPException 400: If date range is invalid
+        HTTPException 422: If query parameters are invalid
+    """
+    if start_date and end_date and start_date > end_date:
+        raise InvalidDataFormatException(
+            "start_date",
+            "start_date must be before or equal to end_date"
+        )
+
+    summary = crud.process_data.get_measurement_summary(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        process_id=process_id,
+    )
+
+    # Transform by_process to schema format
+    by_process = [
+        ProcessMeasurementSummary(
+            process_id=p["process_id"],
+            process_name=p["process_name"],
+            total=p["total"],
+            fail=p["fail"],
+            rate=p["rate"],
+        )
+        for p in summary["by_process"]
+    ]
+
+    return MeasurementSummaryResponse(
+        total_count=summary["total_count"],
+        pass_count=summary["pass_count"],
+        fail_count=summary["fail_count"],
+        rework_count=summary["rework_count"],
+        pass_rate=summary["pass_rate"],
+        by_process=by_process,
+    )
+
+
+@router.get(
+    "/measurements/codes",
+    response_model=MeasurementCodesResponse,
+    summary="Get all unique measurement codes",
+    description="Extract all unique measurement codes from the database for dynamic filtering.",
+)
+def get_measurement_codes(
+    process_id: Optional[int] = Query(None, gt=0, description="Filter by process ID"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get all unique measurement codes from the database.
+
+    This endpoint scans the measurements JSONB field across all process_data records
+    and extracts unique measurement codes for dynamic filtering in the frontend.
+
+    Query Parameters:
+        process_id: Optional filter to get codes only from a specific process
+
+    Returns:
+        MeasurementCodesResponse with list of unique measurement codes and their metadata
+    """
+    codes = crud.process_data.get_measurement_codes(db, process_id=process_id)
+
+    code_infos = [
+        MeasurementCodeInfo(
+            code=c["code"],
+            name=c["name"],
+            unit=c.get("unit"),
+            count=c["count"],
+            process_ids=c.get("process_ids", []),
+        )
+        for c in codes
+    ]
+
+    return MeasurementCodesResponse(
+        codes=code_infos,
+        total_codes=len(code_infos),
+    )

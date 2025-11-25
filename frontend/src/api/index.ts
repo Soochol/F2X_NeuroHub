@@ -26,3 +26,4 @@ export {
   type TopErrorPath,
   type ErrorLogFilters
 } from './endpoints/errorLogs';
+export { measurementsApi } from './endpoints/measurements';

@@ -856,6 +856,103 @@ class ProcessDataInDB(ProcessDataBase):
         return None
 
 
+# =============================================================================
+# Measurement History Response Schemas
+# =============================================================================
+
+class MeasurementSpec(BaseModel):
+    """Specification limits for a measurement."""
+    min: Optional[float] = Field(None, description="Minimum acceptable value")
+    max: Optional[float] = Field(None, description="Maximum acceptable value")
+    target: Optional[float] = Field(None, description="Target/nominal value")
+
+
+class MeasurementHistoryItem(BaseModel):
+    """Single measurement item in history response."""
+    code: str = Field(..., description="Measurement code identifier")
+    name: str = Field(..., description="Measurement display name")
+    value: float = Field(..., description="Measured value")
+    unit: Optional[str] = Field(None, description="Measurement unit (V, A, mm, etc.)")
+    spec: Optional[MeasurementSpec] = Field(None, description="Specification limits")
+    result: str = Field(default="PASS", description="Measurement result (PASS/FAIL)")
+
+
+class MeasurementHistoryResponse(BaseModel):
+    """Single measurement history record response."""
+    id: int = Field(..., description="Process data record ID")
+    lot_number: str = Field(..., description="LOT number")
+    wip_id: Optional[str] = Field(None, description="WIP item ID")
+    serial_number: Optional[str] = Field(None, description="Serial number")
+    process_name: str = Field(..., description="Process name (Korean)")
+    process_number: int = Field(..., description="Process sequence number (1-8)")
+    result: str = Field(..., description="Overall process result (PASS/FAIL/REWORK)")
+    operator_name: str = Field(..., description="Operator full name")
+    measurements: List[MeasurementHistoryItem] = Field(
+        default_factory=list, description="List of measurement items"
+    )
+    started_at: datetime = Field(..., description="Process start timestamp")
+    completed_at: Optional[datetime] = Field(None, description="Process completion timestamp")
+    duration_seconds: Optional[int] = Field(None, description="Process duration in seconds")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeasurementHistoryListResponse(BaseModel):
+    """Paginated list response for measurement history."""
+    items: List[MeasurementHistoryResponse] = Field(
+        default_factory=list, description="List of measurement history records"
+    )
+    total: int = Field(..., description="Total number of records matching filters")
+    skip: int = Field(..., description="Number of records skipped")
+    limit: int = Field(..., description="Maximum records per page")
+
+
+class ProcessMeasurementSummary(BaseModel):
+    """Summary statistics for a specific process."""
+    process_id: int = Field(..., description="Process ID")
+    process_name: str = Field(..., description="Process name (Korean)")
+    total: int = Field(..., description="Total records count")
+    fail: int = Field(..., description="Failed records count")
+    rate: float = Field(..., description="Failure rate percentage")
+
+
+class MeasurementSummaryResponse(BaseModel):
+    """Summary statistics response for measurement data."""
+    total_count: int = Field(..., description="Total measurement records")
+    pass_count: int = Field(..., description="PASS result count")
+    fail_count: int = Field(..., description="FAIL result count")
+    rework_count: int = Field(..., description="REWORK result count")
+    pass_rate: float = Field(..., description="Pass rate percentage")
+    by_process: List[ProcessMeasurementSummary] = Field(
+        default_factory=list, description="Statistics grouped by process"
+    )
+
+
+# =============================================================================
+# Measurement Code Schemas
+# =============================================================================
+
+class MeasurementCodeInfo(BaseModel):
+    """Information about a unique measurement code found in the database."""
+    code: str = Field(..., description="Measurement code identifier")
+    name: str = Field(..., description="Measurement display name")
+    unit: Optional[str] = Field(None, description="Measurement unit (V, A, mm, etc.)")
+    count: int = Field(..., description="Number of records with this measurement")
+    process_ids: List[int] = Field(default_factory=list, description="Process IDs where this measurement appears")
+
+
+class MeasurementCodesResponse(BaseModel):
+    """Response containing all unique measurement codes from the database."""
+    codes: List[MeasurementCodeInfo] = Field(
+        default_factory=list, description="List of unique measurement codes"
+    )
+    total_codes: int = Field(..., description="Total number of unique codes")
+
+
+# =============================================================================
+# Context Validation Helper
+# =============================================================================
+
 def validate_process_data_context(
     lot_id: int,
     serial_id: Optional[int],

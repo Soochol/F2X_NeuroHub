@@ -28,6 +28,7 @@ import {
   Factory,
   Wrench,
   FileText,
+  Activity,
   type LucideIcon
 } from 'lucide-react';
 
@@ -74,6 +75,17 @@ const navConfig: NavConfig = [
   },
 
   {
+    id: 'quality',
+    label: 'Quality',
+    icon: BarChart3,
+    roles: [UserRole.ADMIN, UserRole.MANAGER],
+    items: [
+      { path: '/quality/defect-rate', label: 'Defect Rate Analysis', icon: BarChart3, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+      { path: '/quality/measurements', label: 'Measurement Analysis', icon: Activity, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+    ]
+  },
+
+  {
     id: 'admin',
     label: 'Admin',
     icon: Settings,
@@ -86,6 +98,7 @@ const navConfig: NavConfig = [
       { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN] },
       { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN] },
       { path: '/admin/lot-monitor', label: 'LOT Management', icon: Monitor, roles: [UserRole.ADMIN] },
+      { path: '/alerts', label: 'Alerts', icon: Bell, roles: [UserRole.ADMIN] },
     ]
   },
 ];

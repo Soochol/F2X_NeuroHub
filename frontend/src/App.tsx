@@ -35,6 +35,13 @@ const AdminProductionLinesPage = lazy(() => import('./pages/admin').then(module 
 const SerialInspectorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.SerialInspectorPage })));
 const LotMonitorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.LotMonitorPage })));
 
+// Quality Pages
+const ProcessDefectRatePage = lazy(() => import('./pages/ProcessDefectRatePage').then(module => ({ default: module.ProcessDefectRatePage })));
+const MeasurementAnalysisPage = lazy(() => import('./pages/MeasurementAnalysisPage').then(module => ({ default: module.MeasurementAnalysisPage })));
+
+// Other Pages
+const AlertsPage = lazy(() => import('./pages/AlertsPage').then(module => ({ default: module.AlertsPage })));
+
 // Create QueryClient for react-query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +127,13 @@ function AppContent() {
                   <Route path="/admin/equipment" element={<AdminEquipmentPage />} />
                   <Route path="/admin/serial-inspector" element={<SerialInspectorPage />} />
                   <Route path="/admin/lot-monitor" element={<LotMonitorPage />} />
+
+                  {/* Quality Routes */}
+                  <Route path="/quality/defect-rate" element={<ProcessDefectRatePage />} />
+                  <Route path="/quality/measurements" element={<MeasurementAnalysisPage />} />
+
+                  {/* Alerts */}
+                  <Route path="/alerts" element={<AlertsPage />} />
                 </Route>
               </Route>
 

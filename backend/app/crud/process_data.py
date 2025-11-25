@@ -28,9 +28,9 @@ Key Features:
 """
 
 from datetime import datetime
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Tuple
 
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, desc, func, case
 from sqlalchemy.orm import Session, joinedload, selectinload, Query
 
 from app.models.process_data import ProcessData, ProcessResult, DataLevel
@@ -864,3 +864,274 @@ def count_by_serial(db: Session, *, serial_id: int) -> int:
     return db.query(ProcessData).filter(
         ProcessData.serial_id == serial_id
     ).count()
+
+
+def get_with_measurements(
+    db: Session,
+    *,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    process_id: Optional[int] = None,
+    lot_id: Optional[int] = None,
+    result: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    eager_loading: Literal["minimal", "standard", "full"] = "standard"
+) -> Tuple[List[ProcessData], int]:
+    """
+    Get process data records that have measurement data with filtering and pagination.
+
+    Retrieves ProcessData records where measurements JSONB field is not empty,
+    with support for multiple filter criteria. Returns both the records and total count
+    for pagination purposes.
+
+    Args:
+        db: SQLAlchemy Session for database operations
+        start_date: Filter records starting from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process ID
+        lot_id: Filter by specific LOT ID
+        result: Filter by result status (PASS, FAIL, REWORK)
+        skip: Number of records to skip for pagination (default 0)
+        limit: Maximum number of records to return (default 50)
+        eager_loading: Control eager loading depth
+
+    Returns:
+        Tuple of (List of ProcessData objects, Total count matching filters)
+
+    Example:
+        >>> from app.database import SessionLocal
+        >>> from datetime import datetime, timedelta
+        >>> db = SessionLocal()
+        >>> start = datetime.now() - timedelta(days=7)
+        >>> end = datetime.now()
+        >>> records, total = get_with_measurements(
+        ...     db, start_date=start, end_date=end, result="FAIL"
+        ... )
+        >>> print(f"Found {total} failed records with measurements")
+    """
+    # Build base query - filter for records with measurements
+    base_query = db.query(ProcessData).filter(
+        ProcessData.measurements.isnot(None),
+        ProcessData.measurements != {}
+    )
+
+    # Apply optional filters
+    if start_date:
+        base_query = base_query.filter(ProcessData.started_at >= start_date)
+    if end_date:
+        base_query = base_query.filter(ProcessData.started_at <= end_date)
+    if process_id:
+        base_query = base_query.filter(ProcessData.process_id == process_id)
+    if lot_id:
+        base_query = base_query.filter(ProcessData.lot_id == lot_id)
+    if result:
+        base_query = base_query.filter(ProcessData.result == result)
+
+    # Get total count before pagination
+    total_count = base_query.count()
+
+    # Apply eager loading and pagination
+    query = _build_optimized_query(base_query, eager_loading)
+    records = (
+        query
+        .order_by(desc(ProcessData.started_at))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return records, total_count
+
+
+def get_measurement_summary(
+    db: Session,
+    *,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    process_id: Optional[int] = None,
+) -> dict:
+    """
+    Get summary statistics for measurement data.
+
+    Calculates aggregate statistics including total count, pass/fail counts,
+    and pass rate for records with measurements.
+
+    Args:
+        db: SQLAlchemy Session for database operations
+        start_date: Filter records starting from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process ID
+
+    Returns:
+        Dictionary with summary statistics:
+        {
+            "total_count": int,
+            "pass_count": int,
+            "fail_count": int,
+            "rework_count": int,
+            "pass_rate": float,
+            "by_process": [
+                {"process_id": int, "process_name": str, "total": int, "fail": int, "rate": float}
+            ]
+        }
+
+    Example:
+        >>> from app.database import SessionLocal
+        >>> db = SessionLocal()
+        >>> summary = get_measurement_summary(db)
+        >>> print(f"Pass rate: {summary['pass_rate']:.1f}%")
+    """
+    # Build base query for records with measurements
+    base_query = db.query(ProcessData).filter(
+        ProcessData.measurements.isnot(None),
+        ProcessData.measurements != {}
+    )
+
+    # Apply optional filters
+    if start_date:
+        base_query = base_query.filter(ProcessData.started_at >= start_date)
+    if end_date:
+        base_query = base_query.filter(ProcessData.started_at <= end_date)
+    if process_id:
+        base_query = base_query.filter(ProcessData.process_id == process_id)
+
+    # Get aggregate counts
+    total_count = base_query.count()
+    pass_count = base_query.filter(ProcessData.result == ProcessResult.PASS.value).count()
+    fail_count = base_query.filter(ProcessData.result == ProcessResult.FAIL.value).count()
+    rework_count = base_query.filter(ProcessData.result == ProcessResult.REWORK.value).count()
+
+    # Calculate pass rate
+    pass_rate = (pass_count / total_count * 100) if total_count > 0 else 0.0
+
+    # Get stats by process
+    by_process_query = (
+        db.query(
+            Process.id.label("process_id"),
+            Process.process_name_ko.label("process_name"),
+            func.count(ProcessData.id).label("total"),
+            func.sum(
+                case(
+                    (ProcessData.result == ProcessResult.FAIL.value, 1),
+                    else_=0
+                )
+            ).label("fail")
+        )
+        .join(Process, ProcessData.process_id == Process.id)
+        .filter(
+            ProcessData.measurements.isnot(None),
+            ProcessData.measurements != {}
+        )
+    )
+
+    # Apply same filters to by_process query
+    if start_date:
+        by_process_query = by_process_query.filter(ProcessData.started_at >= start_date)
+    if end_date:
+        by_process_query = by_process_query.filter(ProcessData.started_at <= end_date)
+
+    by_process_results = (
+        by_process_query
+        .group_by(Process.id, Process.process_name_ko)
+        .order_by(Process.id)
+        .all()
+    )
+
+    by_process = []
+    for row in by_process_results:
+        rate = (row.fail / row.total * 100) if row.total > 0 else 0.0
+        by_process.append({
+            "process_id": row.process_id,
+            "process_name": row.process_name,
+            "total": row.total,
+            "fail": row.fail,
+            "rate": round(rate, 2)
+        })
+
+    return {
+        "total_count": total_count,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "rework_count": rework_count,
+        "pass_rate": round(pass_rate, 2),
+        "by_process": by_process
+    }
+
+
+def get_measurement_codes(
+    db: Session,
+    *,
+    process_id: Optional[int] = None,
+) -> List[dict]:
+    """
+    Extract all unique measurement codes from the database.
+
+    Scans the measurements JSONB field across all process_data records
+    and extracts unique measurement codes with their metadata.
+
+    Args:
+        db: SQLAlchemy Session for database operations
+        process_id: Optional filter to get codes only from a specific process
+
+    Returns:
+        List of dicts with code info: code, name, unit, count, process_ids
+    """
+    # Build base query for records with measurements
+    base_query = db.query(ProcessData).filter(
+        ProcessData.measurements.isnot(None),
+        ProcessData.measurements != {},
+    )
+
+    if process_id:
+        base_query = base_query.filter(ProcessData.process_id == process_id)
+
+    # Get all records with measurements
+    records = base_query.all()
+
+    # Extract unique codes
+    code_map = {}  # code -> {name, unit, count, process_ids}
+
+    for record in records:
+        measurements = record.measurements
+        if not measurements or not isinstance(measurements, list):
+            continue
+
+        for m in measurements:
+            if not isinstance(m, dict) or "code" not in m:
+                continue
+
+            code = m["code"]
+            name = m.get("name", code)
+            unit = m.get("unit")
+
+            if code not in code_map:
+                code_map[code] = {
+                    "code": code,
+                    "name": name,
+                    "unit": unit,
+                    "count": 0,
+                    "process_ids": set(),
+                }
+
+            code_map[code]["count"] += 1
+            code_map[code]["process_ids"].add(record.process_id)
+
+            # Update name/unit if not set
+            if not code_map[code]["name"] and name:
+                code_map[code]["name"] = name
+            if not code_map[code]["unit"] and unit:
+                code_map[code]["unit"] = unit
+
+    # Convert to list and sort by code
+    result = []
+    for code_info in code_map.values():
+        result.append({
+            "code": code_info["code"],
+            "name": code_info["name"],
+            "unit": code_info["unit"],
+            "count": code_info["count"],
+            "process_ids": sorted(list(code_info["process_ids"])),
+        })
+
+    return sorted(result, key=lambda x: x["code"])
