@@ -1,0 +1,112 @@
+# =============================================================================
+# F2X NeuroHub MES - Production Auto-Deploy Workflow
+# Triggers on push to main branch, runs on self-hosted Windows runner
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'neurohub_client/**'  # PySide6 클라이언트 변경은 배포 트리거 안함
+
+  # 수동 배포 트리거 (GitHub UI에서 실행 가능)
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Windows Server
+    runs-on: self-hosted
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 환경 변수 파일 확인
+      - name: Check environment file
+        run: |
+          if (!(Test-Path ".env.production")) {
+            Write-Error ".env.production file not found!"
+            exit 1
+          }
+          Write-Host "Environment file found"
+        shell: pwsh
+
+      # 3. Docker 상태 확인
+      - name: Check Docker status
+        run: |
+          docker --version
+          docker-compose --version
+        shell: pwsh
+
+      # 4. 이전 컨테이너 중지 (있으면)
+      - name: Stop existing containers
+        run: |
+          docker-compose -f docker-compose.prod.yml down --remove-orphans
+        shell: pwsh
+        continue-on-error: true
+
+      # 5. Docker 이미지 빌드
+      - name: Build Docker images
+        run: |
+          docker-compose -f docker-compose.prod.yml build --no-cache
+        shell: pwsh
+
+      # 6. 서비스 시작
+      - name: Start services
+        run: |
+          docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
+        shell: pwsh
+
+      # 7. 서비스 준비 대기
+      - name: Wait for services to be ready
+        run: |
+          Write-Host "Waiting for services to start..."
+          Start-Sleep -Seconds 20
+        shell: pwsh
+
+      # 8. 헬스체크
+      - name: Health check
+        run: |
+          $maxRetries = 5
+          $retryCount = 0
+          $success = $false
+
+          while ($retryCount -lt $maxRetries -and -not $success) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost/api/v1/health" -UseBasicParsing -TimeoutSec 10
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Health check passed!"
+                $success = $true
+              }
+            } catch {
+              $retryCount++
+              Write-Host "Health check failed, retry $retryCount/$maxRetries..."
+              Start-Sleep -Seconds 5
+            }
+          }
+
+          if (-not $success) {
+            Write-Error "Health check failed after $maxRetries retries"
+            exit 1
+          }
+        shell: pwsh
+
+      # 9. DB 마이그레이션
+      - name: Run database migrations
+        run: |
+          docker-compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+        shell: pwsh
+        continue-on-error: true
+
+      # 10. 배포 완료 상태 확인
+      - name: Deployment status
+        run: |
+          Write-Host "=== Deployment Complete ==="
+          docker-compose -f docker-compose.prod.yml ps
+        shell: pwsh
