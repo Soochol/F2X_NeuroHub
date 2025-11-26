@@ -22,7 +22,7 @@ from app.config import settings
 from app.core.exceptions import AppException
 from app.schemas.error import StandardErrorResponse, ErrorDetail, ErrorCode
 from app.core.errors import get_http_status_for_error_code
-from app.database import SessionLocal
+from app.database import SessionLocal, engine, Base
 from app.models import User
 from app.schemas import UserRole
 from app.core.security import get_password_hash
@@ -76,7 +76,7 @@ def init_default_admin():
             logger.info("No admin user found. Creating default admin...")
             new_admin = User(
                 username="admin",
-                email="admin@f2x.local",
+                email="admin@f2x.com",
                 password_hash=get_password_hash("admin123"),
                 full_name="System Administrator",
                 role=UserRole.ADMIN,
@@ -99,6 +99,8 @@ async def lifespan(app):
     """Application lifespan manager for startup/shutdown events."""
     # Startup
     logger.info("Starting F2X NeuroHub MES API...")
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
     init_default_admin()
     yield
     # Shutdown
