@@ -1,9 +1,11 @@
 """
 Barcode Service for HID barcode reader input handling.
 """
-from PySide6.QtCore import QObject, Signal
-import re
 import logging
+import re
+from typing import Optional
+
+from PySide6.QtCore import QObject, Signal
 
 from utils.serial_validator import validate_serial_number_v1
 
@@ -28,12 +30,12 @@ class BarcodeService(QObject):
     # Serial number pattern (V1): KR01PSA2511001 (14 characters)
     SERIAL_PATTERN = r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$'
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.buffer = ""
-        self.last_key_time = 0
+        self.buffer: str = ""
+        self.last_key_time: int = 0
 
-    def process_key(self, key: str):
+    def process_key(self, key: str) -> None:
         """
         Process keyboard input for barcode scanning.
 
@@ -47,7 +49,7 @@ class BarcodeService(QObject):
         elif key.isprintable():
             self.buffer += key
 
-    def _process_barcode(self, barcode: str):
+    def _process_barcode(self, barcode: str) -> None:
         """
         Process complete barcode string.
 
@@ -102,7 +104,7 @@ class BarcodeService(QObject):
         if not match:
             return False
 
-        lot_number, sequence_str = match.groups()
+        _lot_number, sequence_str = match.groups()
         sequence = int(sequence_str)
 
         # Validate sequence range (1-100)
@@ -123,6 +125,6 @@ class BarcodeService(QObject):
         """
         return validate_serial_number_v1(barcode)
 
-    def clear_buffer(self):
+    def clear_buffer(self) -> None:
         """Clear the input buffer."""
         self.buffer = ""

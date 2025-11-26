@@ -7,11 +7,13 @@ Features:
 - Automatic re-login on refresh failure (for 24/7 production environments)
 - Credentials stored in memory for seamless re-authentication
 """
-from PySide6.QtCore import QObject, Signal, QTimer
-from typing import Optional
+import logging
+from typing import Any, Dict, List, Optional
+
+from PySide6.QtCore import QObject, QTimer, Signal
+
 from .api_client import APIClient
 from .workers import APIWorker
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,8 @@ class AuthService(QObject):
         super().__init__()
         self.api_client = api_client
         self.access_token: Optional[str] = None
-        self.current_user: Optional[dict] = None
-        self._active_workers = []
+        self.current_user: Optional[Dict[str, Any]] = None
+        self._active_workers: List[APIWorker] = []
 
         # Stored credentials for auto re-login (PySide app only, local use)
         self._saved_username: Optional[str] = None
@@ -126,12 +128,13 @@ class AuthService(QObject):
             return self.current_user.get('username', 'UNKNOWN')
         return 'UNKNOWN'
 
-    def _on_api_success(self, operation: str, result: dict):
+    def _on_api_success(self, operation: str, result: Dict[str, Any]) -> None:
         """Handle successful API call based on operation type."""
         if operation == "login":
             self.access_token = result['access_token']
-            self.current_user = result.get('user', {})
-            self.api_client.set_token(self.access_token)
+            self.current_user = result.get('user') or {}
+            if self.access_token:
+                self.api_client.set_token(self.access_token)
             logger.info(
                 f"Login successful for user: {self.current_user.get('username')}"
             )
@@ -151,7 +154,8 @@ class AuthService(QObject):
         elif operation == "refresh_token":
             # Update access token from refresh response
             self.access_token = result['access_token']
-            self.api_client.set_token(self.access_token)
+            if self.access_token:
+                self.api_client.set_token(self.access_token)
             self._refresh_retry_count = 0
             logger.info("Token auto-refreshed successfully")
             self.token_refreshed.emit()
@@ -159,8 +163,9 @@ class AuthService(QObject):
         elif operation == "auto_relogin":
             # Auto re-login successful - restore session silently
             self.access_token = result['access_token']
-            self.current_user = result.get('user', {})
-            self.api_client.set_token(self.access_token)
+            self.current_user = result.get('user') or {}
+            if self.access_token:
+                self.api_client.set_token(self.access_token)
             self._refresh_retry_count = 0
             self._relogin_in_progress = False
             self._refresh_timer.start()
@@ -170,7 +175,7 @@ class AuthService(QObject):
             )
             self.auto_relogin_success.emit()
 
-    def _on_api_error(self, operation: str, error_msg: str):
+    def _on_api_error(self, operation: str, error_msg: str) -> None:
         """Handle API error based on operation type."""
         logger.error(f"Auth error [{operation}]: {error_msg}")
 
@@ -212,14 +217,14 @@ class AuthService(QObject):
                 "(자동 재인증 실패)"
             )
 
-    def _cleanup_worker(self, worker):
+    def _cleanup_worker(self, worker: APIWorker) -> None:
         """Clean up finished worker."""
         if worker in self._active_workers:
             self._active_workers.remove(worker)
         worker.deleteLater()
         logger.debug(f"Worker cleaned up: {worker.operation}")
 
-    def _auto_refresh_token(self):
+    def _auto_refresh_token(self) -> None:
         """
         Automatically refresh JWT token (called by QTimer every 25 minutes).
 
@@ -248,7 +253,7 @@ class AuthService(QObject):
         self._active_workers.append(worker)
         worker.start()
 
-    def _attempt_auto_relogin(self):
+    def _attempt_auto_relogin(self) -> None:
         """
         Attempt automatic re-login using saved credentials.
 
@@ -296,7 +301,7 @@ class AuthService(QObject):
         self._active_workers.append(worker)
         worker.start()
 
-    def cancel_all_operations(self):
+    def cancel_all_operations(self) -> None:
         """Cancel all active operations and clean up workers."""
         logger.info(f"Cancelling {len(self._active_workers)} active auth workers")
         for worker in self._active_workers[:]:

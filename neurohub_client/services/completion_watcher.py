@@ -1,11 +1,13 @@
 """
 Completion Watcher for JSON file monitoring.
 """
-from PySide6.QtCore import QObject, Signal, QTimer, QFileSystemWatcher
-from pathlib import Path
 import json
-import shutil
 import logging
+import shutil
+from pathlib import Path
+from typing import Any, Dict
+
+from PySide6.QtCore import QFileSystemWatcher, QObject, QTimer, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +19,15 @@ class CompletionWatcher(QObject):
     file_processed = Signal(str)        # Processed filename
     error_occurred = Signal(str)        # Error message
 
-    def __init__(self, watch_path: str, process_id: str):
+    def __init__(self, watch_path: str, process_id: str) -> None:
         super().__init__()
-        self.watch_path = Path(watch_path)
-        self.process_id = process_id
+        self.watch_path: Path = Path(watch_path)
+        self.process_id: str = process_id
 
         # Create directory structure
-        self.pending_dir = self.watch_path / "pending"
-        self.completed_dir = self.watch_path / "completed"
-        self.error_dir = self.watch_path / "error"
+        self.pending_dir: Path = self.watch_path / "pending"
+        self.completed_dir: Path = self.watch_path / "completed"
+        self.error_dir: Path = self.watch_path / "error"
         self._create_directories()
 
         # File system watcher
@@ -35,25 +37,25 @@ class CompletionWatcher(QObject):
             self.fs_watcher.directoryChanged.connect(self._on_directory_changed)
 
         # Periodic scan timer (every 3 seconds)
-        self.scan_timer = QTimer()
+        self.scan_timer: QTimer = QTimer()
         self.scan_timer.timeout.connect(self._scan_pending_files)
         self.scan_timer.start(3000)
 
         logger.info(f"CompletionWatcher initialized for process {process_id}")
         logger.info(f"Watching: {self.pending_dir}")
 
-    def _create_directories(self):
+    def _create_directories(self) -> None:
         """Create required directories if they don't exist."""
         for directory in [self.pending_dir, self.completed_dir, self.error_dir]:
             directory.mkdir(parents=True, exist_ok=True)
             logger.info(f"Directory ready: {directory}")
 
-    def _on_directory_changed(self, path: str):
+    def _on_directory_changed(self, path: str) -> None:
         """Handle directory change event."""
         logger.debug(f"Directory changed: {path}")
         self._scan_pending_files()
 
-    def _scan_pending_files(self):
+    def _scan_pending_files(self) -> None:
         """Scan for JSON files matching current process."""
         try:
             # Look for JSON files
@@ -62,7 +64,7 @@ class CompletionWatcher(QObject):
         except Exception as e:
             logger.error(f"Error scanning pending files: {e}")
 
-    def _process_json_file(self, file_path: Path):
+    def _process_json_file(self, file_path: Path) -> None:
         """
         Process single JSON file.
 
@@ -96,7 +98,7 @@ class CompletionWatcher(QObject):
             logger.error(f"Error processing {file_path.name}: {e}")
             self._move_to_error(file_path, f"처리 실패: {str(e)}")
 
-    def _move_to_error(self, file_path: Path, error_msg: str):
+    def _move_to_error(self, file_path: Path, error_msg: str) -> None:
         """
         Move file to error folder.
 
@@ -112,7 +114,7 @@ class CompletionWatcher(QObject):
         except Exception as e:
             logger.error(f"Failed to move file to error folder: {e}")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop monitoring."""
         self.scan_timer.stop()
         logger.info("CompletionWatcher stopped")

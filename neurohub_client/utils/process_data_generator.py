@@ -2,7 +2,7 @@
 Process Data Generator - Auto-generate process_data for each process.
 """
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict
 
 
 class ProcessDataGenerator:
@@ -11,7 +11,7 @@ class ProcessDataGenerator:
     @staticmethod
     def generate_pass_data(process_number: int, lot_number: str,
                            start_time: datetime, complete_time: datetime,
-                           **kwargs) -> dict:
+                           **kwargs: Any) -> Dict[str, Any]:
         """
         Generate process_data for PASS completion.
 
@@ -49,7 +49,7 @@ class ProcessDataGenerator:
     def generate_fail_data(process_number: int, lot_number: str,
                            start_time: datetime, complete_time: datetime,
                            defect_type: str, defect_description: str = "",
-                           **kwargs) -> dict:
+                           **kwargs: Any) -> Dict[str, Any]:
         """
         Generate process_data for FAIL completion.
 
@@ -103,7 +103,7 @@ class ProcessDataGenerator:
         return base_data
 
     @staticmethod
-    def _generate_laser_marking_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_laser_marking_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 1: Laser Marking PASS data."""
         return {
             "lot_number_engraved": lot_number,
@@ -111,7 +111,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_lma_assembly_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_lma_assembly_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 2: LMA Assembly PASS data."""
         return {
             "assembly_time": round(assembly_time, 2),
@@ -119,7 +119,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_sensor_inspection_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_sensor_inspection_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 3: Sensor Inspection PASS data."""
         return {
             "temp_sensor": {
@@ -135,7 +135,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_firmware_upload_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_firmware_upload_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 4: Firmware Upload PASS data."""
         return {
             "firmware_version": kwargs.get("firmware_version", "v1.0.0"),
@@ -143,7 +143,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_robot_assembly_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_robot_assembly_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 5: Robot Assembly PASS data."""
         return {
             "assembly_time": round(assembly_time, 2),
@@ -152,7 +152,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_performance_test_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_performance_test_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 6: Performance Test PASS data."""
         return {
             "test_results": kwargs.get("test_results", []),
@@ -162,7 +162,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_label_printing_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_label_printing_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 7: Label Printing PASS data."""
         return {
             "serial_number": kwargs.get("serial_number", ""),
@@ -171,7 +171,7 @@ class ProcessDataGenerator:
         }
 
     @staticmethod
-    def _generate_packaging_pass(lot_number: str, assembly_time: float, **kwargs) -> dict:
+    def _generate_packaging_pass(lot_number: str, assembly_time: float, **kwargs: Any) -> Dict[str, Any]:
         """Process 8: Packaging + Visual Inspection PASS data."""
         return {
             "visual_defects": [],

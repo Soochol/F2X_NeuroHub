@@ -2,19 +2,20 @@
 Report Dialog for generating and exporting production reports.
 """
 import logging
-from datetime import datetime, timedelta
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QComboBox, QDateEdit, QGroupBox, QFormLayout, QCheckBox,
-    QTextEdit, QProgressBar, QTabWidget, QWidget
-)
-from PySide6.QtCore import Qt, Signal, QDate, QThread
+from datetime import datetime
+from typing import Any, Optional
 
-from utils.theme_manager import get_theme
-from utils.report_generator import ReportGenerator, ReportData
-from utils.export_utils import ExcelExporter, PDFExporter
-from widgets.toast_notification import Toast
+from PySide6.QtCore import QDate, QThread, Signal
+from PySide6.QtWidgets import (
+    QComboBox, QDateEdit, QDialog, QFormLayout, QGroupBox, QHBoxLayout,
+    QLabel, QProgressBar, QPushButton, QTextEdit, QVBoxLayout, QWidget
+)
+
 from utils.exception_handler import safe_slot
+from utils.export_utils import ExcelExporter, PDFExporter
+from utils.report_generator import ReportData, ReportGenerator
+from utils.theme_manager import get_theme
+from widgets.toast_notification import Toast
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -27,13 +28,18 @@ class ReportGenerationWorker(QThread):
     finished = Signal(object)    # ReportData
     error = Signal(str)          # Error message
 
-    def __init__(self, report_generator, report_type, **kwargs):
+    def __init__(
+        self,
+        report_generator: ReportGenerator,
+        report_type: str,
+        **kwargs: Any
+    ) -> None:
         super().__init__()
         self.report_generator = report_generator
         self.report_type = report_type
         self.kwargs = kwargs
 
-    def run(self):
+    def run(self) -> None:
         """Execute report generation."""
         try:
             self.progress.emit(10, "보고서 생성 중...")
@@ -67,7 +73,12 @@ class ReportDialog(QDialog):
     # Signals
     report_generated = Signal(object)  # ReportData
 
-    def __init__(self, api_client, config, parent=None):
+    def __init__(
+        self,
+        api_client: Any,
+        config: Any,
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize ReportDialog.
 
@@ -89,7 +100,7 @@ class ReportDialog(QDialog):
 
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         spacing = theme.get("spacing.lg", 16)
@@ -172,7 +183,7 @@ class ReportDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-    def _create_option_widgets(self):
+    def _create_option_widgets(self) -> None:
         """Create option widgets for all report types."""
         # Date widgets
         self.single_date = QDateEdit()
@@ -199,7 +210,7 @@ class ReportDialog(QDialog):
         self.status_combo = QComboBox()
         self.status_combo.addItems(["전체", "CREATED", "IN_PROGRESS", "COMPLETED"])
 
-    def _load_production_lines(self):
+    def _load_production_lines(self) -> None:
         """Load production lines from API."""
         try:
             lines = self.api_client.get("/api/v1/production-lines/active")
@@ -211,7 +222,7 @@ class ReportDialog(QDialog):
         except Exception as e:
             logger.warning(f"Failed to load production lines: {e}")
 
-    def _load_processes(self):
+    def _load_processes(self) -> None:
         """Load processes from API."""
         try:
             processes = self.api_client.get("/api/v1/processes/active")
@@ -225,7 +236,7 @@ class ReportDialog(QDialog):
         except Exception as e:
             logger.warning(f"Failed to load processes: {e}")
 
-    def _on_report_type_changed(self, index: int):
+    def _on_report_type_changed(self, index: int) -> None:
         """Handle report type selection change."""
         # Clear current options
         while self.options_layout.count():
@@ -268,7 +279,7 @@ class ReportDialog(QDialog):
             self.options_layout.addRow("공정:", self.process_combo)
 
     @safe_slot("보고서 생성 실패")
-    def _on_generate_clicked(self):
+    def _on_generate_clicked(self) -> None:
         """Handle generate button click."""
         if self.worker and self.worker.isRunning():
             Toast.warning(self, "보고서 생성 중입니다. 잠시만 기다려 주세요.")
@@ -331,13 +342,13 @@ class ReportDialog(QDialog):
 
         self.worker.start()
 
-    def _on_progress(self, percentage: int, message: str):
+    def _on_progress(self, percentage: int, message: str) -> None:
         """Handle progress update."""
         self.progress_bar.setValue(percentage)
         logger.debug(f"Report generation: {percentage}% - {message}")
 
     @safe_slot("보고서 처리 실패")
-    def _on_report_generated(self, report: ReportData):
+    def _on_report_generated(self, report: ReportData) -> None:
         """Handle report generation completion."""
         self.current_report = report
 
@@ -357,7 +368,7 @@ class ReportDialog(QDialog):
 
         Toast.success(self, "보고서가 생성되었습니다")
 
-    def _update_preview(self, report: ReportData):
+    def _update_preview(self, report: ReportData) -> None:
         """Update preview with report summary."""
         summary = report.summary
         if not summary:
@@ -385,14 +396,14 @@ class ReportDialog(QDialog):
 
         self.preview_text.setPlainText(text)
 
-    def _on_error(self, error_msg: str):
+    def _on_error(self, error_msg: str) -> None:
         """Handle error."""
         self.progress_bar.setVisible(False)
         self.generate_btn.setEnabled(True)
         Toast.danger(self, error_msg)
 
     @safe_slot("Excel 내보내기 실패")
-    def _on_export_excel_clicked(self):
+    def _on_export_excel_clicked(self) -> None:
         """Handle Excel export button click."""
         if not self.current_report:
             Toast.warning(self, "먼저 보고서를 생성하세요")
@@ -416,13 +427,13 @@ class ReportDialog(QDialog):
                 logger.error(f"Excel export failed: {e}")
                 Toast.danger(self, f"Excel 내보내기 실패: {str(e)}")
 
-    def _export_to_excel(self, file_path: str):
+    def _export_to_excel(self, file_path: str) -> None:
         """Export report to Excel file."""
         ExcelExporter.export_report(self.current_report, file_path)
         logger.info(f"Exported report to Excel: {file_path}")
 
     @safe_slot("PDF 내보내기 실패")
-    def _on_export_pdf_clicked(self):
+    def _on_export_pdf_clicked(self) -> None:
         """Handle PDF export button click."""
         if not self.current_report:
             Toast.warning(self, "먼저 보고서를 생성하세요")
@@ -446,7 +457,7 @@ class ReportDialog(QDialog):
                 logger.error(f"PDF export failed: {e}")
                 Toast.danger(self, f"PDF 내보내기 실패: {str(e)}")
 
-    def _export_to_pdf(self, file_path: str):
+    def _export_to_pdf(self, file_path: str) -> None:
         """Export report to PDF file."""
         PDFExporter.export_report(self.current_report, file_path)
         logger.info(f"Exported report to PDF: {file_path}")

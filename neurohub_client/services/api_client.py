@@ -1,12 +1,13 @@
 """
 Simplified REST API Client with JWT authentication support.
 """
-import requests
-from typing import Optional, Dict, Any
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-from requests.exceptions import ConnectionError, Timeout, HTTPError
 import logging
+from typing import Any, Dict, List, Optional
+
+import requests
+from requests.adapters import HTTPAdapter
+from requests.exceptions import ConnectionError, Timeout, HTTPError
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class APIClient:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
-    def get(self, endpoint: str, params: Optional[Dict] = None) -> Any:
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """GET request with error handling."""
         url = f"{self.base_url}{endpoint}"
 
@@ -78,7 +79,7 @@ class APIClient:
             logger.error(f"Unexpected error: {e}")
             raise
 
-    def post(self, endpoint: str, data: Dict) -> Any:
+    def post(self, endpoint: str, data: Dict[str, Any]) -> Any:
         """POST request with error handling."""
         url = f"{self.base_url}{endpoint}"
 
@@ -142,7 +143,7 @@ class APIClient:
         # Fallback to response text (truncated)
         try:
             return error.response.text[:200]
-        except:
+        except Exception:
             return str(error)
 
     def _handle_http_error(self, error: HTTPError, endpoint: str):
@@ -174,7 +175,7 @@ class APIClient:
         raise HTTPError(user_msg)
 
     # Production Line & Equipment API methods
-    def get_production_lines(self) -> list:
+    def get_production_lines(self) -> List[Dict[str, Any]]:
         """
         Get list of active production lines.
 
@@ -185,7 +186,7 @@ class APIClient:
         """
         return self.get("/api/v1/production-lines/active")
 
-    def get_equipment(self) -> list:
+    def get_equipment(self) -> List[Dict[str, Any]]:
         """
         Get list of active equipment.
 
@@ -197,7 +198,7 @@ class APIClient:
         """
         return self.get("/api/v1/equipment/active")
 
-    def get_processes(self) -> list:
+    def get_processes(self) -> List[Dict[str, Any]]:
         """
         Get list of active processes.
 
@@ -210,7 +211,7 @@ class APIClient:
         return self.get("/api/v1/processes/active")
 
     # LOT API methods
-    def get_lots(self, status: Optional[str] = None) -> list:
+    def get_lots(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get list of LOTs.
 
@@ -223,7 +224,7 @@ class APIClient:
         params = {"status": status} if status else None
         return self.get("/api/v1/lots", params=params)
 
-    def get_lot(self, lot_id: int) -> dict:
+    def get_lot(self, lot_id: int) -> Dict[str, Any]:
         """
         Get LOT details by ID.
 
@@ -235,7 +236,7 @@ class APIClient:
         """
         return self.get(f"/api/v1/lots/{lot_id}")
 
-    def start_wip_generation(self, lot_id: int) -> dict:
+    def start_wip_generation(self, lot_id: int) -> Dict[str, Any]:
         """
         Start WIP generation for a LOT.
 
@@ -248,7 +249,7 @@ class APIClient:
         return self.post(f"/api/v1/lots/{lot_id}/start-wip-generation", {})
 
     # WIP (Serial) API methods
-    def scan_wip(self, wip_id: str) -> dict:
+    def scan_wip(self, wip_id: str) -> Dict[str, Any]:
         """
         Scan WIP barcode to retrieve WIP information.
 
@@ -260,7 +261,7 @@ class APIClient:
         """
         return self.post(f"/api/v1/wip-items/{wip_id}/scan", {})
 
-    def start_process(self, wip_id: str, process_data: dict) -> dict:
+    def start_process(self, wip_id: str, process_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Start process for WIP item.
 
@@ -277,7 +278,7 @@ class APIClient:
         """
         return self.post(f"/api/v1/wip-items/{wip_id}/start-process", process_data)
 
-    def complete_process(self, wip_id: str, completion_data: dict) -> dict:
+    def complete_process(self, wip_id: str, completion_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Complete process for WIP item.
 
@@ -297,7 +298,7 @@ class APIClient:
         """
         return self.post(f"/api/v1/wip-items/{wip_id}/complete-process", completion_data)
 
-    def get_wip_statistics(self) -> dict:
+    def get_wip_statistics(self) -> Dict[str, Any]:
         """
         Get WIP statistics for dashboard.
 

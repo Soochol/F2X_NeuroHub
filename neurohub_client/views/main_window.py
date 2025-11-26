@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
         hamburger_container.setObjectName("hamburger_container")
         hamburger_layout = QHBoxLayout(hamburger_container)
         hamburger_layout.setContentsMargins(8, 8, 8, 8)
-        hamburger_layout.setSpacing(0)
+        hamburger_layout.setSpacing(8)
 
         # Hamburger button
         self.hamburger_btn = QPushButton()
@@ -223,6 +223,22 @@ class MainWindow(QMainWindow):
         )
 
         hamburger_layout.addWidget(self.hamburger_btn)
+
+        # App name label
+        self.app_name_label = QLabel("F2X NeuroHub")
+        self.app_name_label.setObjectName("app_name_label")
+        self.app_name_label.setFixedHeight(34)  # Match hamburger button height
+        self.app_name_label.setStyleSheet(f"""
+            QLabel#app_name_label {{
+                color: {theme.get('colors.text.primary')};
+                font-size: 14px;
+                font-weight: 700;
+                background: transparent;
+                padding-top: 11px;
+            }}
+        """)
+        hamburger_layout.addWidget(self.app_name_label)
+
         hamburger_layout.addStretch()
         sidebar_layout.addWidget(hamburger_container)
 
@@ -584,6 +600,9 @@ class MainWindow(QMainWindow):
 
         # Also update logout button
         self.logout_btn.set_expanded(self._sidebar_expanded)
+
+        # Show/hide app name label
+        self.app_name_label.setVisible(self._sidebar_expanded)
 
         # Show/hide user info labels
         self.user_name_label.setVisible(self._sidebar_expanded)

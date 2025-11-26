@@ -4,16 +4,17 @@ WIP Generation Page for Production Tracker App.
 Allows selecting LOTs and generating WIP with barcode printing.
 """
 import logging
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QProgressDialog
-)
-from PySide6.QtCore import Qt, Signal
+from typing import Any, Dict, List, Optional
 
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QHBoxLayout, QHeaderView, QLabel, QMessageBox, QProgressDialog,
+    QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+)
+
+from utils.exception_handler import safe_slot
 from utils.theme_manager import get_theme
 from widgets.toast_notification import Toast
-from utils.exception_handler import safe_slot
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -25,7 +26,7 @@ class WIPGenerationPage(QWidget):
     # Signals
     refresh_requested = Signal()
 
-    def __init__(self, viewmodel, config):
+    def __init__(self, viewmodel: Any, config: Any) -> None:
         """
         Initialize WIPGenerationPage.
 
@@ -37,7 +38,7 @@ class WIPGenerationPage(QWidget):
         self.viewmodel = viewmodel
         self.config = config
         self.selected_lot_id: int = 0
-        self.progress_dialog: QProgressDialog = None
+        self.progress_dialog: Optional[QProgressDialog] = None
 
         self.setup_ui()
         self.connect_signals()
@@ -45,7 +46,7 @@ class WIPGenerationPage(QWidget):
         # Load LOTs on initialization
         self.viewmodel.load_lots("CREATED")
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         spacing = theme.get("spacing.lg", 16)
@@ -115,7 +116,7 @@ class WIPGenerationPage(QWidget):
         # Connect table selection
         self.lot_table.itemSelectionChanged.connect(self._on_selection_changed)
 
-    def connect_signals(self):
+    def connect_signals(self) -> None:
         """Connect ViewModel signals."""
         self.viewmodel.lots_loaded.connect(self._on_lots_loaded)
         self.viewmodel.wip_generation_started.connect(self._on_generation_started)
@@ -124,7 +125,7 @@ class WIPGenerationPage(QWidget):
         self.viewmodel.error_occurred.connect(self._on_error)
 
     @safe_slot("LOT 목록 로드 실패")
-    def _on_lots_loaded(self, lots: list):
+    def _on_lots_loaded(self, lots: List[Dict[str, Any]]) -> None:
         """Handle LOTs loaded."""
         logger.info(f"Loaded {len(lots)} LOTs")
 
@@ -171,21 +172,21 @@ class WIPGenerationPage(QWidget):
 
         Toast.info(self, f"{len(lots)}개 LOT 로드됨")
 
-    def _on_selection_changed(self):
+    def _on_selection_changed(self) -> None:
         """Handle table selection change."""
         selected_rows = self.lot_table.selectedIndexes()
         self.generate_btn.setEnabled(len(selected_rows) > 0)
 
-    def _on_refresh_clicked(self):
+    def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
         self.viewmodel.load_lots("CREATED")
         self.refresh_requested.emit()
 
-    def _on_lot_double_clicked(self):
+    def _on_lot_double_clicked(self) -> None:
         """Handle LOT double-click."""
         self._on_generate_clicked()
 
-    def _on_generate_clicked(self):
+    def _on_generate_clicked(self) -> None:
         """Handle generate button click."""
         selected_rows = self.lot_table.selectionModel().selectedRows()
         if not selected_rows:
@@ -215,7 +216,7 @@ class WIPGenerationPage(QWidget):
             self.viewmodel.start_wip_generation(lot_id)
 
     @safe_slot("WIP 생성 시작 실패")
-    def _on_generation_started(self):
+    def _on_generation_started(self) -> None:
         """Handle generation started."""
         logger.info("WIP generation started")
 
@@ -237,14 +238,14 @@ class WIPGenerationPage(QWidget):
         self.generate_btn.setEnabled(False)
 
     @safe_slot("진행률 업데이트 실패")
-    def _on_generation_progress(self, percentage: int, message: str):
+    def _on_generation_progress(self, percentage: int, message: str) -> None:
         """Handle generation progress."""
         if self.progress_dialog:
             self.progress_dialog.setValue(percentage)
             self.progress_dialog.setLabelText(message)
 
     @safe_slot("WIP 생성 완료 처리 실패")
-    def _on_generation_completed(self, result: dict):
+    def _on_generation_completed(self, result: Dict[str, Any]) -> None:
         """Handle generation completed."""
         generated_serials = result.get("generated_serials", [])
         count = len(generated_serials)
@@ -274,7 +275,7 @@ class WIPGenerationPage(QWidget):
         self.lot_table.clearSelection()
 
     @safe_slot("에러 처리 실패")
-    def _on_error(self, error_msg: str):
+    def _on_error(self, error_msg: str) -> None:
         """Handle error."""
         logger.error(f"Error: {error_msg}")
 
@@ -296,7 +297,7 @@ class WIPGenerationPage(QWidget):
         # Re-enable generate button
         self.generate_btn.setEnabled(True)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
         if self.progress_dialog:
             self.progress_dialog.close()

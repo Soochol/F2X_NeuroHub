@@ -5,11 +5,11 @@ Displays temporary messages at the top center of the parent window.
 Uses Property Variants for styling via app-level QSS.
 """
 import logging
-from typing import Optional
+from typing import Any, List
 
-from PySide6.QtWidgets import QFrame, QLabel, QHBoxLayout, QWidget
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
+from PySide6.QtGui import QFont, QMouseEvent
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class Toast(QFrame):
     """Toast notification popup using Property Variant styling."""
 
     # Class-level list to track active toasts for stacking
-    _active_toasts: list = []
+    _active_toasts: List["Toast"] = []
 
     def __init__(
         self,
@@ -26,7 +26,7 @@ class Toast(QFrame):
         message: str,
         variant: str = "toast",
         duration: int = 3000
-    ):
+    ) -> None:
         """
         Initialize Toast notification.
 
@@ -64,7 +64,7 @@ class Toast(QFrame):
         if duration > 0:
             QTimer.singleShot(duration, self._slide_out)
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup UI components."""
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -88,7 +88,7 @@ class Toast(QFrame):
         self.setMaximumWidth(350)
         self.adjustSize()
 
-    def _position_toast(self):
+    def _position_toast(self) -> None:
         """Position toast at top center of parent window."""
         if not self.parent():
             return
@@ -112,7 +112,7 @@ class Toast(QFrame):
         self._target_pos = global_pos
         self.move(global_pos)
 
-    def _slide_in(self):
+    def _slide_in(self) -> None:
         """Slide in animation from top."""
         if not self.parent():
             return
@@ -129,7 +129,7 @@ class Toast(QFrame):
         self._slide_anim.setEasingCurve(QEasingCurve.OutCubic)
         self._slide_anim.start()
 
-    def _slide_out(self):
+    def _slide_out(self) -> None:
         """Slide out animation to top."""
         if not self.parent():
             self._close_toast()
@@ -147,7 +147,7 @@ class Toast(QFrame):
         self._slide_anim.finished.connect(self._close_toast)
         self._slide_anim.start()
 
-    def _close_toast(self):
+    def _close_toast(self) -> None:
         """Close and cleanup toast."""
         if self in Toast._active_toasts:
             Toast._active_toasts.remove(self)
@@ -157,7 +157,7 @@ class Toast(QFrame):
         self.close()
         self.deleteLater()
 
-    def _reposition(self, index: int):
+    def _reposition(self, index: int) -> None:
         """Reposition toast based on index in stack."""
         if not self.parent():
             return
@@ -175,7 +175,7 @@ class Toast(QFrame):
         global_pos = parent.mapToGlobal(QPoint(x, y))
         self.move(global_pos)
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Close toast on click."""
         self._close_toast()
         super().mousePressEvent(event)
@@ -250,7 +250,7 @@ class Toast(QFrame):
         return toast
 
     @staticmethod
-    def clear_all():
+    def clear_all() -> None:
         """Clear all active toasts."""
         for toast in Toast._active_toasts[:]:
             toast._close_toast()

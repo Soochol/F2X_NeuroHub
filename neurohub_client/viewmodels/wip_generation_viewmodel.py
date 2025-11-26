@@ -4,8 +4,9 @@ ViewModel for WIP Generation.
 Handles LOT selection and WIP generation with barcode printing.
 """
 import logging
-from typing import List, Optional, Dict
-from PySide6.QtCore import QObject, Signal, QThread
+from typing import Any, Dict, List, Optional
+
+from PySide6.QtCore import QObject, QThread, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,13 @@ class WIPGenerationWorker(QThread):
     finished = Signal(dict)      # generation result
     error = Signal(str)          # error message
 
-    def __init__(self, api_client, lot_id: int, print_service=None):
+    def __init__(self, api_client: Any, lot_id: int, print_service: Optional[Any] = None) -> None:
         super().__init__()
         self.api_client = api_client
         self.lot_id = lot_id
         self.print_service = print_service
 
-    def run(self):
+    def run(self) -> None:
         """Execute WIP generation."""
         try:
             # Step 1: Request WIP generation (50%)
@@ -74,7 +75,7 @@ class WIPGenerationViewModel(QObject):
     wip_generation_completed = Signal(dict)     # Generation result
     error_occurred = Signal(str)                # Error message
 
-    def __init__(self, api_client, print_service=None):
+    def __init__(self, api_client: Any, print_service: Optional[Any] = None) -> None:
         """
         Initialize WIPGenerationViewModel.
 
@@ -86,9 +87,9 @@ class WIPGenerationViewModel(QObject):
         self.api_client = api_client
         self.print_service = print_service
         self.worker: Optional[WIPGenerationWorker] = None
-        self.current_lots: List[Dict] = []
+        self.current_lots: List[Dict[str, Any]] = []
 
-    def load_lots(self, status: str = "CREATED"):
+    def load_lots(self, status: str = "CREATED") -> None:
         """
         Load LOTs with specified status.
 
@@ -107,7 +108,7 @@ class WIPGenerationViewModel(QObject):
             logger.error(error_msg)
             self.error_occurred.emit(error_msg)
 
-    def start_wip_generation(self, lot_id: int):
+    def start_wip_generation(self, lot_id: int) -> None:
         """
         Start WIP generation for selected LOT.
 
@@ -132,12 +133,12 @@ class WIPGenerationViewModel(QObject):
         self.worker.error.connect(self._on_error)
         self.worker.start()
 
-    def _on_progress(self, percentage: int, message: str):
+    def _on_progress(self, percentage: int, message: str) -> None:
         """Handle progress update."""
         logger.debug(f"Progress: {percentage}% - {message}")
         self.wip_generation_progress.emit(percentage, message)
 
-    def _on_finished(self, result: dict):
+    def _on_finished(self, result: Dict[str, Any]) -> None:
         """Handle generation completion."""
         generated_count = len(result.get("generated_serials", []))
         logger.info(f"WIP generation completed: {generated_count} serials")
@@ -146,12 +147,12 @@ class WIPGenerationViewModel(QObject):
         # Reload LOT list
         self.load_lots("CREATED")
 
-    def _on_error(self, error_msg: str):
+    def _on_error(self, error_msg: str) -> None:
         """Handle generation error."""
         logger.error(f"WIP generation error: {error_msg}")
         self.error_occurred.emit(error_msg)
 
-    def get_lot_by_id(self, lot_id: int) -> Optional[Dict]:
+    def get_lot_by_id(self, lot_id: int) -> Optional[Dict[str, Any]]:
         """
         Get LOT from current list by ID.
 
@@ -166,7 +167,7 @@ class WIPGenerationViewModel(QObject):
                 return lot
         return None
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
         if self.worker and self.worker.isRunning():
             logger.info("Stopping WIP generation worker")

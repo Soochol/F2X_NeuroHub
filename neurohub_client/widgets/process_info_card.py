@@ -2,8 +2,10 @@
 Process Info Card Widget - Displays process, worker, line information.
 """
 import logging
+from typing import Any
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QGroupBox
+from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QVBoxLayout
+
 from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
@@ -13,13 +15,13 @@ theme = get_theme()
 class ProcessInfoCard(QGroupBox):
     """Display process information from configuration."""
 
-    def __init__(self, config):
+    def __init__(self, config: Any) -> None:
         super().__init__("공정 정보")
         self.config = config
         self.setObjectName("process_info_card")
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
@@ -65,11 +67,11 @@ class ProcessInfoCard(QGroupBox):
         equip_row.addWidget(self.equip_value)
         layout.addLayout(equip_row)
 
-    def set_worker(self, worker_id: str):
+    def set_worker(self, worker_id: str) -> None:
         """Update worker ID."""
         self.worker_value.setText(worker_id if worker_id else "-")
 
-    def update_from_config(self):
+    def update_from_config(self) -> None:
         """Update all values from config."""
         self.process_value.setText(self.config.process_name)
         self.line_value.setText(self.config.line_id)

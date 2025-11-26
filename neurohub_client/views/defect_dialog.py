@@ -1,9 +1,14 @@
 """
 Defect Type Selection Dialog.
 """
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QComboBox,
-                                QTextEdit, QPushButton, QHBoxLayout)
+from typing import List, Optional, Tuple
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QComboBox, QDialog, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout,
+    QWidget
+)
+
 from utils.theme_manager import get_theme
 
 theme = get_theme()
@@ -12,18 +17,18 @@ theme = get_theme()
 class DefectDialog(QDialog):
     """Dialog for selecting defect type when completing with FAIL."""
 
-    def __init__(self, process_number: int, parent=None):
+    def __init__(self, process_number: int, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.process_number = process_number
-        self.selected_defect_type = None
-        self.defect_description = ""
+        self.selected_defect_type: Optional[str] = None
+        self.defect_description: str = ""
 
         self.setWindowTitle("불량 유형 선택")
         self.setModal(True)
         self.resize(400, 300)
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -172,7 +177,7 @@ class DefectDialog(QDialog):
             }}
         """)
 
-    def _get_defect_types(self) -> list:
+    def _get_defect_types(self) -> List[Tuple[str, str]]:
         """Get defect types based on process number."""
         defect_types = {
             1: [
@@ -209,12 +214,12 @@ class DefectDialog(QDialog):
 
         return defect_types.get(self.process_number, [("UNKNOWN", "알 수 없는 불량")])
 
-    def _on_confirm(self):
+    def _on_confirm(self) -> None:
         """Handle confirm button click."""
         self.selected_defect_type = self.defect_combo.currentData()
         self.defect_description = self.description_input.toPlainText().strip()
         self.accept()
 
-    def get_result(self) -> tuple:
+    def get_result(self) -> Tuple[Optional[str], str]:
         """Get the selected defect type and description."""
         return (self.selected_defect_type, self.defect_description)

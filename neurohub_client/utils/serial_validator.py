@@ -11,9 +11,9 @@ frontend/src/utils/serialNumber.ts
 """
 
 import re
-from typing import Optional, Dict, Tuple
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -279,7 +279,7 @@ def parse_production_month(month_str: str) -> datetime:
     return datetime(year, month, 1)
 
 
-def get_serial_info(serial: str) -> Dict:
+def get_serial_info(serial: str) -> Dict[str, Any]:
     """
     Get detailed serial number information.
 

@@ -23,13 +23,13 @@ class ThemeManager:
     _theme_data: Dict[str, Any] = {}
     _resolved_cache: Dict[str, str] = {}
 
-    def __new__(cls):
+    def __new__(cls) -> 'ThemeManager':
         """Singleton pattern to ensure only one theme manager exists."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize theme manager."""
         pass
 

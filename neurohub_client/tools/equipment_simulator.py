@@ -20,13 +20,13 @@ Examples:
 
 import argparse
 import json
-import socket
 import random
+import socket
 import sys
-from datetime import datetime
+from typing import Any, Dict
 
 
-def generate_pass_data() -> dict:
+def generate_pass_data() -> Dict[str, Any]:
     """Generate sample PASS measurement data."""
     return {
         "result": "PASS",
@@ -68,7 +68,7 @@ def generate_pass_data() -> dict:
     }
 
 
-def generate_fail_data() -> dict:
+def generate_fail_data() -> Dict[str, Any]:
     """Generate sample FAIL measurement data."""
     # One measurement exceeds spec
     failed_voltage = round(random.uniform(12.5, 13.5), 2)  # Exceeds max 12.4
@@ -110,7 +110,7 @@ def generate_fail_data() -> dict:
     }
 
 
-def generate_assembly_data() -> dict:
+def generate_assembly_data() -> Dict[str, Any]:
     """Generate sample assembly process measurement data."""
     return {
         "result": "PASS",
@@ -144,7 +144,7 @@ def generate_assembly_data() -> dict:
     }
 
 
-def send_data(host: str, port: int, data: dict, use_length_header: bool = True) -> bool:
+def send_data(host: str, port: int, data: Dict[str, Any], use_length_header: bool = True) -> bool:
     """Send measurement data to PySide app."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -181,7 +181,7 @@ def send_data(host: str, port: int, data: dict, use_length_header: bool = True) 
         return False
 
 
-def interactive_mode(host: str, port: int):
+def interactive_mode(host: str, port: int) -> None:
     """Run in interactive mode for testing."""
     print("\n" + "=" * 60)
     print("Equipment Simulator - Interactive Mode")
@@ -228,7 +228,7 @@ def interactive_mode(host: str, port: int):
             print("Invalid command. Enter 1-4 or q.")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Equipment Simulator for TCP testing",
         formatter_class=argparse.RawDescriptionHelpFormatter,

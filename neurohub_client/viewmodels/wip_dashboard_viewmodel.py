@@ -4,8 +4,9 @@ ViewModel for WIP Dashboard.
 Handles WIP statistics retrieval and real-time updates.
 """
 import logging
-from typing import Dict, List
-from PySide6.QtCore import QObject, Signal, QTimer
+from typing import Any, Dict, List
+
+from PySide6.QtCore import QObject, QTimer, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class WIPDashboardViewModel(QObject):
     # Refresh interval (milliseconds)
     DEFAULT_REFRESH_INTERVAL = 30000  # 30 seconds
 
-    def __init__(self, api_client, refresh_interval: int = DEFAULT_REFRESH_INTERVAL):
+    def __init__(self, api_client: Any, refresh_interval: int = DEFAULT_REFRESH_INTERVAL) -> None:
         """
         Initialize WIPDashboardViewModel.
 
@@ -31,25 +32,25 @@ class WIPDashboardViewModel(QObject):
         super().__init__()
         self.api_client = api_client
         self.refresh_interval = refresh_interval
-        self.current_statistics: Dict = {}
+        self.current_statistics: Dict[str, Any] = {}
 
         # Auto-refresh timer
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.refresh_statistics)
 
-    def start_auto_refresh(self):
+    def start_auto_refresh(self) -> None:
         """Start auto-refresh timer."""
         logger.info(f"Starting auto-refresh (interval: {self.refresh_interval}ms)")
         self.refresh_timer.start(self.refresh_interval)
         # Load initial data
         self.refresh_statistics()
 
-    def stop_auto_refresh(self):
+    def stop_auto_refresh(self) -> None:
         """Stop auto-refresh timer."""
         logger.info("Stopping auto-refresh")
         self.refresh_timer.stop()
 
-    def set_refresh_interval(self, interval_ms: int):
+    def set_refresh_interval(self, interval_ms: int) -> None:
         """
         Set refresh interval.
 
@@ -61,7 +62,7 @@ class WIPDashboardViewModel(QObject):
             self.refresh_timer.setInterval(interval_ms)
             logger.info(f"Refresh interval updated: {interval_ms}ms")
 
-    def refresh_statistics(self):
+    def refresh_statistics(self) -> None:
         """Refresh WIP statistics."""
         try:
             logger.debug("Refreshing WIP statistics")
@@ -85,7 +86,7 @@ class WIPDashboardViewModel(QObject):
         by_process = self.current_statistics.get("by_process", {})
         return [(name, count) for name, count in by_process.items()]
 
-    def get_lot_progress(self) -> List[Dict]:
+    def get_lot_progress(self) -> List[Dict[str, Any]]:
         """
         Get WIP progress by LOT.
 
@@ -95,7 +96,7 @@ class WIPDashboardViewModel(QObject):
         by_lot = self.current_statistics.get("by_lot", [])
         return by_lot
 
-    def get_alerts(self) -> List[Dict]:
+    def get_alerts(self) -> List[Dict[str, Any]]:
         """
         Get problem WIP alerts.
 
@@ -114,6 +115,6 @@ class WIPDashboardViewModel(QObject):
         """
         return self.current_statistics.get("total_wip", 0)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
         self.stop_auto_refresh()

@@ -8,9 +8,9 @@ Generates various production reports including:
 - Process performance report
 """
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +23,15 @@ class ReportData:
     generated_by: str
     date_range_start: Optional[str] = None
     date_range_end: Optional[str] = None
-    filters: Optional[Dict] = None
-    data: Optional[List[Dict]] = None
-    summary: Optional[Dict] = None
+    filters: Optional[Dict[str, Any]] = None
+    data: Optional[List[Dict[str, Any]]] = None
+    summary: Optional[Dict[str, Any]] = None
 
 
 class ReportGenerator:
     """Generate production reports."""
 
-    def __init__(self, api_client):
+    def __init__(self, api_client: Any) -> None:
         """
         Initialize ReportGenerator.
 
@@ -273,7 +273,7 @@ class ReportGenerator:
 
     # Summary calculation methods
 
-    def _calculate_daily_summary(self, data: List[Dict]) -> Dict:
+    def _calculate_daily_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate daily production summary."""
         if not data:
             return {
@@ -309,7 +309,7 @@ class ReportGenerator:
             "avg_cycle_time": round(avg_cycle_time, 2)
         }
 
-    def _calculate_lot_summary(self, data: List[Dict]) -> Dict:
+    def _calculate_lot_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate LOT progress summary."""
         if not data:
             return {
@@ -332,7 +332,7 @@ class ReportGenerator:
             "completion_rate": round(completion_rate, 2)
         }
 
-    def _calculate_wip_summary(self, data: List[Dict]) -> Dict:
+    def _calculate_wip_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate WIP status summary."""
         if not data:
             return {
@@ -361,7 +361,7 @@ class ReportGenerator:
             "by_process": by_process
         }
 
-    def _calculate_performance_summary(self, data: List[Dict]) -> Dict:
+    def _calculate_performance_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate process performance summary."""
         if not data:
             return {
@@ -395,7 +395,7 @@ class ReportGenerator:
             "top_performers": top_performers
         }
 
-    def _calculate_defect_summary(self, data: List[Dict]) -> Dict:
+    def _calculate_defect_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate defect analysis summary."""
         if not data:
             return {

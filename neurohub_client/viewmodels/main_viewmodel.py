@@ -1,10 +1,11 @@
 """
 Main ViewModel for Production Tracker App.
 """
-from PySide6.QtCore import QObject, Signal
-from datetime import datetime
-from typing import Dict, Optional, Any
 import logging
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QObject, Signal
 
 from utils.exception_handler import (
     SignalConnector, CleanupManager, safe_slot, safe_cleanup
@@ -35,7 +36,16 @@ class MainViewModel(QObject):
     measurement_received = Signal(object)  # EquipmentData from TCP
     tcp_server_status = Signal(bool, str)  # (is_running, status_message)
 
-    def __init__(self, config, api_client, auth_service, work_service, barcode_service, completion_watcher, tcp_server=None):
+    def __init__(
+        self,
+        config: Any,
+        api_client: Any,
+        auth_service: Any,
+        work_service: Any,
+        barcode_service: Any,
+        completion_watcher: Any,
+        tcp_server: Optional[Any] = None
+    ) -> None:
         super().__init__()
         self.config = config
         self.api_client = api_client
@@ -68,7 +78,7 @@ class MainViewModel(QObject):
 
         logger.info("MainViewModel initialized")
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """Connect internal signals."""
         connector = SignalConnector()
 
@@ -139,6 +149,10 @@ class MainViewModel(QObject):
                 self.on_measurement_received,
                 "tcp_data_received -> on_measurement_received"
             ).connect(
+                self.tcp_server.signals.start_received,
+                self.on_start_received,
+                "tcp_start_received -> on_start_received"
+            ).connect(
                 self.tcp_server.signals.server_started,
                 lambda port: self.tcp_server_status.emit(True, f"TCP 서버 시작 (포트: {port})"),
                 "tcp_server_started -> tcp_server_status"
@@ -157,7 +171,7 @@ class MainViewModel(QObject):
                 f"일부 시그널 연결 실패: {connector.failed_connections}"
             )
 
-    def on_barcode_scanned(self, lot_number: str):
+    def on_barcode_scanned(self, lot_number: str) -> None:
         """
         Handle valid LOT barcode scan (initiates threaded operation).
 
@@ -166,31 +180,39 @@ class MainViewModel(QObject):
         """
         self.start_work(lot_number)
 
-    def start_work(self, lot_number: str, serial_number: Optional[str] = None):
+    def start_work(self, lot_number: Optional[str] = None, serial_number: Optional[str] = None) -> None:
         """
-        Start work for the given LOT number (and optionally Serial number).
+        Start work for the given WIP ID (serial_number) or LOT number.
 
         Args:
-            lot_number: LOT number to start work for
-            serial_number: Serial number (optional - for SERIAL-level work)
+            lot_number: LOT number (optional - for LOT-level work or barcode scan)
+            serial_number: WIP ID (optional - for equipment TCP flow)
+        
+        Note:
+            - TCP flow: serial_number only (WIP ID from equipment)
+            - Barcode flow: lot_number only (LOT barcode scan)
         """
         # Get current user
         worker_id = self.auth_service.get_current_user_id()
 
         if serial_number:
-            logger.info(f"Processing LOT: {lot_number}, Serial: {serial_number}, Worker: {worker_id}")
+            logger.info(f"Starting work: WIP={serial_number}, Worker={worker_id}")
+        elif lot_number:
+            logger.info(f"Starting work: LOT={lot_number}, Worker={worker_id}")
         else:
-            logger.info(f"Processing LOT: {lot_number}, Worker: {worker_id}")
+            logger.error("No LOT or WIP ID provided")
+            self.error_occurred.emit("LOT 또는 WIP ID가 필요합니다.")
+            return
 
         # Store for when work starts successfully
         self.current_lot = lot_number
         self.current_worker = worker_id
-        self.current_serial = serial_number  # Store serial if provided
+        self.current_serial = serial_number
 
         # Start work (threaded - result will come via signal)
         self.work_service.start_work(lot_number, worker_id, serial_number)
 
-    def complete_work(self, completion_data: dict):
+    def complete_work(self, completion_data: Dict[str, Any]) -> None:
         """
         Complete work with the given completion data.
 
@@ -207,7 +229,7 @@ class MainViewModel(QObject):
         # Submit completion to backend (threaded - result will come via signal)
         self.work_service.complete_work(completion_data)
 
-    def on_barcode_invalid(self, barcode: str):
+    def on_barcode_invalid(self, barcode: str) -> None:
         """
         Handle invalid barcode format.
 
@@ -218,7 +240,7 @@ class MainViewModel(QObject):
         logger.warning(error_msg)
         self.error_occurred.emit(error_msg)
 
-    def on_serial_barcode_scanned(self, serial_number: str):
+    def on_serial_barcode_scanned(self, serial_number: str) -> None:
         """
         Handle valid SERIAL barcode scan.
 
@@ -229,7 +251,7 @@ class MainViewModel(QObject):
         # Emit signal for UI to update (MainWindow will handle this)
         self.serial_received.emit(serial_number)
 
-    def on_completion_detected(self, json_data: dict):
+    def on_completion_detected(self, json_data: Dict[str, Any]) -> None:
         """
         Handle JSON completion file detected (initiates threaded operation).
 
@@ -246,7 +268,7 @@ class MainViewModel(QObject):
         # Submit completion to backend (threaded - result will come via signal)
         self.work_service.complete_work(json_data)
 
-    def on_file_processed(self, filename: str):
+    def on_file_processed(self, filename: str) -> None:
         """
         Handle file processed successfully.
 
@@ -255,7 +277,7 @@ class MainViewModel(QObject):
         """
         logger.info(f"File processed: {filename}")
 
-    def on_completion_error(self, error_msg: str):
+    def on_completion_error(self, error_msg: str) -> None:
         """
         Handle completion processing error.
 
@@ -265,7 +287,7 @@ class MainViewModel(QObject):
         logger.error(f"Completion error: {error_msg}")
         self.error_occurred.emit(error_msg)
 
-    def clear_current_lot(self):
+    def clear_current_lot(self) -> None:
         """Clear current LOT information."""
         self.current_lot = None
         self.current_wip_id = None
@@ -275,7 +297,7 @@ class MainViewModel(QObject):
 
     # --- Threaded operation callbacks ---
 
-    def on_login_success(self, user_data: dict):
+    def on_login_success(self, user_data: Dict[str, Any]) -> None:
         """Handle successful login from threaded operation."""
         logger.info(f"Login successful (threaded callback): {user_data.get('username')}")
 
@@ -283,7 +305,7 @@ class MainViewModel(QObject):
         self.is_online = True
         self.connection_status_changed.emit(True)
 
-    def on_work_started_success(self, response: dict):
+    def on_work_started_success(self, response: Dict[str, Any]) -> None:
         """Handle successful work start from threaded operation."""
         logger.info(f"Work started successfully (threaded callback): {response}")
 
@@ -302,7 +324,7 @@ class MainViewModel(QObject):
         self.is_online = True
         self.connection_status_changed.emit(True)
 
-    def on_work_completed_success(self, response: dict):
+    def on_work_completed_success(self, response: Dict[str, Any]) -> None:
         """Handle successful work completion from threaded operation."""
         lot_number = response.get("lot_number", self.current_lot or "UNKNOWN")
         logger.info(f"Work completed successfully (threaded callback): {lot_number}")
@@ -318,7 +340,7 @@ class MainViewModel(QObject):
         self.is_online = True
         self.connection_status_changed.emit(True)
 
-    def on_work_service_error(self, error_msg: str):
+    def on_work_service_error(self, error_msg: str) -> None:
         """Handle work service error from threaded operation."""
         logger.error(f"Work service error (threaded callback): {error_msg}")
         self.error_occurred.emit(error_msg)
@@ -328,7 +350,7 @@ class MainViewModel(QObject):
             self.is_online = False
             self.connection_status_changed.emit(False)
 
-    def on_serial_converted(self, result: dict):
+    def on_serial_converted(self, result: Dict[str, Any]) -> None:
         """Handle successful serial conversion."""
         serial_dict = result.get("serial", {})
         serial_number = serial_dict.get("serial_number")
@@ -348,7 +370,31 @@ class MainViewModel(QObject):
 
     # --- TCP Server / Equipment Measurement Methods ---
 
-    def on_measurement_received(self, equipment_data):
+    def on_start_received(self, start_data: Any) -> None:
+        """
+        Handle start work request received from equipment via TCP.
+
+        Equipment sends WIP ID (serial_number) and Client calls Backend
+        with additional context (worker_id, process_id, equipment_id).
+
+        Args:
+            start_data: StartData object from TCP server
+        """
+        logger.info(
+            f"Start received via TCP: serial={start_data.serial_number}, "
+            f"equipment={start_data.equipment_id}"
+        )
+
+        # WIP ID (serial_number) is required
+        if not start_data.serial_number:
+            logger.warning("No serial_number (WIP ID) in start request")
+            self.error_occurred.emit("WIP ID가 없습니다.")
+            return
+
+        # Call start_work with WIP ID from equipment
+        self.start_work(serial_number=start_data.serial_number)
+
+    def on_measurement_received(self, equipment_data: Any) -> None:
         """
         Handle measurement data received from equipment via TCP.
 
@@ -366,7 +412,7 @@ class MainViewModel(QObject):
         # Emit signal for UI to display measurement data
         self.measurement_received.emit(equipment_data)
 
-    def complete_with_measurement(self):
+    def complete_with_measurement(self) -> None:
         """
         Complete work with pending measurement data.
 
@@ -405,7 +451,7 @@ class MainViewModel(QObject):
         # Clear pending measurement
         self.pending_measurement = None
 
-    def clear_pending_measurement(self):
+    def clear_pending_measurement(self) -> None:
         """Clear pending measurement data without completing."""
         self.pending_measurement = None
         logger.info("Pending measurement cleared")
@@ -433,13 +479,13 @@ class MainViewModel(QObject):
 
         return self.tcp_server.start()
 
-    def stop_tcp_server(self):
+    def stop_tcp_server(self) -> None:
         """Stop TCP server."""
         if self.tcp_server:
             self.tcp_server.stop()
 
     @safe_cleanup("ViewModel 정리 실패")
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources and cancel pending operations."""
         logger.info("MainViewModel cleanup initiated")
 

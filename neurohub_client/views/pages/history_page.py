@@ -2,15 +2,17 @@
 History Page - Displays work start/complete/error history.
 """
 from datetime import datetime
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
-    QComboBox, QCalendarWidget, QDialog
-)
-from PySide6.QtCore import Qt, Slot, QDate
+from typing import Any, Optional, Set
+
+from PySide6.QtCore import QDate, Qt, Slot
 from PySide6.QtGui import QColor, QTextCharFormat
+from PySide6.QtWidgets import (
+    QCalendarWidget, QComboBox, QDialog, QFrame, QHBoxLayout, QHeaderView,
+    QLabel, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+)
+
 from services.history_manager import (
-    get_history_manager, EventType, EventResult, WorkEvent
+    EventResult, EventType, WorkEvent, get_history_manager
 )
 from utils.theme_manager import get_theme
 
@@ -20,18 +22,19 @@ theme = get_theme()
 class HistoryPage(QWidget):
     """Page displaying work history with filtering."""
 
-    def __init__(self, config, parent=None):
+    def __init__(self, config: Any, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.config = config
         self.history_manager = get_history_manager()
-        self._current_filter = "all"
-        self._current_date = None  # None means today
+        self._current_filter: str = "all"
+        self._current_date: Optional[str] = None  # None means today
+        self._available_dates: Set[str] = set()
         self._setup_ui()
         self._connect_signals()
         self._load_available_dates()
         self._refresh_table()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -251,23 +254,24 @@ class HistoryPage(QWidget):
 
         layout.addWidget(self.table)
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """Connect history manager signals."""
         self.history_manager.event_added.connect(self._on_event_added)
         self.history_manager.history_cleared.connect(self._refresh_table)
 
     @Slot(object)
-    def _on_event_added(self, event: WorkEvent):
+    def _on_event_added(self, event: WorkEvent) -> None:
         """Handle new event added."""
+        _ = event  # Unused but required by signal
         # Reload available dates (for calendar validation)
         self._load_available_dates()
         self._refresh_table()
 
-    def _load_available_dates(self):
+    def _load_available_dates(self) -> None:
         """Cache available history dates (for calendar validation)."""
         self._available_dates = set(self.history_manager.get_available_dates())
 
-    def _on_date_picker_clicked(self):
+    def _on_date_picker_clicked(self) -> None:
         """Open calendar dialog to select date."""
         dialog = DatePickerDialog(self._available_dates, self._current_date, self)
         if dialog.exec() == QDialog.Accepted:
@@ -275,7 +279,7 @@ class HistoryPage(QWidget):
             self._update_date_button()
             self._refresh_table()
 
-    def _update_date_button(self):
+    def _update_date_button(self) -> None:
         """Update date button text based on selected date."""
         if self._current_date is None:
             self.date_button.setText("📅 오늘")
@@ -284,21 +288,21 @@ class HistoryPage(QWidget):
                 date_obj = datetime.strptime(self._current_date, "%Y-%m-%d")
                 display_text = date_obj.strftime("%m월 %d일")
                 self.date_button.setText(f"📅 {display_text}")
-            except:
+            except ValueError:
                 self.date_button.setText(f"📅 {self._current_date}")
 
-    def _on_filter_changed(self, index: int):
+    def _on_filter_changed(self, index: int) -> None:
         """Handle filter change."""
         filters = ["all", "success", "error"]
         self._current_filter = filters[index] if index < len(filters) else "all"
         self._refresh_table()
 
-    def _on_clear_clicked(self):
+    def _on_clear_clicked(self) -> None:
         """Handle clear button click."""
         self.history_manager.clear()
         self._load_available_dates()  # Refresh date combo
 
-    def _refresh_table(self):
+    def _refresh_table(self) -> None:
         """Refresh table with current events."""
         # Get events based on date filter
         if self._current_date is None:
@@ -394,15 +398,14 @@ class HistoryPage(QWidget):
             message_item.setFlags(message_item.flags() & ~Qt.ItemIsEditable & ~Qt.ItemIsSelectable)
             self.table.setItem(row, 5, message_item)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources."""
-        pass
 
 
 class DatePickerDialog(QDialog):
     """Calendar date picker dialog for selecting history dates."""
 
-    def __init__(self, available_dates: set, current_date: str = None, parent=None):
+    def __init__(self, available_dates: Set[str], current_date: Optional[str] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.available_dates = available_dates
         self.selected_date = current_date
@@ -419,7 +422,7 @@ class DatePickerDialog(QDialog):
 
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup calendar UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -563,7 +566,7 @@ class DatePickerDialog(QDialog):
             try:
                 date_obj = datetime.strptime(self.selected_date, "%Y-%m-%d")
                 self.calendar.setSelectedDate(QDate(date_obj.year, date_obj.month, date_obj.day))
-            except:
+            except ValueError:
                 self.calendar.setSelectedDate(QDate.currentDate())
         else:
             self.calendar.setSelectedDate(QDate.currentDate())
@@ -652,7 +655,7 @@ class DatePickerDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-    def _update_calendar_dates(self):
+    def _update_calendar_dates(self) -> None:
         """Disable dates that don't have history data."""
         if not self.available_dates:
             return
@@ -663,24 +666,24 @@ class DatePickerDialog(QDialog):
             try:
                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
                 available_qdates.add(QDate(date_obj.year, date_obj.month, date_obj.day))
-            except:
+            except ValueError:
                 continue
 
         # Note: QCalendarWidget doesn't have built-in date disabling,
         # so we'll highlight available dates visually in the formatting
 
-    def _on_today_clicked(self):
+    def _on_today_clicked(self) -> None:
         """Select today's date."""
         self.calendar.setSelectedDate(QDate.currentDate())
         self.selected_date = None
         self.accept()
 
-    def _on_ok_clicked(self):
+    def _on_ok_clicked(self) -> None:
         """Handle OK button click."""
         selected_qdate = self.calendar.selectedDate()
         self.selected_date = selected_qdate.toString("yyyy-MM-dd")
         self.accept()
 
-    def get_selected_date(self) -> str:
+    def get_selected_date(self) -> Optional[str]:
         """Get selected date (None for today)."""
         return self.selected_date

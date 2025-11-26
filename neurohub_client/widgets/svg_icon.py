@@ -1,10 +1,12 @@
 """
 SVG Icon Widget - Renders SVG icons with color support.
 """
-from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QPainter, QColor
+from typing import Any, Optional
+
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QPainter, QPaintEvent
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QWidget
 
 
 class SvgIcon(QWidget):
@@ -75,18 +77,23 @@ class SvgIcon(QWidget):
         """,
     }
 
-    def __init__(self, icon_name: str = "hamburger", color: str = "#FFFFFF",
-                 size: int = 24, parent=None):
+    def __init__(
+        self,
+        icon_name: str = "hamburger",
+        color: str = "#FFFFFF",
+        size: int = 24,
+        parent: Optional[QWidget] = None
+    ) -> None:
         super().__init__(parent)
         self._icon_name = icon_name
         self._color = color
         self._size = size
-        self._renderer = None
+        self._renderer: Optional[QSvgRenderer] = None
 
         self.setFixedSize(size, size)
         self._update_renderer()
 
-    def _update_renderer(self):
+    def _update_renderer(self) -> None:
         """Update SVG renderer with current icon and color."""
         svg_template = self.ICONS.get(self._icon_name, self.ICONS["hamburger"])
         svg_content = svg_template.format(color=self._color)
@@ -95,29 +102,29 @@ class SvgIcon(QWidget):
         self._renderer.load(svg_content.encode('utf-8'))
         self.update()
 
-    def set_icon(self, icon_name: str):
+    def set_icon(self, icon_name: str) -> None:
         """Set the icon to display."""
         if icon_name in self.ICONS:
             self._icon_name = icon_name
             self._update_renderer()
 
-    def set_color(self, color: str):
+    def set_color(self, color: str) -> None:
         """Set the icon color."""
         self._color = color
         self._update_renderer()
 
-    def set_size(self, size: int):
+    def set_size(self, size: int) -> None:
         """Set the icon size."""
         self._size = size
         self.setFixedSize(size, size)
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the SVG icon."""
         if self._renderer and self._renderer.isValid():
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
             self._renderer.render(painter, self.rect())
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         return QSize(self._size, self._size)

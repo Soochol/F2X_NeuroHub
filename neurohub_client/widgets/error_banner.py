@@ -1,9 +1,12 @@
 """
 Error Banner Widget - Displays last error at bottom of page.
 """
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, Signal, QTimer
 from datetime import datetime
+from typing import Optional
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QWidget
+
 from utils.theme_manager import get_theme
 
 theme = get_theme()
@@ -19,13 +22,13 @@ class ErrorBanner(QFrame):
 
     dismissed = Signal()  # Emitted when user closes the banner
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("error_banner")
         self._setup_ui()
         self.hide()  # Initially hidden
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup UI components."""
         # Colors
         danger_main = theme.get('colors.danger.main')
@@ -87,7 +90,7 @@ class ErrorBanner(QFrame):
         close_btn.clicked.connect(self.clear)
         layout.addWidget(close_btn)
 
-    def show_error(self, message: str):
+    def show_error(self, message: str) -> None:
         """
         Show error message with current timestamp.
 
@@ -98,7 +101,7 @@ class ErrorBanner(QFrame):
         self.time_label.setText(datetime.now().strftime("%H:%M:%S"))
         self.show()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear and hide the error banner."""
         self.message_label.setText("")
         self.time_label.setText("")

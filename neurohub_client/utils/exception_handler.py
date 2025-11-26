@@ -5,13 +5,12 @@ Provides structured, reusable exception handling patterns for the entire applica
 Ensures consistent error logging, user feedback, and graceful degradation.
 """
 
-import sys
 import logging
-import traceback
+import sys
 from functools import wraps
-from typing import Callable, Any, Optional, Type, Tuple
+from typing import Any, Callable, List, Optional, Tuple
+
 from PySide6.QtWidgets import QMessageBox, QWidget
-from PySide6.QtCore import QObject
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +24,13 @@ class ExceptionHandler:
     """
 
     @staticmethod
-    def install_global_handler():
+    def install_global_handler() -> None:
         """
         Install global exception handler to catch unhandled exceptions.
 
         Should be called once at application startup in main.py.
         """
-        def global_exception_hook(exc_type, exc_value, exc_traceback):
+        def global_exception_hook(exc_type: type, exc_value: BaseException, exc_traceback: Any) -> None:
             """Handle uncaught exceptions globally."""
             if issubclass(exc_type, KeyboardInterrupt):
                 # Allow keyboard interrupt to pass through
@@ -316,14 +315,14 @@ class SignalConnector:
             logger.warning(f"Failed connections: {connector.failed_connections}")
     """
 
-    def __init__(self):
-        self._connections = []
-        self._failed = []
+    def __init__(self) -> None:
+        self._connections: List[Tuple[Any, Callable[..., Any], str]] = []
+        self._failed: List[Tuple[str, str]] = []
 
     def connect(
         self,
-        signal,
-        slot: Callable,
+        signal: Any,
+        slot: Callable[..., Any],
         description: str = ""
     ) -> 'SignalConnector':
         """
@@ -352,7 +351,7 @@ class SignalConnector:
         return len(self._failed) == 0
 
     @property
-    def failed_connections(self) -> list:
+    def failed_connections(self) -> List[Tuple[str, str]]:
         """Get list of failed connections."""
         return self._failed
 
@@ -397,15 +396,15 @@ class CleanupManager:
             logger.warning(f"Cleanup failures: {failed}")
     """
 
-    def __init__(self):
-        self._tasks = []
+    def __init__(self) -> None:
+        self._tasks: List[Tuple[Callable[..., Any], str, tuple, dict]] = []
 
     def add(
         self,
-        func: Callable,
+        func: Callable[..., Any],
         description: str = "",
-        *args,
-        **kwargs
+        *args: Any,
+        **kwargs: Any
     ) -> 'CleanupManager':
         """
         Add a cleanup task.
@@ -421,7 +420,7 @@ class CleanupManager:
         self._tasks.append((func, description, args, kwargs))
         return self
 
-    def execute(self) -> list:
+    def execute(self) -> List[Tuple[str, str]]:
         """
         Execute all cleanup tasks.
 
@@ -444,11 +443,11 @@ class CleanupManager:
 
 # Convenience function for one-off safe operations
 def try_or_log(
-    func: Callable,
-    *args,
+    func: Callable[..., Any],
+    *args: Any,
     error_message: str = "작업 실패",
     default: Any = None,
-    **kwargs
+    **kwargs: Any
 ) -> Any:
     """
     Execute function with logging on error.

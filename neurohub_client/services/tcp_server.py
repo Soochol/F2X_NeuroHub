@@ -3,19 +3,29 @@ TCP Server Service for receiving measurement data from equipment.
 
 Listens for JSON data from inspection/assembly equipment and emits signals
 when data is received.
-"""
 
+Supports two message types:
+- START: Work start notification
+- COMPLETE: Work complete with measurement data
+"""
 import json
+import logging
 import socket
 import threading
-from typing import Optional, Callable
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QObject, Signal
 
 from utils.logger import setup_logger
 
 logger = setup_logger()
+
+class MessageType(Enum):
+    """Message type enum for TCP communication."""
+    START = "START"
+    COMPLETE = "COMPLETE"
 
 
 @dataclass
@@ -37,7 +47,7 @@ class MeasurementItem:
     result: str = "PASS"
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MeasurementItem":
+    def from_dict(cls, data: Dict[str, Any]) -> "MeasurementItem":
         spec = None
         if data.get("spec"):
             spec = MeasurementSpec(
@@ -62,7 +72,7 @@ class DefectItem:
     reason: str
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DefectItem":
+    def from_dict(cls, data: Dict[str, Any]) -> "DefectItem":
         return cls(
             code=data["code"],
             reason=data["reason"],
@@ -70,14 +80,36 @@ class DefectItem:
 
 
 @dataclass
-class EquipmentData:
-    """Data received from equipment."""
-    result: str
-    measurements: list[MeasurementItem]
-    defects: list[DefectItem]
+class StartData:
+    """Data for work start notification from equipment (START message).
+
+    Equipment sends only:
+    - message_type: "START"
+    - serial_number: WIP ID
+
+    Other fields (worker_id, process_id, equipment_id) are filled by Client.
+    """
+    message_type: str = "START"
+    serial_number: str = ""
 
     @classmethod
-    def from_dict(cls, data: dict) -> "EquipmentData":
+    def from_dict(cls, data: Dict[str, Any]) -> "StartData":
+        return cls(
+            message_type=data.get("message_type", "START"),
+            serial_number=data.get("serial_number", ""),
+        )
+
+@dataclass
+class EquipmentData:
+    """Data received from equipment (COMPLETE message)."""
+    message_type: str
+    serial_number: str
+    result: str
+    measurements: List[MeasurementItem]
+    defects: List[DefectItem]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EquipmentData":
         measurements = [
             MeasurementItem.from_dict(m) for m in data.get("measurements", [])
         ]
@@ -85,12 +117,14 @@ class EquipmentData:
             DefectItem.from_dict(d) for d in data.get("defects", [])
         ]
         return cls(
+            message_type=data.get("message_type", "COMPLETE"),
+            serial_number=data.get("serial_number", ""),
             result=data.get("result", "PASS"),
             measurements=measurements,
             defects=defects,
         )
 
-    def to_api_format(self) -> dict:
+    def to_api_format(self) -> Dict[str, Any]:
         """Convert to format suitable for API transmission."""
         return {
             "items": [
@@ -113,8 +147,9 @@ class EquipmentData:
 
 class TCPServerSignals(QObject):
     """Qt signals for TCP server events."""
-    data_received = Signal(object)  # EquipmentData
-    client_connected = Signal(str)  # client address
+    data_received = Signal(object)      # EquipmentData (complete)
+    start_received = Signal(object)     # StartData (start)
+    client_connected = Signal(str)      # client address
     client_disconnected = Signal(str)  # client address
     error_occurred = Signal(str)  # error message
     server_started = Signal(int)  # port
@@ -131,15 +166,15 @@ class TCPServer:
         server.start()
     """
 
-    def __init__(self, port: int = 9000, host: str = "0.0.0.0"):
-        self.host = host
-        self.port = port
-        self.signals = TCPServerSignals()
+    def __init__(self, port: int = 9000, host: str = "0.0.0.0") -> None:
+        self.host: str = host
+        self.port: int = port
+        self.signals: TCPServerSignals = TCPServerSignals()
 
         self._server_socket: Optional[socket.socket] = None
-        self._running = False
+        self._running: bool = False
         self._server_thread: Optional[threading.Thread] = None
-        self._buffer_size = 65536  # 64KB buffer
+        self._buffer_size: int = 65536  # 64KB buffer
 
     def start(self) -> bool:
         """Start the TCP server in a background thread."""
@@ -167,7 +202,7 @@ class TCPServer:
             self.signals.error_occurred.emit(f"서버 시작 실패: {e}")
             return False
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the TCP server."""
         if not self._running:
             return
@@ -188,7 +223,7 @@ class TCPServer:
         logger.info("TCP server stopped")
         self.signals.server_stopped.emit()
 
-    def _run_server(self):
+    def _run_server(self) -> None:
         """Server main loop running in background thread."""
         while self._running:
             try:
@@ -206,7 +241,7 @@ class TCPServer:
                 if self._running:
                     logger.error(f"Server accept error: {e}")
 
-    def _handle_client(self, client_socket: socket.socket, client_addr: str):
+    def _handle_client(self, client_socket: socket.socket, client_addr: str) -> None:
         """Handle a single client connection."""
         try:
             # Receive data with length header
@@ -216,18 +251,37 @@ class TCPServer:
                 # Parse JSON
                 try:
                     json_data = json.loads(data)
-                    equipment_data = EquipmentData.from_dict(json_data)
 
-                    logger.info(
-                        f"Received measurement data: result={equipment_data.result}, "
-                        f"measurements={len(equipment_data.measurements)}"
-                    )
+                    # Determine message type (default COMPLETE for backward compatibility)
+                    msg_type = json_data.get("message_type", "COMPLETE").upper()
 
-                    # Emit signal with parsed data
-                    self.signals.data_received.emit(equipment_data)
+                    if msg_type == MessageType.START.value:
+                        # Handle START message
+                        start_data = StartData.from_dict(json_data)
+                        logger.info(
+                            f"Received START: serial={start_data.serial_number}"
+                        )
+                        self.signals.start_received.emit(start_data)
+                        response = json.dumps({
+                            "status": "OK",
+                            "message": "Start data received",
+                            "message_type": "START"
+                        })
+                    else:
+                        # Handle COMPLETE message (default)
+                        equipment_data = EquipmentData.from_dict(json_data)
+                        logger.info(
+                            f"Received COMPLETE: serial={equipment_data.serial_number}, "
+                            f"result={equipment_data.result}, "
+                            f"measurements={len(equipment_data.measurements)}"
+                        )
+                        self.signals.data_received.emit(equipment_data)
+                        response = json.dumps({
+                            "status": "OK",
+                            "message": "Complete data received",
+                            "message_type": "COMPLETE"
+                        })
 
-                    # Send ACK
-                    response = json.dumps({"status": "OK", "message": "Data received"})
                     client_socket.sendall(response.encode('utf-8'))
 
                 except json.JSONDecodeError as e:

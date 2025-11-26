@@ -3,25 +3,23 @@ Measurement Panel Widget for displaying equipment measurement data.
 
 Shows measurement items with values, specs, and pass/fail status.
 """
+from typing import Any, Optional
 
-from typing import Optional
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QScrollArea, QPushButton, QGridLayout
-)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+)
 
 
 class MeasurementItemWidget(QFrame):
     """Widget for displaying a single measurement item."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("measurementItem")
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(12)
@@ -82,7 +80,7 @@ class MeasurementItemWidget(QFrame):
         self.result_label.setFont(font)
         layout.addWidget(self.result_label)
 
-    def set_data(self, item):
+    def set_data(self, item: Any) -> None:
         """
         Set measurement item data.
 
@@ -139,13 +137,13 @@ class MeasurementPanel(QFrame):
     confirm_clicked = Signal()  # User confirmed completion
     cancel_clicked = Signal()   # User cancelled
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("measurementPanel")
         self._setup_ui()
         self._apply_styles()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(16)
@@ -210,7 +208,7 @@ class MeasurementPanel(QFrame):
 
         layout.addLayout(button_layout)
 
-    def _apply_styles(self):
+    def _apply_styles(self) -> None:
         self.setStyleSheet("""
             #measurementPanel {
                 background-color: #ffffff;
@@ -249,7 +247,7 @@ class MeasurementPanel(QFrame):
             }
         """)
 
-    def set_data(self, equipment_data):
+    def set_data(self, equipment_data: Any) -> None:
         """
         Set equipment measurement data to display.
 
@@ -289,7 +287,7 @@ class MeasurementPanel(QFrame):
         # Add stretch at the end
         self.items_layout.addStretch()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all measurement data."""
         while self.items_layout.count():
             child = self.items_layout.takeAt(0)

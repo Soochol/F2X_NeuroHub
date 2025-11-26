@@ -2,15 +2,16 @@
 Settings Page - Inline settings configuration.
 """
 import logging
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-                                QComboBox, QLineEdit, QPushButton, QLabel,
-                                QFileDialog, QMessageBox, QFrame)
 from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QComboBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout,
+    QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+)
 
-from utils.theme_manager import get_theme
 from services.api_client import APIClient
+from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -24,28 +25,33 @@ class SettingsPage(QWidget):
     # Signal emitted when data is refreshed from API
     data_refreshed = Signal(str, int)  # (data_type, count)
 
-    def __init__(self, config, api_client: Optional[APIClient] = None, parent=None):
+    def __init__(
+        self,
+        config: Any,
+        api_client: Optional[APIClient] = None,
+        parent: Optional[QWidget] = None
+    ) -> None:
         super().__init__(parent)
         self.config = config
         self.api_client = api_client
 
         # Cache for API data
-        self._production_lines = []
-        self._equipment_list = []
-        self._processes = []
-        self._is_loading = True  # Start with True to prevent saves during init
+        self._production_lines: List[Dict[str, Any]] = []
+        self._equipment_list: List[Dict[str, Any]] = []
+        self._processes: List[Dict[str, Any]] = []
+        self._is_loading: bool = True  # Start with True to prevent saves during init
 
         self.setup_ui()
         self._apply_styles()
 
         # Load data from API after UI setup
         self._load_api_data()
-        
+
         # Ensure loading flag is reset if it wasn't already
         if self._is_loading and not self.api_client:
-             self._is_loading = False
+            self._is_loading = False
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -79,8 +85,7 @@ class SettingsPage(QWidget):
 
         layout.addStretch()
 
-
-    def _apply_styles(self):
+    def _apply_styles(self) -> None:
         """Apply styles for the settings page."""
         text_secondary = theme.get('colors.grey.300')
         bg_elevated = theme.get('colors.background.elevated')
@@ -161,7 +166,7 @@ class SettingsPage(QWidget):
             }}
         """)
 
-    def _create_section_frame(self, title: str) -> tuple:
+    def _create_section_frame(self, title: str) -> Tuple[QFrame, QVBoxLayout]:
         """Create a styled section frame with layout."""
         bg_paper = theme.get('colors.background.paper')
         border = theme.get('colors.border.default')
@@ -267,7 +272,7 @@ class SettingsPage(QWidget):
         layout.addLayout(form_layout)
         return frame
 
-    def _load_api_data(self):
+    def _load_api_data(self) -> None:
         """Load processes, production lines and equipment from API."""
         if not self.api_client:
             logger.warning("API client not available, skipping data load")
@@ -277,7 +282,7 @@ class SettingsPage(QWidget):
         self._refresh_production_lines()
         self._refresh_equipment()
 
-    def _refresh_processes(self):
+    def _refresh_processes(self) -> None:
         """Refresh processes from API."""
         if not self.api_client:
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
@@ -335,7 +340,7 @@ class SettingsPage(QWidget):
         finally:
             self._is_loading = False
 
-    def _refresh_production_lines(self):
+    def _refresh_production_lines(self) -> None:
         """Refresh production lines from API."""
         if not self.api_client:
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
@@ -371,7 +376,7 @@ class SettingsPage(QWidget):
         finally:
             self._is_loading = False
 
-    def _refresh_equipment(self):
+    def _refresh_equipment(self) -> None:
         """Refresh equipment list from API."""
         if not self.api_client:
             QMessageBox.warning(self, "경고", "API 클라이언트가 설정되지 않았습니다.")
@@ -436,13 +441,13 @@ class SettingsPage(QWidget):
         layout.addLayout(form_layout)
         return frame
 
-    def browse_folder(self):
+    def browse_folder(self) -> None:
         """Open folder browser."""
         folder = QFileDialog.getExistingDirectory(self, "폴더 선택", self.folder_input.text())
         if folder:
             self.folder_input.setText(folder)
 
-    def save_settings(self):
+    def save_settings(self) -> None:
         """Save settings to config."""
         if self._is_loading:
             return

@@ -2,11 +2,12 @@
 QThread worker classes for non-blocking API operations.
 
 Refactored: Single APIWorker handles all API operations.
-Before: 6 workers (267 lines) → After: 1 worker (80 lines)
+Before: 6 workers (267 lines) -> After: 1 worker (80 lines)
 """
-from PySide6.QtCore import QThread, Signal
-from typing import Optional
 import logging
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QThread, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -43,23 +44,23 @@ class APIWorker(QThread):
 
     def __init__(
         self,
-        api_client,
+        api_client: Any,
         operation: str,
         method: str = "GET",
         endpoint: str = "",
-        data: Optional[dict] = None,
-        params: Optional[dict] = None
-    ):
+        data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None
+    ) -> None:
         super().__init__()
-        self.api_client = api_client
-        self.operation = operation
-        self.method = method.upper()
-        self.endpoint = endpoint
-        self.data = data
-        self.params = params
-        self._is_cancelled = False
+        self.api_client: Any = api_client
+        self.operation: str = operation
+        self.method: str = method.upper()
+        self.endpoint: str = endpoint
+        self.data: Optional[Dict[str, Any]] = data
+        self.params: Optional[Dict[str, Any]] = params
+        self._is_cancelled: bool = False
 
-    def run(self):
+    def run(self) -> None:
         """Execute API call in background thread."""
         if self._is_cancelled:
             return
@@ -100,7 +101,8 @@ class APIWorker(QThread):
                 logger.error(f"APIWorker [{self.operation}] error: {error_msg}")
                 self.error.emit(self.operation, error_msg)
 
-    def cancel(self):
+    def cancel(self) -> None:
         """Cancel the operation."""
         self._is_cancelled = True
         logger.debug(f"APIWorker [{self.operation}] cancelled")
+

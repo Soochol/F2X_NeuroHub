@@ -1,12 +1,13 @@
 """
 Statistics Card Widget.
 """
-from PySide6.QtWidgets import QGridLayout
-from PySide6.QtCore import Qt
-from typing import Dict
-from widgets.base_components import InfoCard, StatBadge
-from utils.theme_manager import get_theme
 import logging
+from typing import Any, Dict
+
+from PySide6.QtWidgets import QGridLayout
+
+from utils.theme_manager import get_theme
+from widgets.base_components import InfoCard, StatBadge
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -15,11 +16,11 @@ theme = get_theme()
 class StatsCard(InfoCard):
     """Display today's statistics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(title="오늘의 통계", min_height=150)
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         # Stats grid
         grid = QGridLayout()
@@ -56,7 +57,7 @@ class StatsCard(InfoCard):
 
         self.content_layout.addLayout(grid)
 
-    def update_stats(self, stats: Dict):
+    def update_stats(self, stats: Dict[str, Any]) -> None:
         """
         Update statistics.
 

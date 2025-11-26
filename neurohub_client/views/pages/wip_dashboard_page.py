@@ -4,17 +4,19 @@ WIP Dashboard Page for Production Tracker App.
 Displays WIP statistics with charts and real-time updates.
 """
 import logging
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QListWidget, QListWidgetItem, QFrame, QCheckBox
-)
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPainter
+from typing import Any, Dict
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import (
+    QCheckBox, QGroupBox, QHBoxLayout, QHeaderView, QLabel, QListWidget,
+    QListWidgetItem, QPushButton, QTableWidget, QTableWidgetItem,
+    QVBoxLayout, QWidget
+)
+
+from utils.exception_handler import safe_slot
 from utils.theme_manager import get_theme
 from widgets.toast_notification import Toast
-from utils.exception_handler import safe_slot
 
 # Try to import QtCharts (optional)
 try:
@@ -34,7 +36,7 @@ theme = get_theme()
 class WIPDashboardPage(QWidget):
     """WIP Dashboard page with statistics and charts."""
 
-    def __init__(self, viewmodel, config):
+    def __init__(self, viewmodel: Any, config: Any) -> None:
         """
         Initialize WIPDashboardPage.
 
@@ -52,7 +54,7 @@ class WIPDashboardPage(QWidget):
         # Start auto-refresh
         self.viewmodel.start_auto_refresh()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         spacing = theme.get("spacing.lg", 16)
@@ -146,13 +148,13 @@ class WIPDashboardPage(QWidget):
 
         layout.addLayout(bottom_layout)
 
-    def connect_signals(self):
+    def connect_signals(self) -> None:
         """Connect ViewModel signals."""
         self.viewmodel.statistics_updated.connect(self._on_statistics_updated)
         self.viewmodel.error_occurred.connect(self._on_error)
 
     @safe_slot("통계 업데이트 실패")
-    def _on_statistics_updated(self, stats: dict):
+    def _on_statistics_updated(self, stats: Dict[str, Any]) -> None:
         """Handle statistics updated."""
         logger.debug("Statistics updated")
 
@@ -170,7 +172,7 @@ class WIPDashboardPage(QWidget):
         # Update alerts
         self._update_alerts(stats)
 
-    def _update_chart(self, stats: dict):
+    def _update_chart(self, stats: Dict[str, Any]) -> None:
         """Update bar chart with process WIP counts."""
         by_process = stats.get("by_process", {})
 
@@ -208,7 +210,7 @@ class WIPDashboardPage(QWidget):
         self.chart.addAxis(axis_y, Qt.AlignLeft)
         series.attachAxis(axis_y)
 
-    def _update_lot_table(self, stats: dict):
+    def _update_lot_table(self, stats: Dict[str, Any]) -> None:
         """Update LOT progress table."""
         by_lot = stats.get("by_lot", [])
 
@@ -240,7 +242,7 @@ class WIPDashboardPage(QWidget):
                 progress_text = "--"
             self.lot_table.setItem(row, 3, QTableWidgetItem(progress_text))
 
-    def _update_alerts(self, stats: dict):
+    def _update_alerts(self, stats: Dict[str, Any]) -> None:
         """Update alert list."""
         alerts = stats.get("alerts", [])
 
@@ -267,12 +269,12 @@ class WIPDashboardPage(QWidget):
             )
             self.alert_list.addItem(item)
 
-    def _on_refresh_clicked(self):
+    def _on_refresh_clicked(self) -> None:
         """Handle refresh button click."""
         self.viewmodel.refresh_statistics()
         Toast.info(self, "새로고침 중...")
 
-    def _on_auto_refresh_toggled(self, state: int):
+    def _on_auto_refresh_toggled(self, state: int) -> None:
         """Handle auto-refresh toggle."""
         if state == Qt.Checked:
             self.viewmodel.start_auto_refresh()
@@ -282,11 +284,11 @@ class WIPDashboardPage(QWidget):
             Toast.info(self, "자동 새로고침 비활성화")
 
     @safe_slot("에러 처리 실패")
-    def _on_error(self, error_msg: str):
+    def _on_error(self, error_msg: str) -> None:
         """Handle error."""
         logger.error(f"Error: {error_msg}")
         Toast.danger(self, f"오류: {error_msg}")
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
         self.viewmodel.cleanup()

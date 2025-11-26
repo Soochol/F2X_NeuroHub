@@ -4,9 +4,10 @@ Zebra Network Printer Utility.
 Handles TCP/IP communication with Zebra label printers using ZPL commands.
 Supports both USB (via print_service.py) and network printers.
 """
-import socket
 import logging
-from typing import Optional, Tuple
+import socket
+from typing import List, Tuple
+
 from PySide6.QtCore import QObject, Signal
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class ZebraPrinter(QObject):
     DEFAULT_PORT = 9100
     DEFAULT_TIMEOUT = 5.0  # seconds
 
-    def __init__(self, ip_address: str = "", port: int = DEFAULT_PORT):
+    def __init__(self, ip_address: str = "", port: int = DEFAULT_PORT) -> None:
         """
         Initialize ZebraPrinter.
 
@@ -37,12 +38,12 @@ class ZebraPrinter(QObject):
             port: Printer port (default: 9100 for raw ZPL)
         """
         super().__init__()
-        self.ip_address = ip_address
-        self.port = port
-        self.timeout = self.DEFAULT_TIMEOUT
-        self._is_connected = False
+        self.ip_address: str = ip_address
+        self.port: int = port
+        self.timeout: float = self.DEFAULT_TIMEOUT
+        self._is_connected: bool = False
 
-    def set_printer(self, ip_address: str, port: int = DEFAULT_PORT):
+    def set_printer(self, ip_address: str, port: int = DEFAULT_PORT) -> None:
         """
         Set printer IP and port.
 
@@ -182,7 +183,7 @@ class ZebraPrinter(QObject):
 
         return self.send_zpl(zpl)
 
-    def print_custom_zpl(self, zpl_template: str, **kwargs) -> bool:
+    def print_custom_zpl(self, zpl_template: str, **kwargs: str) -> bool:
         """
         Print using custom ZPL template with variable substitution.
 
@@ -279,15 +280,15 @@ class ZPLBuilder:
         zpl = builder.get_zpl()
     """
 
-    def __init__(self):
-        self.commands = []
+    def __init__(self) -> None:
+        self.commands: List[str] = []
 
-    def start(self):
+    def start(self) -> 'ZPLBuilder':
         """Start ZPL format."""
         self.commands.append("^XA")
         return self
 
-    def end(self):
+    def end(self) -> 'ZPLBuilder':
         """End ZPL format."""
         self.commands.append("^XZ")
         return self
@@ -301,7 +302,7 @@ class ZPLBuilder:
         orientation: str = "N",
         font_height: int = 30,
         font_width: int = 30
-    ):
+    ) -> 'ZPLBuilder':
         """
         Add text field.
 
@@ -323,7 +324,7 @@ class ZPLBuilder:
         y: int,
         height: int = 80,
         print_interpretation: bool = True
-    ):
+    ) -> 'ZPLBuilder':
         """
         Add Code128 barcode.
 
@@ -343,7 +344,7 @@ class ZPLBuilder:
         x: int,
         y: int,
         magnification: int = 5
-    ):
+    ) -> 'ZPLBuilder':
         """
         Add QR code.
 
@@ -362,7 +363,7 @@ class ZPLBuilder:
         width: int,
         height: int,
         thickness: int = 2
-    ):
+    ) -> 'ZPLBuilder':
         """
         Add rectangular box.
 
@@ -381,7 +382,7 @@ class ZPLBuilder:
         length: int,
         thickness: int = 2,
         orientation: str = "H"
-    ):
+    ) -> 'ZPLBuilder':
         """
         Add line.
 
@@ -397,7 +398,7 @@ class ZPLBuilder:
             self.commands.append(f"^FO{x},{y}^GB{thickness},{length},^FS")
         return self
 
-    def add_raw(self, command: str):
+    def add_raw(self, command: str) -> 'ZPLBuilder':
         """
         Add raw ZPL command.
 
@@ -407,7 +408,7 @@ class ZPLBuilder:
         self.commands.append(command)
         return self
 
-    def clear(self):
+    def clear(self) -> 'ZPLBuilder':
         """Clear all commands."""
         self.commands = []
         return self
@@ -421,5 +422,5 @@ class ZPLBuilder:
         """
         return "\n".join(self.commands)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.get_zpl()

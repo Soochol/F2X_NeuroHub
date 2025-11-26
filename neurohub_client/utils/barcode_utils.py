@@ -3,10 +3,10 @@ Barcode Utility Functions for Production Tracker.
 
 Provides barcode parsing, validation, and generation utilities.
 """
-import re
-from typing import Optional, Dict, Tuple
-from io import BytesIO
 import logging
+import re
+from io import BytesIO
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

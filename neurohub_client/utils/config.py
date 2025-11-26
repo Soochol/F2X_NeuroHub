@@ -1,6 +1,8 @@
 """
 Configuration management using QSettings for Production Tracker App.
 """
+from typing import List
+
 from PySide6.QtCore import QSettings
 
 
@@ -19,8 +21,8 @@ class AppConfig:
         8: "포장+외관검사"
     }
 
-    def __init__(self):
-        self.settings = QSettings("F2X", "ProductionTracker")
+    def __init__(self) -> None:
+        self.settings: QSettings = QSettings("F2X", "ProductionTracker")
 
     # API Configuration
     @property
@@ -29,7 +31,7 @@ class AppConfig:
         return self.settings.value("api/base_url", "http://localhost:8000")
 
     @api_base_url.setter
-    def api_base_url(self, value: str):
+    def api_base_url(self, value: str) -> None:
         """Set API base URL."""
         self.settings.setValue("api/base_url", value)
 
@@ -40,7 +42,7 @@ class AppConfig:
         return self.settings.value("process/db_id", 0, type=int)
 
     @process_db_id.setter
-    def process_db_id(self, value: int):
+    def process_db_id(self, value: int) -> None:
         """Set process database primary key."""
         self.settings.setValue("process/db_id", value)
 
@@ -50,7 +52,7 @@ class AppConfig:
         return self.settings.value("process/number", 1, type=int)
 
     @process_number.setter
-    def process_number(self, value: int):
+    def process_number(self, value: int) -> None:
         """Set process number (1-8)."""
         if not 1 <= value <= 8:
             raise ValueError("Process number must be between 1 and 8")
@@ -62,7 +64,7 @@ class AppConfig:
         return self.settings.value("process/code", "")
 
     @process_code.setter
-    def process_code(self, value: str):
+    def process_code(self, value: str) -> None:
         """Set process code."""
         self.settings.setValue("process/code", value)
 
@@ -77,7 +79,7 @@ class AppConfig:
         return self.settings.value("process/name", self.PROCESS_NAMES.get(self.process_number, "미지정"))
 
     @process_name.setter
-    def process_name(self, value: str):
+    def process_name(self, value: str) -> None:
         """Set process name in Korean."""
         self.settings.setValue("process/name", value)
 
@@ -87,7 +89,7 @@ class AppConfig:
         return self.settings.value("process/name_en", "")
 
     @process_name_en.setter
-    def process_name_en(self, value: str):
+    def process_name_en(self, value: str) -> None:
         """Set process name in English."""
         self.settings.setValue("process/name_en", value)
 
@@ -98,7 +100,7 @@ class AppConfig:
         return self.settings.value("file/watch_folder", "C:/neurohub_work")
 
     @watch_folder.setter
-    def watch_folder(self, value: str):
+    def watch_folder(self, value: str) -> None:
         """Set file watch folder path."""
         self.settings.setValue("file/watch_folder", value)
 
@@ -109,7 +111,7 @@ class AppConfig:
         return self.settings.value("equipment/id", 0, type=int)
 
     @equipment_id.setter
-    def equipment_id(self, value: int):
+    def equipment_id(self, value: int) -> None:
         """Set equipment ID (database primary key)."""
         self.settings.setValue("equipment/id", value)
 
@@ -119,7 +121,7 @@ class AppConfig:
         return self.settings.value("equipment/code", "")
 
     @equipment_code.setter
-    def equipment_code(self, value: str):
+    def equipment_code(self, value: str) -> None:
         """Set equipment code."""
         self.settings.setValue("equipment/code", value)
 
@@ -129,7 +131,7 @@ class AppConfig:
         return self.settings.value("equipment/name", "")
 
     @equipment_name.setter
-    def equipment_name(self, value: str):
+    def equipment_name(self, value: str) -> None:
         """Set equipment name."""
         self.settings.setValue("equipment/name", value)
 
@@ -140,7 +142,7 @@ class AppConfig:
         return self.settings.value("line/id", 0, type=int)
 
     @line_id.setter
-    def line_id(self, value: int):
+    def line_id(self, value: int) -> None:
         """Set production line ID (database primary key)."""
         self.settings.setValue("line/id", value)
 
@@ -150,7 +152,7 @@ class AppConfig:
         return self.settings.value("line/code", "")
 
     @line_code.setter
-    def line_code(self, value: str):
+    def line_code(self, value: str) -> None:
         """Set production line code."""
         self.settings.setValue("line/code", value)
 
@@ -160,7 +162,7 @@ class AppConfig:
         return self.settings.value("line/name", "")
 
     @line_name.setter
-    def line_name(self, value: str):
+    def line_name(self, value: str) -> None:
         """Set production line name."""
         self.settings.setValue("line/name", value)
 
@@ -171,7 +173,7 @@ class AppConfig:
         return self.settings.value("app/first_run_completed", False, type=bool)
 
     @first_run_completed.setter
-    def first_run_completed(self, value: bool):
+    def first_run_completed(self, value: bool) -> None:
         """Set first run completed flag."""
         self.settings.setValue("app/first_run_completed", value)
 
@@ -182,9 +184,9 @@ class AppConfig:
         return False
 
     @auto_login_enabled.setter
-    def auto_login_enabled(self, value: bool):
+    def auto_login_enabled(self, value: bool) -> None:
         """Auto-login is disabled - this setter does nothing."""
-        pass
+        _ = value  # Unused
 
     @property
     def saved_token(self) -> str:
@@ -192,7 +194,7 @@ class AppConfig:
         return self.settings.value("auth/token", "")
 
     @saved_token.setter
-    def saved_token(self, value: str):
+    def saved_token(self, value: str) -> None:
         """Save JWT token."""
         self.settings.setValue("auth/token", value)
 
@@ -202,12 +204,12 @@ class AppConfig:
         return self.settings.value("auth/username", "")
 
     @saved_username.setter
-    def saved_username(self, value: str):
+    def saved_username(self, value: str) -> None:
         """Save username."""
         self.settings.setValue("auth/username", value)
 
     @property
-    def recent_usernames(self) -> list:
+    def recent_usernames(self) -> List[str]:
         """Get list of recent usernames (max 5)."""
         usernames = self.settings.value("auth/recent_usernames", [])
         if isinstance(usernames, str):
@@ -216,11 +218,11 @@ class AppConfig:
         return usernames if usernames else []
 
     @recent_usernames.setter
-    def recent_usernames(self, value: list):
+    def recent_usernames(self, value: List[str]) -> None:
         """Save list of recent usernames."""
         self.settings.setValue("auth/recent_usernames", value[:5])
 
-    def add_recent_username(self, username: str):
+    def add_recent_username(self, username: str) -> None:
         """Add username to recent list (max 5, most recent first)."""
         if not username:
             return
@@ -233,12 +235,12 @@ class AppConfig:
         # Keep only 5
         self.recent_usernames = usernames[:5]
 
-    def clear_auth(self):
+    def clear_auth(self) -> None:
         """Clear all authentication data."""
         self.saved_token = ""
         self.saved_username = ""
 
-    def reset_first_run(self):
+    def reset_first_run(self) -> None:
         """Reset first run flag for testing purposes."""
         self.settings.setValue("app/first_run_completed", False)
         self.clear_auth()
@@ -250,7 +252,7 @@ class AppConfig:
         return self.settings.value("tcp/port", 9000, type=int)
 
     @tcp_port.setter
-    def tcp_port(self, value: int):
+    def tcp_port(self, value: int) -> None:
         """Set TCP server port."""
         if not 1 <= value <= 65535:
             raise ValueError("TCP port must be between 1 and 65535")
@@ -263,7 +265,7 @@ class AppConfig:
         return self.settings.value("printer/queue", "")
 
     @printer_queue.setter
-    def printer_queue(self, value: str):
+    def printer_queue(self, value: str) -> None:
         """Set printer queue name."""
         self.settings.setValue("printer/queue", value)
 
@@ -273,7 +275,7 @@ class AppConfig:
         return self.settings.value("printer/zpl_template", "")
 
     @zpl_template_path.setter
-    def zpl_template_path(self, value: str):
+    def zpl_template_path(self, value: str) -> None:
         """Set ZPL template file path."""
         self.settings.setValue("printer/zpl_template", value)
 

@@ -1,13 +1,14 @@
 """
 History Manager - Tracks work start/complete/error events with file persistence.
 """
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Optional
-from enum import Enum
-from pathlib import Path
 import json
 import logging
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
 from PySide6.QtCore import QObject, Signal
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class WorkEvent:
     process_name: str = ""
     duration_seconds: Optional[int] = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
             "timestamp": self.timestamp.isoformat(),
@@ -66,26 +67,38 @@ class HistoryManager(QObject):
     event_added = Signal(object)  # WorkEvent
     history_cleared = Signal()
 
-    def __init__(self, max_events: int = 100, history_dir: Optional[str] = None, parent=None):
+    def __init__(
+        self,
+        max_events: int = 100,
+        history_dir: Optional[Union[str, Path]] = None,
+        parent: Optional[QObject] = None
+    ) -> None:
         super().__init__(parent)
         self._events: List[WorkEvent] = []
-        self._max_events = max_events
+        self._max_events: int = max_events
 
         # Setup history directory
+        history_path: Path
         if history_dir is None:
             # Default: data/history/ relative to app directory
-            history_dir = Path(__file__).parent.parent / "data" / "history"
+            history_path = Path(__file__).parent.parent / "data" / "history"
         else:
-            history_dir = Path(history_dir)
+            history_path = Path(history_dir)
 
-        self._history_dir = Path(history_dir)
+        self._history_dir: Path = history_path
         self._history_dir.mkdir(parents=True, exist_ok=True)
 
         # Load today's events from file
         self._load_today_events()
 
-    def add_start_event(self, wip_id: str, lot_number: str, process_name: str = "",
-                        success: bool = True, message: str = ""):
+    def add_start_event(
+        self,
+        wip_id: str,
+        lot_number: str,
+        process_name: str = "",
+        success: bool = True,
+        message: str = ""
+    ) -> None:
         """
         Add a work start event.
 
@@ -107,9 +120,15 @@ class HistoryManager(QObject):
         )
         self._add_event(event)
 
-    def add_complete_event(self, wip_id: str, lot_number: str, result: str,
-                           process_name: str = "", duration_seconds: int = None,
-                           message: str = ""):
+    def add_complete_event(
+        self,
+        wip_id: str,
+        lot_number: str,
+        result: str,
+        process_name: str = "",
+        duration_seconds: Optional[int] = None,
+        message: str = ""
+    ) -> None:
         """
         Add a work complete event.
 
@@ -140,8 +159,14 @@ class HistoryManager(QObject):
         )
         self._add_event(event)
 
-    def add_error_event(self, wip_id: str, lot_number: str, error_message: str,
-                        process_name: str = "", event_type: EventType = EventType.ERROR):
+    def add_error_event(
+        self,
+        wip_id: str,
+        lot_number: str,
+        error_message: str,
+        process_name: str = "",
+        event_type: EventType = EventType.ERROR
+    ) -> None:
         """
         Add an error event.
 
@@ -163,7 +188,7 @@ class HistoryManager(QObject):
         )
         self._add_event(event)
 
-    def _add_event(self, event: WorkEvent):
+    def _add_event(self, event: WorkEvent) -> None:
         """Add event to history, maintain max size, and save to file."""
         self._events.insert(0, event)  # Most recent first
 
@@ -181,7 +206,7 @@ class HistoryManager(QObject):
         today = datetime.now().strftime("%Y-%m-%d")
         return self._history_dir / f"{today}_events.json"
 
-    def _load_today_events(self):
+    def _load_today_events(self) -> None:
         """Load today's events from file."""
         file_path = self._get_today_filename()
 
@@ -219,7 +244,7 @@ class HistoryManager(QObject):
         except Exception as e:
             logger.error(f"Failed to load history from {file_path}: {e}")
 
-    def _save_today_events(self):
+    def _save_today_events(self) -> None:
         """Save today's events to file."""
         file_path = self._get_today_filename()
 
@@ -266,7 +291,7 @@ class HistoryManager(QObject):
         """Get error event count."""
         return len(self.get_error_events())
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all events from memory and file."""
         self._events.clear()
 

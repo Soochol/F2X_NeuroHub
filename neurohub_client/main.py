@@ -5,7 +5,9 @@ A dedicated work start/completion tracking application for manufacturing floor u
 """
 
 import sys
+from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon
 
 # Import configuration
 from utils.config import AppConfig
@@ -49,6 +51,12 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("F2X Production Tracker")
     app.setOrganizationName("F2X")
+
+    # Set application icon
+    icon_path = Path(__file__).parent / "resources" / "icon.png"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+        logger.info(f"Application icon set: {icon_path}")
 
     # Note: High DPI scaling is enabled by default in Qt6/PySide6
 

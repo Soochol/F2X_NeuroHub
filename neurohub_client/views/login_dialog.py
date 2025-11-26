@@ -1,12 +1,17 @@
 """
 Login Dialog for authentication.
 """
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit,
-                               QPushButton, QCheckBox, QMessageBox, QComboBox)
-from PySide6.QtCore import Qt
-from widgets.base_components import ThemedLabel
-from utils.exception_handler import SignalConnector, safe_slot
 import logging
+from typing import Any, Optional
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QCheckBox, QComboBox, QDialog, QLineEdit, QMessageBox, QPushButton,
+    QVBoxLayout, QWidget
+)
+
+from utils.exception_handler import SignalConnector, safe_slot
+from widgets.base_components import ThemedLabel
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +19,7 @@ logger = logging.getLogger(__name__)
 class LoginDialog(QDialog):
     """Login dialog for user authentication."""
 
-    def __init__(self, auth_service, config, parent=None):
+    def __init__(self, auth_service: Any, config: Any, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.auth_service = auth_service
         self.config = config
@@ -31,7 +36,7 @@ class LoginDialog(QDialog):
         self.setup_ui()
         self.connect_signals()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
@@ -130,7 +135,7 @@ class LoginDialog(QDialog):
         self.username_input.lineEdit().returnPressed.connect(self.on_login)
         self.password_input.returnPressed.connect(self.on_login)
 
-    def connect_signals(self):
+    def connect_signals(self) -> None:
         """Connect auth service signals."""
         connector = SignalConnector()
         connector.connect(
@@ -148,7 +153,7 @@ class LoginDialog(QDialog):
                 f"로그인 시그널 연결 실패: {connector.failed_connections}"
             )
 
-    def on_login(self):
+    def on_login(self) -> None:
         """Handle login button click (initiates threaded login)."""
         username = self.username_input.currentText().strip()
         password = self.password_input.text()
@@ -168,7 +173,7 @@ class LoginDialog(QDialog):
         self.auth_service.login(username, password)
 
     @safe_slot("로그인 성공 처리 실패", show_dialog=True)
-    def on_login_success(self, user_data: dict):
+    def on_login_success(self, user_data: dict) -> None:
         """Handle successful login from threaded operation."""
         username = user_data.get('username', 'UNKNOWN')
         logger.info(f"Login successful (dialog): {username}")
@@ -197,7 +202,7 @@ class LoginDialog(QDialog):
         self.accept()
 
     @safe_slot("로그인 에러 처리 실패")
-    def on_login_error(self, error_msg: str):
+    def on_login_error(self, error_msg: str) -> None:
         """Handle login error from threaded operation."""
         logger.error(f"Login error (dialog): {error_msg}")
 

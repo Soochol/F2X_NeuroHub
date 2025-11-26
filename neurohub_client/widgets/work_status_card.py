@@ -3,9 +3,11 @@ Work Status Card Widget - Displays work state, timing, and progress.
 """
 import logging
 from datetime import datetime
+from typing import Optional
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QFrame
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout
+
 from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
@@ -15,13 +17,13 @@ theme = get_theme()
 class StatusBadge(QLabel):
     """Small badge for status display."""
 
-    def __init__(self, text: str = "", status: str = "default"):
+    def __init__(self, text: str = "", status: str = "default") -> None:
         super().__init__(text)
         self.setAlignment(Qt.AlignCenter)
         self._status = status
         self._apply_style()
 
-    def _apply_style(self):
+    def _apply_style(self) -> None:
         """Apply style based on status."""
         if not theme:
             return
@@ -50,7 +52,7 @@ class StatusBadge(QLabel):
             font-weight: bold;
         """)
 
-    def set_status(self, status: str, text: str = None):
+    def set_status(self, status: str, text: Optional[str] = None) -> None:
         """Update badge status and optionally text."""
         self._status = status
         if text:
@@ -61,11 +63,11 @@ class StatusBadge(QLabel):
 class WorkStatusCard(QGroupBox):
     """Display work status with timing information."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("작업 상태")
         self.setObjectName("work_status_card")
 
-        self._start_time = None
+        self._start_time: Optional[datetime] = None
         self._is_working = False
 
         # Timer for elapsed time
@@ -74,7 +76,7 @@ class WorkStatusCard(QGroupBox):
 
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
@@ -130,7 +132,7 @@ class WorkStatusCard(QGroupBox):
         elapsed_row.addWidget(self.elapsed_value)
         layout.addLayout(elapsed_row)
 
-    def _update_elapsed(self):
+    def _update_elapsed(self) -> None:
         """Update elapsed time display."""
         if self._start_time and self._is_working:
             elapsed = datetime.now() - self._start_time
@@ -138,15 +140,15 @@ class WorkStatusCard(QGroupBox):
             minutes, seconds = divmod(remainder, 60)
             self.elapsed_value.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
 
-    def update_time(self, time_str: str):
+    def update_time(self, time_str: str) -> None:
         """Update elapsed time display from external source."""
         self.elapsed_value.setText(time_str)
 
-    def set_lot(self, lot_number: str):
+    def set_lot(self, lot_number: str) -> None:
         """Set LOT number."""
         self.lot_value.setText(lot_number if lot_number else "대기중")
 
-    def start_work(self, lot_number: str, start_time: str):
+    def start_work(self, lot_number: str, start_time: str) -> None:
         """Mark work as started."""
         self.set_lot(lot_number)
         self._start_time = datetime.now()
@@ -161,7 +163,7 @@ class WorkStatusCard(QGroupBox):
         self._timer.start(1000)
         logger.debug(f"Work started: {lot_number}")
 
-    def complete_work(self, complete_time: str):
+    def complete_work(self, complete_time: str) -> None:
         """Mark work as completed."""
         self._is_working = False
         self._timer.stop()
@@ -171,7 +173,7 @@ class WorkStatusCard(QGroupBox):
         self.complete_time_value.setText(complete_time)
         logger.debug("Work completed")
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset to initial state."""
         self._start_time = None
         self._is_working = False
@@ -188,6 +190,6 @@ class WorkStatusCard(QGroupBox):
         """Check if work is currently in progress."""
         return self._is_working
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Stop timer for cleanup."""
         self._timer.stop()

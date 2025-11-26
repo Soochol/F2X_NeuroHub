@@ -4,9 +4,8 @@ Export utilities for Excel and PDF generation.
 Provides functions to export ReportData to Excel and PDF formats.
 """
 import logging
-from typing import List, Dict
 from datetime import datetime
-from dataclasses import asdict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ class ExcelExporter:
     """Export data to Excel format."""
 
     @staticmethod
-    def export_report(report_data, file_path: str):
+    def export_report(report_data: Any, file_path: str) -> None:
         """
         Export report to Excel file.
 
@@ -119,7 +118,7 @@ class ExcelExporter:
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(str(cell.value))
-                except:
+                except (TypeError, AttributeError):
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column].width = adjusted_width
@@ -129,7 +128,7 @@ class ExcelExporter:
         logger.info(f"Exported report to Excel: {file_path}")
 
     @staticmethod
-    def _export_to_csv(report_data, file_path: str):
+    def _export_to_csv(report_data: Any, file_path: str) -> None:
         """Fallback CSV export if openpyxl not available."""
         import csv
 
@@ -166,7 +165,7 @@ class PDFExporter:
     """Export data to PDF format."""
 
     @staticmethod
-    def export_report(report_data, file_path: str):
+    def export_report(report_data: Any, file_path: str) -> None:
         """
         Export report to PDF file.
 
@@ -199,11 +198,11 @@ class PDFExporter:
                         pdfmetrics.registerFont(TTFont('Korean', font_path))
                         korean_available = True
                         break
-                    except:
+                    except Exception:
                         continue
                 else:
                     korean_available = False
-            except:
+            except Exception:
                 korean_available = False
 
         except ImportError:
@@ -314,7 +313,7 @@ class PDFExporter:
         logger.info(f"Exported report to PDF: {file_path}")
 
     @staticmethod
-    def _export_to_text(report_data, file_path: str):
+    def _export_to_text(report_data: Any, file_path: str) -> None:
         """Fallback text export if reportlab not available."""
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(f"보고서 종류: {report_data.report_type}\n")

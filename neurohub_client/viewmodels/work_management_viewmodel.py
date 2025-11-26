@@ -4,9 +4,10 @@ ViewModel for Work Management (Start Work & Complete Work).
 Handles process start and completion for both LOT-level and Serial-level work.
 """
 import logging
-from typing import Optional, Dict
 from datetime import datetime, timedelta
-from PySide6.QtCore import QObject, Signal, QTimer
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QObject, QTimer, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class WorkManagementViewModel(QObject):
     # Update interval for elapsed time (1 second)
     TIMER_INTERVAL_MS = 1000
 
-    def __init__(self, api_client, config):
+    def __init__(self, api_client: Any, config: Any) -> None:
         """
         Initialize WorkManagementViewModel.
 
@@ -37,7 +38,7 @@ class WorkManagementViewModel(QObject):
         self.config = config
 
         # Current work state
-        self.current_work: Optional[Dict] = None
+        self.current_work: Optional[Dict[str, Any]] = None
         self.work_start_time: Optional[datetime] = None
         self.is_serial_level: bool = False
 
@@ -45,7 +46,7 @@ class WorkManagementViewModel(QObject):
         self.elapsed_timer = QTimer()
         self.elapsed_timer.timeout.connect(self._update_elapsed_time)
 
-    def start_work_lot_level(self, lot_number: str):
+    def start_work_lot_level(self, lot_number: str) -> None:
         """
         Start LOT-level work.
 
@@ -109,7 +110,7 @@ class WorkManagementViewModel(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def start_work_serial_level(self, lot_number: str, serial_number: str):
+    def start_work_serial_level(self, lot_number: str, serial_number: str) -> None:
         """
         Start Serial-level work.
 
@@ -170,7 +171,7 @@ class WorkManagementViewModel(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def complete_work_pass(self, measurements: Optional[Dict] = None):
+    def complete_work_pass(self, measurements: Optional[Dict[str, Any]] = None) -> None:
         """
         Complete current work with PASS result.
 
@@ -183,7 +184,7 @@ class WorkManagementViewModel(QObject):
         self,
         defect_type: Optional[str] = None,
         defect_description: Optional[str] = None
-    ):
+    ) -> None:
         """
         Complete current work with FAIL result.
 
@@ -200,10 +201,10 @@ class WorkManagementViewModel(QObject):
     def _complete_work(
         self,
         result: str,
-        measurements: Optional[Dict] = None,
+        measurements: Optional[Dict[str, Any]] = None,
         defect_type: Optional[str] = None,
         defect_description: Optional[str] = None
-    ):
+    ) -> None:
         """
         Complete current work.
 
@@ -269,7 +270,7 @@ class WorkManagementViewModel(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def _update_elapsed_time(self):
+    def _update_elapsed_time(self) -> None:
         """Update elapsed time and emit signal."""
         if self.work_start_time:
             elapsed = datetime.now() - self.work_start_time
@@ -292,7 +293,7 @@ class WorkManagementViewModel(QObject):
         seconds = total_seconds % 60
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    def get_current_work(self) -> Optional[Dict]:
+    def get_current_work(self) -> Optional[Dict[str, Any]]:
         """
         Get current work information.
 
@@ -322,7 +323,7 @@ class WorkManagementViewModel(QObject):
             return self._format_timedelta(elapsed)
         return "00:00:00"
 
-    def cancel_work(self):
+    def cancel_work(self) -> None:
         """
         Cancel current work without completing it.
 
@@ -335,7 +336,7 @@ class WorkManagementViewModel(QObject):
         self.work_start_time = None
         self.is_serial_level = False
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
         self.elapsed_timer.stop()
         self.current_work = None

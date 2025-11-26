@@ -6,8 +6,9 @@ Components use setProperty("variant", ...) for styling via app-level QSS.
 import logging
 from typing import Optional
 
-from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
+
 from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,12 @@ theme = get_theme()
 class ThemedCard(QFrame):
     """Base themed card component using Property Variant."""
 
-    def __init__(self, min_height: int = 120, variant: str = "card", parent=None):
+    def __init__(
+        self,
+        min_height: int = 120,
+        variant: str = "card",
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize themed card.
 
@@ -35,7 +41,12 @@ class ThemedCard(QFrame):
 class ThemedLabel(QLabel):
     """Base themed label component using Property Variant."""
 
-    def __init__(self, text: str = "", variant: str = "body", parent=None):
+    def __init__(
+        self,
+        text: str = "",
+        variant: str = "body",
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize themed label.
 
@@ -48,7 +59,7 @@ class ThemedLabel(QLabel):
         super().__init__(text, parent)
         self.setProperty("variant", variant)
 
-    def set_variant(self, variant: str):
+    def set_variant(self, variant: str) -> None:
         """
         Update label variant dynamically.
 
@@ -63,7 +74,12 @@ class ThemedLabel(QLabel):
 class ThemedButton(QPushButton):
     """Base themed button component using Property Variant."""
 
-    def __init__(self, text: str = "", variant: str = "primary", parent=None):
+    def __init__(
+        self,
+        text: str = "",
+        variant: str = "primary",
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize themed button.
 
@@ -75,7 +91,7 @@ class ThemedButton(QPushButton):
         super().__init__(text, parent)
         self.setProperty("variant", variant)
 
-    def set_variant(self, variant: str):
+    def set_variant(self, variant: str) -> None:
         """
         Update button variant dynamically.
 
@@ -90,7 +106,12 @@ class ThemedButton(QPushButton):
 class StatusIndicator(QLabel):
     """Status indicator component with color coding using Property Variant."""
 
-    def __init__(self, text: str = "", status: str = "body", parent=None):
+    def __init__(
+        self,
+        text: str = "",
+        status: str = "body",
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize status indicator.
 
@@ -102,7 +123,7 @@ class StatusIndicator(QLabel):
         super().__init__(text, parent)
         self.setProperty("variant", status)
 
-    def set_status(self, status: str, text: Optional[str] = None):
+    def set_status(self, status: str, text: Optional[str] = None) -> None:
         """
         Update status.
 
@@ -120,7 +141,12 @@ class StatusIndicator(QLabel):
 class InfoCard(ThemedCard):
     """Information display card with title."""
 
-    def __init__(self, title: str, min_height: int = 120, parent=None):
+    def __init__(
+        self,
+        title: str,
+        min_height: int = 120,
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize info card.
 
@@ -133,7 +159,7 @@ class InfoCard(ThemedCard):
         self.title = title
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
 
@@ -155,7 +181,13 @@ class InfoCard(ThemedCard):
 class StatBadge(QLabel):
     """Statistic display badge with background."""
 
-    def __init__(self, name: str, value: str, variant: str = "body", parent=None):
+    def __init__(
+        self,
+        name: str,
+        value: str,
+        variant: str = "body",
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize stat badge.
 
@@ -171,7 +203,7 @@ class StatBadge(QLabel):
         self.setProperty("variant", variant)
         self.setAlignment(Qt.AlignCenter)
 
-    def update_value(self, value: str):
+    def update_value(self, value: str) -> None:
         """
         Update stat value.
 
@@ -181,7 +213,7 @@ class StatBadge(QLabel):
         self.stat_value = value
         self.setText(f"{self.stat_name}: {value}")
 
-    def set_variant(self, variant: str):
+    def set_variant(self, variant: str) -> None:
         """
         Update badge variant.
 

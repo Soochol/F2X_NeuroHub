@@ -3,15 +3,17 @@ Work Service for start/complete operations with threading support.
 
 Refactored to use single APIWorker instead of multiple specific workers.
 """
-from PySide6.QtCore import QObject, Signal
-from typing import Dict
-from datetime import datetime
-from .api_client import APIClient
-from .workers import APIWorker
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from PySide6.QtCore import QObject, Signal
 
 from utils.exception_handler import safe_cleanup
 from utils.serial_validator import validate_serial_number_v1
+
+from .api_client import APIClient
+from .workers import APIWorker
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +27,18 @@ class WorkService(QObject):
     serial_converted = Signal(dict) # Serial converted successfully
     error_occurred = Signal(str)    # Operation failed
 
-    def __init__(self, api_client: APIClient, config):
+    def __init__(self, api_client: APIClient, config: Any) -> None:
         super().__init__()
-        self.api_client = api_client
-        self.config = config
-        self._active_workers = []
+        self.api_client: APIClient = api_client
+        self.config: Any = config
+        self._active_workers: List[APIWorker] = []
 
     def start_work(
-        self, lot_number: str, worker_id: str, serial_number: str = None
-    ):
+        self,
+        lot_number: str,
+        worker_id: str,
+        serial_number: Optional[str] = None
+    ) -> None:
         """
         Start work for LOT or Serial - POST /api/v1/process-operations/start
 
@@ -94,7 +99,7 @@ class WorkService(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def complete_work(self, json_data: Dict):
+    def complete_work(self, json_data: Dict[str, Any]) -> None:
         """
         Complete work from JSON file.
 
@@ -159,7 +164,7 @@ class WorkService(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def convert_wip_to_serial(self, wip_id: int, operator_id: int):
+    def convert_wip_to_serial(self, wip_id: int, operator_id: int) -> None:
         """
         Convert WIP to Serial - POST /api/v1/wip-items/{wip_id}/convert-to-serial
 
@@ -193,7 +198,7 @@ class WorkService(QObject):
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
 
-    def _on_api_success(self, operation: str, result: dict):
+    def _on_api_success(self, operation: str, result: Dict[str, Any]) -> None:
         """Handle successful API call based on operation type."""
         logger.info(f"API success [{operation}]: {result}")
 
@@ -204,7 +209,7 @@ class WorkService(QObject):
         elif operation == "convert_serial":
             self.serial_converted.emit(result)
 
-    def _on_api_error(self, operation: str, error_msg: str):
+    def _on_api_error(self, operation: str, error_msg: str) -> None:
         """Handle API error with user-friendly messages."""
         logger.error(f"API error [{operation}]: {error_msg}")
 
@@ -218,7 +223,7 @@ class WorkService(QObject):
         elif operation == "convert_serial":
             self.error_occurred.emit(f"시리얼 변환 실패: {friendly_msg}")
 
-    def _make_user_friendly_message(self, error_msg: str) -> str:
+    def _make_user_friendly_message(self, error_msg: str) -> str:  # noqa: C901
         """
         Convert technical error messages to user-friendly Korean messages.
 
@@ -276,7 +281,7 @@ class WorkService(QObject):
         return error_msg
 
 
-    def _cleanup_worker(self, worker):
+    def _cleanup_worker(self, worker: APIWorker) -> None:
         """Clean up finished worker."""
         if worker in self._active_workers:
             self._active_workers.remove(worker)
@@ -284,7 +289,7 @@ class WorkService(QObject):
         logger.debug(f"Worker cleaned up: {worker.operation}")
 
     @safe_cleanup("작업 취소 실패")
-    def cancel_all_operations(self):
+    def cancel_all_operations(self) -> None:
         """Cancel all active operations and clean up workers."""
         logger.info(f"Cancelling {len(self._active_workers)} active workers")
         for worker in self._active_workers[:]:

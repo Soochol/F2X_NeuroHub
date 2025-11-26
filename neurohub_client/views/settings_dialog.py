@@ -2,13 +2,15 @@
 Settings Dialog with Sidebar Navigation.
 """
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QComboBox,
-                               QLineEdit, QPushButton, QGroupBox, QWidget, QStackedWidget,
-                               QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QComboBox, QDialog, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
+    QStackedWidget, QVBoxLayout, QWidget
+)
+
 from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,12 @@ except ImportError:
 class SettingsDialog(QDialog):
     """Settings dialog with sidebar navigation for configuration."""
 
-    def __init__(self, config, print_service: Optional['PrintService'] = None, parent=None):
+    def __init__(
+        self,
+        config: Any,
+        print_service: Optional[Any] = None,
+        parent: Optional[QWidget] = None
+    ) -> None:
         super().__init__(parent)
         self.config = config
         self.print_service = print_service
@@ -34,7 +41,7 @@ class SettingsDialog(QDialog):
         self.resize(650, 500)
         self.setup_ui()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components with sidebar navigation."""
         main_layout = QHBoxLayout(self)
         main_layout.setSpacing(0)
@@ -116,7 +123,7 @@ class SettingsDialog(QDialog):
         # Apply sidebar styles
         self._apply_styles()
 
-    def _apply_styles(self):
+    def _apply_styles(self) -> None:
         """Apply styles for sidebar navigation."""
         # Theme colors
         bg_default = theme.get('colors.background.default')
@@ -252,11 +259,11 @@ class SettingsDialog(QDialog):
             }}
         """)
 
-    def _on_nav_changed(self, index):
+    def _on_nav_changed(self, index: int) -> None:
         """Handle navigation item change."""
         self.stack.setCurrentIndex(index)
 
-    def _create_process_page(self):
+    def _create_process_page(self) -> QWidget:
         """Create process settings page."""
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -299,7 +306,7 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return page
 
-    def _create_folder_page(self):
+    def _create_folder_page(self) -> QWidget:
         """Create folder settings page."""
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -339,7 +346,7 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return page
 
-    def _create_equipment_page(self):
+    def _create_equipment_page(self) -> QWidget:
         """Create equipment settings page."""
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -376,7 +383,7 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return page
 
-    def _create_api_page(self):
+    def _create_api_page(self) -> QWidget:
         """Create API settings page."""
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -410,7 +417,7 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return page
 
-    def _create_printer_page(self):
+    def _create_printer_page(self) -> QWidget:
         """Create printer settings page."""
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -466,13 +473,13 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return page
 
-    def browse_folder(self):
+    def browse_folder(self) -> None:
         """Open folder browser."""
         folder = QFileDialog.getExistingDirectory(self, "폴더 선택", self.folder_input.text())
         if folder:
             self.folder_input.setText(folder)
 
-    def _populate_printers(self):
+    def _populate_printers(self) -> None:
         """Populate printer combo box with available printers."""
         printers = []
 
@@ -498,7 +505,7 @@ class SettingsDialog(QDialog):
             if index >= 0:
                 self.printer_combo.setCurrentIndex(index)
 
-    def browse_zpl_template(self):
+    def browse_zpl_template(self) -> None:
         """Open file browser for ZPL template."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -509,7 +516,7 @@ class SettingsDialog(QDialog):
         if file_path:
             self.zpl_input.setText(file_path)
 
-    def test_print(self):
+    def test_print(self) -> None:
         """Test print with selected printer."""
         selected_printer = self.printer_combo.currentData()
 
@@ -543,7 +550,7 @@ class SettingsDialog(QDialog):
         else:
             QMessageBox.warning(self, "실패", "테스트 출력에 실패했습니다.")
 
-    def save_settings(self):
+    def save_settings(self) -> None:
         """Save settings to config."""
         try:
             self.config.process_number = self.process_combo.currentData()

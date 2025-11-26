@@ -3,8 +3,9 @@ LOT Display Card Widget - QGroupBox style card panel.
 """
 import logging
 
-from PySide6.QtWidgets import QVBoxLayout, QLabel, QGroupBox
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGroupBox, QLabel, QVBoxLayout
+
 from utils.theme_manager import get_theme
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ theme = get_theme()
 class LotDisplayCard(QGroupBox):
     """Display current LOT information with process name as card title."""
 
-    def __init__(self, process_name: str = ""):
+    def __init__(self, process_name: str = "") -> None:
         title = f"공정: {process_name}" if process_name else "현재 작업"
         super().__init__(title)
         self.process_name = process_name
@@ -22,7 +23,7 @@ class LotDisplayCard(QGroupBox):
         self.setup_ui()
         self._apply_theme()
 
-    def _apply_theme(self):
+    def _apply_theme(self) -> None:
         """Apply theme styling to card (QGroupBox style)."""
         if not theme:
             return
@@ -63,7 +64,7 @@ class LotDisplayCard(QGroupBox):
             }}
         """)
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
@@ -122,19 +123,19 @@ class LotDisplayCard(QGroupBox):
 
         layout.addLayout(info_layout)
 
-    def set_process_name(self, name: str):
+    def set_process_name(self, name: str) -> None:
         """Update process name in title."""
         self.process_name = name
         self.setTitle(f"공정: {name}")
 
-    def update_lot(self, lot_number: str, worker_id: str, start_time: str):
+    def update_lot(self, lot_number: str, worker_id: str, start_time: str) -> None:
         """Update LOT information."""
         self.lot_label.setText(f"LOT: {lot_number}")
         self.worker_label.setText(f"작업자: {worker_id}")
         self.time_label.setText(f"시작: {start_time}")
         logger.debug("LOT card updated: %s", lot_number)
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear LOT information."""
         self.lot_label.setText("LOT: 대기중")
         self.worker_label.setText("작업자: -")

@@ -4,11 +4,11 @@ Enhanced Error Handling System for Production Tracker App.
 Provides custom exception classes, retry logic, error recovery strategies,
 and user-friendly error message mapping.
 """
-import time
 import logging
-from typing import Callable, Any, Optional, Type, Dict, List
-from functools import wraps
+import time
 from enum import Enum
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ProductionTrackerError(Exception):
     """Base exception for all production tracker errors."""
 
-    def __init__(self, message: str, error_code: Optional[str] = None, details: Optional[Dict] = None):
+    def __init__(self, message: str, error_code: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize error.
 
@@ -34,7 +34,7 @@ class ProductionTrackerError(Exception):
         self.error_code = error_code
         self.details = details or {}
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert error to dictionary for logging/reporting."""
         return {
             "type": self.__class__.__name__,
@@ -47,7 +47,7 @@ class ProductionTrackerError(Exception):
 class BarcodeValidationError(ProductionTrackerError):
     """Raised when barcode validation fails."""
 
-    def __init__(self, barcode: str, reason: str):
+    def __init__(self, barcode: str, reason: str) -> None:
         super().__init__(
             f"잘못된 바코드 형식: {barcode}",
             error_code="BARCODE_INVALID",
@@ -60,7 +60,7 @@ class BarcodeValidationError(ProductionTrackerError):
 class SerialNumberError(ProductionTrackerError):
     """Raised for serial number related errors."""
 
-    def __init__(self, serial: str, reason: str):
+    def __init__(self, serial: str, reason: str) -> None:
         super().__init__(
             f"Serial 번호 오류: {serial}",
             error_code="SERIAL_ERROR",
@@ -71,7 +71,7 @@ class SerialNumberError(ProductionTrackerError):
 class LOTNumberError(ProductionTrackerError):
     """Raised for LOT number related errors."""
 
-    def __init__(self, lot_number: str, reason: str):
+    def __init__(self, lot_number: str, reason: str) -> None:
         super().__init__(
             f"LOT 번호 오류: {lot_number}",
             error_code="LOT_ERROR",
@@ -82,7 +82,7 @@ class LOTNumberError(ProductionTrackerError):
 class PrinterError(ProductionTrackerError):
     """Raised for printer-related errors."""
 
-    def __init__(self, message: str, printer_name: Optional[str] = None):
+    def __init__(self, message: str, printer_name: Optional[str] = None) -> None:
         super().__init__(
             message,
             error_code="PRINTER_ERROR",
@@ -94,7 +94,7 @@ class PrinterError(ProductionTrackerError):
 class PrinterConnectionError(PrinterError):
     """Raised when printer connection fails."""
 
-    def __init__(self, printer_name: str, reason: str):
+    def __init__(self, printer_name: str, reason: str) -> None:
         super().__init__(
             f"프린터 연결 실패: {printer_name} - {reason}",
             printer_name=printer_name
@@ -104,14 +104,14 @@ class PrinterConnectionError(PrinterError):
 class PrinterNotConfiguredError(PrinterError):
     """Raised when printer is not configured."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("프린터가 설정되지 않았습니다")
 
 
 class APIError(ProductionTrackerError):
     """Raised for API-related errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, endpoint: Optional[str] = None):
+    def __init__(self, message: str, status_code: Optional[int] = None, endpoint: Optional[str] = None) -> None:
         super().__init__(
             message,
             error_code="API_ERROR",
@@ -124,7 +124,7 @@ class APIError(ProductionTrackerError):
 class APIConnectionError(APIError):
     """Raised when API connection fails."""
 
-    def __init__(self, endpoint: str, reason: str):
+    def __init__(self, endpoint: str, reason: str) -> None:
         super().__init__(
             f"API 연결 실패: {endpoint} - {reason}",
             endpoint=endpoint
@@ -134,14 +134,14 @@ class APIConnectionError(APIError):
 class APIAuthenticationError(APIError):
     """Raised for authentication failures."""
 
-    def __init__(self, message: str = "인증 실패"):
+    def __init__(self, message: str = "인증 실패") -> None:
         super().__init__(message, status_code=401)
 
 
 class APINotFoundError(APIError):
     """Raised when resource not found."""
 
-    def __init__(self, resource: str):
+    def __init__(self, resource: str) -> None:
         super().__init__(
             f"리소스를 찾을 수 없습니다: {resource}",
             status_code=404,
@@ -152,7 +152,7 @@ class APINotFoundError(APIError):
 class WIPGenerationError(ProductionTrackerError):
     """Raised for WIP generation errors."""
 
-    def __init__(self, lot_number: str, reason: str):
+    def __init__(self, lot_number: str, reason: str) -> None:
         super().__init__(
             f"WIP 생성 실패: {lot_number} - {reason}",
             error_code="WIP_GEN_ERROR",
@@ -163,7 +163,7 @@ class WIPGenerationError(ProductionTrackerError):
 class WIPScanError(ProductionTrackerError):
     """Raised for WIP scanning errors."""
 
-    def __init__(self, serial: str, reason: str):
+    def __init__(self, serial: str, reason: str) -> None:
         super().__init__(
             f"WIP 스캔 실패: {serial} - {reason}",
             error_code="WIP_SCAN_ERROR",
@@ -174,7 +174,7 @@ class WIPScanError(ProductionTrackerError):
 class ConfigurationError(ProductionTrackerError):
     """Raised for configuration-related errors."""
 
-    def __init__(self, setting: str, reason: str):
+    def __init__(self, setting: str, reason: str) -> None:
         super().__init__(
             f"설정 오류: {setting} - {reason}",
             error_code="CONFIG_ERROR",
@@ -208,8 +208,8 @@ class RetryStrategy:
         delay_seconds: float = 1.0,
         backoff_multiplier: float = 2.0,
         max_delay: float = 10.0,
-        retry_on: tuple = (Exception,)
-    ):
+        retry_on: Tuple[Type[Exception], ...] = (Exception,)
+    ) -> None:
         """
         Initialize retry strategy.
 
@@ -235,7 +235,7 @@ class RetryStrategy:
 def with_retry(
     strategy: Optional[RetryStrategy] = None,
     on_retry: Optional[Callable[[int, Exception], None]] = None
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to retry function on failure.
 
@@ -251,9 +251,9 @@ def with_retry(
     if strategy is None:
         strategy = RetryStrategy()
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
 
             for attempt in range(strategy.max_attempts):
@@ -482,15 +482,15 @@ class ErrorMessageMapper:
 class ContextLogger:
     """Logger with additional context information."""
 
-    def __init__(self, logger_name: str):
+    def __init__(self, logger_name: str) -> None:
         self.logger = logging.getLogger(logger_name)
         self.context: Dict[str, Any] = {}
 
-    def set_context(self, **kwargs):
+    def set_context(self, **kwargs: Any) -> None:
         """Set context variables for logging."""
         self.context.update(kwargs)
 
-    def clear_context(self):
+    def clear_context(self) -> None:
         """Clear all context variables."""
         self.context.clear()
 
@@ -501,23 +501,23 @@ class ContextLogger:
             return f"{message} [{context_str}]"
         return message
 
-    def debug(self, message: str, **kwargs):
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message with context."""
         self.logger.debug(self._format_message(message), extra=kwargs)
 
-    def info(self, message: str, **kwargs):
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message with context."""
         self.logger.info(self._format_message(message), extra=kwargs)
 
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message with context."""
         self.logger.warning(self._format_message(message), extra=kwargs)
 
-    def error(self, message: str, exc_info: bool = True, **kwargs):
+    def error(self, message: str, exc_info: bool = True, **kwargs: Any) -> None:
         """Log error message with context."""
         self.logger.error(self._format_message(message), exc_info=exc_info, extra=kwargs)
 
-    def critical(self, message: str, exc_info: bool = True, **kwargs):
+    def critical(self, message: str, exc_info: bool = True, **kwargs: Any) -> None:
         """Log critical message with context."""
         self.logger.critical(self._format_message(message), exc_info=exc_info, extra=kwargs)
 
@@ -544,15 +544,15 @@ class ErrorAggregator:
             logger.error(f"Batch operation failed: {report}")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.errors: List[Dict[str, Any]] = []
 
     def add_error(
         self,
         identifier: Any,
         error: Exception,
-        context: Optional[Dict] = None
-    ):
+        context: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Add an error to the aggregator.
 
@@ -599,7 +599,7 @@ class ErrorAggregator:
 
         return summary
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all errors."""
         self.errors.clear()
 
@@ -612,7 +612,7 @@ def raise_if_none(
     value: Any,
     error_message: str,
     error_class: Type[ProductionTrackerError] = ProductionTrackerError
-):
+) -> Any:
     """
     Raise error if value is None.
 
@@ -637,7 +637,7 @@ def validate_or_raise(
     condition: bool,
     error_message: str,
     error_class: Type[ProductionTrackerError] = ProductionTrackerError
-):
+) -> None:
     """
     Raise error if condition is False.
 

@@ -3,21 +3,21 @@ Advanced Search Dialog for WIP items.
 
 Provides comprehensive search and filtering capabilities with multiple criteria.
 """
+import csv
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QComboBox, QDateEdit, QGroupBox, QFormLayout,
-    QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox,
-    QTabWidget, QWidget, QTextEdit
-)
-from PySide6.QtCore import Qt, Signal, QDate
-from PySide6.QtGui import QFont
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from PySide6.QtCore import QDate, Qt, Signal
+from PySide6.QtWidgets import (
+    QCheckBox, QComboBox, QDateEdit, QDialog, QFileDialog, QFormLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QPushButton,
+    QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget
+)
+
+from utils.exception_handler import safe_slot
 from utils.theme_manager import get_theme
 from widgets.toast_notification import Toast
-from utils.exception_handler import safe_slot
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -30,7 +30,12 @@ class AdvancedSearchDialog(QDialog):
     search_executed = Signal(dict)  # Search criteria
     result_selected = Signal(dict)  # Selected result
 
-    def __init__(self, api_client, config, parent=None):
+    def __init__(
+        self,
+        api_client: Any,
+        config: Any,
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize AdvancedSearchDialog.
 
@@ -51,7 +56,7 @@ class AdvancedSearchDialog(QDialog):
         self.setup_ui()
         self.load_filter_options()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         spacing = theme.get("spacing.lg", 16)
@@ -244,7 +249,7 @@ class AdvancedSearchDialog(QDialog):
 
         return widget
 
-    def load_filter_options(self):
+    def load_filter_options(self) -> None:
         """Load filter options from API."""
         try:
             # Load products
@@ -278,7 +283,7 @@ class AdvancedSearchDialog(QDialog):
             Toast.warning(self, "필터 옵션을 불러오지 못했습니다")
 
     @safe_slot("검색 실행 실패")
-    def _on_search_clicked(self):
+    def _on_search_clicked(self) -> None:
         """Handle search button click."""
         # Build search criteria
         criteria = {
@@ -319,7 +324,7 @@ class AdvancedSearchDialog(QDialog):
             logger.error(f"Search failed: {e}", exc_info=True)
             Toast.danger(self, f"검색 실패: {str(e)}")
 
-    def _populate_results(self, results: List[Dict]):
+    def _populate_results(self, results: List[Dict[str, Any]]) -> None:
         """
         Populate results table.
 
@@ -402,7 +407,7 @@ class AdvancedSearchDialog(QDialog):
         except Exception:
             return "-"
 
-    def _add_to_history(self, criteria: Dict, result_count: int):
+    def _add_to_history(self, criteria: Dict[str, Any], result_count: int) -> None:
         """Add search to history."""
         row = self.history_list.rowCount()
         self.history_list.insertRow(row)
@@ -421,7 +426,7 @@ class AdvancedSearchDialog(QDialog):
         # Store full criteria in item data
         self.history_list.item(row, 0).setData(Qt.UserRole, criteria)
 
-    def _format_criteria(self, criteria: Dict) -> str:
+    def _format_criteria(self, criteria: Dict[str, Any]) -> str:
         """Format criteria for display."""
         parts = []
 
@@ -437,7 +442,7 @@ class AdvancedSearchDialog(QDialog):
         return ", ".join(parts) if parts else "전체 검색"
 
     @safe_slot("결과 선택 실패")
-    def _on_result_double_clicked(self):
+    def _on_result_double_clicked(self) -> None:
         """Handle result double-click."""
         current_row = self.results_table.currentRow()
         if current_row >= 0 and current_row < len(self.search_results):
@@ -446,7 +451,7 @@ class AdvancedSearchDialog(QDialog):
             Toast.info(self, f"선택: {result.get('serial_number', '')}")
 
     @safe_slot("히스토리 선택 실패")
-    def _on_history_double_clicked(self):
+    def _on_history_double_clicked(self) -> None:
         """Handle history double-click."""
         current_row = self.history_list.currentRow()
         if current_row >= 0:
@@ -457,7 +462,7 @@ class AdvancedSearchDialog(QDialog):
                 self.tab_widget.setCurrentIndex(0)
                 Toast.info(self, "검색 조건이 복원되었습니다")
 
-    def _restore_criteria(self, criteria: Dict):
+    def _restore_criteria(self, criteria: Dict[str, Any]) -> None:
         """Restore search criteria from history."""
         if criteria.get("serial_number"):
             self.serial_input.setText(criteria["serial_number"])
@@ -472,13 +477,13 @@ class AdvancedSearchDialog(QDialog):
             if index >= 0:
                 self.status_combo.setCurrentIndex(index)
 
-    def _on_clear_history_clicked(self):
+    def _on_clear_history_clicked(self) -> None:
         """Clear search history."""
         self.history_list.setRowCount(0)
         Toast.info(self, "검색 히스토리가 지워졌습니다")
 
     @safe_slot("결과 내보내기 실패")
-    def _on_export_clicked(self):
+    def _on_export_clicked(self) -> None:
         """Export search results."""
         if not self.search_results:
             Toast.warning(self, "내보낼 결과가 없습니다")
@@ -501,9 +506,8 @@ class AdvancedSearchDialog(QDialog):
                 logger.error(f"Export failed: {e}")
                 Toast.danger(self, f"내보내기 실패: {str(e)}")
 
-    def _export_to_csv(self, file_path: str):
+    def _export_to_csv(self, file_path: str) -> None:
         """Export results to CSV file."""
-        import csv
 
         with open(file_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
             writer = csv.writer(csvfile)
@@ -532,6 +536,6 @@ class AdvancedSearchDialog(QDialog):
 
         logger.info(f"Exported {len(self.search_results)} results to {file_path}")
 
-    def get_search_results(self) -> List[Dict]:
+    def get_search_results(self) -> List[Dict[str, Any]]:
         """Get current search results."""
         return self.search_results

@@ -4,18 +4,20 @@ Printer Configuration Dialog.
 Allows configuration of network and USB printers with connection testing.
 """
 import logging
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QComboBox, QGroupBox, QRadioButton, QButtonGroup,
-    QSpinBox, QTextEdit, QTabWidget, QWidget, QFormLayout
-)
+from typing import Any, Optional
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QComboBox, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QSpinBox, QTabWidget, QTextEdit,
+    QVBoxLayout, QWidget
+)
 
+from utils.exception_handler import safe_slot
 from utils.theme_manager import get_theme
 from utils.zebra_printer import ZebraPrinter
 from widgets.toast_notification import Toast
-from utils.exception_handler import safe_slot
 
 logger = logging.getLogger(__name__)
 theme = get_theme()
@@ -26,7 +28,12 @@ class PrinterConfigDialog(QDialog):
 
     printer_configured = Signal(dict)  # Emit when printer is successfully configured
 
-    def __init__(self, config, print_service=None, parent=None):
+    def __init__(
+        self,
+        config: Any,
+        print_service: Optional[Any] = None,
+        parent: Optional[QWidget] = None
+    ) -> None:
         """
         Initialize PrinterConfigDialog.
 
@@ -47,7 +54,7 @@ class PrinterConfigDialog(QDialog):
         self.setup_ui()
         self.load_settings()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
         spacing = theme.get("spacing.lg", 16)
@@ -248,7 +255,7 @@ class PrinterConfigDialog(QDialog):
 
         return widget
 
-    def load_settings(self):
+    def load_settings(self) -> None:
         """Load current printer settings from config."""
         # Network printer settings (if stored)
         # For now, leave empty - user will input
@@ -265,7 +272,7 @@ class PrinterConfigDialog(QDialog):
         if template_path:
             self.template_path_input.setText(template_path)
 
-    def _refresh_printer_list(self):
+    def _refresh_printer_list(self) -> None:
         """Refresh USB printer list."""
         self.printer_queue_combo.clear()
         self.usb_status_label.setText("프린터 목록을 불러오는 중...")
@@ -282,7 +289,7 @@ class PrinterConfigDialog(QDialog):
         else:
             self.usb_status_label.setText("프린터를 찾을 수 없습니다")
 
-    def _browse_template(self):
+    def _browse_template(self) -> None:
         """Browse for ZPL template file."""
         from PySide6.QtWidgets import QFileDialog
 
@@ -297,7 +304,7 @@ class PrinterConfigDialog(QDialog):
             self.template_path_input.setText(file_path)
 
     @safe_slot("연결 테스트 실패")
-    def _on_test_connection(self):
+    def _on_test_connection(self) -> None:
         """Test printer connection."""
         current_tab = self.tab_widget.currentIndex()
 
@@ -334,7 +341,7 @@ class PrinterConfigDialog(QDialog):
                 Toast.warning(self, "USB 프린터 서비스를 사용할 수 없습니다")
 
     @safe_slot("바코드 미리보기 생성 실패")
-    def _generate_preview(self):
+    def _generate_preview(self) -> None:
         """Generate barcode preview."""
         from utils.barcode_utils import BarcodeGenerator
 
@@ -374,7 +381,7 @@ class PrinterConfigDialog(QDialog):
 
         Toast.success(self, "바코드 미리보기 생성 완료")
 
-    def _on_save(self):
+    def _on_save(self) -> None:
         """Save printer configuration."""
         current_tab = self.tab_widget.currentIndex()
 
