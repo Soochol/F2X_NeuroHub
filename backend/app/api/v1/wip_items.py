@@ -18,7 +18,7 @@ Note: WIP generation endpoint moved to /lots/{lot_id}/start-wip-generation in lo
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
+from fastapi import APIRouter, Depends, Query, Path
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -40,6 +40,12 @@ from app.services.wip_service import WIPValidationError
 from app.services.printer_service import printer_service
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
+from app.core.exceptions import (
+    WIPItemNotFoundException,
+    ValidationException,
+    BusinessRuleException,
+    InternalServerException,
+)
 
 
 router = APIRouter(
@@ -133,10 +139,7 @@ def get_wip_item(
     """Get WIP item by ID."""
     wip_item = crud.get(db, wip_id)
     if not wip_item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"WIP item with id {wip_id} not found"
-        )
+        raise WIPItemNotFoundException(wip_id=wip_id)
     return wip_item
 
 
@@ -169,10 +172,7 @@ def get_wip_barcode(
     # Verify WIP exists
     wip_item = crud.get_by_wip_id(db, wip_id)
     if not wip_item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"WIP {wip_id} not found"
-        )
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
     try:
         # Generate barcode image
@@ -187,10 +187,7 @@ def get_wip_barcode(
             }
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to generate barcode: {str(e)}"
-        )
+        raise ValidationException(message=f"Failed to generate barcode: {str(e)}")
 
 
 @router.post(
@@ -220,31 +217,24 @@ def print_wip_label(
     # Verify WIP exists
     wip_item = crud.get_by_wip_id(db, wip_id)
     if not wip_item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"WIP {wip_id} not found"
-        )
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
     try:
         # Print label
         success = printer_service.print_wip_label(wip_id)
-        
+
         if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send print job to printer"
-            )
-        
+            raise InternalServerException(message="Failed to send print job to printer")
+
         return {
             "success": True,
             "message": f"Label for {wip_id} sent to printer",
             "wip_id": wip_id
         }
+    except InternalServerException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Print failed: {str(e)}"
-        )
+        raise InternalServerException(message=f"Print failed: {str(e)}")
 
 
 
@@ -278,13 +268,10 @@ def scan_wip_barcode(
     try:
         wip_item = crud.scan(db, wip_id, process_id)
         if not wip_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"WIP {wip_id} not found"
-            )
+            raise WIPItemNotFoundException(wip_id=wip_id)
         return wip_item
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise ValidationException(message=str(e))
 
 
 @router.post(
@@ -328,9 +315,9 @@ def start_wip_process(
         )
         return wip_item
     except WIPValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise BusinessRuleException(message=str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
 
 @router.post(
@@ -387,9 +374,9 @@ def complete_wip_process(
             "wip_item": wip_item.to_dict(),
         }
     except WIPValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise BusinessRuleException(message=str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
 
 @router.post(
@@ -437,9 +424,9 @@ def convert_wip_to_serial(
             "wip_item": wip_item.to_dict(),
         }
     except WIPValidationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise BusinessRuleException(message=str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
 
 
@@ -468,10 +455,7 @@ def get_wip_trace(
     # Get WIP item
     wip_item = crud.get_by_wip_id(db, wip_id)
     if not wip_item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"WIP {wip_id} not found"
-        )
+        raise WIPItemNotFoundException(wip_id=wip_id)
 
     # Get LOT information
     lot_info = None

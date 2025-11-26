@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ from app.models import User
 from app.models.job import ProcessJob
 from app.tasks.process_tasks import complete_process_batch, export_process_data
 from app.core.celery_app import celery_app
+from app.core.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 
@@ -106,7 +107,7 @@ def get_job_status(
     """
     job = db.query(ProcessJob).get(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise ResourceNotFoundException(resource_type="Job", resource_id=job_id)
         
     # Check Celery status
     task_result = celery_app.AsyncResult(job.task_id)

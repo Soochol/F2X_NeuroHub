@@ -15,7 +15,8 @@ import {
 import Logger from '@/utils/logger';
 import { toast, notify } from '@/utils/toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Vite 프록시 사용 시 상대 경로, 직접 연결 시 전체 URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 // Create axios instance
@@ -194,18 +195,39 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error: AxiosError<StandardErrorResponse | APIError>) => {
-    // 네트워크 에러 (응답 없음)
+    const requestUrl = error.config?.url;
+
+    // 네트워크 에러 (응답 없음) - CORS 또는 서버 연결 문제
     if (!error.response) {
-      toast.error('네트워크 연결을 확인해주세요');
+      Logger.error('Network error (no response):', {
+        url: requestUrl,
+        message: error.message,
+        code: error.code,
+      });
+
+      // CORS 에러 또는 서버 연결 실패
+      if (error.message === 'Network Error') {
+        toast.error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인하세요.');
+      } else if (error.code === 'ECONNABORTED') {
+        toast.error('요청 시간이 초과되었습니다');
+      } else {
+        toast.error(`네트워크 오류: ${error.message}`);
+      }
       return Promise.reject(error);
     }
 
     const errorData = error.response.data;
     const statusCode = error.response.status;
-    const requestUrl = error.config?.url;
 
-    // 로그인 요청에서 발생한 401 에러는 인터셉터에서 처리하지 않고 컴포넌트로 넘김
-    if (statusCode === 401 && requestUrl?.includes('/auth/login')) {
+    Logger.error('API Response Error:', {
+      url: requestUrl,
+      status: statusCode,
+      data: errorData,
+    });
+
+    // 로그인 요청에서 발생한 에러는 컴포넌트에서 처리하도록 넘김
+    // (자동 로그아웃/리다이렉트 하지 않음, toast도 사용하지 않음)
+    if (requestUrl?.includes('/auth/login')) {
       return Promise.reject(error);
     }
 

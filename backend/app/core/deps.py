@@ -9,12 +9,17 @@ Provides:
 
 from typing import Generator, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core import security
+from app.core.exceptions import (
+    InvalidTokenException,
+    UserNotFoundException,
+    ValidationException,
+    InsufficientPermissionsException,
+)
 from app.crud import user as user_crud
 from app.database import SessionLocal
 from app.models import User
@@ -70,36 +75,27 @@ def get_current_user(
         def read_current_user(current_user: User = Depends(get_current_user)):
             return current_user
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
     if not token:
-        raise credentials_exception
+        raise InvalidTokenException(message="Authentication token is missing")
 
     # Decode token
     payload = security.decode_access_token(token)
     if payload is None:
-        raise credentials_exception
+        raise InvalidTokenException(message="Invalid or expired token")
 
     # Extract user ID from token
     user_id: Optional[str] = payload.get("sub")
     if user_id is None:
-        raise credentials_exception
+        raise InvalidTokenException(message="Invalid token payload")
 
     # Get user from database
     try:
         user = user_crud.get(db, user_id=int(user_id))
-    except ValueError:
-        raise credentials_exception
+    except ValueError as exc:
+        raise InvalidTokenException(message="Invalid user ID in token") from exc
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+        raise UserNotFoundException(user_id=user_id)
 
     return user
 
@@ -125,10 +121,7 @@ def get_current_active_user(
             return {"message": "Access granted"}
     """
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account"
-        )
+        raise ValidationException(message="User account is inactive")
     return current_user
 
 
@@ -157,10 +150,7 @@ def get_current_admin_user(
             return crud.delete(db, id=id)
     """
     if not security.has_admin_permission(current_user.role):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required"
-        )
+        raise InsufficientPermissionsException(message="Admin privileges required")
     return current_user
 
 
@@ -189,10 +179,7 @@ def get_current_manager_user(
             return crud.close_lot(db, lot_id=id)
     """
     if not security.has_manager_permission(current_user.role):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Manager or admin privileges required"
-        )
+        raise InsufficientPermissionsException(message="Manager or admin privileges required")
     return current_user
 
 
@@ -217,9 +204,8 @@ def check_role_permission(required_role: UserRole):
     """
     def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
         if not security.check_permission(current_user.role, required_role):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{required_role.value}' or higher required"
+            raise InsufficientPermissionsException(
+                message=f"Role '{required_role.value}' or higher required"
             )
         return current_user
 

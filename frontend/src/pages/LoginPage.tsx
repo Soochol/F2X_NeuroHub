@@ -24,7 +24,8 @@ export const LoginPage = () => {
       await login({ username, password });
       navigate('/');
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Login failed. Please check your credentials.'));
+      const errorMessage = getErrorMessage(err, '로그인에 실패했습니다');
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -142,18 +143,6 @@ export const LoginPage = () => {
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        <div style={{
-          marginTop: '30px',
-          paddingTop: '20px',
-          borderTop: '1px solid var(--color-border)',
-          fontSize: '14px',
-          color: 'var(--color-text-secondary)',
-          textAlign: 'center',
-        }}>
-          <p style={{ margin: 0 }}>Default credentials:</p>
-          <p style={{ margin: '5px 0 0 0' }}>operator1 / password123</p>
-        </div>
       </div>
     </div>
   );

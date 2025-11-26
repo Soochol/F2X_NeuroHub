@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core import security
 from app.crud import user as user_crud
+from app.crud.user import verify_password
 from app.models import User
 from app.schemas import UserInDB, UserLogin
 from app.config import settings
@@ -68,16 +69,19 @@ def login(
         UnauthorizedException: Invalid credentials
         ValidationException: Inactive user account
     """
-    # Authenticate user
-    user = user_crud.authenticate(
-        db,
-        username=form_data.username,
-        password=form_data.password
-    )
+    # Check if user exists first
+    user = user_crud.get_by_username(db, username=form_data.username)
 
     if not user:
         raise UnauthorizedException(
-            message="Incorrect username or password",
+            message="사용자를 찾을 수 없습니다",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    # Verify password
+    if not verify_password(form_data.password, user.password_hash):
+        raise UnauthorizedException(
+            message="비밀번호가 올바르지 않습니다",
             headers={"WWW-Authenticate": "Bearer"}
         )
 
@@ -135,18 +139,18 @@ def login_json(
         UnauthorizedException: Invalid credentials
         ValidationException: Inactive user account
     """
-    # Authenticate user
-    user = user_crud.authenticate(
-        db,
-        username=credentials.username,
-        password=credentials.password
-    )
+    # Check if user exists first
+    user = user_crud.get_by_username(db, username=credentials.username)
 
     if not user:
-        raise UnauthorizedException(message="Incorrect username or password")
+        raise UnauthorizedException(message="사용자를 찾을 수 없습니다")
+
+    # Verify password
+    if not verify_password(credentials.password, user.password_hash):
+        raise UnauthorizedException(message="비밀번호가 올바르지 않습니다")
 
     if not user.is_active:
-        raise ValidationException(message="Inactive user account")
+        raise ValidationException(message="비활성화된 계정입니다")
 
     # Update last login timestamp
     user_crud.update_last_login(db, user_id=user.id)

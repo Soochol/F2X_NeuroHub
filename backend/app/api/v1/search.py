@@ -1,16 +1,17 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models import User, ProcessData, SavedFilter
 from app.schemas.search import (
-    SearchFilters, 
-    FilterRequest, 
-    DateRange, 
+    SearchFilters,
+    FilterRequest,
+    DateRange,
     SaveFilterRequest
 )
 from app.crud import search as search_crud
+from app.core.exceptions import ResourceNotFoundException
 
 router = APIRouter()
 
@@ -98,7 +99,7 @@ def apply_saved_filter(
     """
     saved_filter = db.query(SavedFilter).get(filter_id)
     if not saved_filter:
-        raise HTTPException(status_code=404, detail="Filter not found")
+        raise ResourceNotFoundException(resource_type="Filter", resource_id=filter_id)
         
     # Convert stored dict back to FilterExpression objects if needed
     # For now, we assume the stored JSON structure matches what apply_dynamic_filters expects
