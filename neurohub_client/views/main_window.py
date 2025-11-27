@@ -278,19 +278,15 @@ class MainWindow(QMainWindow):
         bottom_container = QWidget()
         bottom_container.setObjectName("bottom_container")
         bottom_layout = QVBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(12, 8, 12, 8)
+        bottom_layout.setContentsMargins(0, 8, 0, 8)
         bottom_layout.setSpacing(8)
 
         # User info section
         self.user_info_widget = QWidget()
         self.user_info_widget.setObjectName("user_info_widget")
         user_info_layout = QHBoxLayout(self.user_info_widget)
-        user_info_layout.setContentsMargins(0, 0, 0, 0)
+        user_info_layout.setContentsMargins(10, 0, 0, 0)
         user_info_layout.setSpacing(8)
-
-        # User icon
-        self._user_icon = SvgIcon("user", theme.get('colors.grey.400'), 20)
-        user_info_layout.addWidget(self._user_icon)
 
         # User name labels container
         user_labels_widget = QWidget()
