@@ -1,59 +1,69 @@
 # =============================================================================
-# F2X NeuroHub MES - Production Docker Compose (Override)
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d
+# F2X NeuroHub MES - Demo Docker Compose (Override)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up -d
 # =============================================================================
 
 version: '3.8'
 
 services:
   # -------------------------------------------------------------------------
-  # PostgreSQL Database - Production
+  # PostgreSQL Database - Demo
   # -------------------------------------------------------------------------
   postgres:
-    container_name: f2x-prod-postgres
+    container_name: f2x-demo-postgres
     env_file:
-      - .env.production
+      - .env.demo
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
+      - postgres_demo_data:/var/lib/postgresql/data
     networks:
-      - f2x-prod-network
+      - f2x-demo-network
 
   # -------------------------------------------------------------------------
-  # Backend API - Production
+  # Backend API - Demo (리소스 제한)
   # -------------------------------------------------------------------------
   backend:
-    container_name: f2x-prod-backend
+    container_name: f2x-demo-backend
     env_file:
-      - .env.production
+      - .env.demo
     networks:
-      - f2x-prod-network
+      - f2x-demo-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # -------------------------------------------------------------------------
-  # Nginx - Production
+  # Nginx - Demo
   # -------------------------------------------------------------------------
   nginx:
-    container_name: f2x-prod-nginx
+    container_name: f2x-demo-nginx
     ports:
-      - "${HTTP_PORT:-80}:80"
-      # - "${HTTPS_PORT:-443}:443"  # SSL 사용 시 활성화
+      - "${HTTP_PORT:-8080}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL 인증서 사용 시 활성화
     networks:
-      - f2x-prod-network
+      - f2x-demo-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
 # =============================================================================
 # Networks
 # =============================================================================
 networks:
-  f2x-prod-network:
+  f2x-demo-network:
     driver: bridge
-    name: f2x-prod-network
+    name: f2x-demo-network
 
 # =============================================================================
 # Volumes
 # =============================================================================
 volumes:
-  postgres_prod_data:
-    name: f2x-prod-postgres-data
+  postgres_demo_data:
+    name: f2x-demo-postgres-data

@@ -76,7 +76,9 @@
       "Bash(del \"c:\\myCode\\F2X_NeuroHub\\backend\\log_config.yaml\")",
       "Bash(docker compose:*)",
       "Bash(docker volume rm:*)",
-      "Bash(.venv/Scripts/pip.exe install:*)"
+      "Bash(.venv/Scripts/pip.exe install:*)",
+      "Bash(git pull:*)",
+      "Bash(ls \"c:\\myCodeRepoWindows\\F2X_NeuroHub\\backend\"\" | findstr /i \"docker-compose .env \")"
     ],
     "deny": [],
     "ask": []
