@@ -564,7 +564,9 @@ export const MeasurementAnalysisPage = () => {
                         borderRadius: '8px',
                         backgroundColor: 'var(--color-bg-primary)',
                         border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
                       }}
+                      cursor={false}
                     />
                     <Legend />
                     <Bar dataKey="passCount" name="Pass" stackId="a" fill="var(--color-success)" />

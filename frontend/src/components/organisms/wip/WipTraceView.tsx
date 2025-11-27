@@ -13,13 +13,16 @@ interface WipTraceViewProps {
 }
 
 export const WipTraceView = ({ trace }: WipTraceViewProps) => {
-    const getResultColor = (result: ProcessResult) => {
+    const getResultColor = (result: ProcessResult | string) => {
         switch (result) {
             case ProcessResult.PASS:
+            case 'PASS':
                 return { bg: 'var(--color-success-bg)', color: 'var(--color-success)' };
             case ProcessResult.FAIL:
+            case 'FAIL':
                 return { bg: 'var(--color-error-bg)', color: 'var(--color-error)' };
             case ProcessResult.REWORK:
+            case 'REWORK':
                 return { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' };
             default:
                 return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' };
@@ -39,7 +42,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
         }
 
         // Started but not completed = 진행중 (IN_PROGRESS)
-        if (latestAttempt.started_at && !latestAttempt.completed_at) {
+        if (latestAttempt.start_time && !latestAttempt.complete_time) {
             return { bg: 'var(--color-info-bg)', color: 'var(--color-info)' };
         }
 
@@ -252,15 +255,15 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '13px', marginTop: '10px' }}>
                                             <div>
                                                 <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
-                                                {latestAttempt.started_at ? format(new Date(latestAttempt.started_at), 'MM/dd HH:mm:ss') : '-'}
+                                                {latestAttempt.start_time ? format(new Date(latestAttempt.start_time), 'MM/dd HH:mm:ss') : '-'}
                                             </div>
                                             <div>
                                                 <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
-                                                {latestAttempt.completed_at ? format(new Date(latestAttempt.completed_at), 'MM/dd HH:mm:ss') : '-'}
+                                                {latestAttempt.complete_time ? format(new Date(latestAttempt.complete_time), 'MM/dd HH:mm:ss') : '-'}
                                             </div>
                                             <div>
                                                 <span style={{ color: 'var(--color-text-secondary)' }}>Duration: </span>
-                                                <span style={{ fontWeight: '500' }}>{latestAttempt.cycle_time_seconds ? formatDuration(latestAttempt.cycle_time_seconds) : '-'}</span>
+                                                <span style={{ fontWeight: '500' }}>{latestAttempt.duration_seconds ? formatDuration(latestAttempt.duration_seconds) : '-'}</span>
                                             </div>
                                         </div>
 
@@ -312,22 +315,22 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                         </div>
                                                         <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', gap: '10px' }}>
                                                             <span>
-                                                                {attempt.started_at ? format(new Date(attempt.started_at), 'MM/dd HH:mm:ss') : '-'}
+                                                                {attempt.start_time ? format(new Date(attempt.start_time), 'MM/dd HH:mm:ss') : '-'}
                                                             </span>
                                                             <span>→</span>
                                                             <span>
-                                                                {attempt.completed_at ? format(new Date(attempt.completed_at), 'MM/dd HH:mm:ss') : '-'}
+                                                                {attempt.complete_time ? format(new Date(attempt.complete_time), 'MM/dd HH:mm:ss') : '-'}
                                                             </span>
                                                             <span>
-                                                                ({attempt.cycle_time_seconds ? formatDuration(attempt.cycle_time_seconds) : '-'})
+                                                                ({attempt.duration_seconds ? formatDuration(attempt.duration_seconds) : '-'})
                                                             </span>
                                                         </div>
 
                                                         {/* Defects for failed attempts */}
-                                                        {attempt.result === 'FAIL' && attempt.defect_codes && attempt.defect_codes.length > 0 && (
+                                                        {attempt.result === 'FAIL' && attempt.defects && attempt.defects.length > 0 && (
                                                             <div style={{ marginTop: '5px', fontSize: '11px' }}>
                                                                 <span style={{ color: 'var(--color-error)' }}>Defects: </span>
-                                                                {attempt.defect_codes.join(', ')}
+                                                                {attempt.defects.join(', ')}
                                                             </div>
                                                         )}
                                                     </div>
@@ -336,13 +339,13 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                         )}
 
                                         {/* Measurements - only for latest */}
-                                        {latestAttempt.measurements && Object.keys(latestAttempt.measurements).length > 0 && (
+                                        {latestAttempt.process_data && Object.keys(latestAttempt.process_data).length > 0 && (
                                             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                                                 <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-text-secondary)' }}>
                                                     Measurement Data
                                                 </div>
                                                 <div style={{ fontSize: '13px', display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                                                    {Object.entries(latestAttempt.measurements).map(([key, value]) => (
+                                                    {Object.entries(latestAttempt.process_data).map(([key, value]) => (
                                                         <div key={key}>
                                                             <span style={{ color: 'var(--color-text-secondary)' }}>{key}: </span>
                                                             <span style={{ fontWeight: '500' }}>{JSON.stringify(value)}</span>
@@ -392,17 +395,17 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                 <div style={{ fontSize: '13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                     <div>
                                         <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
-                                        {format(new Date(rework.started_at), 'yyyy-MM-dd HH:mm:ss')}
+                                        {rework.start_time ? format(new Date(rework.start_time), 'yyyy-MM-dd HH:mm:ss') : '-'}
                                     </div>
                                     <div>
                                         <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
-                                        {format(new Date(rework.completed_at), 'yyyy-MM-dd HH:mm:ss')}
+                                        {rework.complete_time ? format(new Date(rework.complete_time), 'yyyy-MM-dd HH:mm:ss') : '-'}
                                     </div>
                                 </div>
-                                {rework.defect_codes && rework.defect_codes.length > 0 && (
+                                {rework.defects && rework.defects.length > 0 && (
                                     <div style={{ marginTop: '10px' }}>
                                         <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Defect Codes: </span>
-                                        {rework.defect_codes.join(', ')}
+                                        {rework.defects.join(', ')}
                                     </div>
                                 )}
                             </div>

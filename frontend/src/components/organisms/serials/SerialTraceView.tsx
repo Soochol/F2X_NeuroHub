@@ -14,13 +14,16 @@ interface SerialTraceViewProps {
 }
 
 export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
-  const getResultColor = (result: ProcessResult) => {
+  const getResultColor = (result: ProcessResult | string) => {
     switch (result) {
       case ProcessResult.PASS:
+      case 'PASS':
         return { bg: 'var(--color-success-bg)', color: 'var(--color-success)' };
       case ProcessResult.FAIL:
+      case 'FAIL':
         return { bg: 'var(--color-error-bg)', color: 'var(--color-error)' };
       case ProcessResult.REWORK:
+      case 'REWORK':
         return { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' };
       default:
         return { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' };

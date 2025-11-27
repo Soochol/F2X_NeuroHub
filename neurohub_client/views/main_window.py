@@ -335,8 +335,9 @@ class MainWindow(QMainWindow):
         self.logout_btn.setCheckable(False)  # Not a navigation item
         self.logout_btn.clicked.connect(self._on_logout_clicked)
 
-        # Apply danger color styling for logout
-        danger = theme.get('colors.status.danger')
+        # Apply danger color styling for logout (same pattern as home button but with danger color)
+        danger = theme.get('colors.danger.main')
+        bg_default = theme.get('colors.background.default')
         self.logout_btn.setStyleSheet(f"""
             NavItemWidget {{
                 background-color: transparent;
@@ -345,15 +346,13 @@ class MainWindow(QMainWindow):
                 text-align: left;
             }}
             NavItemWidget:hover {{
-                background-color: rgba(239, 68, 68, 0.1);
+                background-color: {bg_default};
                 border-left: 3px solid {danger};
             }}
-            #nav_label {{
-                color: {danger};
-                font-size: 13px;
-                background: transparent;
-            }}
         """)
+        # Set icon and label color directly (same as NavItemWidget.set_selected but with danger color)
+        self.logout_btn._icon.set_color(danger)
+        self.logout_btn._label.setStyleSheet(f"color: {danger}; font-size: 13px; font-weight: normal; background: transparent;")
 
         bottom_layout.addWidget(self.logout_btn)
         sidebar_layout.addWidget(bottom_container)
@@ -1024,33 +1023,10 @@ class MainWindow(QMainWindow):
         # Generate completion time
         complete_time = datetime.now()
 
-        # Build process data from measurement
-        process_data = {
-            "measurements": [
-                {
-                    "code": m.code,
-                    "name": m.name,
-                    "value": m.value,
-                    "unit": m.unit,
-                    "spec": {
-                        "min": m.spec.min if m.spec else None,
-                        "max": m.spec.max if m.spec else None,
-                        "target": m.spec.target if m.spec else None,
-                    } if m.spec else None,
-                    "result": m.result
-                }
-                for m in equipment_data.measurements
-            ],
-            "defects": [
-                {"code": d.code, "reason": d.reason}
-                for d in equipment_data.defects
-            ]
-        }
-
         # Get worker_id from auth service
         worker_id = self.viewmodel.auth_service.get_current_user_id()
 
-        # Build completion data
+        # Build completion data with measurements at top level (required by work_service)
         completion_data = {
             "wip_id": self.current_lot,
             "line_id": self.config.line_id,
@@ -1061,7 +1037,31 @@ class MainWindow(QMainWindow):
             "start_time": self.start_time.isoformat(),
             "complete_time": complete_time.isoformat(),
             "result": equipment_data.result,
-            "process_data": process_data
+            # measurements must be at top level for work_service.complete_work()
+            "measurements": {
+                "items": [
+                    {
+                        "code": m.code,
+                        "name": m.name,
+                        "value": m.value,
+                        "unit": m.unit,
+                        "spec": {
+                            "min": m.spec.min if m.spec else None,
+                            "max": m.spec.max if m.spec else None,
+                            "target": m.spec.target if m.spec else None,
+                        } if m.spec else None,
+                        "result": m.result
+                    }
+                    for m in equipment_data.measurements
+                ]
+            },
+            # defect_data for failed results
+            "defect_data": {
+                "defects": [
+                    {"code": d.code, "reason": d.reason}
+                    for d in equipment_data.defects
+                ]
+            } if equipment_data.defects else None
         }
 
         # Disable buttons during request

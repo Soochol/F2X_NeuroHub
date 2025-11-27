@@ -315,10 +315,11 @@ class MainViewModel(QObject):
     def on_work_completed_success(self, response: Dict[str, Any]) -> None:
         """Handle successful work completion from threaded operation."""
         wip_id = response.get("wip_id_str", self.current_wip_id or "UNKNOWN")
+        result = response.get("result", "PASS")  # Default to PASS for backwards compatibility
         logger.info(f"Work completed successfully (threaded callback): {wip_id}")
 
-        # Emit signal
-        self.work_completed.emit(f"완공: {wip_id}")
+        # Emit signal with result included for history tracking
+        self.work_completed.emit(f"완공: {wip_id} [{result}]")
 
         # Clear current WIP
         self.clear_current_wip()

@@ -22,5 +22,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    watch: {
+      usePolling: true, // Windows + Docker 환경에서 파일 변경 감지
+      interval: 1000,
+    },
   },
 })
