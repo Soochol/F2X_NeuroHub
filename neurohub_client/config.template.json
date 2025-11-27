@@ -1,0 +1,40 @@
+{
+  "api": {
+    "base_url": "http://localhost:3000"
+  },
+  "process": {
+    "db_id": 1,
+    "number": 1,
+    "code": "LASER_MARKING",
+    "name": "LASER_MARKING",
+    "name_en": "LASER_MARKING"
+  },
+  "file": {
+    "watch_folder": "C:/neurohub_work"
+  },
+  "equipment": {
+    "id": 1,
+    "code": "EQ_LASER_01",
+    "name": "EQ_LASER_01"
+  },
+  "line": {
+    "id": 1,
+    "code": "DT01",
+    "name": "동탄1공장"
+  },
+  "app": {
+    "first_run_completed": false
+  },
+  "auth": {
+    "token": "",
+    "username": "",
+    "recent_usernames": []
+  },
+  "tcp": {
+    "port": 9000
+  },
+  "printer": {
+    "queue": "",
+    "zpl_template": ""
+  }
+}

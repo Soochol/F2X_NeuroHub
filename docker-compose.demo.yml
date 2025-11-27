@@ -3,8 +3,6 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up -d
 # =============================================================================
 
-version: '3.8'
-
 services:
   # -------------------------------------------------------------------------
   # PostgreSQL Database - Demo
