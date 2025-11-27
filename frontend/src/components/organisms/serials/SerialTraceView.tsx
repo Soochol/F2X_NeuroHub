@@ -87,7 +87,7 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
           <div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Product Model</div>
-            <div>{trace.lot_info.product_model_name}</div>
+            <div>{trace.lot_info.product_model}</div>
           </div>
           <div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '5px' }}>Production Date</div>
@@ -207,26 +207,26 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '13px', marginTop: '10px' }}>
                   <div>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
-                    {format(new Date(process.started_at), 'MM/dd HH:mm:ss')}
+                    {process.start_time ? format(new Date(process.start_time), 'MM/dd HH:mm:ss') : '-'}
                   </div>
                   <div>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
-                    {format(new Date(process.completed_at), 'MM/dd HH:mm:ss')}
+                    {process.complete_time ? format(new Date(process.complete_time), 'MM/dd HH:mm:ss') : '-'}
                   </div>
                   <div>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Duration: </span>
-                    <span style={{ fontWeight: '500' }}>{formatDuration(process.cycle_time_seconds)}</span>
+                    <span style={{ fontWeight: '500' }}>{process.duration_seconds ? formatDuration(process.duration_seconds) : '-'}</span>
                   </div>
                 </div>
 
                 {/* Measurements */}
-                {process.measurements && Object.keys(process.measurements).length > 0 && (
+                {process.process_data && Object.keys(process.process_data).length > 0 && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-text-secondary)' }}>
                       Measurement Data
                     </div>
                     <div style={{ fontSize: '13px', display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                      {Object.entries(process.measurements).map(([key, value]) => (
+                      {Object.entries(process.process_data!).map(([key, value]) => (
                         <div key={key}>
                           <span style={{ color: 'var(--color-text-secondary)' }}>{key}: </span>
                           <span style={{ fontWeight: '500' }}>{JSON.stringify(value)}</span>
@@ -237,13 +237,13 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 )}
 
                 {/* Defect codes */}
-                {process.defect_codes && process.defect_codes.length > 0 && (
+                {process.defects && process.defects.length > 0 && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: 'var(--color-error)' }}>
                       Defect Codes
                     </div>
                     <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                      {process.defect_codes.map((code, idx) => (
+                      {process.defects!.map((code, idx) => (
                         <span
                           key={idx}
                           style={{
@@ -299,17 +299,17 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
                 <div style={{ fontSize: '13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Started: </span>
-                    {format(new Date(rework.started_at), 'yyyy-MM-dd HH:mm:ss')}
+                    {rework.start_time ? format(new Date(rework.start_time), 'yyyy-MM-dd HH:mm:ss') : '-'}
                   </div>
                   <div>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Completed: </span>
-                    {format(new Date(rework.completed_at), 'yyyy-MM-dd HH:mm:ss')}
+                    {rework.complete_time ? format(new Date(rework.complete_time), 'yyyy-MM-dd HH:mm:ss') : '-'}
                   </div>
                 </div>
-                {rework.defect_codes && rework.defect_codes.length > 0 && (
+                {rework.defects && rework.defects.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
                     <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Defect Codes: </span>
-                    {rework.defect_codes.join(', ')}
+                    {rework.defects.join(', ')}
                   </div>
                 )}
               </div>

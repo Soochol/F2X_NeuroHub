@@ -474,15 +474,19 @@ export interface CycleTimeAnalysis {
 
 export interface ProcessHistoryItem {
   process_number: number;
+  process_code: string;
   process_name: string;
+  worker_id: string;
   worker_name: string;
-  result: ProcessResult;
-  started_at: string;
-  completed_at: string;
-  cycle_time_seconds: number;
-  measurements?: Record<string, any>;
-  defect_codes?: string[];
-  notes?: string;
+  result: ProcessResult | string;
+  start_time: string;
+  complete_time: string;
+  duration_seconds: number | null;
+  process_data?: Record<string, any>;
+  defects?: string[];
+  notes?: string | null;
+  equipment_id?: string | null;
+  is_rework: boolean;
 }
 
 export interface SerialTrace {
@@ -491,12 +495,10 @@ export interface SerialTrace {
   status: SerialStatus;
   rework_count: number;
   lot_info: {
-    product_model_name: string;
+    lot_number: string;
+    product_model: string;
     production_date: string;
-    busbar_lot?: string;
-    sma_spring_lot?: string;
-    pin_lot?: string;
-    hsg_lot?: string;
+    target_quantity: number;
   };
   process_history: ProcessHistoryItem[];
   rework_history: ProcessHistoryItem[];
