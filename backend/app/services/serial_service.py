@@ -9,6 +9,7 @@ from app.models.lot import Lot, LotStatus
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
 from app.models.wip_item import WIPItem, WIPStatus
+from app.models.wip_process_history import WIPProcessHistory, ProcessResult as WIPProcessResult
 from app.schemas.serial import (
     SerialCreate, SerialInDB, SerialUpdate, SerialListItem
 )
@@ -365,53 +366,110 @@ class SerialService(BaseService[Serial]):
                     "target_quantity": serial.lot.target_quantity,
                 }
 
-            # Get all process data for this serial
-            process_data_records = (
-                db.query(ProcessData)
-                .filter(ProcessData.serial_id == serial.id)
-                .join(Process)
-                .order_by(Process.process_number, ProcessData.created_at)
-                .all()
-            )
+            # Find the associated WIP item for this serial
+            wip_item = db.query(WIPItem).filter(WIPItem.serial_id == serial.id).first()
 
-            # Build process history
+            # Build process history from WIP Process History
             process_history = []
             rework_history = []
             total_cycle_time = 0
+            wip_info = None
 
-            for pd in process_data_records:
-                process_record = {
-                    "process_number": pd.process.process_number if pd.process else None,
-                    "process_code": pd.process.process_code if pd.process else None,
-                    "process_name": pd.process.process_name if pd.process else None,
-                    "worker_id": pd.operator.username if pd.operator else None,
-                    "worker_name": pd.operator.full_name if pd.operator else None,
-                    "start_time": pd.started_at.isoformat() if pd.started_at else None,
-                    "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
-                    "duration_seconds": pd.duration_seconds,
-                    "result": pd.result.value if pd.result else None,
-                    "process_data": pd.measurements if pd.measurements else {},
-                    "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL else [],
-                    "notes": pd.notes,
-                    "is_rework": getattr(pd, 'is_rework', False)
+            if wip_item:
+                wip_info = {
+                    "wip_id": wip_item.wip_id,
+                    "status": wip_item.status,
+                    "sequence_in_lot": wip_item.sequence_in_lot,
+                    "created_at": wip_item.created_at.isoformat() if wip_item.created_at else None,
+                    "completed_at": wip_item.completed_at.isoformat() if wip_item.completed_at else None,
+                    "converted_at": wip_item.converted_at.isoformat() if wip_item.converted_at else None,
                 }
 
-                process_history.append(process_record)
+                # Get WIP process history
+                wip_process_records = (
+                    db.query(WIPProcessHistory)
+                    .filter(WIPProcessHistory.wip_item_id == wip_item.id)
+                    .join(Process)
+                    .order_by(Process.process_number, WIPProcessHistory.started_at)
+                    .all()
+                )
 
-                if pd.duration_seconds:
-                    total_cycle_time += pd.duration_seconds
+                for wph in wip_process_records:
+                    process_record = {
+                        "process_number": wph.process.process_number if wph.process else None,
+                        "process_code": wph.process.process_code if wph.process else None,
+                        "process_name": wph.process.process_name_en if wph.process else None,
+                        "worker_id": wph.operator.username if wph.operator else None,
+                        "worker_name": wph.operator.full_name if wph.operator else None,
+                        "start_time": wph.started_at.isoformat() if wph.started_at else None,
+                        "complete_time": wph.completed_at.isoformat() if wph.completed_at else None,
+                        "duration_seconds": wph.duration_seconds,
+                        "result": wph.result.value if wph.result else None,
+                        "process_data": wph.measurements if wph.measurements else {},
+                        "defects": wph.defects if wph.defects and wph.result == WIPProcessResult.FAIL else [],
+                        "notes": wph.notes,
+                        "equipment_id": wph.equipment_id,
+                        "is_rework": getattr(wph, 'is_rework', False)
+                    }
 
-                if process_record["is_rework"]:
-                    rework_history.append({
-                        "process_code": process_record["process_code"],
-                        "process_name": process_record["process_name"],
-                        "attempt_time": process_record["complete_time"],
-                        "result": process_record["result"],
-                        "defects": process_record["defects"]
-                    })
+                    process_history.append(process_record)
 
-            # Extract component LOTs
-            component_lots = self._extract_component_lots(process_data_records)
+                    if wph.duration_seconds:
+                        total_cycle_time += wph.duration_seconds
+
+                    if process_record["is_rework"]:
+                        rework_history.append({
+                            "process_code": process_record["process_code"],
+                            "process_name": process_record["process_name"],
+                            "attempt_time": process_record["complete_time"],
+                            "result": process_record["result"],
+                            "defects": process_record["defects"]
+                        })
+
+                # Extract component LOTs from WIP process history
+                component_lots = self._extract_component_lots_from_wip(wip_process_records)
+            else:
+                # Fallback to ProcessData if no WIP found (for backward compatibility)
+                process_data_records = (
+                    db.query(ProcessData)
+                    .filter(ProcessData.serial_id == serial.id)
+                    .join(Process)
+                    .order_by(Process.process_number, ProcessData.created_at)
+                    .all()
+                )
+
+                for pd in process_data_records:
+                    process_record = {
+                        "process_number": pd.process.process_number if pd.process else None,
+                        "process_code": pd.process.process_code if pd.process else None,
+                        "process_name": pd.process.process_name if pd.process else None,
+                        "worker_id": pd.operator.username if pd.operator else None,
+                        "worker_name": pd.operator.full_name if pd.operator else None,
+                        "start_time": pd.started_at.isoformat() if pd.started_at else None,
+                        "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
+                        "duration_seconds": pd.duration_seconds,
+                        "result": pd.result.value if pd.result else None,
+                        "process_data": pd.measurements if pd.measurements else {},
+                        "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL else [],
+                        "notes": pd.notes,
+                        "is_rework": getattr(pd, 'is_rework', False)
+                    }
+
+                    process_history.append(process_record)
+
+                    if pd.duration_seconds:
+                        total_cycle_time += pd.duration_seconds
+
+                    if process_record["is_rework"]:
+                        rework_history.append({
+                            "process_code": process_record["process_code"],
+                            "process_name": process_record["process_name"],
+                            "attempt_time": process_record["complete_time"],
+                            "result": process_record["result"],
+                            "defects": process_record["defects"]
+                        })
+
+                component_lots = self._extract_component_lots(process_data_records)
 
             return {
                 "serial_number": serial.serial_number,
@@ -422,6 +480,7 @@ class SerialService(BaseService[Serial]):
                 "created_at": serial.created_at.isoformat() if serial.created_at else None,
                 "completed_at": serial.completed_at.isoformat() if serial.completed_at else None,
                 "lot_info": lot_info,
+                "wip_info": wip_info,
                 "process_history": process_history,
                 "rework_history": rework_history,
                 "component_lots": component_lots,
@@ -449,6 +508,19 @@ class SerialService(BaseService[Serial]):
                     component_lots["sma_spring_lot"] = pd.measurements["sma_spring_lot"]
                 if "component_lots" in pd.measurements:
                     component_lots.update(pd.measurements["component_lots"])
+        return component_lots
+
+    def _extract_component_lots_from_wip(self, wip_process_records) -> Dict[str, Any]:
+        """Extract component LOTs from WIP process history records."""
+        component_lots = {}
+        for wph in wip_process_records:
+            if wph.measurements and isinstance(wph.measurements, dict):
+                if "busbar_lot" in wph.measurements:
+                    component_lots["busbar_lot"] = wph.measurements["busbar_lot"]
+                if "sma_spring_lot" in wph.measurements:
+                    component_lots["sma_spring_lot"] = wph.measurements["sma_spring_lot"]
+                if "component_lots" in wph.measurements:
+                    component_lots.update(wph.measurements["component_lots"])
         return component_lots
 
 

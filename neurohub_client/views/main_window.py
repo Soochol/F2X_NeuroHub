@@ -753,7 +753,7 @@ class MainWindow(QMainWindow):
 
         # Build completion data
         completion_data = {
-            "lot_number": self.current_lot,
+            "wip_id": self.current_lot,
             "line_id": self.config.line_id,
             "process_id": self.config.process_id,
             "process_name": self.config.process_name,
@@ -798,7 +798,7 @@ class MainWindow(QMainWindow):
 
             # Build completion data
             completion_data = {
-                "lot_number": self.current_lot,
+                "wip_id": self.current_lot,
                 "line_id": self.config.line_id,
                 "process_id": self.config.process_id,
                 "process_name": self.config.process_name,
@@ -1009,6 +1009,7 @@ class MainWindow(QMainWindow):
     def _on_measurement_received(self, equipment_data):
         """
         Handle measurement data received from TCP server.
+        Automatically completes work with measurement data.
 
         Args:
             equipment_data: EquipmentData object from TCP server
@@ -1020,9 +1021,59 @@ class MainWindow(QMainWindow):
             Toast.warning(self, "진행 중인 작업이 없습니다.")
             return
 
-        # Show measurement panel on home page
-        self.home_page.show_measurement(equipment_data)
-        Toast.info(self, f"측정 데이터 수신: {equipment_data.result}")
+        # Generate completion time
+        complete_time = datetime.now()
+
+        # Build process data from measurement
+        process_data = {
+            "measurements": [
+                {
+                    "code": m.code,
+                    "name": m.name,
+                    "value": m.value,
+                    "unit": m.unit,
+                    "spec": {
+                        "min": m.spec.min if m.spec else None,
+                        "max": m.spec.max if m.spec else None,
+                        "target": m.spec.target if m.spec else None,
+                    } if m.spec else None,
+                    "result": m.result
+                }
+                for m in equipment_data.measurements
+            ],
+            "defects": [
+                {"code": d.code, "reason": d.reason}
+                for d in equipment_data.defects
+            ]
+        }
+
+        # Get worker_id from auth service
+        worker_id = self.viewmodel.auth_service.get_current_user_id()
+
+        # Build completion data
+        completion_data = {
+            "wip_id": self.current_lot,
+            "line_id": self.config.line_id,
+            "process_id": self.config.process_id,
+            "process_name": self.config.process_name,
+            "equipment_id": self.config.equipment_id,
+            "worker_id": worker_id,
+            "start_time": self.start_time.isoformat(),
+            "complete_time": complete_time.isoformat(),
+            "result": equipment_data.result,
+            "process_data": process_data
+        }
+
+        # Disable buttons during request
+        self.home_page.set_enabled(False)
+
+        # Clear pending measurement (not needed anymore but keep for safety)
+        self.viewmodel.clear_pending_measurement()
+
+        # Call viewmodel to complete work
+        logger.info(f"Auto-completing work: WIP={self.current_lot}, result={equipment_data.result}")
+        self.viewmodel.complete_work(completion_data)
+        Toast.info(self, f"완공 처리 중: {equipment_data.result}")
 
     @safe_slot("측정 확인 처리 실패")
     def _on_measurement_confirmed(self):
@@ -1067,7 +1118,7 @@ class MainWindow(QMainWindow):
 
         # Build completion data
         completion_data = {
-            "lot_number": self.current_lot,
+            "wip_id": self.current_lot,
             "line_id": self.config.line_id,
             "process_id": self.config.process_id,
             "process_name": self.config.process_name,
@@ -1096,8 +1147,8 @@ class MainWindow(QMainWindow):
         # Clear pending measurement
         self.viewmodel.clear_pending_measurement()
 
-        # Re-enable PASS/FAIL buttons if work is in progress
-        if self.current_lot:
+        # Re-enable PASS/FAIL buttons if work is in progress and user has permission
+        if self.current_lot and self.home_page._can_complete_work():
             self.home_page.pass_button.setEnabled(True)
             self.home_page.fail_button.setEnabled(True)
 
@@ -1111,11 +1162,9 @@ class MainWindow(QMainWindow):
         logger.info(f"TCP client connected: {client_addr}")
         msg = f"장비: 연결됨 ({client_addr})"
         self.tcp_client_indicator.set_status("success", msg)
-        Toast.info(self, f"장비 클라이언트 연결: {client_addr}")
 
     @safe_slot("TCP 클라이언트 해제 처리 실패")
     def _on_tcp_client_disconnected(self, client_addr: str):
         """Handle TCP client disconnected."""
         logger.info(f"TCP client disconnected: {client_addr}")
         self.tcp_client_indicator.set_status("body", "장비: 대기 중")
-        Toast.warning(self, f"장비 클라이언트 해제: {client_addr}")

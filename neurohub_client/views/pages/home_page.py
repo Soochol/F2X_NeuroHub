@@ -32,6 +32,13 @@ class HomePage(QWidget):
         self.auth_service = auth_service
         self.setup_ui()
 
+    def _can_complete_work(self) -> bool:
+        """Check if current user has permission to complete work (ADMIN or MANAGER only)."""
+        if not self.auth_service or not self.auth_service.current_user:
+            return False
+        role = self.auth_service.current_user.get('role', '')
+        return role in ('ADMIN', 'MANAGER')
+
     def setup_ui(self) -> None:
         """Setup UI components."""
         layout = QVBoxLayout(self)
@@ -326,11 +333,14 @@ class HomePage(QWidget):
         """Update UI for work started."""
         self.work_card.start_work(lot_number, start_time)
 
-        # Disable inputs and start button, enable complete buttons
+        # Disable inputs and start button
         self.lot_input.setEnabled(False)
         self.start_button.setEnabled(False)
-        self.pass_button.setEnabled(True)
-        self.fail_button.setEnabled(True)
+
+        # Enable complete buttons only for ADMIN/MANAGER
+        can_complete = self._can_complete_work()
+        self.pass_button.setEnabled(can_complete)
+        self.fail_button.setEnabled(can_complete)
 
         # Clear inputs
         self.lot_input.clear()
@@ -445,7 +455,7 @@ class HomePage(QWidget):
         self.measurement_panel.setVisible(False)
         self.measurement_panel.clear()
 
-        # Re-enable PASS/FAIL buttons if work is in progress
-        if self.work_card.is_working():
+        # Re-enable PASS/FAIL buttons if work is in progress and user has permission
+        if self.work_card.is_working() and self._can_complete_work():
             self.pass_button.setEnabled(True)
             self.fail_button.setEnabled(True)

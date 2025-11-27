@@ -195,46 +195,32 @@ class ProcessService(BaseService):
             if not operator:
                 raise UserNotFoundException(user_id=request.worker_id)
 
-            # 3. Resolve LOT/Serial/WIP (Smart Lookup)
-            lot_number = request.lot_number
-            lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
-            
+            # 3. Resolve LOT/Serial/WIP (wip_id is now required)
+            lot = None
             serial = None
             wip_item = None
-            
-            if not lot:
-                # 1. Try as Serial Number
-                serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
-                if serial:
-                    lot = serial.lot
-                    if not request.serial_number:
-                        request.serial_number = serial.serial_number
 
-                # 2. Try as WIP ID
-                elif lot_number.startswith("WIP-"):
-                    wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
-                    if wip:
-                        lot = wip.lot
-                        if not request.wip_id:
-                            request.wip_id = wip.wip_id
-                        wip_item = wip
+            # Search by wip_id (required field)
+            wip = db.query(WIPItem).filter(WIPItem.wip_id == request.wip_id).first()
+            if wip:
+                lot = wip.lot
+                wip_item = wip
 
-                # 3. Try as Unit Barcode
-                elif len(lot_number) > 13 and lot_number[-3:].isdigit():
-                    potential_lot_num = lot_number[:-3]
-                    potential_seq = lot_number[-3:]
+            # Fallback: if lot_number provided, use legacy lookup
+            if not lot and request.lot_number:
+                lot_number = request.lot_number
+                lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
 
-                    lot = db.query(Lot).filter(Lot.lot_number == potential_lot_num).first()
-                    if lot:
-                        wip_id_str = f"WIP-{potential_lot_num}-{potential_seq}"
-                        wip = db.query(WIPItem).filter(WIPItem.wip_id == wip_id_str).first()
-                        if wip:
-                            if not request.wip_id:
-                                request.wip_id = wip.wip_id
-                            wip_item = wip
+                if not lot:
+                    # Try as Serial Number
+                    serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
+                    if serial:
+                        lot = serial.lot
+                        if not request.serial_number:
+                            request.serial_number = serial.serial_number
 
             if not lot:
-                raise LotNotFoundException(lot_number=request.lot_number)
+                raise LotNotFoundException(lot_number=request.wip_id)
 
             # Check LOT status
             self.check_business_rule(
@@ -244,30 +230,39 @@ class ProcessService(BaseService):
 
             # 4. Check Business Rules
             self._validate_process_sequence(db, lot, process, serial.id if serial else None, wip_item.id if wip_item else None)
-            self._check_concurrent_work(db, lot, process, serial.id if serial else None, wip_item.id if wip_item else None)
 
-            # 5. Create ProcessData
+            # Check for existing in-progress record (재착공 허용)
+            existing_record = self._check_concurrent_work(db, lot, process, serial.id if serial else None, wip_item.id if wip_item else None)
+
+            # 5. Create or Update ProcessData
             start_time = datetime.now(timezone.utc)
 
-            # Determine data level
-            if wip_item:
-                data_level = DataLevel.WIP.value
-            elif serial:
-                data_level = DataLevel.SERIAL.value
+            if existing_record:
+                # 재착공: 기존 레코드의 started_at 업데이트
+                existing_record.started_at = start_time
+                existing_record.operator_id = operator.id
+                process_data = existing_record
+                logger.info(f"Re-starting process: updated started_at for ProcessData {process_data.id}")
             else:
-                data_level = DataLevel.LOT.value
+                # 신규 착공: 새 레코드 생성
+                if wip_item:
+                    data_level = DataLevel.WIP.value
+                elif serial:
+                    data_level = DataLevel.SERIAL.value
+                else:
+                    data_level = DataLevel.LOT.value
 
-            process_data = ProcessData(
-                lot_id=lot.id,
-                serial_id=serial.id if serial else None,
-                wip_id=wip_item.id if wip_item else None,
-                process_id=process.id,
-                operator_id=operator.id,
-                started_at=start_time,
-                data_level=data_level,
-                result=ProcessResult.PASS.value,
-            )
-            db.add(process_data)
+                process_data = ProcessData(
+                    lot_id=lot.id,
+                    serial_id=serial.id if serial else None,
+                    wip_id=wip_item.id if wip_item else None,
+                    process_id=process.id,
+                    operator_id=operator.id,
+                    started_at=start_time,
+                    data_level=data_level,
+                    result=ProcessResult.PASS.value,
+                )
+                db.add(process_data)
 
             # Update WIPItem status to IN_PROGRESS
             if wip_item:
@@ -305,46 +300,32 @@ class ProcessService(BaseService):
             if not operator:
                 raise UserNotFoundException(user_id=request.worker_id)
 
-            # 3. Resolve LOT/Serial/WIP (Smart Lookup)
-            lot_number = request.lot_number
-            lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
-            
+            # 3. Resolve LOT/Serial/WIP (wip_id is now required)
+            lot = None
             serial = None
             wip_item = None
-            
-            if not lot:
-                # 1. Try as Serial Number
-                serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
-                if serial:
-                    lot = serial.lot
-                    if not request.serial_number:
-                        request.serial_number = serial.serial_number
 
-                # 2. Try as WIP ID
-                elif lot_number.startswith("WIP-"):
-                    wip = db.query(WIPItem).filter(WIPItem.wip_id == lot_number).first()
-                    if wip:
-                        lot = wip.lot
-                        if not request.wip_id:
-                            request.wip_id = wip.wip_id
-                        wip_item = wip
+            # Search by wip_id (required field)
+            wip = db.query(WIPItem).filter(WIPItem.wip_id == request.wip_id).first()
+            if wip:
+                lot = wip.lot
+                wip_item = wip
 
-                # 3. Try as Unit Barcode
-                elif len(lot_number) > 13 and lot_number[-3:].isdigit():
-                    potential_lot_num = lot_number[:-3]
-                    potential_seq = lot_number[-3:]
+            # Fallback: if lot_number provided, use legacy lookup
+            if not lot and request.lot_number:
+                lot_number = request.lot_number
+                lot = db.query(Lot).filter(Lot.lot_number == lot_number).first()
 
-                    lot = db.query(Lot).filter(Lot.lot_number == potential_lot_num).first()
-                    if lot:
-                        wip_id_str = f"WIP-{potential_lot_num}-{potential_seq}"
-                        wip = db.query(WIPItem).filter(WIPItem.wip_id == wip_id_str).first()
-                        if wip:
-                            if not request.wip_id:
-                                request.wip_id = wip.wip_id
-                            wip_item = wip
+                if not lot:
+                    # Try as Serial Number
+                    serial = db.query(Serial).filter(Serial.serial_number == lot_number).first()
+                    if serial:
+                        lot = serial.lot
+                        if not request.serial_number:
+                            request.serial_number = serial.serial_number
 
             if not lot:
-                raise LotNotFoundException(lot_number=request.lot_number)
+                raise LotNotFoundException(lot_number=request.wip_id)
 
             # 4. Find Active ProcessData
             query = db.query(ProcessData).filter(
@@ -442,6 +423,20 @@ class ProcessService(BaseService):
 
                             # Update serial variable for _check_and_print_label
                             serial = db.query(Serial).filter(Serial.id == serial_result.id).first()
+
+                            # If already printed serial label, skip _check_and_print_label
+                            if should_print_serial:
+                                db.commit()
+                                return ProcessCompleteResponse(
+                                    success=True,
+                                    message=f"Process completed with result: {process_data.result}",
+                                    process_data_id=process_data.id,
+                                    completed_at=end_time,
+                                    duration_seconds=process_data.duration_seconds or 0,
+                                    result=process_data.result,
+                                    label_printed=True,
+                                    label_type="SERIAL_LABEL"
+                                )
                         except Exception as e:
                             logger.error(f"Failed to auto-convert WIP {wip_item.wip_id} to Serial: {e}")
                             raise BusinessRuleException(
@@ -630,12 +625,12 @@ class ProcessService(BaseService):
                     )
 
     def _check_concurrent_work(self, db: Session, lot: Lot, process: Process,
-                               serial_id: Optional[int], wip_item_id: Optional[int]):
+                               serial_id: Optional[int], wip_item_id: Optional[int]) -> Optional[ProcessData]:
         """
         Check for concurrent work on the SAME item in the same process.
 
         Multiple WIP items can be processed concurrently in the same LOT and process.
-        Only prevents the SAME WIP from being started again while already in progress.
+        Returns existing in-progress record for re-start (overwrite), None otherwise.
         """
         # Only check if the SAME WIP/Serial is already in progress
         query = db.query(ProcessData).filter(
@@ -655,12 +650,7 @@ class ProcessService(BaseService):
                 ProcessData.serial_id.is_(None)
             )
 
-        active_record = query.first()
-
-        if active_record:
-            raise BusinessRuleException(
-                message=f"This item is already being processed in Process {process.process_number}. Complete the current work first."
-            )
+        return query.first()
 
     def _check_and_print_label(self, db: Session, process_data: ProcessData,
                                wip_item=None, serial=None, lot=None) -> dict:

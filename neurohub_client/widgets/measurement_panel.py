@@ -37,7 +37,7 @@ class MeasurementItemWidget(QFrame):
 
         self.code_label = QLabel()
         self.code_label.setObjectName("measurementCode")
-        self.code_label.setStyleSheet("color: #888;")
+        self.code_label.setStyleSheet("color: #a8a8a8;")
 
         left_layout.addWidget(self.name_label)
         left_layout.addWidget(self.code_label)
@@ -64,7 +64,7 @@ class MeasurementItemWidget(QFrame):
 
         self.spec_label = QLabel()
         self.spec_label.setObjectName("measurementSpec")
-        self.spec_label.setStyleSheet("color: #666; font-size: 10px;")
+        self.spec_label.setStyleSheet("color: #a8a8a8; font-size: 10px;")
         self.spec_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         spec_layout.addWidget(self.spec_label)
@@ -211,24 +211,25 @@ class MeasurementPanel(QFrame):
     def _apply_styles(self) -> None:
         self.setStyleSheet("""
             #measurementPanel {
-                background-color: #ffffff;
-                border: 1px solid #e0e0e0;
+                background-color: #1f1f1f;
+                border: 1px solid #1a1a1a;
                 border-radius: 8px;
             }
             #measurementItem {
-                background-color: #f8f9fa;
-                border: 1px solid #e9ecef;
+                background-color: #252525;
+                border: 1px solid #2a2a2a;
                 border-radius: 6px;
             }
             #cancelButton {
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
+                background-color: #1f1f1f;
+                border: 1px solid #1a1a1a;
                 border-radius: 6px;
                 padding: 8px 24px;
                 font-size: 13px;
+                color: #ededed;
             }
             #cancelButton:hover {
-                background-color: #e8e8e8;
+                background-color: #252525;
             }
             #confirmButton {
                 background-color: #2196F3;
@@ -243,7 +244,8 @@ class MeasurementPanel(QFrame):
                 background-color: #1976D2;
             }
             #confirmButton:disabled {
-                background-color: #BDBDBD;
+                background-color: #333333;
+                color: #666666;
             }
         """)
 

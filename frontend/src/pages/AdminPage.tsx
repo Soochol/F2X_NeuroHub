@@ -184,14 +184,14 @@ const UserManagement = () => {
         footer={<div style={styles.modalFooter}><Button variant="secondary" onClick={modal.close}>Cancel</Button><Button onClick={handleSubmit}>Save</Button></div>}>
         <form onSubmit={handleSubmit}>
           <Input label="User ID" value={form.formData.username} onChange={(e) => form.setField('username', e.target.value)} required disabled={!!modal.editingItem} />
-          <Input label="Full Name" value={form.formData.full_name} onChange={(e) => form.setField('full_name', e.target.value)} required />
           {!modal.editingItem && <>
-            <Input label="Email (optional)" type="email" value={form.formData.email} onChange={(e) => form.setField('email', e.target.value)} />
             <Input label="Password" type="password" value={form.formData.password} onChange={(e) => form.setField('password', e.target.value)} required />
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
               Min 4 characters
             </div>
           </>}
+          <Input label="Full Name" value={form.formData.full_name} onChange={(e) => form.setField('full_name', e.target.value)} required />
+          {!modal.editingItem && <Input label="Email (optional)" type="email" value={form.formData.email} onChange={(e) => form.setField('email', e.target.value)} />}
           <Select label="Role" value={form.formData.role} onChange={(e) => form.setField('role', e.target.value as UserRole)}
             options={[{ value: UserRoleEnum.ADMIN, label: 'Admin' }, { value: UserRoleEnum.MANAGER, label: 'Manager' }, { value: UserRoleEnum.OPERATOR, label: 'Operator' }]} />
           <div style={styles.checkbox}><label style={styles.checkboxLabel}>

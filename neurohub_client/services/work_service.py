@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, Signal
 
 from utils.exception_handler import safe_cleanup
-from utils.wip_validator import validate_wip_id, extract_lot_from_wip_id
+from utils.wip_validator import validate_wip_id
 
 from .api_client import APIClient
 from .workers import APIWorker
@@ -35,53 +35,35 @@ class WorkService(QObject):
 
     def start_work(
         self,
-        lot_number: str,
-        worker_id: str,
-        wip_id: Optional[str] = None
+        wip_id: str,
+        worker_id: str
     ) -> None:
         """
-        Start work for LOT or WIP - POST /api/v1/process-operations/start
+        Start work for WIP - POST /api/v1/process-operations/start
 
         Args:
-            lot_number: LOT number
+            wip_id: WIP ID (required)
             worker_id: Worker ID
-            wip_id: WIP ID (optional - for WIP-level work from equipment TCP)
-
-        Note:
-            - If wip_id is provided → WIP-level work
-            - If wip_id is None → LOT-level work
         """
         try:
-            # Validate WIP ID format if provided
-            if wip_id:
-                if not validate_wip_id(wip_id):
-                    error_msg = f"잘못된 WIP ID 형식: {wip_id}"
-                    logger.error(error_msg)
-                    self.error_occurred.emit(error_msg)
-                    return
+            # Validate WIP ID format
+            if not validate_wip_id(wip_id):
+                error_msg = f"잘못된 WIP ID 형식: {wip_id}"
+                logger.error(error_msg)
+                self.error_occurred.emit(error_msg)
+                return
 
-                # Extract LOT number from WIP ID if lot_number not provided
-                if not lot_number:
-                    lot_number = extract_lot_from_wip_id(wip_id)
+            logger.info(f"Starting WIP work (threaded) for WIP: {wip_id}")
 
-                logger.info(f"Starting WIP work (threaded) for WIP: {wip_id}")
-            else:
-                logger.info(f"Starting LOT work (threaded) for LOT: {lot_number}")
-
-            # Build base request data
+            # Build request data (wip_id only, no lot_number)
             data = {
-                "lot_number": lot_number,
-                # Database PK as string
+                "wip_id": wip_id,
                 "process_id": str(self.config.process_db_id),
                 "worker_id": worker_id,
                 "equipment_id": self.config.equipment_code,
                 "line_id": self.config.line_code,
                 "start_time": datetime.now().isoformat()
             }
-
-            # Include wip_id if provided (WIP-level work)
-            if wip_id:
-                data["wip_id"] = wip_id
 
             logger.debug(f"Start work data: {data}")
 
@@ -106,8 +88,7 @@ class WorkService(QObject):
     def start_work_sync(
         self,
         worker_id: str,
-        wip_id: str,
-        lot_number: Optional[str] = None
+        wip_id: str
     ) -> Dict[str, Any]:
         """
         Start work synchronously - for TCP server use.
@@ -115,7 +96,6 @@ class WorkService(QObject):
         Args:
             worker_id: Worker ID
             wip_id: WIP ID (required)
-            lot_number: LOT number (optional - extracted from WIP ID if not provided)
 
         Returns:
             Dict with 'success' (bool) and 'error' (str) or 'data' (dict)
@@ -125,24 +105,16 @@ class WorkService(QObject):
             if not validate_wip_id(wip_id):
                 return {"success": False, "error": f"잘못된 WIP ID 형식: {wip_id}"}
 
-            # Extract LOT number from WIP ID if not provided
-            if not lot_number:
-                lot_number = extract_lot_from_wip_id(wip_id)
+            logger.info(f"Starting WIP work (sync) for WIP: {wip_id}")
 
-            if not lot_number:
-                return {"success": False, "error": "LOT 번호를 추출할 수 없습니다"}
-
-            logger.info(f"Starting WIP work (sync) for WIP: {wip_id}, LOT: {lot_number}")
-
-            # Build request data
+            # Build request data (wip_id only, no lot_number)
             data = {
-                "lot_number": lot_number,
+                "wip_id": wip_id,
                 "process_id": str(self.config.process_db_id),
                 "worker_id": worker_id,
                 "equipment_id": self.config.equipment_code,
                 "line_id": self.config.line_code,
-                "start_time": datetime.now().isoformat(),
-                "wip_id": wip_id
+                "start_time": datetime.now().isoformat()
             }
 
             logger.debug(f"Start work data (sync): {data}")
@@ -164,44 +136,37 @@ class WorkService(QObject):
 
         POST /api/v1/process-operations/complete (non-blocking)
 
-        Note:
-            - If json_data contains 'wip_id' → WIP-level work completion
-            - If json_data does NOT contain 'wip_id' → LOT-level work completion
+        Args:
+            json_data: Must contain 'wip_id' (required)
         """
         try:
-            lot_number = json_data.get('lot_number')
-            wip_id = json_data.get('wip_id')  # May be None
+            wip_id = json_data.get('wip_id')
 
-            # Validate WIP ID format if provided
-            if wip_id:
-                if not validate_wip_id(wip_id):
-                    error_msg = f"잘못된 WIP ID 형식: {wip_id}"
-                    logger.error(error_msg)
-                    self.error_occurred.emit(error_msg)
-                    return
+            # wip_id is now required
+            if not wip_id:
+                error_msg = "WIP ID가 필요합니다"
+                logger.error(error_msg)
+                self.error_occurred.emit(error_msg)
+                return
 
-                # Extract LOT number from WIP ID if lot_number not provided
-                if not lot_number:
-                    lot_number = extract_lot_from_wip_id(wip_id)
+            # Validate WIP ID format
+            if not validate_wip_id(wip_id):
+                error_msg = f"잘못된 WIP ID 형식: {wip_id}"
+                logger.error(error_msg)
+                self.error_occurred.emit(error_msg)
+                return
 
-                logger.info(f"Completing WIP work (threaded) for WIP: {wip_id}")
-            else:
-                logger.info(f"Completing LOT work (threaded) for LOT: {lot_number}")
+            logger.info(f"Completing WIP work (threaded) for WIP: {wip_id}")
 
-            # Build base complete data with process_id from config
+            # Build complete data (wip_id only, no lot_number)
             data = {
-                "lot_number": lot_number,
-                # Database PK as integer
+                "wip_id": wip_id,
                 "process_id": str(self.config.process_db_id),
                 "worker_id": json_data.get('worker_id', 'W001'),
                 "result": json_data.get('result', 'PASS'),
                 "measurements": json_data.get('measurements') or json_data.get('measurement_data'),
                 "defect_data": json_data.get('defect_data')
             }
-
-            # Include wip_id if provided (WIP-level work)
-            if wip_id:
-                data["wip_id"] = wip_id
 
             logger.debug(f"Complete work data: {data}")
 

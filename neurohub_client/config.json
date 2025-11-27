@@ -1,0 +1,43 @@
+{
+  "api": {
+    "base_url": "http://localhost:3000"
+  },
+  "process": {
+    "db_id": 3,
+    "number": 3,
+    "code": "LABEL_PRINTING",
+    "name": "LABEL_PRINTING",
+    "name_en": "LABEL_PRINTING"
+  },
+  "file": {
+    "watch_folder": "C:/neurohub_work"
+  },
+  "equipment": {
+    "id": 1,
+    "code": "EQ_LASER_01",
+    "name": "EQ_LASER_01"
+  },
+  "line": {
+    "id": 1,
+    "code": "DT01",
+    "name": "동탄1공장"
+  },
+  "app": {
+    "first_run_completed": true
+  },
+  "auth": {
+    "token": "",
+    "username": "blessp",
+    "recent_usernames": [
+      "blessp",
+      "admin"
+    ]
+  },
+  "tcp": {
+    "port": 9000
+  },
+  "printer": {
+    "queue": "",
+    "zpl_template": ""
+  }
+}

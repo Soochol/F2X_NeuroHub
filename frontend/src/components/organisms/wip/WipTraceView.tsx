@@ -227,7 +227,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                             color: 'var(--color-warning)',
                                                             fontWeight: 'normal'
                                                         }}>
-                                                            ({processGroup.length}회 시도)
+                                                            ({processGroup.length} attempts)
                                                         </span>
                                                     )}
                                                 </div>
@@ -280,7 +280,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                     marginBottom: '10px',
                                                     color: 'var(--color-text-secondary)'
                                                 }}>
-                                                    📋 시도 이력 ({processGroup.length}회)
+                                                    📋 Attempt History ({processGroup.length})
                                                 </div>
 
                                                 {processGroup.map((attempt, attemptIndex) => (
@@ -296,7 +296,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                     >
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                                                             <span style={{ fontSize: '12px', fontWeight: '600' }}>
-                                                                {attemptIndex + 1}차 시도
+                                                                Attempt {attemptIndex + 1}
                                                             </span>
                                                             <span
                                                                 style={{
@@ -326,7 +326,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                         {/* Defects for failed attempts */}
                                                         {attempt.result === 'FAIL' && attempt.defect_codes && attempt.defect_codes.length > 0 && (
                                                             <div style={{ marginTop: '5px', fontSize: '11px' }}>
-                                                                <span style={{ color: 'var(--color-error)' }}>불량: </span>
+                                                                <span style={{ color: 'var(--color-error)' }}>Defects: </span>
                                                                 {attempt.defect_codes.join(', ')}
                                                             </div>
                                                         )}

@@ -2,11 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import type { ProductModel } from '@/types/api';
 
-export const useProductModels = () => {
+interface UseProductModelsOptions {
+    activeOnly?: boolean;
+}
+
+export const useProductModels = (options: UseProductModelsOptions = { activeOnly: true }) => {
+    const { activeOnly = true } = options;
+
     return useQuery({
-        queryKey: ['productModels'],
+        queryKey: ['productModels', { activeOnly }],
         queryFn: async () => {
-            const response = await apiClient.get<ProductModel[]>('/product-models/');
+            const endpoint = activeOnly ? '/product-models/active' : '/product-models/';
+            const response = await apiClient.get<ProductModel[]>(endpoint);
             return response.data;
         },
     });

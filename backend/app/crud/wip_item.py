@@ -621,7 +621,10 @@ def get_statistics(
     Returns:
         Dictionary with statistics
     """
-    query = db.query(WIPItem)
+    query = db.query(WIPItem).options(
+        joinedload(WIPItem.lot),
+        joinedload(WIPItem.current_process)
+    )
 
     if lot_id:
         query = query.filter(WIPItem.lot_id == lot_id)
@@ -638,6 +641,53 @@ def get_statistics(
     failed = sum(1 for w in wip_items if w.status == WIPStatus.FAILED.value)
     converted = sum(1 for w in wip_items if w.status == WIPStatus.CONVERTED.value)
 
+    # Calculate by_lot statistics
+    by_lot = {}
+    for wip in wip_items:
+        if wip.lot_id not in by_lot:
+            lot_number = wip.lot.lot_number if wip.lot else f"LOT-{wip.lot_id}"
+            by_lot[wip.lot_id] = {
+                "lot_id": wip.lot_id,
+                "lot_number": lot_number,
+                "total_quantity": 0,
+                "completed_quantity": 0,
+                "in_progress_quantity": 0,
+                "current_process": None,
+                "current_process_id": None,
+            }
+
+        by_lot[wip.lot_id]["total_quantity"] += 1
+
+        if wip.status == WIPStatus.COMPLETED.value or wip.status == WIPStatus.CONVERTED.value:
+            by_lot[wip.lot_id]["completed_quantity"] += 1
+        elif wip.status == WIPStatus.IN_PROGRESS.value:
+            by_lot[wip.lot_id]["in_progress_quantity"] += 1
+            # Update current process (use the most recent in-progress item's process)
+            if wip.current_process:
+                by_lot[wip.lot_id]["current_process"] = wip.current_process.name
+                by_lot[wip.lot_id]["current_process_id"] = wip.current_process_id
+
+    # Calculate by_process statistics
+    by_process = {}
+    for wip in wip_items:
+        if wip.current_process_id:
+            process_id_key = wip.current_process_id
+            if process_id_key not in by_process:
+                process_name = wip.current_process.name if wip.current_process else f"Process-{process_id_key}"
+                by_process[process_id_key] = {
+                    "process_id": process_id_key,
+                    "process_name": process_name,
+                    "count": 0,
+                    "in_progress": 0,
+                    "completed": 0,
+                }
+
+            by_process[process_id_key]["count"] += 1
+            if wip.status == WIPStatus.IN_PROGRESS.value:
+                by_process[process_id_key]["in_progress"] += 1
+            elif wip.status == WIPStatus.COMPLETED.value or wip.status == WIPStatus.CONVERTED.value:
+                by_process[process_id_key]["completed"] += 1
+
     return {
         "total": total,
         "created": created,
@@ -645,6 +695,6 @@ def get_statistics(
         "completed": completed,
         "failed": failed,
         "converted": converted,
-        "by_lot": {},
-        "by_process": {},
+        "by_lot": list(by_lot.values()),
+        "by_process": by_process,
     }

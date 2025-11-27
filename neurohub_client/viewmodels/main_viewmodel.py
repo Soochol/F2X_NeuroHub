@@ -55,7 +55,6 @@ class MainViewModel(QObject):
         self.tcp_server = tcp_server
 
         # State
-        self.current_lot: Optional[str] = None
         self.current_wip_id: Optional[str] = None  # Store WIP ID (e.g., WIP-KR01PSA2511-001)
         self.current_worker: Optional[str] = None
         self.is_online: bool = True
@@ -169,56 +168,48 @@ class MainViewModel(QObject):
                 f"일부 시그널 연결 실패: {connector.failed_connections}"
             )
 
-    def on_barcode_scanned(self, lot_number: str) -> None:
+    def on_barcode_scanned(self, wip_id: str) -> None:
         """
-        Handle valid LOT barcode scan (initiates threaded operation).
+        Handle valid WIP barcode scan (initiates threaded operation).
 
         Args:
-            lot_number: LOT number from barcode
+            wip_id: WIP ID from barcode
         """
-        self.start_work(lot_number)
+        self.start_work(wip_id)
 
-    def start_work(self, lot_number: Optional[str] = None, wip_id: Optional[str] = None) -> None:
+    def start_work(self, wip_id: str) -> None:
         """
-        Start work for the given WIP ID or LOT number.
+        Start work for the given WIP ID.
 
         Args:
-            lot_number: LOT number (optional - for LOT-level work or barcode scan)
-            wip_id: WIP ID (optional - for equipment TCP flow)
-
-        Note:
-            - TCP flow: wip_id only (WIP ID from equipment)
-            - Barcode flow: lot_number only (LOT barcode scan)
+            wip_id: WIP ID (required)
         """
+        if not wip_id:
+            logger.error("No WIP ID provided")
+            self.error_occurred.emit("WIP ID가 필요합니다.")
+            return
+
         # Get current user
         worker_id = self.auth_service.get_current_user_id()
 
-        if wip_id:
-            logger.info(f"Starting work: WIP={wip_id}, Worker={worker_id}")
-        elif lot_number:
-            logger.info(f"Starting work: LOT={lot_number}, Worker={worker_id}")
-        else:
-            logger.error("No LOT or WIP ID provided")
-            self.error_occurred.emit("LOT 또는 WIP ID가 필요합니다.")
-            return
+        logger.info(f"Starting work: WIP={wip_id}, Worker={worker_id}")
 
         # Store for when work starts successfully
-        self.current_lot = lot_number
-        self.current_worker = worker_id
         self.current_wip_id = wip_id
+        self.current_worker = worker_id
 
         # Start work (threaded - result will come via signal)
-        self.work_service.start_work(lot_number, worker_id, wip_id)
+        self.work_service.start_work(wip_id, worker_id)
 
     def complete_work(self, completion_data: Dict[str, Any]) -> None:
         """
         Complete work with the given completion data.
 
         Args:
-            completion_data: Completion data including result and process_data
+            completion_data: Completion data including wip_id (required), result, and measurements
         """
-        lot_number = completion_data.get("lot_number", "UNKNOWN")
-        logger.info(f"Completing work for LOT: {lot_number}")
+        wip_id = completion_data.get("wip_id", "UNKNOWN")
+        logger.info(f"Completing work for WIP: {wip_id}")
 
         # Add worker_id if not present
         if "worker_id" not in completion_data:
@@ -254,10 +245,10 @@ class MainViewModel(QObject):
         Handle JSON completion file detected (initiates threaded operation).
 
         Args:
-            json_data: Completion data from JSON file
+            json_data: Completion data from JSON file (must contain wip_id)
         """
-        lot_number = json_data.get("lot_number", "UNKNOWN")
-        logger.info(f"Processing completion for LOT: {lot_number}")
+        wip_id = json_data.get("wip_id", "UNKNOWN")
+        logger.info(f"Processing completion for WIP: {wip_id}")
 
         # Add worker_id if not present
         if "worker_id" not in json_data:
@@ -285,13 +276,12 @@ class MainViewModel(QObject):
         logger.error(f"Completion error: {error_msg}")
         self.error_occurred.emit(error_msg)
 
-    def clear_current_lot(self) -> None:
-        """Clear current LOT information."""
-        self.current_lot = None
+    def clear_current_wip(self) -> None:
+        """Clear current WIP information."""
         self.current_wip_id = None
         self.current_worker = None
         self.lot_updated.emit({})
-        logger.info("Current LOT cleared")
+        logger.info("Current WIP cleared")
 
     # --- Threaded operation callbacks ---
 
@@ -307,13 +297,13 @@ class MainViewModel(QObject):
         """Handle successful work start from threaded operation."""
         logger.info(f"Work started successfully (threaded callback): {response}")
 
-        # Store WIP ID if available
-        self.current_wip_id = response.get("wip_id")
+        # Store WIP ID from response if available
+        wip_id_str = response.get("wip_id_str") or self.current_wip_id
 
         # Emit signals
-        self.work_started.emit(self.current_lot)
+        self.work_started.emit(wip_id_str)
         self.lot_updated.emit({
-            "lot_number": self.current_lot,
+            "wip_id": wip_id_str,
             "worker_id": self.current_worker,
             "start_time": datetime.now().strftime("%H:%M:%S")
         })
@@ -324,15 +314,14 @@ class MainViewModel(QObject):
 
     def on_work_completed_success(self, response: Dict[str, Any]) -> None:
         """Handle successful work completion from threaded operation."""
-        lot_number = response.get("lot_number", self.current_lot or "UNKNOWN")
-        logger.info(f"Work completed successfully (threaded callback): {lot_number}")
+        wip_id = response.get("wip_id_str", self.current_wip_id or "UNKNOWN")
+        logger.info(f"Work completed successfully (threaded callback): {wip_id}")
 
         # Emit signal
-        self.work_completed.emit(f"완공: {lot_number}")
+        self.work_completed.emit(f"완공: {wip_id}")
 
-        # Clear current LOT if matches
-        if self.current_lot == lot_number:
-            self.clear_current_lot()
+        # Clear current WIP
+        self.clear_current_wip()
 
         # Update connection status
         self.is_online = True
@@ -355,7 +344,7 @@ class MainViewModel(QObject):
 
         if not serial_number:
             self.error_occurred.emit("시리얼 번호를 받지 못했습니다.")
-            self.clear_current_lot() # Clear even on error to reset state
+            self.clear_current_wip() # Clear even on error to reset state
             return
 
         logger.info(f"Serial converted successfully: {serial_number}")
@@ -364,7 +353,7 @@ class MainViewModel(QObject):
         self.serial_received.emit(serial_number)
 
         # Clear state after successful conversion
-        self.clear_current_lot()
+        self.clear_current_wip()
 
     # --- TCP Server / Equipment Measurement Methods ---
 
@@ -386,7 +375,7 @@ class MainViewModel(QObject):
         self.current_worker = self.auth_service.get_current_user_id()
 
         # Emit signal for UI update (work started successfully)
-        self.work_started.emit({"wip_id": wip_id, "status": "started"})
+        self.work_started.emit(wip_id)
 
     def on_measurement_received(self, equipment_data: Any) -> None:
         """
@@ -412,7 +401,7 @@ class MainViewModel(QObject):
 
         Called when user confirms completion after receiving measurement.
         """
-        if not self.current_wip_id and not self.current_lot:
+        if not self.current_wip_id:
             self.error_occurred.emit("착공된 작업이 없습니다.")
             return
 
@@ -420,18 +409,13 @@ class MainViewModel(QObject):
             self.error_occurred.emit("측정 데이터가 없습니다.")
             return
 
-        # Build completion data
+        # Build completion data (wip_id only, no lot_number)
         completion_data = {
+            "wip_id": self.current_wip_id,
             "worker_id": self.auth_service.get_current_user_id(),
             "result": self.pending_measurement.result,
             "measurements": self.pending_measurement.to_api_format(),
         }
-
-        # Add WIP ID or LOT number
-        if self.current_wip_id:
-            completion_data["wip_id"] = self.current_wip_id
-        if self.current_lot:
-            completion_data["lot_number"] = self.current_lot
 
         # Add defects if FAIL
         if self.pending_measurement.result == "FAIL":
@@ -442,9 +426,7 @@ class MainViewModel(QObject):
                 ]
             }
 
-        logger.info(
-            f"Completing work: WIP={self.current_wip_id}, LOT={self.current_lot}"
-        )
+        logger.info(f"Completing work: WIP={self.current_wip_id}")
 
         # Submit completion
         self.work_service.complete_work(completion_data)

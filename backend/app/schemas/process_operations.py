@@ -4,9 +4,9 @@ from pydantic import BaseModel, Field
 
 class ProcessStartRequest(BaseModel):
     """Request schema for starting a process (착공 등록)."""
-    lot_number: str = Field(..., description="LOT number (e.g., WF-KR-251110D-001)")
+    wip_id: str = Field(..., description="WIP ID (e.g., WIP-KR01PSA2511-001)")
+    lot_number: Optional[str] = Field(None, description="LOT number (optional, auto-resolved from wip_id)")
     serial_number: Optional[str] = Field(None, description="Serial number (optional for LOT-level)")
-    wip_id: Optional[str] = Field(None, description="WIP ID (e.g., WIP-KR01PSA2511-001)")
     process_id: str = Field(..., description="Process ID (e.g., PROC-001 or 1)")
     worker_id: str = Field(..., description="Worker ID (e.g., W001)")
     equipment_id: Optional[str] = Field(None, description="Equipment ID (e.g., EQ-001)")
@@ -28,9 +28,9 @@ class ProcessStartResponse(BaseModel):
 
 class ProcessCompleteRequest(BaseModel):
     """Request schema for completing a process (완공 등록)."""
-    lot_number: str = Field(..., description="LOT number")
+    wip_id: str = Field(..., description="WIP ID (e.g., WIP-KR01PSA2511-001)")
+    lot_number: Optional[str] = Field(None, description="LOT number (optional, auto-resolved from wip_id)")
     serial_number: Optional[str] = Field(None, description="Serial number")
-    wip_id: Optional[str] = Field(None, description="WIP ID (e.g., WIP-KR01PSA2511-001)")
     process_id: str = Field(..., description="Process ID, code, or name")
     worker_id: str = Field(..., description="Worker ID (e.g., W001)")
     result: str = Field(..., description="Result: PASS, FAIL, or REWORK")

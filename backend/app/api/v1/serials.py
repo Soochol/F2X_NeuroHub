@@ -104,18 +104,15 @@ def get_failed_serials(
 
 
 @router.get(
-    "/number/{serial_number}",
+    "/number/{serial_number:path}",
     response_model=SerialInDB,
     summary="Get serial by serial number",
-    description="Retrieve a serial by its unique serial number (e.g., KR01PSA2511001).",
+    description="Retrieve a serial by its unique serial number (e.g., KR01PSA2511001 or KR01-PSA-2511-001).",
 )
 def get_serial_by_number(
     serial_number: str = Path(
         ...,
-        min_length=14,
-        max_length=14,
-        pattern=r'^[A-Z]{2}\d{2}[A-Z]{3}\d{4}\d{3}$',
-        description="Serial number (14 chars, format: KR01PSA2511001)"
+        description="Serial number (format: KR01PSA2511001 or KR01-PSA-2511-001)"
     ),
     db: Session = Depends(get_db),
 ):
@@ -123,7 +120,9 @@ def get_serial_by_number(
     Get serial by unique serial number.
 
     Path Parameters:
-        serial_number: Unique serial identifier (14 chars, format: KR01PSA2511001)
+        serial_number: Unique serial identifier (accepts both formats:
+            - Without dashes: KR01PSA2511001
+            - With dashes: KR01-PSA-2511-001)
 
     Returns:
         Serial object with full details
@@ -131,7 +130,9 @@ def get_serial_by_number(
     Raises:
         HTTPException 404: If serial not found
     """
-    return serial_service.get_serial_by_number(db, serial_number=serial_number)
+    # Normalize serial number by removing dashes
+    normalized_serial = serial_number.replace("-", "").upper()
+    return serial_service.get_serial_by_number(db, serial_number=normalized_serial)
 
 
 @router.get(
@@ -491,7 +492,9 @@ def get_serial_trace(
     - Defect information
 
     Path Parameters:
-        serial_number: Serial number in format WF-KR-YYMMDDX-nnn-nnnn
+        serial_number: Serial number (accepts both formats:
+            - Without dashes: KR01PSA2511001
+            - With dashes: KR01-PSA-2511-001)
 
     Returns:
         Complete traceability record with:
@@ -505,4 +508,6 @@ def get_serial_trace(
         HTTPException 404: If serial not found
         HTTPException 422: If serial_number format is invalid
     """
-    return serial_service.get_serial_trace(db, serial_number=serial_number)
+    # Normalize serial number by removing dashes
+    normalized_serial = serial_number.replace("-", "").upper()
+    return serial_service.get_serial_trace(db, serial_number=normalized_serial)
