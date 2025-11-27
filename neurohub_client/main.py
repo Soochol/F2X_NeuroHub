@@ -71,9 +71,6 @@ def main():
         # Load configuration
         config = AppConfig()
 
-        # Set API URL to 8000 (backend port)
-        config.api_base_url = "http://localhost:8000"
-
         logger.info(
             f"Configuration loaded: Process {config.process_number} ({config.process_name})"
         )
@@ -166,6 +163,8 @@ def main():
         # Initialize TCP Server for equipment communication
         tcp_port = config.tcp_port
         tcp_server = TCPServer(port=tcp_port)
+        # Set services for synchronous API calls (START -> Backend -> ACK)
+        tcp_server.set_services(work_service, auth_service)
         logger.info(f"TCP Server initialized (port: {tcp_port})")
 
         # Create ViewModel

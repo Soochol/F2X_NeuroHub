@@ -85,25 +85,27 @@ class StartData:
 
     Equipment sends only:
     - message_type: "START"
-    - serial_number: WIP ID
+    - wip_id: WIP ID (e.g., WIP-KR01PSA2511-001)
 
     Other fields (worker_id, process_id, equipment_id) are filled by Client.
     """
     message_type: str = "START"
-    serial_number: str = ""
+    wip_id: str = ""
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "StartData":
+        # Support both 'wip_id' and legacy 'serial_number' field
+        wip_id = data.get("wip_id") or data.get("serial_number", "")
         return cls(
             message_type=data.get("message_type", "START"),
-            serial_number=data.get("serial_number", ""),
+            wip_id=wip_id,
         )
 
 @dataclass
 class EquipmentData:
     """Data received from equipment (COMPLETE message)."""
     message_type: str
-    serial_number: str
+    wip_id: str
     result: str
     measurements: List[MeasurementItem]
     defects: List[DefectItem]
@@ -116,9 +118,11 @@ class EquipmentData:
         defects = [
             DefectItem.from_dict(d) for d in data.get("defects", [])
         ]
+        # Support both 'wip_id' and legacy 'serial_number' field
+        wip_id = data.get("wip_id") or data.get("serial_number", "")
         return cls(
             message_type=data.get("message_type", "COMPLETE"),
-            serial_number=data.get("serial_number", ""),
+            wip_id=wip_id,
             result=data.get("result", "PASS"),
             measurements=measurements,
             defects=defects,
@@ -175,6 +179,16 @@ class TCPServer:
         self._running: bool = False
         self._server_thread: Optional[threading.Thread] = None
         self._buffer_size: int = 65536  # 64KB buffer
+
+        # Service references for synchronous API calls
+        self._work_service: Optional[Any] = None
+        self._auth_service: Optional[Any] = None
+
+    def set_services(self, work_service: Any, auth_service: Any) -> None:
+        """Set service references for synchronous API calls."""
+        self._work_service = work_service
+        self._auth_service = auth_service
+        logger.info("TCP server services configured")
 
     def start(self) -> bool:
         """Start the TCP server in a background thread."""
@@ -259,19 +273,52 @@ class TCPServer:
                         # Handle START message
                         start_data = StartData.from_dict(json_data)
                         logger.info(
-                            f"Received START: serial={start_data.serial_number}"
+                            f"Received START: wip_id={start_data.wip_id}"
                         )
-                        self.signals.start_received.emit(start_data)
-                        response = json.dumps({
-                            "status": "OK",
-                            "message": "Start data received",
-                            "message_type": "START"
-                        })
+
+                        # Call Backend API synchronously before ACK
+                        if self._work_service and self._auth_service:
+                            worker_id = self._auth_service.get_current_user_id()
+                            api_result = self._work_service.start_work_sync(
+                                worker_id=worker_id,
+                                wip_id=start_data.wip_id
+                            )
+
+                            if api_result.get("success"):
+                                logger.info(
+                                    f"START API success: {start_data.wip_id}"
+                                )
+                                self.signals.start_received.emit(start_data)
+                                response = json.dumps({
+                                    "status": "OK",
+                                    "message": "Start work registered",
+                                    "message_type": "START"
+                                })
+                            else:
+                                error_msg = api_result.get("error", "Unknown error")
+                                logger.error(
+                                    f"START API failed: {error_msg}"
+                                )
+                                self.signals.error_occurred.emit(error_msg)
+                                response = json.dumps({
+                                    "status": "ERROR",
+                                    "message": error_msg,
+                                    "message_type": "START"
+                                })
+                        else:
+                            # Fallback: no services configured
+                            logger.warning("TCP server services not configured")
+                            self.signals.start_received.emit(start_data)
+                            response = json.dumps({
+                                "status": "OK",
+                                "message": "Start data received (no API call)",
+                                "message_type": "START"
+                            })
                     else:
                         # Handle COMPLETE message (default)
                         equipment_data = EquipmentData.from_dict(json_data)
                         logger.info(
-                            f"Received COMPLETE: serial={equipment_data.serial_number}, "
+                            f"Received COMPLETE: wip_id={equipment_data.wip_id}, "
                             f"result={equipment_data.result}, "
                             f"measurements={len(equipment_data.measurements)}"
                         )

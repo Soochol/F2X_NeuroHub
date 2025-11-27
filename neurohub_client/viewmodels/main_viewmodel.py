@@ -10,7 +10,6 @@ from PySide6.QtCore import QObject, Signal
 from utils.exception_handler import (
     SignalConnector, CleanupManager, safe_slot, safe_cleanup
 )
-from utils.serial_validator import validate_serial_number_v1
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +56,8 @@ class MainViewModel(QObject):
 
         # State
         self.current_lot: Optional[str] = None
-        self.current_wip_id: Optional[int] = None  # Store WIP ID
+        self.current_wip_id: Optional[str] = None  # Store WIP ID (e.g., WIP-KR01PSA2511-001)
         self.current_worker: Optional[str] = None
-        self.current_serial: Optional[str] = None  # For SERIAL-level work
         self.is_online: bool = True
 
         # Equipment measurement data (from TCP)
@@ -180,23 +178,23 @@ class MainViewModel(QObject):
         """
         self.start_work(lot_number)
 
-    def start_work(self, lot_number: Optional[str] = None, serial_number: Optional[str] = None) -> None:
+    def start_work(self, lot_number: Optional[str] = None, wip_id: Optional[str] = None) -> None:
         """
-        Start work for the given WIP ID (serial_number) or LOT number.
+        Start work for the given WIP ID or LOT number.
 
         Args:
             lot_number: LOT number (optional - for LOT-level work or barcode scan)
-            serial_number: WIP ID (optional - for equipment TCP flow)
-        
+            wip_id: WIP ID (optional - for equipment TCP flow)
+
         Note:
-            - TCP flow: serial_number only (WIP ID from equipment)
+            - TCP flow: wip_id only (WIP ID from equipment)
             - Barcode flow: lot_number only (LOT barcode scan)
         """
         # Get current user
         worker_id = self.auth_service.get_current_user_id()
 
-        if serial_number:
-            logger.info(f"Starting work: WIP={serial_number}, Worker={worker_id}")
+        if wip_id:
+            logger.info(f"Starting work: WIP={wip_id}, Worker={worker_id}")
         elif lot_number:
             logger.info(f"Starting work: LOT={lot_number}, Worker={worker_id}")
         else:
@@ -207,10 +205,10 @@ class MainViewModel(QObject):
         # Store for when work starts successfully
         self.current_lot = lot_number
         self.current_worker = worker_id
-        self.current_serial = serial_number
+        self.current_wip_id = wip_id
 
         # Start work (threaded - result will come via signal)
-        self.work_service.start_work(lot_number, worker_id, serial_number)
+        self.work_service.start_work(lot_number, worker_id, wip_id)
 
     def complete_work(self, completion_data: Dict[str, Any]) -> None:
         """
@@ -372,27 +370,23 @@ class MainViewModel(QObject):
 
     def on_start_received(self, start_data: Any) -> None:
         """
-        Handle start work request received from equipment via TCP.
+        Handle successful start work notification from TCP server.
 
-        Equipment sends WIP ID (serial_number) and Client calls Backend
-        with additional context (worker_id, process_id, equipment_id).
+        Note: Backend API call is already done by TCP server synchronously.
+        This handler is for UI updates only.
 
         Args:
             start_data: StartData object from TCP server
         """
-        logger.info(
-            f"Start received via TCP: serial={start_data.serial_number}, "
-            f"equipment={start_data.equipment_id}"
-        )
+        wip_id = start_data.wip_id
+        logger.info(f"Start work completed via TCP: wip_id={wip_id}")
 
-        # WIP ID (serial_number) is required
-        if not start_data.serial_number:
-            logger.warning("No serial_number (WIP ID) in start request")
-            self.error_occurred.emit("WIP ID가 없습니다.")
-            return
+        # Update state for UI
+        self.current_wip_id = wip_id
+        self.current_worker = self.auth_service.get_current_user_id()
 
-        # Call start_work with WIP ID from equipment
-        self.start_work(serial_number=start_data.serial_number)
+        # Emit signal for UI update (work started successfully)
+        self.work_started.emit({"wip_id": wip_id, "status": "started"})
 
     def on_measurement_received(self, equipment_data: Any) -> None:
         """
@@ -418,7 +412,7 @@ class MainViewModel(QObject):
 
         Called when user confirms completion after receiving measurement.
         """
-        if not self.current_lot:
+        if not self.current_wip_id and not self.current_lot:
             self.error_occurred.emit("착공된 작업이 없습니다.")
             return
 
@@ -428,11 +422,16 @@ class MainViewModel(QObject):
 
         # Build completion data
         completion_data = {
-            "lot_number": self.current_lot,
             "worker_id": self.auth_service.get_current_user_id(),
             "result": self.pending_measurement.result,
             "measurements": self.pending_measurement.to_api_format(),
         }
+
+        # Add WIP ID or LOT number
+        if self.current_wip_id:
+            completion_data["wip_id"] = self.current_wip_id
+        if self.current_lot:
+            completion_data["lot_number"] = self.current_lot
 
         # Add defects if FAIL
         if self.pending_measurement.result == "FAIL":
@@ -443,7 +442,9 @@ class MainViewModel(QObject):
                 ]
             }
 
-        logger.info(f"Completing work with measurement: {self.current_lot}")
+        logger.info(
+            f"Completing work: WIP={self.current_wip_id}, LOT={self.current_lot}"
+        )
 
         # Submit completion
         self.work_service.complete_work(completion_data)
