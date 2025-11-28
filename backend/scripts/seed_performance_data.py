@@ -255,6 +255,90 @@ def generate_wip_id(lot_number: str, sequence: int) -> str:
     return f"WIP-{lot_number}-{sequence:03d}"
 
 
+def generate_measurements(process_number: int, is_fail: bool = False) -> dict:
+    """Generate realistic measurements data for each process."""
+
+    if process_number == 1:  # Laser Marking
+        laser_power = random.uniform(80, 100) if not is_fail else random.uniform(60, 75)
+        marking_depth = random.uniform(0.1, 0.3) if not is_fail else random.uniform(0.05, 0.08)
+        return {
+            "laser_power": {"value": round(laser_power, 1), "unit": "%", "min": 80, "max": 100},
+            "marking_depth": {"value": round(marking_depth, 2), "unit": "mm", "min": 0.1, "max": 0.3}
+        }
+
+    elif process_number == 2:  # LMA Assembly
+        assembly_time = random.uniform(150, 210) if not is_fail else random.uniform(250, 300)
+        torque_value = random.uniform(4.5, 5.5) if not is_fail else random.uniform(3.0, 4.0)
+        return {
+            "assembly_time": {"value": round(assembly_time, 1), "unit": "sec", "min": 150, "max": 210},
+            "torque_value": {"value": round(torque_value, 2), "unit": "Nm", "min": 4.5, "max": 5.5}
+        }
+
+    elif process_number == 3:  # Sensor Inspection
+        temp_measured = random.uniform(59.0, 61.0) if not is_fail else random.uniform(55.0, 57.0)
+        i2c_ok = True if not is_fail else False
+        return {
+            "temp_sensor": {
+                "measured": round(temp_measured, 1),
+                "target": 60.0,
+                "tolerance": 1.0,
+                "unit": "°C",
+                "pass": abs(temp_measured - 60.0) <= 1.0
+            },
+            "tof_sensor": {"i2c_ok": i2c_ok, "status": "OK" if i2c_ok else "FAIL"}
+        }
+
+    elif process_number == 4:  # Firmware Upload
+        versions = ["v2.1.5", "v2.1.6", "v2.2.0"]
+        upload_time = random.uniform(200, 260) if not is_fail else random.uniform(400, 500)
+        success = True if not is_fail else False
+        return {
+            "firmware_version": random.choice(versions),
+            "upload_time": {"value": round(upload_time, 0), "unit": "sec", "max": 300},
+            "upload_success": success,
+            "checksum_verified": success
+        }
+
+    elif process_number == 5:  # Robot Assembly
+        assembly_time = random.uniform(280, 320) if not is_fail else random.uniform(350, 400)
+        cable_ok = True if not is_fail else False
+        return {
+            "assembly_time": {"value": round(assembly_time, 1), "unit": "sec", "min": 270, "max": 330},
+            "cable_connection": "OK" if cable_ok else "FAIL",
+            "alignment_check": "PASS" if not is_fail else "FAIL"
+        }
+
+    elif process_number == 6:  # Performance Test
+        voltage = random.uniform(11.8, 12.2) if not is_fail else random.uniform(11.0, 11.5)
+        current = random.uniform(4.8, 5.2) if not is_fail else random.uniform(5.5, 6.0)
+        force = random.uniform(20, 25) if not is_fail else random.uniform(15, 18)
+        return {
+            "voltage": {"value": round(voltage, 2), "unit": "V", "min": 11.8, "max": 12.2},
+            "current": {"value": round(current, 2), "unit": "A", "min": 4.8, "max": 5.2},
+            "force": {"value": round(force, 1), "unit": "kgf", "min": 20, "max": 25}
+        }
+
+    elif process_number == 7:  # Label Printing
+        print_quality = random.uniform(95, 100) if not is_fail else random.uniform(70, 85)
+        barcode_ok = True if not is_fail else False
+        return {
+            "print_quality": {"value": round(print_quality, 1), "unit": "%", "min": 90},
+            "barcode_verified": barcode_ok,
+            "label_position": "OK" if not is_fail else "MISALIGNED"
+        }
+
+    elif process_number == 8:  # Packaging
+        weight = random.uniform(495, 510) if not is_fail else random.uniform(480, 490)
+        defects = [] if not is_fail else [random.choice(["scratch", "dent", "contamination"])]
+        return {
+            "weight_check": {"value": round(weight, 1), "unit": "g", "min": 495, "max": 510},
+            "visual_defects": defects,
+            "packaging_complete": len(defects) == 0
+        }
+
+    return {"test": "value"}
+
+
 def create_lots(db: Session, product_models: list[ProductModel],
                 production_lines: list[ProductionLine], num_lots: int) -> list[Lot]:
     """Create LOTs with various statuses."""
@@ -480,6 +564,9 @@ def create_process_data(db: Session, serials: list[Serial], wips: list[WIPItem],
 
             equipment = equipment_map.get((process.id, lot.production_line_id))
 
+            is_fail = (result == ProcessResult.FAIL)
+            measurements = generate_measurements(process.process_number, is_fail)
+
             process_data = ProcessData(
                 lot_id=lot.id,
                 serial_id=serial.id,
@@ -491,7 +578,7 @@ def create_process_data(db: Session, serials: list[Serial], wips: list[WIPItem],
                 completed_at=completed_at,
                 duration_seconds=duration,
                 result=result,
-                measurements={"test": "value"},
+                measurements=measurements,
                 defects=None
             )
             db.add(process_data)
@@ -530,6 +617,9 @@ def create_process_data(db: Session, serials: list[Serial], wips: list[WIPItem],
 
             equipment = equipment_map.get((process.id, lot.production_line_id))
 
+            is_fail = (result == "FAIL")
+            measurements = generate_measurements(process.process_number, is_fail)
+
             wip_history = WIPProcessHistory(
                 wip_item_id=wip.id,
                 process_id=process.id,
@@ -539,7 +629,7 @@ def create_process_data(db: Session, serials: list[Serial], wips: list[WIPItem],
                 completed_at=completed_at,
                 duration_seconds=duration,
                 result=result,
-                measurements={"test": "value"},
+                measurements=measurements,
                 defects=None
             )
             db.add(wip_history)
