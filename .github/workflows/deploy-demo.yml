@@ -109,7 +109,14 @@ jobs:
         shell: powershell
         continue-on-error: true
 
-      # 10. 배포 완료 상태 확인
+      # 10. Seed 성능 테스트 데이터 생성
+      - name: Seed performance test data
+        run: |
+          Write-Host "=== Generating performance test data ==="
+          docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend python scripts/seed_performance_data.py --reset
+        shell: powershell
+
+      # 11. 배포 완료 상태 확인
       - name: Deployment status
         run: |
           Write-Host "=== Demo Deployment Complete ==="
