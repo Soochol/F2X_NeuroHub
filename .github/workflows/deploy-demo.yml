@@ -84,7 +84,7 @@ jobs:
 
           while ($retryCount -lt $maxRetries -and -not $success) {
             try {
-              $response = Invoke-WebRequest -Uri "http://localhost:90/health" -UseBasicParsing -TimeoutSec 10
+              $response = Invoke-WebRequest -Uri "http://localhost:9090/health" -UseBasicParsing -TimeoutSec 10
               if ($response.StatusCode -eq 200) {
                 Write-Host "Health check passed!"
                 $success = $true
