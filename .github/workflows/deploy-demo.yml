@@ -102,10 +102,24 @@ jobs:
           }
         shell: powershell
 
-      # 9. DB 마이그레이션
+      # 9. DB 마이그레이션 (기존 테이블 있으면 stamp, 없으면 upgrade)
       - name: Run database migrations
         run: |
-          docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic upgrade head
+          Write-Host "=== Running database migrations ==="
+          # 먼저 upgrade 시도
+          $result = docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic upgrade head 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Migration failed, checking if tables already exist..."
+            # 테이블이 이미 존재하면 현재 버전으로 stamp
+            if ($result -match "DuplicateTable" -or $result -match "already exists") {
+              Write-Host "Tables already exist. Stamping current migration version..."
+              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp head
+            } else {
+              Write-Host "Migration error: $result"
+            }
+          } else {
+            Write-Host "Migration completed successfully"
+          }
         shell: powershell
         continue-on-error: true
 
