@@ -49,6 +49,7 @@ RUN pip install --no-cache-dir \
 COPY --chown=appuser:appuser ./app ./app
 COPY --chown=appuser:appuser ./alembic ./alembic
 COPY --chown=appuser:appuser ./alembic.ini .
+COPY --chown=appuser:appuser ./scripts ./scripts
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
