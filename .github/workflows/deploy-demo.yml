@@ -14,6 +14,11 @@ on:
         required: true
         default: ''
 
+# 배포 충돌 방지 - 동시 실행 시 대기
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 env:
   COMPOSE_FILES_PROD: -f docker-compose.yml -f docker-compose.prod.yml
   COMPOSE_FILES_DEMO: -f docker-compose.yml -f docker-compose.demo.yml
