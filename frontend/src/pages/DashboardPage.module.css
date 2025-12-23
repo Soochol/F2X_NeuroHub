@@ -1,8 +1,40 @@
+/**
+ * Dashboard Page Styles - Responsive Layout
+ * Optimized for desktop and shop floor tablets
+ */
+
+/* Page Container */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* Loading, Error, Empty States */
 .loadingContainer {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 200px;
+  gap: 16px;
+  height: 300px;
   color: var(--color-text-secondary);
 }
 
@@ -10,21 +42,68 @@
   padding: 24px;
   background-color: var(--color-badge-error-bg);
   color: var(--color-error);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .emptyContainer {
   color: var(--color-text-secondary);
   padding: 24px;
+  text-align: center;
 }
 
-.pageTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 24px;
+/* KPI Grid - 6 cards */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+/* Monitoring Row - 2 columns */
+.monitoringRow {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+.processFlowSection {
+  background-color: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.equipmentSection {
+  /* EquipmentStatusPanel has its own container styles */
+}
+
+/* Charts Row - 2 columns */
+.chartsRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.chartCard {
+  /* CycleTimeChart and DefectTrendChart have their own Card styles */
+}
+
+/* LOT History Section */
+.lotHistorySection {
+  background-color: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Section Title */
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
   color: var(--color-text-primary);
 }
 
+/* Legacy styles - kept for backward compatibility */
 .gridContainer {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -34,9 +113,9 @@
 
 .card {
   background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .cardCenter {
@@ -95,19 +174,96 @@
 
 .sectionContainer {
   background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 24px;
-}
-
-.sectionTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .sectionTitleLarge {
   margin-bottom: 16px;
+}
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+/* Tablet Landscape (1024px and below) */
+@media (max-width: 1024px) {
+  .kpiGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .monitoringRow {
+    grid-template-columns: 1fr;
+  }
+
+  .chartsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet Portrait (768px and below) */
+@media (max-width: 768px) {
+  .page {
+    gap: 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pageTitle {
+    font-size: 1.25rem;
+  }
+
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .monitoringRow,
+  .chartsRow {
+    gap: 16px;
+  }
+
+  .processFlowSection,
+  .lotHistorySection {
+    padding: 16px;
+  }
+
+  .sectionTitle {
+    font-size: 0.9rem;
+  }
+
+  /* Touch-friendly targets */
+  .card,
+  .chartCard {
+    min-height: 44px;
+  }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .pageTitle {
+    font-size: 1.1rem;
+  }
+
+  .cardValue {
+    font-size: 28px;
+  }
+
+  .cardValueSmall {
+    font-size: 16px;
+  }
+
+  .cardValueMedium {
+    font-size: 20px;
+  }
 }

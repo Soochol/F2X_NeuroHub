@@ -106,4 +106,12 @@ export const equipmentApi = {
   deleteEquipment: async (equipmentId: number): Promise<void> => {
     await apiClient.delete(`/equipment/${equipmentId}`);
   },
+
+  /**
+   * Get equipment that needs maintenance
+   */
+  getNeedsMaintenance: async (): Promise<Equipment[]> => {
+    const response = await apiClient.get<Equipment[]>('/equipment/needs-maintenance');
+    return response.data;
+  },
 };

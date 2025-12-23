@@ -11,3 +11,4 @@ export { Select } from './Select';
 export { ThemeToggle, ThemeToggleIcon } from './ThemeToggle';
 export { StatusBadge } from './StatusBadge';
 export { RoleBadge } from './RoleBadge';
+export { RealTimeIndicator } from './RealTimeIndicator';

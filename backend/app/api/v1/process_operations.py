@@ -34,6 +34,7 @@ router = APIRouter()
     summary="착공 등록",
     description="Start a new process for a LOT/Serial. Validates process sequence and previous process completion.",
 )
+@router.post("/start/", response_model=ProcessStartResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def start_process(
     request: ProcessStartRequest,
     db: Session = Depends(deps.get_db),
@@ -73,6 +74,7 @@ def start_process(
     summary="완공 등록",
     description="Complete a process with result and measurement data.",
 )
+@router.post("/complete/", response_model=ProcessCompleteResponse, include_in_schema=False)
 def complete_process(
     request: ProcessCompleteRequest,
     db: Session = Depends(deps.get_db),

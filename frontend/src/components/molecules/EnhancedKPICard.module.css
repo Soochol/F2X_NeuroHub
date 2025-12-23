@@ -1,0 +1,134 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.clickable:focus {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Status colors - left border accent */
+.statusSuccess {
+  border-left: 3px solid var(--color-success);
+}
+
+.statusWarning {
+  border-left: 3px solid var(--color-warning);
+}
+
+.statusError {
+  border-left: 3px solid var(--color-error);
+}
+
+.statusInfo {
+  border-left: 3px solid var(--color-info);
+}
+
+.statusNeutral {
+  border-left: 3px solid var(--color-border);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.valueContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.trendUp {
+  color: var(--color-success);
+}
+
+.trendDown {
+  color: var(--color-error);
+}
+
+.trendNeutral {
+  color: var(--color-text-tertiary);
+}
+
+.trendValue {
+  font-weight: 600;
+}
+
+.trendLabel {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card {
+    padding: 14px;
+  }
+
+  .value {
+    font-size: 24px;
+  }
+
+  .title {
+    font-size: 12px;
+  }
+}

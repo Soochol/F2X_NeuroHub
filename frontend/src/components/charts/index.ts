@@ -5,3 +5,5 @@
  */
 
 export { ProcessWipChart, ProcessFlowDiagram } from '../organisms/charts';
+export { CycleTimeChart } from './CycleTimeChart';
+export { DefectTrendChart } from './DefectTrendChart';

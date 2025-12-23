@@ -116,6 +116,7 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     lifespan=lifespan,
+    redirect_slashes=False,  # POST 요청에서 trailing slash로 인한 307 리다이렉트 방지
 )
 
 
