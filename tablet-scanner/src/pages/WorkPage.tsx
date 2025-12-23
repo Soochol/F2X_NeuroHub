@@ -476,11 +476,11 @@ export const WorkPage: React.FC = () => {
                           'font-black text-3xl tracking-tight',
                           'transition-all duration-300 relative overflow-hidden group/btn',
                           isLoadingWip
-                            ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none'
+                            ? 'bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none'
                             : [
-                              'bg-gradient-to-r from-primary-600 to-primary-400',
-                              'text-white shadow-[0_20px_50px_rgba(30,58,95,0.5)]',
-                              'hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(30,58,95,0.6)]',
+                              'btn-action-primary',
+                              'shadow-[0_20px_50px_rgba(30,58,95,0.3)]',
+                              'hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(30,58,95,0.4)]',
                               'active:scale-[0.96]',
                             ]
                         )}
