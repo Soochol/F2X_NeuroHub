@@ -118,10 +118,13 @@ jobs:
           
           # 종료 코드가 0이 아닌 경우에만 에러 처리 로직 실행
           if ($LASTEXITCODE -ne 0) {
-            if ($result -match "already exists" -or $result -match "DuplicateTable") {
-              Write-Host "Tables exist but migration failed. Trying to stamp initial and then upgrade..."
-              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp 4a506fa56ef2
+            if ($result -match "refresh_tokens.*already exists" -or $result -match "DuplicateTable.*refresh_tokens") {
+              Write-Host "refresh_tokens table exists. Stamping to e2f4a1b2c3d4 and continuing..."
+              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp e2f4a1b2c3d4
               docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic upgrade head
+            } elseif ($result -match "already exists" -or $result -match "DuplicateTable") {
+              Write-Host "Tables exist but migration failed. Trying to stamp to head..."
+              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp head
             } else {
               Write-Error "Migration failed with exit code $LASTEXITCODE"
               exit 1
