@@ -255,3 +255,55 @@
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* html5-qrcode Scanner Styles */
+#scanner-modal-reader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#scanner-modal-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Hide library's built-in UI elements */
+#scanner-modal-reader > div:not(:first-child) {
+  display: none !important;
+}
+
+/* Hide the library's qrbox shaded region */
+#scanner-modal-reader #qr-shaded-region {
+  display: none !important;
+}
+
+/* Scanner line animation */
+.scanner-line {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  box-shadow: 0 0 15px 3px rgba(59, 130, 246, 0.6);
+  animation: scan-line 2s ease-in-out infinite;
+}
+
+@keyframes scan-line {
+  0%, 100% {
+    top: 10%;
+    opacity: 0.5;
+  }
+  50% {
+    top: 85%;
+    opacity: 1;
+  }
+}

@@ -391,17 +391,17 @@ export const QuickWorkPanel: React.FC<QuickWorkPanelProps> = ({
             )}
 
             {step === 'measurement' && (
-                <div className="glass-card p-10 w-full border-main">
-                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-main">
+                <div className="glass-card p-6 sm:p-10 w-full border-main overflow-visible">
+                    <div className="flex items-center gap-4 mb-6 pb-6 border-b border-main">
                         <div className={cn(
-                            'w-14 h-14 rounded-2xl flex items-center justify-center border',
+                            'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border shrink-0',
                             pendingResult === 'PASS' ? 'bg-success-500/10 border-success-500/20' : 'bg-danger-500/10 border-danger-500/20'
                         )}>
-                            {pendingResult === 'PASS' ? <CheckCircle className="w-8 h-8 text-success-500" /> : <XCircle className="w-8 h-8 text-danger-500" />}
+                            {pendingResult === 'PASS' ? <CheckCircle className="w-7 h-7 sm:w-8 sm:h-8 text-success-500" /> : <XCircle className="w-7 h-7 sm:w-8 sm:h-8 text-danger-500" />}
                         </div>
-                        <div>
-                            <h3 className="text-2xl font-black text-dynamic">Quality Inspection Report</h3>
-                            <p className="text-sm font-bold text-muted uppercase tracking-widest">
+                        <div className="min-w-0">
+                            <h3 className="text-xl sm:text-2xl font-black text-dynamic truncate">Quality Inspection Report</h3>
+                            <p className="text-xs sm:text-sm font-bold text-muted uppercase tracking-widest">
                                 {pendingResult === 'PASS' ? 'Quality Pass Confirmation' : 'Defect Report Entry'}
                             </p>
                         </div>

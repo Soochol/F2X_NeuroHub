@@ -100,8 +100,8 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
 
   return (
     <div className={cn('w-full', className)}>
-      {/* 타임라인 컨테이너 */}
-      <div className="relative flex items-center justify-between px-2 pt-6 pb-2">
+      {/* 타임라인 컨테이너 - 모바일에서 가로 스크롤 */}
+      <div className="relative flex items-center justify-between px-2 pt-6 pb-2 overflow-x-auto scrollbar-hide min-w-0 gap-1 sm:gap-0">
         {/* 연결선 (배경) */}
         <div className="absolute top-12 left-6 right-6 h-1.5 bg-sub rounded-full" />
 
@@ -121,15 +121,15 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
           const shortName = PROCESS_SHORT_NAMES[num] || `${num}`;
 
           return (
-            <div key={num} className="relative z-10 flex flex-col items-center">
+            <div key={num} className="relative z-10 flex flex-col items-center shrink-0">
               {/* 공정 배지 */}
               <button
                 type="button"
                 onClick={() => handleProcessClick(num)}
                 disabled={disabled}
                 className={cn(
-                  // 기본 스타일
-                  'w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center',
+                  // 기본 스타일 - 모바일에서 더 작게
+                  'w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center',
                   'transition-all duration-300 border-2',
                   // 터치 피드백
                   !disabled && 'active:scale-90',

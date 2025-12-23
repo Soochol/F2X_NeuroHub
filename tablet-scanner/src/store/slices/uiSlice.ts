@@ -108,7 +108,7 @@ export const useUIStore = create<UIState>()(
       loadingMessage: null,
       soundEnabled: true,
       vibrationEnabled: true,
-      theme: 'dark',
+      theme: 'light',
 
       // Modal actions
       openModal: (modal, data) =>
@@ -221,6 +221,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'ui-storage',
+      version: 2, // 버전 업그레이드로 기존 설정 리셋
       partialize: (state) => ({
         scannerMode: state.scannerMode,
         selectedCameraId: state.selectedCameraId,
@@ -228,6 +229,13 @@ export const useUIStore = create<UIState>()(
         vibrationEnabled: state.vibrationEnabled,
         theme: state.theme,
       }),
+      migrate: (persistedState, version) => {
+        // 버전 1에서 2로 마이그레이션: 테마를 light로 리셋
+        if (version < 2) {
+          return { ...persistedState as object, theme: 'light' };
+        }
+        return persistedState;
+      },
     }
   )
 );

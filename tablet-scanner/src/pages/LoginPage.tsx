@@ -214,13 +214,6 @@ export const LoginPage: React.FC = () => {
         </FadeIn>
       )}
 
-      {/* Footer */}
-      <FadeIn delay={600}>
-        <div className="mt-12 text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em] flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full bg-primary-500 animate-pulse" />
-          F2X NeuroHub MES v1.0.4-PRO
-        </div>
-      </FadeIn>
     </div>
   );
 };

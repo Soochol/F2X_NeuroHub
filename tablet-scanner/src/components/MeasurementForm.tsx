@@ -187,7 +187,7 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
   };
 
   return (
-    <Card variant="glass" className="border-main shadow-none bg-surface">
+    <Card variant="glass" className="border-main shadow-none bg-surface pb-0">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -216,7 +216,7 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
 
       {/* Defect Selection UI (Only for FAIL) */}
       {result === 'FAIL' && (
-        <div className="mb-8 p-6 bg-danger-500/5 rounded-3xl border border-danger-500/20">
+        <div className="mb-6 p-6 bg-danger-500/5 rounded-3xl border border-danger-500/20">
           <h4 className="text-sm font-black text-danger-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-danger-500" />
             Defect Selection
@@ -266,26 +266,28 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
         </div>
       )}
 
-      {/* Buttons */}
-      <div className="flex gap-4">
-        <Button
-          variant="ghost"
-          onClick={onCancel}
-          disabled={isLoading}
-          className="flex-1 py-6 rounded-2xl border border-dynamic opacity-70 hover:opacity-100 transition-all font-bold"
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={isLoading}
-          isLoading={isLoading}
-          className="flex-[2] py-6 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-400 shadow-[0_8px_20px_rgba(30,58,95,0.3)] font-black"
-        >
-          <Save className="w-5 h-5 mr-1" />
-          {result === 'FAIL' ? 'Report Failure' : 'Save & Finish'}
-        </Button>
+      {/* Fixed Bottom Action Bar */}
+      <div className="sticky bottom-0 left-0 right-0 -mx-6 px-6 py-4 bg-surface/95 backdrop-blur-lg border-t border-main mt-4">
+        <div className="flex gap-4">
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="flex-1 py-5 rounded-2xl border border-dynamic opacity-70 hover:opacity-100 transition-all font-bold"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={isLoading}
+            isLoading={isLoading}
+            className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-400 shadow-[0_8px_20px_rgba(30,58,95,0.3)] font-black"
+          >
+            <Save className="w-5 h-5 mr-1" />
+            {result === 'FAIL' ? 'Report Failure' : 'Save & Finish'}
+          </Button>
+        </div>
       </div>
     </Card>
   );

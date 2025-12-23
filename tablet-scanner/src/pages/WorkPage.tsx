@@ -11,16 +11,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Camera,
   Keyboard,
-  Clock,
-  History,
-  Settings,
-  RefreshCw,
   QrCode,
   Loader2,
 } from 'lucide-react';
 import { ScannerModal } from '@/components/scanner';
-import { PageContainer, Header, BottomSheet } from '@/components/layout';
-import { Card, FloatingActionButton, StatusBadge } from '@/components/ui';
+import { PageContainer, Header } from '@/components/layout';
+import { Card } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FadeIn } from '@/components/animations';
@@ -54,7 +50,6 @@ export const WorkPage: React.FC = () => {
     processes,
     setProcesses,
     addScanResult,
-    scanHistory,
   } = useAppStore();
 
   const { theme, toggleTheme } = useUIStore();
@@ -75,8 +70,6 @@ export const WorkPage: React.FC = () => {
   // Quick Work Modal state
   const [currentTrace, setCurrentTrace] = useState<WIPTrace | null>(null);
 
-  // UI state
-  const [showHistorySheet, setShowHistorySheet] = useState(false);
 
   // Refs
   const processingRef = useRef(false);
@@ -412,33 +405,6 @@ export const WorkPage: React.FC = () => {
   };
 
   // ====================================
-  // FAB Actions
-  // ====================================
-  const fabActions = [
-    {
-      id: 'history',
-      icon: <History className="w-5 h-5" />,
-      label: '최근 기록',
-      onClick: () => setShowHistorySheet(true),
-      color: 'neutral' as const,
-    },
-    {
-      id: 'sync',
-      icon: <RefreshCw className="w-5 h-5" />,
-      label: `동기화 (${queueCount})`,
-      onClick: syncOfflineQueue,
-      color: queueCount > 0 ? ('warning' as const) : ('neutral' as const),
-    },
-    {
-      id: 'settings',
-      icon: <Settings className="w-5 h-5" />,
-      label: '설정',
-      onClick: () => toast.info('설정', '설정 기능 준비 중', 2000),
-      color: 'neutral' as const,
-    },
-  ];
-
-  // ====================================
   // Render
   // ====================================
   return (
@@ -566,16 +532,6 @@ export const WorkPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Action Button - Tablet optimized position */}
-      <div className="hidden lg:block">
-        <FloatingActionButton actions={fabActions} position="bottom-right" color="primary" />
-      </div>
-
-      {/* Mobile-only Bottom FAB */}
-      <div className="lg:hidden">
-        <FloatingActionButton actions={fabActions} position="bottom-right" color="primary" />
-      </div>
-
       {/* Scanner Modal */}
       <ScannerModal
         isOpen={showScannerModal}
@@ -584,58 +540,6 @@ export const WorkPage: React.FC = () => {
         title="WIP Precision Scan"
         autoCloseDelay={500}
       />
-
-      {/* History Bottom Sheet */}
-      <BottomSheet
-        isOpen={showHistorySheet}
-        onClose={() => setShowHistorySheet(false)}
-        title="Full Operation History"
-        height="half"
-      >
-        <div className="p-4">
-          {scanHistory.length === 0 ? (
-            <div className="text-center py-12 text-neutral-400">
-              <Clock className="w-16 h-16 mx-auto mb-4 opacity-10" />
-              <p>No recent activity found</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {scanHistory.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    'flex items-center justify-between p-4 rounded-2xl border transition-all',
-                    'bg-neutral-50/50 border-neutral-100'
-                  )}
-                >
-                  <div>
-                    <p className="font-mono font-bold text-neutral-800">{item.wipId}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded font-bold uppercase',
-                        item.action === 'start' ? 'bg-primary-100 text-primary-700' : 'bg-violet-100 text-violet-700'
-                      )}>
-                        {item.action === 'start' ? 'START' : 'FINISH'}
-                      </span>
-                      <span className="text-xs text-neutral-500">
-                        {item.processNumber ? `Process ${item.processNumber}` : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <StatusBadge
-                      status={item.success ? 'completed' : 'fail'}
-                    />
-                    <p className="text-[10px] text-neutral-400 mt-1">
-                      {new Date(item.timestamp).toLocaleString('en-US')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </BottomSheet>
 
     </PageContainer >
   );
