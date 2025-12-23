@@ -102,26 +102,29 @@ jobs:
           }
         shell: powershell
 
-      # 9. DB 마이그레이션 (기존 테이블 있으면 stamp, 없으면 upgrade)
+      # 9. DB 마이그레이션 (안전한 업그레이드)
       - name: Run database migrations
         run: |
           Write-Host "=== Running database migrations ==="
-          # 먼저 upgrade 시도
+          # 1. 먼저 현재 상태 확인 (history)
+          docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic history
+          
+          # 2. Upgrade 시도
           $result = docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic upgrade head 2>&1
+          Write-Host $result
+          
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Migration failed, checking if tables already exist..."
-            # 테이블이 이미 존재하면 현재 버전으로 stamp
-            if ($result -match "DuplicateTable" -or $result -match "already exists") {
-              Write-Host "Tables already exist. Stamping current migration version..."
-              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp head
+            if ($result -match "already exists" -or $result -match "DuplicateTable") {
+              Write-Host "Tables exist but migration failed. Trying to stamp initial and then upgrade..."
+              # 초기 버전(0001_initial)으로 stamp 후 다시 upgrade 시도 (컬럼 누락 방지)
+              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic stamp 4a506fa56ef2
+              docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend alembic upgrade head
             } else {
-              Write-Host "Migration error: $result"
+              Write-Error "Migration failed: $result"
+              exit 1
             }
-          } else {
-            Write-Host "Migration completed successfully"
           }
         shell: powershell
-        continue-on-error: true
 
       # 10. Seed 성능 테스트 데이터 생성
       - name: Seed performance test data
