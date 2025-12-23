@@ -3,34 +3,34 @@
     "base_url": "http://localhost:3000"
   },
   "process": {
-    "db_id": 3,
-    "number": 3,
-    "code": "LABEL_PRINTING",
-    "name": "LABEL_PRINTING",
-    "name_en": "LABEL_PRINTING"
+    "db_id": 6,
+    "number": 6,
+    "code": "TEST",
+    "name": "성능 테스트",
+    "name_en": "Performance Test"
   },
   "file": {
     "watch_folder": "C:/neurohub_work"
   },
   "equipment": {
     "id": 1,
-    "code": "EQ_LASER_01",
-    "name": "EQ_LASER_01"
+    "code": "EQ-KR001-01",
+    "name": "Laser Marker (KR001)"
   },
   "line": {
     "id": 1,
-    "code": "DT01",
-    "name": "동탄1공장"
+    "code": "KR001",
+    "name": "Production Line A"
   },
   "app": {
     "first_run_completed": true
   },
   "auth": {
     "token": "",
-    "username": "blessp",
+    "username": "admin",
     "recent_usernames": [
-      "blessp",
-      "admin"
+      "admin",
+      "blessp"
     ]
   },
   "tcp": {

@@ -2,7 +2,7 @@
 SQLAlchemy ORM model for the Process entity.
 
 Represents manufacturing processes in the F2X NeuroHub production line.
-Each process is a step in the manufacturing workflow (8 total processes).
+Each process is a step in the manufacturing workflow.
 
 Database table: processes
 Primary key: id (BIGSERIAL)
@@ -43,10 +43,8 @@ class ProcessType(str, Enum):
 
 class Process(Base):
     """
-    SQLAlchemy ORM model for manufacturing processes.
-
-    Represents one of the 8 manufacturing processes in the F2X production line.
-    Each process has a unique sequence number (1-8), a code identifier, and
+    Represents a manufacturing process in the F2X production line.
+    Each process has a unique sequence number (1-100), a code identifier, and
     quality criteria in JSONB format.
 
     Attributes:
@@ -64,7 +62,7 @@ class Process(Base):
         updated_at: Last update timestamp
 
     Constraints:
-        - process_number must be between 1 and 8 (inclusive)
+        - process_number must be between 1 and 100 (inclusive)
         - process_code must be unique
         - process_number must be unique
         - estimated_duration_seconds must be positive (if specified)
@@ -199,7 +197,7 @@ class Process(Base):
     __table_args__ = (
         # CHECK CONSTRAINTS
         CheckConstraint(
-            "process_number >= 1 AND process_number <= 8",
+            "process_number >= 1 AND process_number <= 100",
             name="chk_processes_process_number",
         ),
         CheckConstraint(

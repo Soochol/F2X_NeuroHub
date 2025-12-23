@@ -120,8 +120,17 @@ const createApiClient = (baseURL: string): AxiosInstance => {
   return client;
 };
 
-// Default API client
-let apiClient = createApiClient('/api/v1');
+// Default API client - use environment variable or fallback to relative path
+const getApiBaseUrl = (): string => {
+  // VITE_API_BASE_URL: 프로덕션에서 전체 URL (예: https://api.example.com/api/v1)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  // 개발 환경에서는 프록시 사용
+  return '/api/v1';
+};
+
+let apiClient = createApiClient(getApiBaseUrl());
 
 // Update base URL
 export const setApiBaseUrl = (baseUrl: string) => {

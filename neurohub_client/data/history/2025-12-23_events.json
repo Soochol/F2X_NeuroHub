@@ -1,0 +1,16 @@
+{
+  "date": "2025-12-23",
+  "count": 1,
+  "events": [
+    {
+      "timestamp": "2025-12-23T16:21:53.842033",
+      "event_type": "ERROR",
+      "wip_id": "",
+      "lot_number": "",
+      "result": "ERROR",
+      "message": "토큰 검증 실패: 인증에 실패했습니다. 다시 로그인해주세요.",
+      "process_name": "성능 테스트",
+      "duration_seconds": null
+    }
+  ]
+}

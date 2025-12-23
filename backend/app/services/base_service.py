@@ -170,7 +170,7 @@ class BaseService(Generic[T]):
         # Handle check constraint violations
         elif "check constraint" in error_str:
             raise ValidationException(
-                message=f"Data validation failed for {resource_type}: check constraint violation"
+                message=f"Data validation failed for {resource_type}: check constraint violation ({error_str})"
             )
 
         # Handle not null constraint violations

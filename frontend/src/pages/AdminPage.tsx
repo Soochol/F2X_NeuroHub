@@ -149,7 +149,14 @@ const UserManagement = () => {
 
   const handleDelete = async (userId: number) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
-    try { await usersApi.deleteUser(userId); refetch(); } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to delete user')); }
+    try {
+      await usersApi.deleteUser(userId);
+      refetch();
+      message.success('User deleted successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to delete user');
+      message.error(errorMsg, 5);
+    }
   };
 
   return (
@@ -293,14 +300,22 @@ const ProcessManagement = () => {
         process_type: (process as any).process_type || 'MANUFACTURING'
       });
     } else {
-      const nextNum = (processes?.length || 0) + 1;
+      // Find max process_number from existing processes to avoid duplicates
+      const maxProcessNumber = processes && processes.length > 0
+        ? Math.max(...processes.map(p => p.process_number))
+        : 0;
+      const nextNum = maxProcessNumber + 1;
+      const maxSortOrder = processes && processes.length > 0
+        ? Math.max(...processes.map(p => p.sort_order))
+        : 0;
+      const nextSortOrder = maxSortOrder + 1;
       form.setFormData({
         process_number: nextNum,
         process_code: '',
         process_name_ko: '',
         process_name_en: '',
         description: '',
-        sort_order: nextNum,
+        sort_order: nextSortOrder,
         is_active: true,
         estimated_duration_seconds: '',
         quality_criteria: '{}',
@@ -349,8 +364,12 @@ const ProcessManagement = () => {
       message.success('Process deleted successfully.');
     } catch (err: unknown) {
       const errorMsg = getErrorMessage(err, 'Failed to delete process');
-      message.error(errorMsg, 5);
-      setError(errorMsg);
+      // Show user-friendly error for dependent data constraint
+      if (errorMsg.includes('dependent data') || errorMsg.includes('CONF_002')) {
+        message.error('Cannot delete: This process has associated work history (process_data). Please deactivate instead.', 8);
+      } else {
+        message.error(errorMsg, 5);
+      }
     }
   };
 
@@ -663,6 +682,7 @@ const ProcessManagement = () => {
 };
 
 const ProductModelManagement = () => {
+  const { message } = App.useApp();
   const { data: products, isLoading, error, refetch, setError } = useAsyncData<ProductModel[]>({
     fetchFn: () => productModelsApi.getProductModels(), initialData: [], errorMessage: 'Failed to load product models'
   });
@@ -685,12 +705,23 @@ const ProductModelManagement = () => {
       };
       modal.editingItem ? await productModelsApi.updateProductModel(modal.editingItem.id, submitData) : await productModelsApi.createProductModel(submitData);
       modal.close(); refetch();
-    } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to save product model')); }
+      message.success('Product model saved successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to save product model');
+      message.error(errorMsg, 5);
+    }
   };
 
   const handleDelete = async (productId: number) => {
     if (!confirm('Are you sure you want to delete this product model?')) return;
-    try { await productModelsApi.deleteProductModel(productId); refetch(); } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to delete product model')); }
+    try {
+      await productModelsApi.deleteProductModel(productId);
+      refetch();
+      message.success('Product model deleted successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to delete product model');
+      message.error(errorMsg, 5);
+    }
   };
 
   return (
@@ -735,6 +766,7 @@ const ProductModelManagement = () => {
 };
 
 const ProductionLineManagement = () => {
+  const { message } = App.useApp();
   const { data: productionLines, isLoading, error, refetch, setError } = useAsyncData<ProductionLine[]>({
     fetchFn: () => productionLinesApi.getProductionLines(), initialData: [], errorMessage: 'Failed to load production lines'
   });
@@ -759,12 +791,23 @@ const ProductionLineManagement = () => {
       };
       modal.editingItem ? await productionLinesApi.updateProductionLine(modal.editingItem.id, submitData) : await productionLinesApi.createProductionLine(submitData);
       modal.close(); refetch();
-    } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to save production line')); }
+      message.success('Production line saved successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to save production line');
+      message.error(errorMsg, 5);
+    }
   };
 
   const handleDelete = async (productionLineId: number) => {
     if (!confirm('Are you sure you want to delete this production line?')) return;
-    try { await productionLinesApi.deleteProductionLine(productionLineId); refetch(); } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to delete production line')); }
+    try {
+      await productionLinesApi.deleteProductionLine(productionLineId);
+      refetch();
+      message.success('Production line deleted successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to delete production line');
+      message.error(errorMsg, 5);
+    }
   };
 
   return (
@@ -814,6 +857,7 @@ const ProductionLineManagement = () => {
 };
 
 const EquipmentManagement = () => {
+  const { message } = App.useApp();
   const { data: equipment, isLoading, error, refetch, setError } = useAsyncData<Equipment[]>({
     fetchFn: () => equipmentApi.getEquipment(), initialData: [], errorMessage: 'Failed to load equipment'
   });
@@ -861,12 +905,23 @@ const EquipmentManagement = () => {
       };
       modal.editingItem ? await equipmentApi.updateEquipment(modal.editingItem.id, submitData) : await equipmentApi.createEquipment(submitData);
       modal.close(); refetch();
-    } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to save equipment')); }
+      message.success('Equipment saved successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to save equipment');
+      message.error(errorMsg, 5);
+    }
   };
 
   const handleDelete = async (equipmentId: number) => {
     if (!confirm('Are you sure you want to delete this equipment?')) return;
-    try { await equipmentApi.deleteEquipment(equipmentId); refetch(); } catch (err: unknown) { setError(getErrorMessage(err, 'Failed to delete equipment')); }
+    try {
+      await equipmentApi.deleteEquipment(equipmentId);
+      refetch();
+      message.success('Equipment deleted successfully.');
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to delete equipment');
+      message.error(errorMsg, 5);
+    }
   };
 
   const getLineName = (lineId?: number) => productionLines?.find(l => l.id === lineId)?.line_name || '-';

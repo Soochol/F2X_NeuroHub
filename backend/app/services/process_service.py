@@ -124,7 +124,14 @@ class ProcessService(BaseService):
         except ProcessValidationError as e:
             raise BusinessRuleException(message=str(e))
         except IntegrityError as e:
-            identifier = f"number={obj_in.process_number}" if obj_in.process_number else f"code='{obj_in.process_code}'"
+            # Determine which field caused the duplicate error
+            error_str = str(e).lower()
+            if "process_code" in error_str:
+                identifier = f"code='{obj_in.process_code}'"
+            elif "process_number" in error_str:
+                identifier = f"number={obj_in.process_number}"
+            else:
+                identifier = f"number={obj_in.process_number} or code='{obj_in.process_code}'"
             self.handle_integrity_error(e, identifier=identifier, operation="create")
         except SQLAlchemyError as e:
             self.handle_sqlalchemy_error(e, operation="create")

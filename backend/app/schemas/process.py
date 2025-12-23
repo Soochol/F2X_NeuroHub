@@ -42,8 +42,8 @@ class ProcessBase(BaseModel):
     process_number: int = Field(
         ...,
         ge=1,
-        le=8,
-        description="Process sequence number in manufacturing line (1-8, required, unique)"
+        le=100,
+        description="Process sequence number in manufacturing line (1-100, required, unique)"
     )
     process_code: str = Field(
         ...,
@@ -219,8 +219,8 @@ class ProcessUpdate(BaseModel):
     process_number: Optional[int] = Field(
         default=None,
         ge=1,
-        le=8,
-        description="Process sequence number (1-8 range)"
+        le=100,
+        description="Process sequence number (1-100 range)"
     )
     process_code: Optional[str] = Field(
         default=None,

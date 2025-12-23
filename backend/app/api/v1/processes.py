@@ -8,10 +8,10 @@ identifiers and in specific sequences.
 Provides:
     - GET /: List all processes with pagination
     - GET /{id}: Get process by primary key
-    - GET /number/{process_number}: Get process by process number (1-8)
+    - GET /number/{process_number}: Get process by process number (1-100)
     - GET /code/{process_code}: Get process by unique process code
     - GET /active: List active processes ordered by sort_order
-    - GET /sequence: Get all 8 processes in sequential order (1-8)
+    - GET /sequence: Get all processes in sequential order (1-100)
     - POST /: Create new process
     - PUT /{id}: Update existing process
     - DELETE /{id}: Delete process (deletion protected by database trigger)
@@ -101,11 +101,11 @@ def get_process_by_number(
     """Get process by unique process number.
 
     Retrieves a process using its unique sequence number in the manufacturing
-    workflow (1-8). Each process has exactly one process_number that defines
+    workflow (1-100). Each process has exactly one process_number that defines
     its position in the production sequence.
 
     Args:
-        process_number: Process sequence number (1-8).
+        process_number: Process sequence number (1-100).
             Defines the position of the process in the manufacturing workflow.
         db: SQLAlchemy database session (injected via dependency).
 

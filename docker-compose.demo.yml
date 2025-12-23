@@ -52,7 +52,7 @@ services:
           memory: 512M
 
   # -------------------------------------------------------------------------
-  # Tablet Scanner - Demo
+  # Tablet Scanner - Demo (HTTPS for camera access)
   # -------------------------------------------------------------------------
   tablet-scanner:
     container_name: f2x-demo-tablet-scanner
@@ -60,7 +60,7 @@ services:
       context: ./tablet-scanner
       dockerfile: Dockerfile
     ports:
-      - "${TABLET_SCANNER_PORT:-5175}:80"
+      - "${TABLET_SCANNER_PORT:-5175}:443"
     depends_on:
       backend:
         condition: service_healthy

@@ -41,7 +41,7 @@ services:
       - f2x-prod-network
 
   # -------------------------------------------------------------------------
-  # Tablet Scanner - Production
+  # Tablet Scanner - Production (HTTPS for camera access)
   # -------------------------------------------------------------------------
   tablet-scanner:
     container_name: f2x-prod-tablet-scanner
@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${TABLET_SCANNER_PORT:-5175}:80"
+      - "${TABLET_SCANNER_PORT:-5175}:443"
     depends_on:
       backend:
         condition: service_healthy
