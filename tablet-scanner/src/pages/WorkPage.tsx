@@ -17,17 +17,13 @@ import {
   RefreshCw,
   QrCode,
   Loader2,
-  CheckCircle,
-  AlertCircle,
-  Play,
-  ChevronRight,
 } from 'lucide-react';
 import { ScannerModal } from '@/components/scanner';
 import { PageContainer, Header, BottomSheet } from '@/components/layout';
 import { Card, FloatingActionButton, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { FadeIn, SlideUp } from '@/components/animations';
+import { FadeIn } from '@/components/animations';
 import { useToast } from '@/components/feedback';
 import { useFeedback } from '@/hooks';
 import { useAppStore } from '@/store/appStore';
@@ -183,13 +179,6 @@ export const WorkPage: React.FC = () => {
 
     const count = await getQueueCount();
     setQueueCount(count);
-  };
-
-  const getSyncStatus = () => {
-    if (!networkStatus || networkStatus === 'offline') return 'offline';
-    if (isSyncing) return 'syncing';
-    if (queueCount > 0) return 'pending';
-    return 'synced';
   };
 
   // ====================================
@@ -459,16 +448,14 @@ export const WorkPage: React.FC = () => {
         <Header
           title="F2X NEUROHUB"
           subtitle={user?.full_name || user?.username}
-          isOnline={networkStatus === 'online'}
           soundEnabled={soundEnabled}
           onToggleSound={toggleSound}
-          queueCount={queueCount}
           theme={theme}
           onToggleTheme={toggleTheme}
         />
       </div>
 
-      <div className="flex-1 overflow-auto px-6 pb-20 lg:px-0 lg:pb-0">
+      <div className="flex-1 overflow-auto px-6 pb-6 lg:px-0 lg:pb-0">
         <div className="flex flex-col gap-8">
           {/* Main Action Area: Scan Area or Active Job Panel */}
           <div className="w-full space-y-6">
@@ -576,124 +563,6 @@ export const WorkPage: React.FC = () => {
             )}
           </div>
 
-          {/* Operations Center Area (Stacked Below) */}
-          <div className="w-full space-y-6">
-            <SlideUp delay={200}>
-              <div className="flex flex-col h-full space-y-6">
-                {/* 1. Statistics Summary Badge Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="glass-card p-5 border-primary-500/20 bg-primary-500/5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-primary-500/10 blur-2xl rounded-full opacity-50" />
-                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest mb-1 opacity-70">Today Started</p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-dynamic">{scanHistory.filter(h => h.action === 'start').length}</span>
-                      <span className="text-xs font-bold text-muted mb-1.5 uppercase">Jobs</span>
-                    </div>
-                  </div>
-                  <div className="glass-card p-5 border-success-500/20 bg-success-500/5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-success-500/10 blur-2xl rounded-full opacity-50" />
-                    <p className="text-[10px] font-black text-success-400 uppercase tracking-widest mb-1 opacity-70">Today Passed</p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-dynamic">{scanHistory.filter(h => h.success).length}</span>
-                      <span className="text-xs font-bold text-muted mb-1.5 uppercase">Units</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Unified History & Status Card */}
-                <Card variant="glass" className="flex-1 flex flex-col min-h-0 border-main shadow-2xl overflow-hidden">
-                  <div className="p-6 border-b border-main bg-sub">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-black text-dynamic text-lg uppercase tracking-wider flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary-500/10 border border-primary-500/20">
-                          <History className="w-5 h-5 text-primary-400" />
-                        </div>
-                        Operations Center
-                      </h3>
-                      <button
-                        onClick={() => setShowHistorySheet(true)}
-                        className="text-[11px] font-black text-primary-400 hover:text-dynamic uppercase tracking-widest transition-colors flex items-center gap-1 group"
-                      >
-                        See All
-                        <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                    <div className="space-y-3">
-                      {scanHistory.length === 0 ? (
-                        <div className="text-center py-20 text-dim">
-                          <div className="w-20 h-20 rounded-full bg-sub border border-dashed border-main flex items-center justify-center mx-auto mb-4 opacity-30">
-                            <History className="w-10 h-10" />
-                          </div>
-                          <p className="font-bold uppercase tracking-widest text-xs">Waiting for first scan...</p>
-                        </div>
-                      ) : (
-                        scanHistory.slice(0, 10).map((item, idx) => (
-                          <div
-                            key={idx}
-                            className={cn(
-                              'group flex items-center gap-4 p-4 rounded-2xl transition-all duration-300',
-                              'bg-sub border border-main hover:bg-sub/80 hover:border-main hover:translate-x-1',
-                              item.success ? 'hover:border-success-500/30' : 'hover:border-danger-500/30'
-                            )}
-                          >
-                            <div className={cn(
-                              'w-12 h-12 rounded-xl flex items-center justify-center border-2 shrink-0',
-                              item.success
-                                ? 'bg-success-500/10 border-success-500/20 text-success-500'
-                                : 'bg-danger-500/10 border-danger-500/20 text-danger-500'
-                            )}>
-                              {item.action === 'start' ? <Play className="w-6 h-6" fill="currentColor" /> : <CheckCircle className="w-6 h-6" />}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-0.5">
-                                <p className="font-mono font-black text-dynamic truncate text-base tracking-tighter">
-                                  {item.wipId}
-                                </p>
-                                <span className="text-[10px] text-neutral-600 font-black">
-                                  {new Date(item.timestamp).toLocaleTimeString('ko-KR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  'text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider',
-                                  item.action === 'start' ? 'bg-primary-500/20 text-primary-400' : 'bg-violet-500/20 text-violet-400'
-                                )}>
-                                  {item.action === 'start' ? 'Start' : 'Finish'}
-                                </span>
-                                <span className="text-[10px] font-bold text-muted uppercase tracking-widest">
-                                  {item.processNumber ? `Process ${item.processNumber}` : 'Syncing...'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Smart Guide Footer Tooltip */}
-                  <div className="p-5 mt-auto bg-gradient-to-t from-primary-900/10 to-transparent border-t border-main">
-                    <div className="bg-sub p-4 rounded-2xl border border-main flex gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0 border border-primary-500/20">
-                        <AlertCircle className="w-5 h-5 text-primary-400" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-black text-dynamic uppercase tracking-widest">Operator Tip</p>
-                        <p className="text-[11px] font-medium text-muted leading-relaxed">Verify scan results after operation and maintain 'Access System' log.</p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </SlideUp>
-          </div>
         </div>
       </div>
 
@@ -768,79 +637,6 @@ export const WorkPage: React.FC = () => {
         </div>
       </BottomSheet>
 
-      {/* Bottom Status Bar - Slim & Integrated */}
-      <footer className="fixed bottom-0 left-0 right-0 h-10 bg-sub/80 backdrop-blur-xl border-t border-main flex items-center justify-between px-8 z-40">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className={cn(
-              "w-2 h-2 rounded-full transition-all duration-500",
-              networkStatus === 'online'
-                ? "bg-success-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-                : "bg-danger-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]"
-            )} />
-            <span className="text-[10px] font-black text-dim uppercase tracking-[0.2em]">
-              {networkStatus === 'online' ? 'System Online' : 'Offline Mode'}
-            </span>
-          </div>
-
-          <div className="h-4 w-[1px] border-l border-main" />
-
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <RefreshCw className={cn(
-                "w-3.5 h-3.5 transition-colors",
-                getSyncStatus() === 'syncing' ? "text-primary-400 animate-spin" : "text-dim"
-              )} />
-              {queueCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-warning-500 rounded-full animate-pulse" />
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black text-muted uppercase tracking-widest leading-none">
-                {getSyncStatus() === 'synced' ? 'Data Synced' : 'Syncing Data...'}
-              </span>
-              {syncProgress > 0 && syncProgress < 100 && (
-                <div className="w-16 h-0.5 bg-main/20 rounded-full mt-1 overflow-hidden">
-                  <div className="h-full bg-primary-500" style={{ width: `${syncProgress}%` }} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {queueCount > 0 && (
-            <span className="text-[9px] font-black text-warning-400 bg-warning-500/10 px-2 py-0.5 rounded border border-warning-500/20 uppercase tracking-tighter">
-              {queueCount} Pending
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black text-dim uppercase tracking-widest">Active Operator</span>
-            <div className="flex items-center gap-2 bg-primary-500/5 px-3 py-1 rounded-lg border border-primary-500/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />
-              <span className="text-[10px] font-black text-primary-400 uppercase tracking-widest">
-                {settings.workerId || user?.username || 'Guest'}
-              </span>
-            </div>
-          </div>
-
-          {settings.equipmentId && (
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black text-dim uppercase tracking-widest">EQP</span>
-              <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-sub px-3 py-1 rounded-lg border border-main">
-                {settings.equipmentId}
-              </span>
-            </div>
-          )}
-
-          <div className="h-4 w-[1px] border-l border-main" />
-
-          <div className="flex items-center gap-2 text-dim">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em]">v1.0.4</span>
-          </div>
-        </div>
-      </footer>
     </PageContainer >
   );
 };

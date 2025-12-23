@@ -9,10 +9,8 @@ import { cn } from '@/lib/cn';
 export interface HeaderProps {
   title: string;
   subtitle?: string;
-  isOnline: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  queueCount?: number;
   showDate?: boolean;
   onLogout?: () => void;
   theme: 'dark' | 'light';
@@ -22,10 +20,8 @@ export interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
-  isOnline,
   soundEnabled,
   onToggleSound,
-  queueCount = 0,
   showDate = true,
   onLogout,
   theme,
@@ -39,33 +35,16 @@ export const Header: React.FC<HeaderProps> = ({
           <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--app-text)' }}>
             {title}
           </h1>
-          {/* Network status indicator */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-            <span
-              className={cn(
-                'w-2 h-2 rounded-full flex-shrink-0 animate-pulse',
-                isOnline ? 'bg-success-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-danger-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]'
-              )}
-            />
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
-              {isOnline ? 'Online' : 'Offline'}
-            </span>
-          </div>
         </div>
         {subtitle && (
           <p className="text-sm font-medium text-neutral-400 mt-1 flex items-center gap-2">
             <span className="opacity-70">{subtitle}</span>
-            {queueCount > 0 && (
-              <span className="bg-warning-500/20 text-warning-400 px-2 py-0.5 rounded text-xs font-bold">
-                QUEUE: {queueCount}
-              </span>
-            )}
           </p>
         )}
       </div>
 
       {/* Right side - Controls */}
-      <div className="flex items-center gap-3 ml-4">
+      <div className="flex items-center gap-2 sm:gap-3 ml-4">
         {/* Theme toggle */}
         <button
           onClick={onToggleTheme}
@@ -102,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Date display */}
         {showDate && (
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-neutral-400">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-neutral-400">
             <Calendar className="w-4 h-4 text-primary-400" />
             <span className="font-medium tracking-tight">{new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}</span>
           </div>
