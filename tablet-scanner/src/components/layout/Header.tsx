@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="flex justify-between items-center mb-6">
       {/* Left side - Title and status */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pl-[10px]">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--app-text)' }}>
             {title}
