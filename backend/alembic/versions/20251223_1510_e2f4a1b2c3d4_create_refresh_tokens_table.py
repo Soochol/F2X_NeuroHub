@@ -7,6 +7,7 @@ Create Date: 2025-12-23 15:10:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -16,8 +17,27 @@ branch_labels = None
 depends_on = None
 
 
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    return table_name in inspector.get_table_names()
+
+
+def index_exists(table_name: str, index_name: str) -> bool:
+    """Check if an index exists on a table."""
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    indexes = inspector.get_indexes(table_name)
+    return any(idx['name'] == index_name for idx in indexes)
+
+
 def upgrade() -> None:
     """Apply migration."""
+    # Check if table already exists (idempotent migration)
+    if table_exists('refresh_tokens'):
+        return
+
     op.create_table(
         'refresh_tokens',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -35,6 +55,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Revert migration."""
-    op.drop_index(op.f('idx_refresh_tokens_user_id'), table_name='refresh_tokens')
-    op.drop_index(op.f('idx_refresh_tokens_token'), table_name='refresh_tokens')
+    # Only drop if table exists (idempotent downgrade)
+    if not table_exists('refresh_tokens'):
+        return
+
+    if index_exists('refresh_tokens', 'idx_refresh_tokens_user_id'):
+        op.drop_index(op.f('idx_refresh_tokens_user_id'), table_name='refresh_tokens')
+    if index_exists('refresh_tokens', 'idx_refresh_tokens_token'):
+        op.drop_index(op.f('idx_refresh_tokens_token'), table_name='refresh_tokens')
     op.drop_table('refresh_tokens')
