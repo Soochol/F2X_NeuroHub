@@ -24,6 +24,20 @@ const createApiClient = (baseURL: string): AxiosInstance => {
     },
   });
 
+  let isRefreshing = false;
+  let failedQueue: any[] = [];
+
+  const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve(token);
+      }
+    });
+    failedQueue = [];
+  };
+
   // Request interceptor - add auth token
   client.interceptors.request.use(
     (config) => {
@@ -39,10 +53,64 @@ const createApiClient = (baseURL: string): AxiosInstance => {
   // Response interceptor - handle errors
   client.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
+    async (error: AxiosError) => {
+      const originalRequest = error.config;
+
+      if (error.response?.status === 401 && originalRequest && !originalRequest.headers._retry) {
+        const url = originalRequest.url || '';
+        if (!url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+          if (isRefreshing) {
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = 'Bearer ' + token;
+                }
+                return client(originalRequest);
+              })
+              .catch((err) => Promise.reject(err));
+          }
+
+          // @ts-ignore
+          originalRequest.headers._retry = true;
+          isRefreshing = true;
+
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            try {
+              const res = await axios.post(`${client.defaults.baseURL}/auth/refresh`, {
+                refresh_token: refreshToken,
+              });
+
+              const { access_token, refresh_token: newRefreshToken } = res.data;
+              localStorage.setItem('access_token', access_token);
+              if (newRefreshToken) {
+                localStorage.setItem('refresh_token', newRefreshToken);
+              }
+
+              processQueue(null, access_token);
+
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = 'Bearer ' + access_token;
+              }
+              return client(originalRequest);
+            } catch (refreshError) {
+              processQueue(refreshError, null);
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              window.location.href = '/login';
+              return Promise.reject(refreshError);
+            } finally {
+              isRefreshing = false;
+            }
+          }
+        }
+      }
+
       if (error.response?.status === 401) {
-        // Token expired - clear and redirect to login
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         window.location.href = '/login';
       }
       return Promise.reject(error);
@@ -70,12 +138,33 @@ export const authApi = {
     const response = await apiClient.post<LoginResponse>('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
+
+    localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('refresh_token', response.data.refresh_token);
+
+    return response.data;
+  },
+
+  refresh: async (refreshToken: string): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    });
+    localStorage.setItem('access_token', response.data.access_token);
+    if (response.data.refresh_token) {
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+    }
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      await apiClient.post('/auth/logout', { refresh_token: refreshToken });
+    } catch (e) {
+      console.error('Logout error', e);
+    }
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   },
 };
 

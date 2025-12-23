@@ -22,6 +22,7 @@ export const authApi = {
 
     // Store token and user info
     localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('refresh_token', response.data.refresh_token);
     localStorage.setItem('user', JSON.stringify(response.data.user));
 
     return response.data;
@@ -38,11 +39,16 @@ export const authApi = {
   /**
    * Refresh access token
    */
-  refresh: async (): Promise<LoginResponse> => {
-    const response = await apiClient.post<LoginResponse>('/auth/refresh');
+  refresh: async (refreshToken: string): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    });
 
     // Update stored token
     localStorage.setItem('access_token', response.data.access_token);
+    if (response.data.refresh_token) {
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+    }
 
     return response.data;
   },
@@ -51,10 +57,19 @@ export const authApi = {
    * Logout
    */
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      await apiClient.post('/auth/logout', {
+        refresh_token: refreshToken,
+      });
+    } catch (error) {
+      // Still logout locally even if server call fails
+      console.error('Logout error:', error);
+    }
 
     // Clear stored data
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
   },
 };

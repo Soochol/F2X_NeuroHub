@@ -129,6 +129,8 @@ export const useAppStore = create<AppState>()(
     {
       name: 'tablet-scanner-storage',
       partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
         settings: state.settings,
         selectedProcessId: state.selectedProcessId,
       }),

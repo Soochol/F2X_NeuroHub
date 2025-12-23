@@ -55,7 +55,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({ stats, className }) => {
   return (
     <div
       className={cn(
-        'grid grid-cols-4 gap-2',
+        'grid grid-cols-2 lg:grid-cols-4 gap-4',
         'w-full',
         className
       )}
@@ -64,22 +64,25 @@ export const StatsCard: React.FC<StatsCardProps> = ({ stats, className }) => {
         <div
           key={item.label}
           className={cn(
-            'rounded-lg py-3 px-2 text-center',
-            item.bgClass
+            'glass-card p-4 text-center group relative overflow-hidden',
+            'hover:bg-white/10 transition-all duration-300'
           )}
         >
-          <div className={cn('flex items-center justify-center mb-1', item.colorClass)}>
+          {/* Subtle accent line */}
+          <div className={cn('absolute top-0 left-0 w-full h-1 opacity-50', item.bgClass.replace('bg-', 'bg-').replace('50', '500'))} />
+
+          <div className={cn('flex items-center justify-center mb-2 opacity-80 group-hover:opacity-100 transition-opacity', item.colorClass.replace('-600', '-400'))}>
             {item.icon}
           </div>
           <div
             className={cn(
-              'text-2xl font-bold leading-none',
-              item.colorClass
+              'text-3xl font-black leading-none mb-1 tracking-tight',
+              'text-white group-hover:scale-110 transition-transform'
             )}
           >
             {item.value}
           </div>
-          <div className="text-xs text-neutral-500 mt-1">
+          <div className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
             {item.label}
           </div>
         </div>

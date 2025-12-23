@@ -1,9 +1,7 @@
 @import 'tailwindcss';
 
 /* Tailwind CSS v4 Theme Configuration */
-/* Dark Navy Pro - Premium MES Style */
 @theme {
-  /* Primary (Navy) - 고급스러움, 집중 */
   --color-primary-50: #f0f4f8;
   --color-primary-100: #d9e2ec;
   --color-primary-200: #bcccdc;
@@ -15,47 +13,11 @@
   --color-primary-800: #102338;
   --color-primary-900: #0b1a2b;
 
-  /* Success (Emerald Green) - 합격, 완료 */
   --color-success-50: #ecfdf5;
-  --color-success-100: #d1fae5;
-  --color-success-200: #a7f3d0;
-  --color-success-300: #6ee7b7;
-  --color-success-400: #34d399;
   --color-success-500: #10b981;
-  --color-success-600: #059669;
-  --color-success-700: #047857;
-
-  /* Danger (Red) - 불량, 에러 */
-  --color-danger-50: #fef2f2;
-  --color-danger-100: #fee2e2;
-  --color-danger-200: #fecaca;
-  --color-danger-300: #fca5a5;
-  --color-danger-400: #f87171;
   --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
-  --color-danger-700: #b91c1c;
-
-  /* Warning (Amber) - 경고, 대기 */
-  --color-warning-50: #fffbeb;
-  --color-warning-100: #fef3c7;
-  --color-warning-200: #fde68a;
-  --color-warning-300: #fcd34d;
-  --color-warning-400: #fbbf24;
   --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-warning-700: #b45309;
 
-  /* Accent (Lime) - 상태표시, 활성화 */
-  --color-accent-50: #f7fee7;
-  --color-accent-100: #ecfccb;
-  --color-accent-200: #d9f99d;
-  --color-accent-300: #bef264;
-  --color-accent-400: #a3e635;
-  --color-accent-500: #84cc16;
-  --color-accent-600: #65a30d;
-  --color-accent-700: #4d7c0f;
-
-  /* Neutral (Cool Gray) - 배경, 텍스트 */
   --color-neutral-50: #f9fafb;
   --color-neutral-100: #f3f4f6;
   --color-neutral-200: #e5e7eb;
@@ -68,47 +30,224 @@
   --color-neutral-900: #111827;
 }
 
-/* Base layer - Reset and foundation styles */
+/* Theme Variables */
+:root {
+  --app-bg: #0b1a2b;
+  --app-bg-gradient: radial-gradient(circle at top right, #142b45, #0b1a2b);
+  --app-text: #f9fafb;
+  --app-text-muted: rgba(249, 250, 251, 0.6);
+  --app-text-dim: rgba(249, 250, 251, 0.3);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --card-hover-bg: rgba(255, 255, 255, 0.08);
+  --card-hover-border: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-placeholder: rgba(255, 255, 255, 0.3);
+
+  /* Button Variables - Dark (Deep & Premium) */
+  --btn-primary-from: #1e3a5f;
+  --btn-primary-to: #627d98;
+  --btn-success-from: #059669;
+  --btn-success-to: #34d399;
+  --btn-danger-from: #dc2626;
+  --btn-danger-to: #f87171;
+  --btn-disabled-bg: rgba(255, 255, 255, 0.05);
+  --btn-disabled-text: #4b5563;
+  --btn-ghost-bg: rgba(255, 255, 255, 0.05);
+  --btn-ghost-hover-bg: rgba(255, 255, 255, 0.1);
+  --btn-ghost-text: #f9fafb;
+}
+
+/* Explicit data-theme based switching */
+[data-theme='light'] {
+  --app-bg: #f1f5f9;
+  --app-bg-gradient: radial-gradient(circle at top right, #e2e8f0, #f1f5f9);
+  --app-text: #0f172a;
+  --app-text-muted: rgba(15, 23, 42, 0.6);
+  --app-text-dim: rgba(15, 23, 42, 0.3);
+  --border-color: rgba(0, 0, 0, 0.05);
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-border: rgba(0, 0, 0, 0.05);
+  --card-hover-bg: rgba(255, 255, 255, 0.95);
+  --card-hover-border: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --input-bg: rgba(255, 255, 255, 1);
+  --input-border: rgba(0, 0, 0, 0.1);
+  --input-placeholder: rgba(0, 0, 0, 0.4);
+
+  /* Button Variables - Light (Vibrant & Clear) */
+  --btn-primary-from: #2563eb;
+  --btn-primary-to: #60a5fa;
+  --btn-success-from: #10b981;
+  --btn-success-to: #34d399;
+  --btn-danger-from: #ef4444;
+  --btn-danger-to: #f87171;
+  --btn-disabled-bg: #e2e8f0;
+  --btn-disabled-text: #94a3b8;
+  --btn-ghost-bg: rgba(0, 0, 0, 0.05);
+  --btn-ghost-hover-bg: rgba(0, 0, 0, 0.08);
+  --btn-ghost-text: #0f172a;
+}
+
+[data-theme='dark'] {
+  --app-bg: #0b1a2b;
+  --app-bg-gradient: radial-gradient(circle at top right, #142b45, #0b1a2b);
+  --app-text: #f9fafb;
+  --app-text-muted: rgba(249, 250, 251, 0.6);
+  --app-text-dim: rgba(249, 250, 251, 0.3);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --card-hover-bg: rgba(255, 255, 255, 0.08);
+  --card-hover-border: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-placeholder: rgba(255, 255, 255, 0.3);
+
+  --btn-primary-from: #1e3a5f;
+  --btn-primary-to: #627d98;
+  --btn-success-from: #059669;
+  --btn-success-to: #34d399;
+  --btn-danger-from: #dc2626;
+  --btn-danger-to: #f87171;
+  --btn-disabled-bg: rgba(255, 255, 255, 0.05);
+  --btn-disabled-text: #4b5563;
+  --btn-ghost-bg: rgba(255, 255, 255, 0.05);
+  --btn-ghost-hover-bg: rgba(255, 255, 255, 0.1);
+  --btn-ghost-text: #f9fafb;
+}
+
+/* Also support class-based switching as backup */
+.light {
+  --app-bg: #f1f5f9 !important;
+  --app-bg-gradient: radial-gradient(circle at top right, #e2e8f0, #f1f5f9) !important;
+  --app-text: #0f172a !important;
+  --border-color: rgba(0, 0, 0, 0.05) !important;
+  --card-bg: rgba(255, 255, 255, 0.8) !important;
+  --card-border: rgba(0, 0, 0, 0.05) !important;
+  --input-bg: rgba(255, 255, 255, 1) !important;
+  --input-border: rgba(0, 0, 0, 0.1) !important;
+  --input-placeholder: rgba(0, 0, 0, 0.4) !important;
+
+  --btn-primary-from: #2563eb !important;
+  --btn-primary-to: #60a5fa !important;
+  --btn-success-from: #10b981 !important;
+  --btn-success-to: #34d399 !important;
+  --btn-danger-from: #ef4444 !important;
+  --btn-danger-to: #f87171 !important;
+  --btn-disabled-bg: #e2e8f0 !important;
+  --btn-disabled-text: #94a3b8 !important;
+}
+
 @layer base {
+
   html,
   body,
   #root {
     @apply h-full w-full;
+    transition: background-color 0.5s ease, color 0.5s ease;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-700 antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-      'Helvetica Neue', Arial, sans-serif;
-    overscroll-behavior-y: contain;
+    background-color: var(--app-bg) !important;
+    background-image: var(--app-bg-gradient) !important;
+    color: var(--app-text);
+    @apply antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-neutral-300 rounded;
+  input::placeholder {
+    color: var(--input-placeholder) !important;
   }
 }
 
-/* Components layer - Reusable component styles */
 @layer components {
-  /* QR Scanner specific styles */
-  .qr-scanner-container video {
-    object-fit: cover;
-    border-radius: 12px;
+  .glass-card {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--app-text);
+    @apply backdrop-blur-xl border shadow-2xl rounded-3xl transition-all duration-500;
+  }
+
+  .glass-card:hover {
+    background-color: var(--card-hover-bg);
+    border-color: var(--card-hover-border);
+  }
+
+  /* Theme-aware primary action buttons */
+  .btn-action-primary {
+    background: linear-gradient(to right, var(--btn-primary-from), var(--btn-primary-to));
+    color: white;
+  }
+
+  .btn-action-success {
+    background: linear-gradient(to bottom right, var(--btn-success-from), var(--btn-success-to));
+    color: white;
+  }
+
+  .btn-action-danger {
+    background: linear-gradient(to bottom right, var(--btn-danger-from), var(--btn-danger-to));
+    color: white;
+  }
+
+  .btn-action-disabled {
+    background: var(--btn-disabled-bg) !important;
+    color: var(--btn-disabled-text) !important;
+    cursor: not-allowed;
+    filter: grayscale(1);
+    opacity: 0.6;
   }
 }
 
-/* Utilities layer - Custom utilities */
+.btn-ghost-theme {
+  background-color: var(--btn-ghost-bg) !important;
+  color: var(--btn-ghost-text) !important;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost-theme:hover {
+  background-color: var(--btn-ghost-hover-bg) !important;
+}
+
 @layer utilities {
-  /* Safe area padding for PWA */
+  .text-main {
+    color: var(--app-text) !important;
+  }
+
+  .text-muted {
+    color: var(--app-text-muted) !important;
+  }
+
+  .text-dim {
+    color: var(--app-text-dim) !important;
+  }
+
+  .bg-main {
+    background-color: var(--app-bg) !important;
+  }
+
+  .bg-sub {
+    background-color: var(--card-bg) !important;
+  }
+
+  .border-main {
+    border-color: var(--border-color) !important;
+  }
+
+  .text-dynamic {
+    color: var(--app-text) !important;
+    transition: color 0.5s ease;
+  }
+
+  .border-dynamic {
+    border-color: var(--border-color) !important;
+    transition: border-color 0.5s ease;
+  }
+
   .safe-area-inset {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);

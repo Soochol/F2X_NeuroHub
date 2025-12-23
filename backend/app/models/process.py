@@ -25,7 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base, JSONBDict, is_postgresql
+from app.database import Base, JSONBDict, JSONBList, is_postgresql
 
 
 class LabelTemplateType(str, Enum):
@@ -157,6 +157,15 @@ class Process(Base):
         comment="공정 유형 (MANUFACTURING, SERIAL_CONVERSION)"
     )
 
+    # Defect Items
+    defect_items: Mapped[list] = mapped_column(
+        JSONBList,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+        comment="공정별 사전 정의 불량 항목 리스트"
+    )
+
     # Timestamp Columns
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -212,6 +221,10 @@ class Process(Base):
             quality_criteria
         ),
         Index(
+            "idx_processes_defect_items",
+            defect_items
+        ),
+        Index(
             "idx_processes_sort_order",
             sort_order
         ),
@@ -249,6 +262,7 @@ class Process(Base):
             "auto_print_label": self.auto_print_label,
             "label_template_type": self.label_template_type,
             "process_type": self.process_type,
+            "defect_items": self.defect_items,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

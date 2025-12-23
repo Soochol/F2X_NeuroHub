@@ -23,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-neutral-700 mb-1.5"
+            className="block text-[11px] font-black text-neutral-400 mb-1.5 uppercase tracking-widest"
           >
             {label}
             {required && <span className="text-danger-500 ml-0.5">*</span>}
@@ -37,17 +37,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full px-3 py-2.5 text-base',
-              'bg-white border rounded-lg',
-              'placeholder:text-neutral-400',
-              'transition-colors duration-150',
-              'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500',
-              'disabled:bg-neutral-50 disabled:text-neutral-400 disabled:cursor-not-allowed',
+              'w-full px-4 py-3 text-base font-medium border rounded-xl',
+              'transition-all duration-300',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              'text-dynamic bg-transparent',
               error
-                ? 'border-danger-500 focus:ring-danger-500 focus:border-danger-500'
-                : 'border-neutral-200 hover:border-neutral-300',
+                ? 'border-danger-500/50 focus:ring-danger-500/30 focus:border-danger-500'
+                : 'hover:border-primary-500/50',
               className
             )}
+            style={{
+              backgroundColor: 'var(--input-bg)',
+              borderColor: 'var(--input-border)',
+            }}
             {...props}
           />
         </div>

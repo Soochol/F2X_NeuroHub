@@ -17,22 +17,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Apply migration."""
-    # Add sort_order column (nullable initially)
-    op.add_column('processes', sa.Column('sort_order', sa.Integer(), nullable=True))
+    """Apply migration using batch_alter_table for SQLite compatibility."""
+    # Using batch_alter_table handles table recreation for SQLite automatically
+    with op.batch_alter_table('processes', schema=None) as batch_op:
+        batch_op.add_column(sa.Column('sort_order', sa.Integer(), nullable=True))
 
     # Set sort_order to match process_number for existing records
     op.execute('UPDATE processes SET sort_order = process_number')
 
-    # Make sort_order NOT NULL
-    op.alter_column('processes', 'sort_order', nullable=False)
-
-    # Add check constraint (sort_order must be > 0)
-    op.create_check_constraint(
-        'chk_processes_sort_order_positive',
-        'processes',
-        'sort_order > 0'
-    )
+    with op.batch_alter_table('processes', schema=None) as batch_op:
+        # Make sort_order NOT NULL and add check constraint
+        batch_op.alter_column('sort_order', nullable=False)
+        batch_op.create_check_constraint(
+            'chk_processes_sort_order_positive',
+            condition='sort_order > 0'
+        )
 
 
 def downgrade() -> None:

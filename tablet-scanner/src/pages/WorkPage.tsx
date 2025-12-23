@@ -17,17 +17,21 @@ import {
   RefreshCw,
   QrCode,
   Loader2,
+  CheckCircle,
+  AlertCircle,
+  Play,
+  ChevronRight,
 } from 'lucide-react';
 import { ScannerModal } from '@/components/scanner';
 import { PageContainer, Header, BottomSheet } from '@/components/layout';
-import { Card, FloatingActionButton } from '@/components/ui';
+import { Card, FloatingActionButton, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { SyncStatusBar } from '@/components/sync';
 import { FadeIn, SlideUp } from '@/components/animations';
 import { useToast } from '@/components/feedback';
 import { useFeedback } from '@/hooks';
 import { useAppStore } from '@/store/appStore';
+import { useUIStore } from '@/store/slices/uiSlice';
 import { wipApi, processApi, processOperationsApi, getErrorMessage } from '@/api/client';
 import {
   addToQueue,
@@ -45,7 +49,7 @@ import type {
 } from '@/types';
 
 // Work Page Components
-import { QuickWorkModal } from '@/components/work';
+import { QuickWorkPanel } from '@/components/work';
 
 export const WorkPage: React.FC = () => {
   const {
@@ -56,6 +60,8 @@ export const WorkPage: React.FC = () => {
     addScanResult,
     scanHistory,
   } = useAppStore();
+
+  const { theme, toggleTheme } = useUIStore();
 
   // Network & sync state
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>(
@@ -71,7 +77,6 @@ export const WorkPage: React.FC = () => {
   const [isLoadingWip, setIsLoadingWip] = useState(false);
 
   // Quick Work Modal state
-  const [showQuickModal, setShowQuickModal] = useState(false);
   const [currentTrace, setCurrentTrace] = useState<WIPTrace | null>(null);
 
   // UI state
@@ -131,7 +136,7 @@ export const WorkPage: React.FC = () => {
         setProcesses(data);
       } catch (err) {
         console.error('Failed to load processes:', err);
-        toast.error('공정 로드 실패', getErrorMessage(err), 4000);
+        toast.error('Process Load Failed', getErrorMessage(err), 4000);
       }
     };
     if (processes.length === 0) {
@@ -170,9 +175,9 @@ export const WorkPage: React.FC = () => {
 
     if (result.success > 0 || result.failed > 0) {
       if (result.failed > 0) {
-        toast.warning('동기화 완료', `${result.success}건 성공, ${result.failed}건 실패`, 4000);
+        toast.warning('Offline Syncing', `${result.success} success, ${result.failed} failed`, 4000);
       } else {
-        toast.success('동기화 완료', `${result.success}건 처리됨`, 4000);
+        toast.success('Sync Complete', `${result.success} items processed`, 4000);
       }
     }
 
@@ -198,7 +203,7 @@ export const WorkPage: React.FC = () => {
       // WIP ID 검증
       const wipPattern = /^WIP-[A-Z0-9-]{10,20}-\d{3}$/;
       if (!wipPattern.test(wipId)) {
-        toast.error('잘못된 형식', 'WIP ID 형식이 올바르지 않습니다', 3000);
+        toast.error('Invalid Format', 'WIP ID format is invalid', 3000);
         await feedbackError();
         processingRef.current = false;
         return;
@@ -213,11 +218,51 @@ export const WorkPage: React.FC = () => {
         // WIP Trace 조회
         const trace = await wipApi.getTrace(wipId);
         setCurrentTrace(trace);
-        setShowQuickModal(true);
-        toast.success('WIP 로드 완료', wipId, 2000);
+        toast.success('WIP Loaded', wipId, 2000);
+
+        // Refresh process definitions to sync defect items from Admin
+        let currentProcesses = processes;
+        try {
+          const freshProcesses = await processApi.getAll();
+          setProcesses(freshProcesses);
+          currentProcesses = freshProcesses;
+        } catch (syncErr) {
+          console.error('Failed to sync processes on scan:', syncErr);
+        }
+
+        // 바로 착공 시작 로직 (Auto-Start)
+        // 1. 이미 진행 중인 공정이 있는지 확인
+        const inProgress = trace.process_history.find(h => h.start_time && !h.complete_time);
+
+        if (!inProgress) {
+          // 2. 다음 공정 번호 찾기 (1~8 중 PASS가 아닌 첫 번째)
+          const completedNumbers = new Set(
+            trace.process_history
+              .filter(h => h.complete_time && h.result === 'PASS')
+              .map(h => h.process_number)
+          );
+
+          let nextNum = null;
+          for (let i = 1; i <= 8; i++) {
+            if (!completedNumbers.has(i)) {
+              nextNum = i;
+              break;
+            }
+          }
+
+          if (nextNum !== null) {
+            const nextProcess = currentProcesses.find(p => p.process_number === nextNum);
+            if (nextProcess) {
+              // 약간의 지연 후 자동 착공 (UI 업데이트 보장)
+              setTimeout(async () => {
+                await handleStart(nextProcess.id, trace);
+              }, 300);
+            }
+          }
+        }
       } catch (err) {
         const errorMsg = getErrorMessage(err);
-        toast.error('WIP 조회 실패', errorMsg, 4000);
+        toast.error('WIP Load Failed', errorMsg, 4000);
         await feedbackError();
       } finally {
         setIsLoadingWip(false);
@@ -230,13 +275,23 @@ export const WorkPage: React.FC = () => {
   // ====================================
   // Quick Work Modal Handlers
   // ====================================
-  const handleStart = async (processId: number): Promise<boolean> => {
-    if (!currentTrace || !user) return false;
+  const handleStart = async (processId: number, traceOverride?: WIPTrace): Promise<boolean> => {
+    const workerId = settings.workerId || user?.username;
+    const targetTrace = traceOverride || currentTrace;
+
+    if (!targetTrace) {
+      toast.error('No WIP Loaded', 'Please scan a WIP first', 3000);
+      return false;
+    }
+    if (!workerId) {
+      toast.error('No Worker identified', 'Please login or set Operator ID', 3000);
+      return false;
+    }
 
     const startData: ProcessStartRequest = {
-      wip_id: currentTrace.wip_id,
+      wip_id: targetTrace.wip_id,
       process_id: String(processId),
-      worker_id: settings.workerId || user.username,
+      worker_id: workerId,
       equipment_id: settings.equipmentId || undefined,
       line_id: settings.lineId || undefined,
     };
@@ -246,32 +301,32 @@ export const WorkPage: React.FC = () => {
         await addToQueue('start', startData);
         const count = await getQueueCount();
         setQueueCount(count);
-        toast.warning('오프라인 저장', `대기 중: ${count}건`, 3000);
+        toast.warning('Offline Save', `Pending: ${count} items`, 3000);
         await feedbackWarning();
       } else {
         await processOperationsApi.start(startData);
-        toast.success('착공 완료', currentTrace.wip_id, 2000);
+        toast.success('Operation Started', targetTrace.wip_id, 2000);
         await feedbackSuccess();
       }
 
       // Trace 새로고침
-      const updatedTrace = await wipApi.getTrace(currentTrace.wip_id);
+      const updatedTrace = await wipApi.getTrace(targetTrace.wip_id);
       setCurrentTrace(updatedTrace);
 
       const process = processes.find((p) => p.id === processId);
       addScanResult({
-        wipId: currentTrace.wip_id,
+        wipId: targetTrace.wip_id,
         timestamp: new Date(),
         action: 'start',
         success: true,
-        message: '착공 완료',
+        message: 'Started',
         processNumber: process?.process_number,
       });
 
       return true;
     } catch (err) {
       const errorMsg = getErrorMessage(err);
-      toast.error('착공 실패', errorMsg, 4000);
+      toast.error('Start Failed', errorMsg, 4000);
       await feedbackError();
       return false;
     }
@@ -280,16 +335,26 @@ export const WorkPage: React.FC = () => {
   const handleComplete = async (
     processId: number,
     result: ProcessResult,
-    measurements: Record<string, unknown>
+    measurements: Record<string, unknown>,
+    defectData?: { defect_codes: string[], notes?: string }
   ): Promise<boolean> => {
-    if (!currentTrace || !user) return false;
+    const workerId = settings.workerId || user?.username;
+    if (!currentTrace) {
+      toast.error('No WIP Loaded', 'Please scan a WIP first', 3000);
+      return false;
+    }
+    if (!workerId) {
+      toast.error('No Worker identified', 'Please login or set Operator ID', 3000);
+      return false;
+    }
 
     const completeData: ProcessCompleteRequest = {
       wip_id: currentTrace.wip_id,
       process_id: String(processId),
-      worker_id: settings.workerId || user.username,
+      worker_id: workerId,
       result,
       measurements: Object.keys(measurements).length > 0 ? measurements : undefined,
+      defect_data: defectData,
     };
 
     try {
@@ -297,17 +362,17 @@ export const WorkPage: React.FC = () => {
         await addToQueue('complete', completeData);
         const count = await getQueueCount();
         setQueueCount(count);
-        const resultText = result === 'PASS' ? '합격' : '불량';
-        toast.warning(`완공(${resultText}) 저장됨`, `대기 중: ${count}건`, 3000);
+        const resultText = result === 'PASS' ? 'PASS' : 'FAIL';
+        toast.warning(`Finish (${resultText}) Saved`, `Pending: ${count} items`, 3000);
         await feedbackWarning();
       } else {
         await processOperationsApi.complete(completeData);
-        const resultText = result === 'PASS' ? '합격' : '불량';
+        const resultText = result === 'PASS' ? 'PASS' : 'FAIL';
         if (result === 'PASS') {
-          toast.success(`완공 (${resultText})`, currentTrace.wip_id, 2000);
+          toast.success(`Finished (${resultText})`, currentTrace?.wip_id || '', 2000);
           await feedbackSuccess();
         } else {
-          toast.error(`완공 (${resultText})`, currentTrace.wip_id, 2000);
+          toast.error(`Finished (${resultText})`, currentTrace?.wip_id || '', 2000);
           await feedbackError();
         }
       }
@@ -322,14 +387,14 @@ export const WorkPage: React.FC = () => {
         timestamp: new Date(),
         action: 'complete',
         success: true,
-        message: `완공 (${result})`,
+        message: `Finished (${result})`,
         processNumber: process?.process_number,
       });
 
       return true;
     } catch (err) {
       const errorMsg = getErrorMessage(err);
-      toast.error('완공 실패', errorMsg, 4000);
+      toast.error('Finish Failed', errorMsg, 4000);
       await feedbackError();
       return false;
     }
@@ -337,15 +402,10 @@ export const WorkPage: React.FC = () => {
 
   const handleScanNext = () => {
     setCurrentTrace(null);
-    setShowQuickModal(false);
     // 바로 스캔 모달 열기
     setTimeout(() => setShowScannerModal(true), 300);
   };
 
-  const handleQuickModalClose = () => {
-    setShowQuickModal(false);
-    setCurrentTrace(null);
-  };
 
   // ====================================
   // Manual Input Handler
@@ -393,263 +453,394 @@ export const WorkPage: React.FC = () => {
   // Render
   // ====================================
   return (
-    <PageContainer>
+    <PageContainer className="p-0 lg:p-6 overflow-hidden flex flex-col h-screen">
       {/* Header */}
-      <Header
-        title="착공 / 완공"
-        subtitle={user?.full_name || user?.username}
-        isOnline={networkStatus === 'online'}
-        soundEnabled={soundEnabled}
-        onToggleSound={toggleSound}
-        queueCount={queueCount}
-      />
+      <div className="px-6 pt-6 lg:px-0 lg:pt-0">
+        <Header
+          title="F2X NEUROHUB"
+          subtitle={user?.full_name || user?.username}
+          isOnline={networkStatus === 'online'}
+          soundEnabled={soundEnabled}
+          onToggleSound={toggleSound}
+          queueCount={queueCount}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      </div>
 
-      {/* Sync Status Bar */}
-      <SyncStatusBar
-        isOnline={networkStatus === 'online'}
-        syncStatus={getSyncStatus()}
-        pendingCount={queueCount}
-        progress={syncProgress}
-        className="mb-6"
-      />
+      <div className="flex-1 overflow-auto px-6 pb-20 lg:px-0 lg:pb-0">
+        <div className="flex flex-col gap-8">
+          {/* Main Action Area: Scan Area or Active Job Panel */}
+          <div className="w-full space-y-6">
+            {/* Removed top-level SyncStatusBar to save space */}
 
-      {/* Main Scan Area */}
-      <FadeIn>
-        <Card className="mb-6">
-          <div className="text-center py-6">
-            {/* Icon */}
-            <div className="w-20 h-20 rounded-3xl bg-primary-100 mx-auto mb-4 flex items-center justify-center">
-              <QrCode className="w-10 h-10 text-primary-600" />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-xl font-bold text-neutral-800 mb-2">
-              WIP 바코드 스캔
-            </h2>
-            <p className="text-neutral-500 mb-6">
-              작업할 WIP의 바코드를 스캔하세요
-            </p>
-
-            {/* Camera Scan Button */}
-            <button
-              type="button"
-              onClick={() => setShowScannerModal(true)}
-              disabled={isLoadingWip}
-              className={cn(
-                'w-full flex items-center justify-center gap-3',
-                'py-5 px-6 rounded-2xl',
-                'font-bold text-xl',
-                'transition-all duration-200',
-                'shadow-lg',
-                isLoadingWip
-                  ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
-                  : [
-                      'bg-gradient-to-r from-primary-500 to-primary-600',
-                      'text-white',
-                      'hover:from-primary-600 hover:to-primary-700',
-                      'active:scale-[0.98] active:shadow-md',
-                    ]
-              )}
-            >
-              {isLoadingWip ? (
-                <Loader2 className="w-7 h-7 animate-spin" />
-              ) : (
-                <Camera className="w-7 h-7" />
-              )}
-              <span>카메라로 스캔</span>
-            </button>
-
-            {/* Divider */}
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-neutral-200" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-4 bg-white text-sm text-neutral-400">또는</span>
-              </div>
-            </div>
-
-            {/* Manual Input */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 justify-center text-sm text-neutral-500">
-                <Keyboard className="w-4 h-4" />
-                <span>직접 입력</span>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  value={wipInput}
-                  onChange={(e) => setWipInput(e.target.value.toUpperCase())}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder="WIP-XXXXXXXX-XXX"
-                  className="flex-1 font-mono text-center text-lg"
-                  disabled={isLoadingWip}
+            {/* Conditional Rendering: Scan Mode vs. Active Job Mode */}
+            {currentTrace ? (
+              <FadeIn>
+                <QuickWorkPanel
+                  trace={currentTrace}
+                  processes={processes}
+                  onStart={handleStart}
+                  onComplete={handleComplete}
+                  onScanNext={handleScanNext}
+                  onCancel={() => setCurrentTrace(null)}
                 />
-                <Button
-                  variant="primary"
-                  onClick={handleManualSubmit}
-                  disabled={!wipInput.trim() || isLoadingWip}
-                  isLoading={isLoadingWip}
-                  className="px-6"
-                >
-                  확인
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </FadeIn>
+              </FadeIn>
+            ) : (
+              <FadeIn>
+                <Card variant="glass" className="relative overflow-hidden group border-white/10 shadow-2xl">
+                  {/* Decorative Background Glow */}
+                  <div className="absolute -top-32 -right-32 w-80 h-80 bg-primary-500/10 rounded-full blur-[100px] group-hover:bg-primary-500/20 transition-all duration-700" />
+                  <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-violet-500/5 rounded-full blur-[100px]" />
 
-      {/* Recent Scans Preview */}
-      {scanHistory.length > 0 && (
-        <SlideUp delay={100}>
-          <Card className="mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-neutral-700 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                최근 작업
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowHistorySheet(true)}
-                className="text-sm text-primary-600 hover:text-primary-700"
-              >
-                전체보기
-              </button>
-            </div>
-            <div className="space-y-2">
-              {scanHistory.slice(0, 3).map((item, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    'flex items-center justify-between py-2 px-3 rounded-lg',
-                    item.success ? 'bg-success-50' : 'bg-danger-50'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        item.success ? 'bg-success-500' : 'bg-danger-500'
-                      )}
-                    />
-                    <span className="font-mono text-sm text-neutral-700">{item.wipId}</span>
+                  <div className="relative text-center py-12 lg:py-24">
+                    {/* Icon with Ring */}
+                    <div className="relative w-32 h-32 mx-auto mb-8">
+                      <div className="absolute inset-0 bg-primary-500/20 rounded-[2.5rem] animate-pulse" />
+                      <div className="relative w-full h-full rounded-[2.5rem] bg-primary-900/40 flex items-center justify-center border border-primary-500/30 shadow-[0_0_40px_rgba(30,58,95,0.4)]">
+                        <QrCode className="w-16 h-16 text-primary-400" />
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="text-3xl lg:text-5xl font-black text-dynamic mb-4 tracking-tighter">
+                      READY TO SCAN
+                    </h2>
+                    <p className="text-neutral-500 mb-12 lg:text-xl font-medium max-w-lg mx-auto leading-relaxed">
+                      Scan WIP barcode or enter ID<br />
+                      to start production process control.
+                    </p>
+
+                    {/* Camera Scan Button */}
+                    <div className="max-w-md mx-auto px-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowScannerModal(true)}
+                        disabled={isLoadingWip}
+                        className={cn(
+                          'w-full flex items-center justify-center gap-5',
+                          'py-8 px-10 rounded-[2.5rem]',
+                          'font-black text-3xl tracking-tight',
+                          'transition-all duration-300 relative overflow-hidden group/btn',
+                          isLoadingWip
+                            ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none'
+                            : [
+                              'bg-gradient-to-r from-primary-600 to-primary-400',
+                              'text-white shadow-[0_20px_50px_rgba(30,58,95,0.5)]',
+                              'hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(30,58,95,0.6)]',
+                              'active:scale-[0.96]',
+                            ]
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000" />
+                        {isLoadingWip ? (
+                          <Loader2 className="w-10 h-10 animate-spin" />
+                        ) : (
+                          <Camera className="w-10 h-10" />
+                        )}
+                        <span>SCAN START</span>
+                      </button>
+                    </div>
+
+                    {/* Manual Input Section */}
+                    <div className="mt-16 lg:mt-32 pt-12 border-t border-dynamic max-w-md mx-auto px-6">
+                      <div className="flex items-center gap-3 justify-center text-[10px] text-neutral-500 mb-6 font-black uppercase tracking-[0.3em]">
+                        <Keyboard className="w-4 h-4 opacity-70" />
+                        <span className="opacity-70">Manual Identifier Entry</span>
+                      </div>
+                      <div className="flex flex-col gap-4">
+                        <Input
+                          ref={inputRef}
+                          type="text"
+                          value={wipInput}
+                          onChange={(e) => setWipInput(e.target.value.toUpperCase())}
+                          onKeyDown={handleInputKeyDown}
+                          placeholder="WIP ID ENTER..."
+                          className="w-full font-mono text-center text-2xl rounded-2xl py-6 h-auto transition-all"
+                          disabled={isLoadingWip}
+                        />
+                        <Button
+                          variant="ghost"
+                          onClick={handleManualSubmit}
+                          disabled={!wipInput.trim() || isLoadingWip}
+                          isLoading={isLoadingWip}
+                          className="w-full rounded-2xl h-auto py-5 font-black text-lg border-main hover:bg-sub"
+                        >
+                          Verify & Load
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs text-neutral-500">
-                    {item.action === 'start' ? '착공' : '완공'}
-                    {item.processNumber && ` (${item.processNumber})`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </SlideUp>
-      )}
+                </Card>
+              </FadeIn>
+            )}
+          </div>
 
-      {/* Instructions */}
-      <FadeIn delay={200}>
-        <Card className="bg-neutral-50 border-neutral-200">
-          <h3 className="font-semibold text-neutral-700 mb-3">사용 방법</h3>
-          <ol className="space-y-2 text-sm text-neutral-600">
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                1
-              </span>
-              <span>WIP 바코드를 스캔하세요</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                2
-              </span>
-              <span>공정 현황을 확인하고 작업할 공정을 선택하세요</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                3
-              </span>
-              <span>착공 또는 완공 버튼을 눌러 작업을 처리하세요</span>
-            </li>
-          </ol>
-        </Card>
-      </FadeIn>
+          {/* Operations Center Area (Stacked Below) */}
+          <div className="w-full space-y-6">
+            <SlideUp delay={200}>
+              <div className="flex flex-col h-full space-y-6">
+                {/* 1. Statistics Summary Badge Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="glass-card p-5 border-primary-500/20 bg-primary-500/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-primary-500/10 blur-2xl rounded-full opacity-50" />
+                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest mb-1 opacity-70">Today Started</p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-dynamic">{scanHistory.filter(h => h.action === 'start').length}</span>
+                      <span className="text-xs font-bold text-muted mb-1.5 uppercase">Jobs</span>
+                    </div>
+                  </div>
+                  <div className="glass-card p-5 border-success-500/20 bg-success-500/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-success-500/10 blur-2xl rounded-full opacity-50" />
+                    <p className="text-[10px] font-black text-success-400 uppercase tracking-widest mb-1 opacity-70">Today Passed</p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-dynamic">{scanHistory.filter(h => h.success).length}</span>
+                      <span className="text-xs font-bold text-muted mb-1.5 uppercase">Units</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Unified History & Status Card */}
+                <Card variant="glass" className="flex-1 flex flex-col min-h-0 border-main shadow-2xl overflow-hidden">
+                  <div className="p-6 border-b border-main bg-sub">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-black text-dynamic text-lg uppercase tracking-wider flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary-500/10 border border-primary-500/20">
+                          <History className="w-5 h-5 text-primary-400" />
+                        </div>
+                        Operations Center
+                      </h3>
+                      <button
+                        onClick={() => setShowHistorySheet(true)}
+                        className="text-[11px] font-black text-primary-400 hover:text-dynamic uppercase tracking-widest transition-colors flex items-center gap-1 group"
+                      >
+                        See All
+                        <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+                    <div className="space-y-3">
+                      {scanHistory.length === 0 ? (
+                        <div className="text-center py-20 text-dim">
+                          <div className="w-20 h-20 rounded-full bg-sub border border-dashed border-main flex items-center justify-center mx-auto mb-4 opacity-30">
+                            <History className="w-10 h-10" />
+                          </div>
+                          <p className="font-bold uppercase tracking-widest text-xs">Waiting for first scan...</p>
+                        </div>
+                      ) : (
+                        scanHistory.slice(0, 10).map((item, idx) => (
+                          <div
+                            key={idx}
+                            className={cn(
+                              'group flex items-center gap-4 p-4 rounded-2xl transition-all duration-300',
+                              'bg-sub border border-main hover:bg-sub/80 hover:border-main hover:translate-x-1',
+                              item.success ? 'hover:border-success-500/30' : 'hover:border-danger-500/30'
+                            )}
+                          >
+                            <div className={cn(
+                              'w-12 h-12 rounded-xl flex items-center justify-center border-2 shrink-0',
+                              item.success
+                                ? 'bg-success-500/10 border-success-500/20 text-success-500'
+                                : 'bg-danger-500/10 border-danger-500/20 text-danger-500'
+                            )}>
+                              {item.action === 'start' ? <Play className="w-6 h-6" fill="currentColor" /> : <CheckCircle className="w-6 h-6" />}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <p className="font-mono font-black text-dynamic truncate text-base tracking-tighter">
+                                  {item.wipId}
+                                </p>
+                                <span className="text-[10px] text-neutral-600 font-black">
+                                  {new Date(item.timestamp).toLocaleTimeString('ko-KR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  'text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider',
+                                  item.action === 'start' ? 'bg-primary-500/20 text-primary-400' : 'bg-violet-500/20 text-violet-400'
+                                )}>
+                                  {item.action === 'start' ? 'Start' : 'Finish'}
+                                </span>
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                                  {item.processNumber ? `Process ${item.processNumber}` : 'Syncing...'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Smart Guide Footer Tooltip */}
+                  <div className="p-5 mt-auto bg-gradient-to-t from-primary-900/10 to-transparent border-t border-main">
+                    <div className="bg-sub p-4 rounded-2xl border border-main flex gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0 border border-primary-500/20">
+                        <AlertCircle className="w-5 h-5 text-primary-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-dynamic uppercase tracking-widest">Operator Tip</p>
+                        <p className="text-[11px] font-medium text-muted leading-relaxed">Verify scan results after operation and maintain 'Access System' log.</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </SlideUp>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Action Button - Tablet optimized position */}
+      <div className="hidden lg:block">
+        <FloatingActionButton actions={fabActions} position="bottom-right" color="primary" />
+      </div>
+
+      {/* Mobile-only Bottom FAB */}
+      <div className="lg:hidden">
+        <FloatingActionButton actions={fabActions} position="bottom-right" color="primary" />
+      </div>
 
       {/* Scanner Modal */}
       <ScannerModal
         isOpen={showScannerModal}
         onClose={() => setShowScannerModal(false)}
         onScan={handleWipScan}
-        title="WIP 스캔"
+        title="WIP Precision Scan"
         autoCloseDelay={500}
-      />
-
-      {/* Quick Work Modal */}
-      <QuickWorkModal
-        isOpen={showQuickModal}
-        onClose={handleQuickModalClose}
-        trace={currentTrace}
-        processes={processes}
-        isLoading={isLoadingWip}
-        onStart={handleStart}
-        onComplete={handleComplete}
-        onScanNext={handleScanNext}
       />
 
       {/* History Bottom Sheet */}
       <BottomSheet
         isOpen={showHistorySheet}
         onClose={() => setShowHistorySheet(false)}
-        title="최근 작업"
+        title="Full Operation History"
         height="half"
       >
-        {scanHistory.length === 0 ? (
-          <div className="text-center py-8 text-neutral-400">
-            <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>최근 작업 기록이 없습니다</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {scanHistory.map((item, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  'flex items-center justify-between py-3 px-4 rounded-xl',
-                  item.success ? 'bg-success-50' : 'bg-danger-50'
-                )}
-              >
-                <div>
-                  <p className="font-mono font-medium text-neutral-800">{item.wipId}</p>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    {item.action === 'start' ? '착공' : '완공'}
-                    {item.processNumber && ` - 공정 ${item.processNumber}`}
-                  </p>
+        <div className="p-4">
+          {scanHistory.length === 0 ? (
+            <div className="text-center py-12 text-neutral-400">
+              <Clock className="w-16 h-16 mx-auto mb-4 opacity-10" />
+              <p>No recent activity found</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {scanHistory.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    'flex items-center justify-between p-4 rounded-2xl border transition-all',
+                    'bg-neutral-50/50 border-neutral-100'
+                  )}
+                >
+                  <div>
+                    <p className="font-mono font-bold text-neutral-800">{item.wipId}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded font-bold uppercase',
+                        item.action === 'start' ? 'bg-primary-100 text-primary-700' : 'bg-violet-100 text-violet-700'
+                      )}>
+                        {item.action === 'start' ? 'START' : 'FINISH'}
+                      </span>
+                      <span className="text-xs text-neutral-500">
+                        {item.processNumber ? `Process ${item.processNumber}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <StatusBadge
+                      status={item.success ? 'completed' : 'fail'}
+                    />
+                    <p className="text-[10px] text-neutral-400 mt-1">
+                      {new Date(item.timestamp).toLocaleString('en-US')}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={cn(
-                      'text-xs font-medium px-2 py-1 rounded-full',
-                      item.success
-                        ? 'bg-success-100 text-success-700'
-                        : 'bg-danger-100 text-danger-700'
-                    )}
-                  >
-                    {item.success ? '성공' : '실패'}
-                  </span>
-                  <p className="text-xs text-neutral-400 mt-1">
-                    {new Date(item.timestamp).toLocaleTimeString('ko-KR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </BottomSheet>
 
-      {/* Floating Action Button */}
-      <FloatingActionButton actions={fabActions} position="bottom-right" color="primary" />
-    </PageContainer>
+      {/* Bottom Status Bar - Slim & Integrated */}
+      <footer className="fixed bottom-0 left-0 right-0 h-10 bg-sub/80 backdrop-blur-xl border-t border-main flex items-center justify-between px-8 z-40">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2.5">
+            <div className={cn(
+              "w-2 h-2 rounded-full transition-all duration-500",
+              networkStatus === 'online'
+                ? "bg-success-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                : "bg-danger-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]"
+            )} />
+            <span className="text-[10px] font-black text-dim uppercase tracking-[0.2em]">
+              {networkStatus === 'online' ? 'System Online' : 'Offline Mode'}
+            </span>
+          </div>
+
+          <div className="h-4 w-[1px] border-l border-main" />
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <RefreshCw className={cn(
+                "w-3.5 h-3.5 transition-colors",
+                getSyncStatus() === 'syncing' ? "text-primary-400 animate-spin" : "text-dim"
+              )} />
+              {queueCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-warning-500 rounded-full animate-pulse" />
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-muted uppercase tracking-widest leading-none">
+                {getSyncStatus() === 'synced' ? 'Data Synced' : 'Syncing Data...'}
+              </span>
+              {syncProgress > 0 && syncProgress < 100 && (
+                <div className="w-16 h-0.5 bg-main/20 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-primary-500" style={{ width: `${syncProgress}%` }} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {queueCount > 0 && (
+            <span className="text-[9px] font-black text-warning-400 bg-warning-500/10 px-2 py-0.5 rounded border border-warning-500/20 uppercase tracking-tighter">
+              {queueCount} Pending
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black text-dim uppercase tracking-widest">Active Operator</span>
+            <div className="flex items-center gap-2 bg-primary-500/5 px-3 py-1 rounded-lg border border-primary-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />
+              <span className="text-[10px] font-black text-primary-400 uppercase tracking-widest">
+                {settings.workerId || user?.username || 'Guest'}
+              </span>
+            </div>
+          </div>
+
+          {settings.equipmentId && (
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-dim uppercase tracking-widest">EQP</span>
+              <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-sub px-3 py-1 rounded-lg border border-main">
+                {settings.equipmentId}
+              </span>
+            </div>
+          )}
+
+          <div className="h-4 w-[1px] border-l border-main" />
+
+          <div className="flex items-center gap-2 text-dim">
+            <span className="text-[9px] font-black uppercase tracking-[0.3em]">v1.0.4</span>
+          </div>
+        </div>
+      </footer>
+    </PageContainer >
   );
 };

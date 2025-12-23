@@ -105,7 +105,7 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
   };
 
   const cornerClass = cn(
-    'absolute w-10 h-10 transition-all duration-300',
+    'absolute w-16 h-16 transition-all duration-300',
     getColor(),
     isActive && status === 'scanning' && 'animate-pulse'
   );
@@ -116,8 +116,8 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
       <div
         className={cn(
           cornerClass,
-          'top-4 left-4',
-          'border-t-4 border-l-4 rounded-tl-2xl'
+          'top-6 left-6',
+          'border-t-6 border-l-6 rounded-tl-3xl'
         )}
       />
 
@@ -125,8 +125,8 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
       <div
         className={cn(
           cornerClass,
-          'top-4 right-4',
-          'border-t-4 border-r-4 rounded-tr-2xl'
+          'top-6 right-6',
+          'border-t-6 border-r-6 rounded-tr-3xl'
         )}
       />
 
@@ -134,8 +134,8 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
       <div
         className={cn(
           cornerClass,
-          'bottom-4 left-4',
-          'border-b-4 border-l-4 rounded-bl-2xl'
+          'bottom-6 left-6',
+          'border-b-6 border-l-6 rounded-bl-3xl'
         )}
       />
 
@@ -143,8 +143,8 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
       <div
         className={cn(
           cornerClass,
-          'bottom-4 right-4',
-          'border-b-4 border-r-4 rounded-br-2xl'
+          'bottom-6 right-6',
+          'border-b-6 border-r-6 rounded-br-3xl'
         )}
       />
     </>
@@ -154,15 +154,8 @@ const CornerMarkers: React.FC<CornerMarkersProps> = ({ status, isActive }) => {
 // 스캔 라인 애니메이션
 const ScanLine: React.FC = () => {
   return (
-    <div className="absolute left-8 right-8 top-1/4 bottom-1/4 overflow-hidden">
-      <div
-        className={cn(
-          'absolute left-0 right-0 h-0.5',
-          'bg-gradient-to-r from-transparent via-primary-500 to-transparent',
-          'shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]',
-          'animate-scan-line'
-        )}
-      />
+    <div className="absolute inset-x-0 inset-y-12 overflow-hidden pointer-events-none">
+      <div className="scanner-line" />
     </div>
   );
 };

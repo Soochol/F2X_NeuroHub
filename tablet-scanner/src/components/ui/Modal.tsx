@@ -15,6 +15,7 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'full';
   showCloseButton?: boolean;
   closeOnBackdrop?: boolean;
+  variant?: 'white' | 'glass';
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'md',
   showCloseButton = true,
   closeOnBackdrop = true,
+  variant = 'white',
   className,
 }) => {
   // Handle escape key
@@ -61,13 +63,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-primary-900/60 backdrop-blur-md"
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
@@ -75,39 +77,48 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal content */}
       <div
         className={cn(
-          'relative w-full bg-white rounded-xl shadow-lg',
-          'max-h-[85vh] overflow-auto',
-          'animate-in fade-in zoom-in-95 duration-200',
+          'relative w-full overflow-hidden',
+          variant === 'glass'
+            ? 'glass-card border-white/20 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)]'
+            : 'bg-white rounded-xl shadow-lg',
+          'max-h-[90vh] flex flex-col',
+          'animate-in fade-in zoom-in-95 duration-300 ease-out',
           sizes[size],
           className
         )}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-4 border-b border-neutral-200">
+          <div className={cn(
+            'flex items-center justify-between p-5 border-b shrink-0',
+            variant === 'glass' ? 'border-white/10' : 'border-neutral-200'
+          )}>
             {title && (
-              <h2 className="text-lg font-semibold text-neutral-800">{title}</h2>
+              <h2 className={cn(
+                'text-xl font-bold tracking-tight',
+                variant === 'glass' ? 'text-white' : 'text-neutral-800'
+              )}>{title}</h2>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
                 className={cn(
-                  'p-1.5 rounded-lg',
-                  'text-neutral-400 hover:text-neutral-600',
-                  'hover:bg-neutral-100',
-                  'transition-colors',
+                  'p-2 rounded-xl transition-all duration-200',
+                  variant === 'glass'
+                    ? 'text-white/40 hover:text-white hover:bg-white/10'
+                    : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100',
                   !title && 'ml-auto'
                 )}
                 aria-label="닫기"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             )}
           </div>
         )}
 
         {/* Body */}
-        <div className="p-4">{children}</div>
+        <div className="p-6 overflow-auto flex-1">{children}</div>
       </div>
     </div>
   );

@@ -363,6 +363,7 @@ def create(
         auto_print_label=process_in.auto_print_label,
         label_template_type=process_in.label_template_type,
         process_type=process_in.process_type,
+        defect_items=process_in.defect_items,
     )
 
     try:

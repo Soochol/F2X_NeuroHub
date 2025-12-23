@@ -39,6 +39,7 @@ from app.models.error_log import ErrorLog
 from app.models.print_log import PrintLog, PrintStatus
 
 from app.models.saved_filter import SavedFilter
+from app.models.refresh_token import RefreshToken
 
 
 __all__ = [
@@ -58,6 +59,7 @@ __all__ = [
     "ErrorLog",
     "PrintLog",
     "SavedFilter",
+    "RefreshToken",
     # Enums
     "UserRole",
     "LotStatus",

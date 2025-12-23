@@ -12,6 +12,7 @@ from typing import Optional, Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import secrets
 
 from app.config import settings
 from app.schemas import UserRole
@@ -126,6 +127,16 @@ def create_access_token(
         algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+def create_refresh_token() -> str:
+    """
+    Create a high-entropy unique refresh token string.
+
+    Returns:
+        Secure random token string
+    """
+    return secrets.token_urlsafe(32)
 
 
 def decode_access_token(token: str) -> Optional[dict[str, Any]]:

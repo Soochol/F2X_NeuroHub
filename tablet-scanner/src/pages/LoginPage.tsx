@@ -69,41 +69,46 @@ export const LoginPage: React.FC = () => {
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center min-h-screen bg-neutral-100 px-6 py-8',
-        'transition-all duration-500',
-        isSuccess && 'bg-success-50'
+        'flex flex-col items-center justify-center min-h-screen px-6 py-8 relative overflow-hidden',
+        'transition-all duration-700',
+        isSuccess ? 'bg-success-900/20' : 'bg-transparent'
       )}
     >
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary-500/10 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-500/5 rounded-full blur-[120px]" />
+
       {/* Logo & Title */}
       <FadeInScale delay={100}>
-        <div className="text-center mb-10">
+        <div className="text-center mb-12 relative">
           <div
             className={cn(
-              'w-20 h-20 mx-auto mb-4',
-              'rounded-2xl shadow-lg',
+              'w-24 h-24 mx-auto mb-6',
+              'rounded-[2.5rem] shadow-2xl relative group',
               'flex items-center justify-center',
-              'transition-all duration-500',
+              'transition-all duration-700 border border-white/10',
               isSuccess
-                ? 'bg-success-500 scale-110'
-                : 'bg-gradient-to-br from-primary-500 to-primary-600'
+                ? 'bg-success-500 scale-110 shadow-success-500/40 border-success-400'
+                : 'bg-gradient-to-br from-primary-600 to-primary-400'
             )}
           >
+            <div className="absolute inset-0 bg-white/20 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             {isSuccess ? (
-              <CheckCircle className="w-10 h-10 text-white animate-success-check" />
+              <CheckCircle className="w-12 h-12 text-white animate-success-check" />
             ) : (
-              <Cpu className={cn('w-10 h-10 text-white', isLoading && 'animate-pulse')} />
+              <Cpu className={cn('w-12 h-12 text-white relative z-10', isLoading && 'animate-pulse')} />
             )}
           </div>
           <h1
             className={cn(
-              'text-2xl font-bold mb-2 transition-colors duration-500',
-              isSuccess ? 'text-success-700' : 'text-neutral-800'
+              'text-4xl font-black mb-3 transition-colors duration-700 tracking-tighter',
+              isSuccess ? 'text-success-400' : 'text-dynamic'
             )}
           >
-            {isSuccess ? '로그인 성공!' : 'NeuroHub Scanner'}
+            {isSuccess ? 'WELCOME BACK' : 'NEUROHUB'}
           </h1>
-          <p className="text-sm text-neutral-500">
-            {isSuccess ? '잠시 후 이동합니다...' : '태블릿 QR 스캐너 로그인'}
+          <p className="text-xs font-black text-primary-400 uppercase tracking-[0.4em] opacity-80">
+            {isSuccess ? 'Authentication Successful' : 'Premium Tablet Terminal'}
           </p>
         </div>
       </FadeInScale>
@@ -111,102 +116,109 @@ export const LoginPage: React.FC = () => {
       {/* Login Form */}
       {!isSuccess && (
         <FadeIn delay={200}>
-          <Card
-            className={cn(
-              'w-full max-w-[340px]',
-              loginState === 'error' && 'animate-error-shake'
-            )}
-          >
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Error message */}
-              {error && (
-                <div
-                  className={cn(
-                    'flex items-center gap-2',
-                    'p-3 rounded-lg',
-                    'bg-danger-50 border border-danger-200',
-                    'text-sm text-danger-600',
-                    'animate-fade-in'
-                  )}
-                >
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
+          <div className="w-full max-w-[380px] perspective-1000">
+            <Card
+              variant="glass"
+              className={cn(
+                'p-8 border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl',
+                loginState === 'error' && 'animate-error-shake border-danger-500/50'
               )}
-
-              {/* Username */}
-              <FadeIn delay={300}>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    label="사용자 ID"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="아이디를 입력하세요"
-                    required
-                    autoComplete="username"
-                    disabled={isLoading}
-                  />
-                </div>
-              </FadeIn>
-
-              {/* Password */}
-              <FadeIn delay={400}>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    label="비밀번호"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비밀번호를 입력하세요"
-                    required
-                    autoComplete="current-password"
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+            >
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Error message */}
+                {error && (
+                  <div
                     className={cn(
-                      'absolute right-3 top-[38px]',
-                      'p-1 rounded-md',
-                      'text-neutral-400 hover:text-neutral-600',
-                      'hover:bg-neutral-100',
-                      'transition-colors'
+                      'flex items-center gap-3',
+                      'p-4 rounded-2xl',
+                      'bg-danger-500/10 border border-danger-500/20',
+                      'text-sm font-bold text-danger-400',
+                      'animate-in fade-in slide-in-from-top-2 duration-300'
                     )}
-                    tabIndex={-1}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </FadeIn>
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
-              {/* Submit Button */}
-              <FadeIn delay={500}>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  isLoading={isLoading}
-                  disabled={isLoading}
-                  className="w-full mt-2"
-                >
-                  <LogIn className="w-5 h-5" />
-                  로그인
-                </Button>
-              </FadeIn>
-            </form>
-          </Card>
+                {/* Username */}
+                <FadeIn delay={300}>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1">Operator ID</label>
+                    <Input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter ID..."
+                      required
+                      autoComplete="username"
+                      disabled={isLoading}
+                      className="h-14 rounded-2xl"
+                    />
+                  </div>
+                </FadeIn>
+
+                {/* Password */}
+                <FadeIn delay={400}>
+                  <div className="space-y-1.5 relative">
+                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Security Key</label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        autoComplete="current-password"
+                        disabled={isLoading}
+                        className="h-14 rounded-2xl pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className={cn(
+                          'absolute right-4 top-1/2 -translate-y-1/2',
+                          'p-1.5 rounded-lg',
+                          'text-neutral-600 hover:text-primary-400',
+                          'hover:bg-white/5',
+                          'transition-all duration-200'
+                        )}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </FadeIn>
+
+                {/* Submit Button */}
+                <FadeIn delay={500}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isLoading={isLoading}
+                    disabled={isLoading}
+                    className="w-full h-16 mt-4 rounded-2xl btn-action-primary font-black text-lg tracking-tight shadow-xl hover:shadow-primary-500/20"
+                  >
+                    {!isLoading && <LogIn className="w-6 h-6 mr-2" />}
+                    ACCESS SYSTEM
+                  </Button>
+                </FadeIn>
+              </form>
+            </Card>
+          </div>
         </FadeIn>
       )}
 
       {/* Footer */}
       <FadeIn delay={600}>
-        <div className="mt-6 text-xs text-neutral-400">
-          F2X NeuroHub MES v1.0
+        <div className="mt-12 text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em] flex items-center gap-2">
+          <div className="w-1 h-1 rounded-full bg-primary-500 animate-pulse" />
+          F2X NeuroHub MES v1.0.4-PRO
         </div>
       </FadeIn>
     </div>

@@ -22,9 +22,9 @@ def upgrade() -> None:
     # Check if we're running on SQLite
     bind = op.get_bind()
     if bind.dialect.name == 'sqlite':
-        # SQLite-specific migration
-        op.execute("""
-            -- Create new table with INTEGER id
+        # SQLite-specific migration: Split into individual statements
+        statements = [
+            """
             CREATE TABLE process_data_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 lot_id BIGINT NOT NULL,
@@ -54,24 +54,18 @@ def upgrade() -> None:
                 FOREIGN KEY(process_id) REFERENCES processes (id),
                 FOREIGN KEY(operator_id) REFERENCES users (id),
                 FOREIGN KEY(equipment_id) REFERENCES equipment (id)
-            );
-
-            -- Copy data from old table
-            INSERT INTO process_data_new
-            SELECT * FROM process_data;
-
-            -- Drop old table
-            DROP TABLE process_data;
-
-            -- Rename new table
-            ALTER TABLE process_data_new RENAME TO process_data;
-
-            -- Recreate indexes
-            CREATE INDEX IF NOT EXISTS idx_process_data_lot ON process_data(lot_id);
-            CREATE INDEX IF NOT EXISTS idx_process_data_serial ON process_data(serial_id) WHERE serial_id IS NOT NULL;
-            CREATE INDEX IF NOT EXISTS idx_process_data_process ON process_data(process_id);
-            CREATE INDEX IF NOT EXISTS idx_process_data_wip ON process_data(wip_id) WHERE wip_id IS NOT NULL;
-        """)
+            )
+            """,
+            "INSERT INTO process_data_new SELECT * FROM process_data",
+            "DROP TABLE process_data",
+            "ALTER TABLE process_data_new RENAME TO process_data",
+            "CREATE INDEX IF NOT EXISTS idx_process_data_lot ON process_data(lot_id)",
+            "CREATE INDEX IF NOT EXISTS idx_process_data_serial ON process_data(serial_id) WHERE serial_id IS NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_process_data_process ON process_data(process_id)",
+            "CREATE INDEX IF NOT EXISTS idx_process_data_wip ON process_data(wip_id) WHERE wip_id IS NOT NULL"
+        ]
+        for statement in statements:
+            op.execute(statement)
     # For PostgreSQL, no changes needed - BIGINT is fine
 
 

@@ -9,10 +9,11 @@ import { cn } from '@/lib/cn';
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md' | 'lg';
   hoverable?: boolean;
+  variant?: 'white' | 'glass';
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ padding = 'md', hoverable = false, className, children, ...props }, ref) => {
+  ({ padding = 'md', hoverable = false, variant = 'white', className, children, ...props }, ref) => {
     const paddings = {
       none: '',
       sm: 'p-3',
@@ -24,10 +25,8 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'bg-white rounded-xl',
-          'border border-neutral-200',
-          'shadow-sm',
-          hoverable && 'transition-shadow hover:shadow-md cursor-pointer',
+          variant === 'glass' ? 'glass-card' : 'bg-white rounded-xl border border-neutral-200 shadow-sm',
+          hoverable && (variant === 'glass' ? 'cursor-pointer' : 'transition-shadow hover:shadow-md cursor-pointer'),
           paddings[padding],
           className
         )}

@@ -3,7 +3,7 @@
  *
  * App header with title, network status, and controls
  */
-import { Volume2, VolumeX, Calendar, LogOut } from 'lucide-react';
+import { Volume2, VolumeX, Calendar, LogOut, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface HeaderProps {
@@ -15,6 +15,8 @@ export interface HeaderProps {
   queueCount?: number;
   showDate?: boolean;
   onLogout?: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,30 +28,36 @@ export const Header: React.FC<HeaderProps> = ({
   queueCount = 0,
   showDate = true,
   onLogout,
+  theme,
+  onToggleTheme,
 }) => {
   return (
-    <header className="flex justify-between items-center mb-4">
+    <header className="flex justify-between items-center mb-6">
       {/* Left side - Title and status */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-neutral-800 truncate">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--app-text)' }}>
             {title}
           </h1>
           {/* Network status indicator */}
-          <span
-            className={cn(
-              'w-2.5 h-2.5 rounded-full flex-shrink-0',
-              isOnline ? 'bg-success-500' : 'bg-danger-500'
-            )}
-            title={isOnline ? '온라인' : '오프라인'}
-          />
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+            <span
+              className={cn(
+                'w-2 h-2 rounded-full flex-shrink-0 animate-pulse',
+                isOnline ? 'bg-success-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-danger-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]'
+              )}
+            />
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+              {isOnline ? 'Online' : 'Offline'}
+            </span>
+          </div>
         </div>
         {subtitle && (
-          <p className="text-sm text-neutral-500 mt-0.5 truncate">
-            {subtitle}
+          <p className="text-sm font-medium text-neutral-400 mt-1 flex items-center gap-2">
+            <span className="opacity-70">{subtitle}</span>
             {queueCount > 0 && (
-              <span className="text-warning-600 ml-2 font-medium">
-                (대기: {queueCount}건)
+              <span className="bg-warning-500/20 text-warning-400 px-2 py-0.5 rounded text-xs font-bold">
+                QUEUE: {queueCount}
               </span>
             )}
           </p>
@@ -57,17 +65,33 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right side - Controls */}
-      <div className="flex items-center gap-2 ml-4">
+      <div className="flex items-center gap-3 ml-4">
+        {/* Theme toggle */}
+        <button
+          onClick={onToggleTheme}
+          className={cn(
+            'p-2.5 rounded-xl border transition-all duration-300',
+            theme === 'light'
+              ? 'bg-amber-500/10 border-amber-500/20 text-amber-600'
+              : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+          )}
+        >
+          {theme === 'light' ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+        </button>
+
         {/* Sound toggle */}
         <button
           onClick={onToggleSound}
           className={cn(
-            'p-2 rounded-lg border transition-colors',
+            'p-2.5 rounded-xl border transition-all duration-300',
             soundEnabled
-              ? 'bg-primary-50 border-primary-200 text-primary-600'
-              : 'bg-neutral-100 border-neutral-200 text-neutral-500'
+              ? 'bg-primary-500/20 border-primary-500/40 text-primary-400'
+              : 'bg-white/5 border-white/10 text-neutral-500'
           )}
-          title={soundEnabled ? '소리 끄기' : '소리 켜기'}
         >
           {soundEnabled ? (
             <Volume2 className="w-5 h-5" />
@@ -78,9 +102,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Date display */}
         {showDate && (
-          <div className="hidden sm:flex items-center gap-1.5 text-sm text-neutral-500">
-            <Calendar className="w-4 h-4" />
-            <span>{new Date().toLocaleDateString('ko-KR')}</span>
+          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-neutral-400">
+            <Calendar className="w-4 h-4 text-primary-400" />
+            <span className="font-medium tracking-tight">{new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}</span>
           </div>
         )}
 
@@ -89,11 +113,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onLogout}
             className={cn(
-              'p-2 rounded-lg border transition-colors',
-              'bg-neutral-100 border-neutral-200 text-neutral-500',
-              'hover:bg-neutral-200 hover:text-neutral-700'
+              'p-2.5 rounded-xl border border-white/10 bg-white/5 text-neutral-400 transition-all duration-300',
+              'hover:bg-danger-500/10 hover:border-danger-500/20 hover:text-danger-400'
             )}
-            title="로그아웃"
           >
             <LogOut className="w-5 h-5" />
           </button>

@@ -180,11 +180,11 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
   // WIP 정보
   const wipInfo = trace
     ? {
-        wipId: trace.wip_id,
-        lotNumber: trace.lot_number,
-        model: trace.lot_info?.product_model || '-',
-        sequence: `#${trace.sequence_in_lot}`,
-      }
+      wipId: trace.wip_id,
+      lotNumber: trace.lot_number,
+      model: trace.lot_info?.product_model || '-',
+      sequence: `#${trace.sequence_in_lot}`,
+    }
     : null;
 
   // 모든 공정 완료 여부
@@ -198,29 +198,37 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
       onClose={onClose}
       title=""
       size="lg"
+      variant="glass"
       showCloseButton={step !== 'complete'}
       closeOnBackdrop={!actionLoading}
     >
       {/* Flow View Step */}
       {step === 'flow-view' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* WIP 정보 헤더 */}
           {wipInfo && (
-            <div className="bg-neutral-50 rounded-2xl p-4 border border-neutral-200">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
-                  <Package className="w-5 h-5 text-primary-600" />
+            <div className="bg-sub rounded-3xl p-6 border border-main relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 blur-3xl rounded-full -mr-16 -mt-16 opacity-50" />
+              <div className="flex items-start gap-5 relative text-dynamic">
+                <div className="w-14 h-14 rounded-2xl bg-primary-500/10 flex items-center justify-center flex-shrink-0 border border-primary-500/20">
+                  <Package className="w-7 h-7 text-primary-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-lg font-bold text-neutral-800 font-mono truncate">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary-400">Target WIP</span>
+                    {allCompleted && (
+                      <span className="bg-success-500/10 text-success-500 text-[10px] px-2 py-0.5 rounded font-black border border-success-500/20">FINISHED</span>
+                    )}
+                  </div>
+                  <p className="text-2xl font-black text-dynamic font-mono truncate tracking-tight">
                     {wipInfo.wipId}
                   </p>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-neutral-500">
-                    <span>{wipInfo.lotNumber}</span>
-                    <span className="text-neutral-300">|</span>
-                    <span>{wipInfo.model}</span>
-                    <span className="text-neutral-300">|</span>
-                    <span className="font-medium text-primary-600">{wipInfo.sequence}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-bold text-muted">
+                    <span className="bg-sub px-2 py-1 rounded-md border border-main">{wipInfo.lotNumber}</span>
+                    <span className="text-dim">/</span>
+                    <span className="bg-sub px-2 py-1 rounded-md border border-main">{wipInfo.model}</span>
+                    <span className="text-dim">/</span>
+                    <span className="text-primary-400">{wipInfo.sequence}</span>
                   </div>
                 </div>
               </div>
@@ -240,94 +248,89 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
 
           {/* 모든 공정 완료 시 */}
           {allCompleted && (
-            <div className="bg-success-50 rounded-2xl p-4 border border-success-200 text-center">
-              <CheckCircle className="w-12 h-12 text-success-500 mx-auto mb-2" />
-              <p className="text-lg font-bold text-success-700">모든 공정 완료!</p>
-              <p className="text-sm text-success-600 mt-1">
-                이 WIP의 모든 공정이 완료되었습니다.
+            <div className="bg-success-500/5 rounded-3xl p-6 border border-success-500/20 text-center animate-in zoom-in duration-500">
+              <div className="w-16 h-16 bg-success-500/10 rounded-full flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <CheckCircle className="w-10 h-10 text-success-500" />
+              </div>
+              <p className="text-xl font-black text-success-500 tracking-tight text-dynamic">All Processes Completed</p>
+              <p className="text-sm text-muted mt-2 font-medium">
+                All manufacturing processes for this WIP have been completed successfully.
               </p>
             </div>
           )}
 
           {/* 진행 중 공정 표시 */}
-          {inProgressProcess && (
-            <div className="bg-primary-50 rounded-2xl p-4 border border-primary-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Timer className="w-5 h-5 text-primary-600" />
-                <span className="font-semibold text-primary-700">진행 중인 작업</span>
+          {inProgressProcess && !allCompleted && (
+            <div className="bg-primary-500/5 rounded-2xl p-4 border border-primary-500/10 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center animate-pulse">
+                <Timer className="w-5 h-5 text-primary-400" />
               </div>
-              <p className="text-neutral-700">
-                <span className="font-bold">{inProgressProcess.process_number}. {inProgressProcess.process_name}</span>
-                {' '}공정이 착공되어 있습니다.
-              </p>
-              <p className="text-sm text-neutral-500 mt-1">
-                완공 버튼을 눌러 작업을 완료하세요.
-              </p>
+              <div>
+                <p className="text-sm font-bold text-dynamic">
+                  {inProgressProcess.process_number}. {inProgressProcess.process_name} In Progress
+                </p>
+                <p className="text-[10px] text-muted uppercase tracking-wider font-bold">Completion Required</p>
+              </div>
             </div>
           )}
 
           {/* 액션 버튼들 */}
           {!allCompleted && (
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               {/* 착공 버튼 */}
               <button
                 type="button"
                 onClick={handleStart}
                 disabled={!canStart || actionLoading}
                 className={cn(
-                  'w-full flex items-center justify-center gap-3',
-                  'py-5 px-6 rounded-2xl',
-                  'font-bold text-xl',
-                  'transition-all duration-200',
-                  'shadow-lg',
+                  'w-full flex items-center justify-center gap-4',
+                  'py-6 px-8 rounded-[2rem]',
+                  'font-black text-2xl tracking-tight transition-all duration-300',
                   !canStart || actionLoading
-                    ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                    ? 'bg-sub text-dim border border-main cursor-not-allowed'
                     : [
-                        'bg-gradient-to-r from-primary-500 to-primary-600',
-                        'text-white',
-                        'hover:from-primary-600 hover:to-primary-700',
-                        'active:scale-[0.98] active:shadow-md',
-                      ]
+                      'bg-gradient-to-r from-primary-600 to-primary-400',
+                      'text-white shadow-[0_10px_30px_rgba(30,58,95,0.4)]',
+                      'hover:from-primary-500 hover:to-primary-300',
+                      'active:scale-95 active:shadow-inner',
+                    ]
                 )}
               >
                 {actionLoading ? (
-                  <Loader2 className="w-7 h-7 animate-spin" />
+                  <Loader2 className="w-8 h-8 animate-spin" />
                 ) : (
-                  <Play className="w-7 h-7" fill="currentColor" />
+                  <Play className="w-8 h-8" fill="currentColor" />
                 )}
-                <span>착공</span>
+                <span>START OPERATION</span>
                 {selectedProcess && (
-                  <ChevronRight className="w-5 h-5 opacity-70" />
+                  <ChevronRight className="w-6 h-6 opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 )}
               </button>
 
               {/* 완공 버튼들 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 {/* 합격 */}
                 <button
                   type="button"
                   onClick={() => handleCompleteClick('PASS')}
                   disabled={!canComplete || actionLoading}
                   className={cn(
-                    'flex items-center justify-center gap-2',
-                    'py-5 px-4 rounded-2xl',
-                    'font-bold text-lg',
-                    'transition-all duration-200',
-                    'shadow-lg',
+                    'flex items-center justify-center gap-3',
+                    'py-6 px-4 rounded-3xl',
+                    'font-black text-xl transition-all duration-300',
                     !canComplete || actionLoading
-                      ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                      ? 'bg-sub text-dim border border-main cursor-not-allowed'
                       : [
-                          'bg-gradient-to-r from-success-500 to-success-600',
-                          'text-white',
-                          'hover:from-success-600 hover:to-success-700',
-                          'active:scale-[0.98] active:shadow-md',
-                        ]
+                        'bg-gradient-to-br from-success-600 to-success-400',
+                        'text-white shadow-[0_8px_25px_rgba(16,185,129,0.3)]',
+                        'hover:scale-[1.03] active:scale-95',
+                      ]
                   )}
                 >
-                  <CheckCircle className="w-6 h-6" />
+                  <CheckCircle className="w-7 h-7" />
                   <div className="text-left">
-                    <div>완공</div>
-                    <div className="text-sm font-normal opacity-80">합격</div>
+                    <div className="leading-tight">COMPLETE</div>
+                    <div className="text-xs font-black opacity-60 uppercase tracking-widest">Pass</div>
                   </div>
                 </button>
 
@@ -337,34 +340,31 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
                   onClick={() => handleCompleteClick('FAIL')}
                   disabled={!canComplete || actionLoading}
                   className={cn(
-                    'flex items-center justify-center gap-2',
-                    'py-5 px-4 rounded-2xl',
-                    'font-bold text-lg',
-                    'transition-all duration-200',
-                    'shadow-lg',
+                    'flex items-center justify-center gap-3',
+                    'py-6 px-4 rounded-3xl',
+                    'font-black text-xl transition-all duration-300',
                     !canComplete || actionLoading
-                      ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none'
+                      ? 'bg-sub text-dim border border-main cursor-not-allowed'
                       : [
-                          'bg-gradient-to-r from-danger-500 to-danger-600',
-                          'text-white',
-                          'hover:from-danger-600 hover:to-danger-700',
-                          'active:scale-[0.98] active:shadow-md',
-                        ]
+                        'bg-gradient-to-br from-danger-600 to-danger-400',
+                        'text-white shadow-[0_8px_25px_rgba(239,68,68,0.3)]',
+                        'hover:scale-[1.03] active:scale-95',
+                      ]
                   )}
                 >
-                  <XCircle className="w-6 h-6" />
+                  <XCircle className="w-7 h-7" />
                   <div className="text-left">
-                    <div>완공</div>
-                    <div className="text-sm font-normal opacity-80">불량</div>
+                    <div className="leading-tight">COMPLETE</div>
+                    <div className="text-xs font-black opacity-60 uppercase tracking-widest">Fail</div>
                   </div>
                 </button>
               </div>
 
               {/* 안내 메시지 */}
               {!canStart && !canComplete && !allCompleted && (
-                <div className="flex items-center justify-center gap-2 text-sm text-neutral-500 py-2">
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-muted uppercase tracking-widest py-2 bg-sub rounded-full border border-dashed border-main animate-pulse">
                   <AlertCircle className="w-4 h-4" />
-                  <span>공정을 선택하세요</span>
+                  <span>Select a process to proceed</span>
                 </div>
               )}
             </div>
@@ -377,10 +377,10 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
               size="lg"
               fullWidth
               onClick={handleScanNext}
-              className="mt-4"
+              className="mt-6 py-6 rounded-3xl font-black text-xl"
             >
-              <Camera className="w-5 h-5" />
-              다음 WIP 스캔
+              <Camera className="w-6 h-6 mr-3" />
+              SCAN NEXT WIP
             </Button>
           )}
         </div>
@@ -410,7 +410,7 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
                   pendingResult === 'PASS' ? 'text-success-700' : 'text-danger-700'
                 )}
               >
-                완공 ({pendingResult === 'PASS' ? '합격' : '불량'})
+                Completion ({pendingResult === 'PASS' ? 'Pass' : 'Fail'})
               </span>
             </div>
             <p className="text-sm text-neutral-600 mt-1 font-mono">
@@ -421,6 +421,7 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
           {/* 측정값 폼 */}
           <MeasurementForm
             process={selectedProcess}
+            result={pendingResult!}
             onSubmit={handleMeasurementSubmit}
             onCancel={handleMeasurementCancel}
             isLoading={actionLoading}
@@ -439,8 +440,8 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
               lastResult.result === 'PASS'
                 ? 'bg-success-100'
                 : lastResult.result === 'FAIL'
-                ? 'bg-danger-100'
-                : 'bg-primary-100'
+                  ? 'bg-danger-100'
+                  : 'bg-primary-100'
             )}
           >
             {lastResult.action === 'complete' && lastResult.result === 'PASS' && (
@@ -455,13 +456,13 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
           </div>
 
           {/* 메시지 */}
-          <h3 className="text-2xl font-bold text-neutral-800 mb-2">
-            {lastResult.action === 'complete' ? '완공 완료!' : '착공 완료!'}
+          <h3 className="text-2xl font-bold text-dynamic mb-2">
+            {lastResult.action === 'complete' ? 'Operation Finished!' : 'Operation Started!'}
           </h3>
           <p className="text-neutral-600 mb-2 font-mono">{wipInfo?.wipId}</p>
           {selectedProcess && (
             <p className="text-neutral-500">
-              {selectedProcess.process_number}. {selectedProcess.process_name_ko}
+              {selectedProcess.process_number}. {selectedProcess.process_name_en}
               {lastResult.result && (
                 <span
                   className={cn(
@@ -469,7 +470,7 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
                     lastResult.result === 'PASS' ? 'text-success-600' : 'text-danger-600'
                   )}
                 >
-                  {lastResult.result === 'PASS' ? '합격' : '불량'}
+                  {lastResult.result === 'PASS' ? 'Pass' : 'Fail'}
                 </span>
               )}
             </p>
@@ -493,10 +494,10 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
               onClick={handleScanNext}
               leftIcon={<Camera className="w-5 h-5" />}
             >
-              다음 WIP 스캔
+              SCAN NEXT WIP
             </Button>
             <Button variant="ghost" size="lg" fullWidth onClick={onClose}>
-              닫기
+              CLOSE
             </Button>
           </div>
         </div>

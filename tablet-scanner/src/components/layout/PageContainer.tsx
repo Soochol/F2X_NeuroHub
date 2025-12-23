@@ -20,11 +20,9 @@ export const PageContainer: React.FC<PageContainerProps> = ({
     <div
       className={cn(
         'min-h-full w-full mx-auto',
-        'max-w-[480px] sm:max-w-[540px] md:max-w-[720px]',
-        'landscape:md:max-w-[900px]',
-        'bg-neutral-50',
+        'bg-transparent',
         'safe-area-inset',
-        !noPadding && 'px-4 py-4',
+        !noPadding && 'px-6 py-6 lg:px-10 lg:py-8',
         className
       )}
     >

@@ -3,8 +3,10 @@
  *
  * Handles routing and authentication
  */
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
+import { useUIStore } from '@/store/slices/uiSlice';
 import { LoginPage } from '@/pages/LoginPage';
 import { WorkPage } from '@/pages/WorkPage';
 import { ToastProvider } from '@/components/feedback';
@@ -26,11 +28,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // App Component
 function App() {
+  const { theme } = useUIStore();
+
+  // Apply theme to document root
+  useEffect(() => {
+    const html = window.document.documentElement;
+    html.classList.remove('light', 'dark');
+    html.classList.add(theme);
+    html.setAttribute('data-theme', theme);
+  }, [theme]);
+
   return (
     <ToastProvider>
       <BrowserRouter>
         <div
-          className="w-full h-full max-w-[600px] mx-auto bg-neutral-100"
+          className="w-full h-full min-h-screen"
         >
           <Routes>
             <Route path="/login" element={<LoginPage />} />

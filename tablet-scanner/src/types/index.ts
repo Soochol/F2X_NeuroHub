@@ -15,6 +15,7 @@ export interface Process {
   process_code: string;
   process_name_ko: string;
   process_name_en: string;
+  defect_items?: string[];
 }
 
 // WIP Item from trace API

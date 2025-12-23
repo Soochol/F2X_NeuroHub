@@ -57,6 +57,7 @@ interface UIState {
   // Sound & Vibration
   soundEnabled: boolean;
   vibrationEnabled: boolean;
+  theme: 'dark' | 'light';
 
   // Actions
   openModal: (modal: ModalType, data?: Record<string, unknown>) => void;
@@ -86,6 +87,7 @@ interface UIState {
   // Sound & Vibration
   toggleSound: () => void;
   toggleVibration: () => void;
+  toggleTheme: () => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -106,6 +108,7 @@ export const useUIStore = create<UIState>()(
       loadingMessage: null,
       soundEnabled: true,
       vibrationEnabled: true,
+      theme: 'dark',
 
       // Modal actions
       openModal: (modal, data) =>
@@ -212,6 +215,9 @@ export const useUIStore = create<UIState>()(
 
       toggleVibration: () =>
         set((state) => ({ vibrationEnabled: !state.vibrationEnabled })),
+
+      toggleTheme: () =>
+        set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
     }),
     {
       name: 'ui-storage',
@@ -220,6 +226,7 @@ export const useUIStore = create<UIState>()(
         selectedCameraId: state.selectedCameraId,
         soundEnabled: state.soundEnabled,
         vibrationEnabled: state.vibrationEnabled,
+        theme: state.theme,
       }),
     }
   )

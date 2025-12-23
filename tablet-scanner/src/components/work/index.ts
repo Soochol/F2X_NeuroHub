@@ -10,3 +10,4 @@ export { ResultFeedbackCard } from './ResultFeedbackCard';
 export { WorkInstructions } from './WorkInstructions';
 export { WipFlowTimeline } from './WipFlowTimeline';
 export { QuickWorkModal } from './QuickWorkModal';
+export { QuickWorkPanel } from './QuickWorkPanel';

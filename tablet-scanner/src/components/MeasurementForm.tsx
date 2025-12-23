@@ -25,82 +25,8 @@ interface MeasurementField {
   placeholder?: string;
 }
 
-// Measurement configurations per process number
-const processConfigs: Record<number, MeasurementField[]> = {
-  // 1. 레이저 마킹
-  1: [
-    { key: 'marking_quality', label: '마킹 품질', type: 'select', options: [
-      { value: 'good', label: '양호' },
-      { value: 'acceptable', label: '허용' },
-      { value: 'poor', label: '불량' },
-    ], required: true },
-    { key: 'laser_power', label: '레이저 출력', type: 'number', unit: 'W', min: 0, max: 100, step: 0.1 },
-  ],
-  // 2. LMA 조립
-  2: [
-    { key: 'assembly_torque', label: '조립 토크', type: 'number', unit: 'N·m', min: 0, max: 10, step: 0.01, required: true },
-    { key: 'alignment_check', label: '정렬 상태', type: 'select', options: [
-      { value: 'pass', label: '합격' },
-      { value: 'adjusted', label: '조정 후 합격' },
-      { value: 'fail', label: '불합격' },
-    ] },
-    { key: 'busbar_lot', label: 'Busbar LOT', type: 'text', placeholder: 'LOT 번호 입력' },
-  ],
-  // 3. 센서 검사
-  3: [
-    { key: 'sensitivity', label: '감도', type: 'number', unit: 'mV/Pa', min: 0, max: 1000, step: 0.1, required: true },
-    { key: 'noise_level', label: '노이즈 레벨', type: 'number', unit: 'dB', min: -100, max: 0, step: 0.1, required: true },
-    { key: 'frequency_response', label: '주파수 응답', type: 'number', unit: 'Hz', min: 0, max: 20000, step: 1 },
-  ],
-  // 4. 펌웨어 업로드
-  4: [
-    { key: 'firmware_version', label: '펌웨어 버전', type: 'text', required: true, placeholder: 'v1.0.0' },
-    { key: 'upload_time', label: '업로드 시간', type: 'number', unit: '초', min: 0, max: 300, step: 1 },
-    { key: 'verification', label: '검증 상태', type: 'select', options: [
-      { value: 'verified', label: '검증 완료' },
-      { value: 'warning', label: '경고 있음' },
-      { value: 'failed', label: '검증 실패' },
-    ], required: true },
-  ],
-  // 5. 로봇 조립
-  5: [
-    { key: 'robot_id', label: '로봇 ID', type: 'text', required: true },
-    { key: 'positioning_error', label: '위치 오차', type: 'number', unit: 'mm', min: 0, max: 1, step: 0.001 },
-    { key: 'cycle_time', label: '사이클 타임', type: 'number', unit: '초', min: 0, max: 60, step: 0.1 },
-  ],
-  // 6. 성능 검사
-  6: [
-    { key: 'output_power', label: '출력', type: 'number', unit: 'mW', min: 0, max: 1000, step: 0.1, required: true },
-    { key: 'efficiency', label: '효율', type: 'number', unit: '%', min: 0, max: 100, step: 0.1, required: true },
-    { key: 'temperature', label: '온도', type: 'number', unit: '°C', min: -20, max: 80, step: 0.1 },
-    { key: 'humidity', label: '습도', type: 'number', unit: '%', min: 0, max: 100, step: 0.1 },
-  ],
-  // 7. 라벨 프린팅
-  7: [
-    { key: 'label_quality', label: '라벨 품질', type: 'select', options: [
-      { value: 'excellent', label: '우수' },
-      { value: 'good', label: '양호' },
-      { value: 'acceptable', label: '허용' },
-    ], required: true },
-    { key: 'barcode_readable', label: '바코드 판독', type: 'select', options: [
-      { value: 'yes', label: '판독 가능' },
-      { value: 'no', label: '판독 불가' },
-    ], required: true },
-  ],
-  // 8. 포장+외관검사
-  8: [
-    { key: 'visual_inspection', label: '외관 검사', type: 'select', options: [
-      { value: 'pass', label: '합격' },
-      { value: 'minor_defect', label: '경미한 결함' },
-      { value: 'fail', label: '불합격' },
-    ], required: true },
-    { key: 'package_integrity', label: '포장 상태', type: 'select', options: [
-      { value: 'intact', label: '완전' },
-      { value: 'damaged', label: '손상' },
-    ], required: true },
-    { key: 'weight', label: '중량', type: 'number', unit: 'g', min: 0, max: 1000, step: 0.1 },
-  ],
-};
+// Measurement configurations are now handled via defect_items and specific process types
+const processConfigs: Record<number, MeasurementField[]> = {};
 
 // Default fields for unknown processes
 const defaultFields: MeasurementField[] = [
@@ -109,18 +35,22 @@ const defaultFields: MeasurementField[] = [
 
 interface MeasurementFormProps {
   process: Process | null;
-  onSubmit: (measurements: Record<string, unknown>) => void;
+  result: 'PASS' | 'FAIL' | 'REWORK';
+  onSubmit: (data: { measurements: Record<string, unknown>, defects?: string[], notes?: string }) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
 export const MeasurementForm: React.FC<MeasurementFormProps> = ({
   process,
+  result,
   onSubmit,
   onCancel,
   isLoading = false,
 }) => {
   const [values, setValues] = useState<Record<string, string | number>>({});
+  const [selectedDefects, setSelectedDefects] = useState<string[]>([]);
+  const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Get fields for current process
@@ -131,6 +61,8 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
   // Reset form when process changes
   useEffect(() => {
     setValues({});
+    setSelectedDefects([]);
+    setNotes('');
     setErrors({});
   }, [process?.id]);
 
@@ -154,7 +86,7 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
     // Check required fields
     fields.forEach((field) => {
       if (field.required && !values[field.key] && values[field.key] !== 0) {
-        newErrors[field.key] = '필수 입력 항목입니다';
+        newErrors[field.key] = 'This field is required';
       }
     });
 
@@ -176,7 +108,31 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
       }
     });
 
-    onSubmit(measurements);
+    if (result === 'FAIL' && selectedDefects.length === 0 && (!notes || !notes.trim())) {
+      setErrors({ ...newErrors, _defects: 'Please select at least one defect item or enter a notes.' });
+      return;
+    }
+
+    onSubmit({
+      measurements,
+      defects: result === 'FAIL' ? selectedDefects : undefined,
+      notes: notes.trim() || undefined
+    });
+  };
+
+  const toggleDefect = (defect: string) => {
+    setSelectedDefects(prev =>
+      prev.includes(defect)
+        ? prev.filter(d => d !== defect)
+        : [...prev, defect]
+    );
+    if (errors._defects) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next._defects;
+        return next;
+      });
+    }
   };
 
   // Render field input
@@ -190,14 +146,14 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
         <span>{field.label}</span>
         {field.required && <span className="text-danger-500">*</span>}
         {field.unit && (
-          <span className="text-xs text-neutral-400">({field.unit})</span>
+          <span className="text-xs text-muted">({field.unit})</span>
         )}
       </span>
     );
 
     if (field.type === 'select') {
       const options = [
-        { value: '', label: '선택하세요' },
+        { value: '', label: 'Select an option' },
         ...(field.options || []),
       ];
       return (
@@ -217,7 +173,7 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
       <Input
         key={field.key}
         type={field.type}
-        label={labelContent}
+        label={<span className="text-[11px] font-black text-muted uppercase tracking-widest">{labelContent}</span>}
         value={value}
         onChange={(e) => handleChange(field.key, e.target.value)}
         placeholder={field.placeholder}
@@ -231,46 +187,104 @@ export const MeasurementForm: React.FC<MeasurementFormProps> = ({
   };
 
   return (
-    <Card>
+    <Card variant="glass" className="border-main shadow-none bg-surface">
       {/* Header */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <ClipboardList className="w-5 h-5 text-primary-500" />
-          <h3 className="text-lg font-semibold text-neutral-800">
-            측정값 입력
-          </h3>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center border border-primary-500/30">
+            <ClipboardList className="w-5 h-5 text-primary-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-dynamic tracking-tight">
+              {result === 'FAIL' ? 'Defect Report' : 'Measurement Data'}
+            </h3>
+            {process && (
+              <p className="text-[10px] font-bold text-primary-400 uppercase tracking-widest mt-0.5">
+                Process {process.process_number}: {process.process_name_en}
+              </p>
+            )}
+          </div>
         </div>
-        {process && (
-          <p className="text-sm text-neutral-500">
-            공정 {process.process_number}: {process.process_name_ko}
-          </p>
-        )}
       </div>
 
-      {/* Form fields */}
-      <div className="space-y-4 mb-6">
-        {fields.map(renderField)}
-      </div>
+      {/* Form fields - Only show for PASS/REWORK */}
+      {result !== 'FAIL' && (
+        <div className="space-y-6 mb-8">
+          {fields.map(renderField)}
+        </div>
+      )}
+
+      {/* Defect Selection UI (Only for FAIL) */}
+      {result === 'FAIL' && (
+        <div className="mb-8 p-6 bg-danger-500/5 rounded-3xl border border-danger-500/20">
+          <h4 className="text-sm font-black text-danger-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-danger-500" />
+            Defect Selection
+          </h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            {process?.defect_items && process.defect_items.length > 0 ? (
+              process.defect_items.map((defect) => (
+                <label
+                  key={defect}
+                  className={`flex items-center gap-3 p-4 rounded-2xl cursor-pointer border-2 transition-all ${selectedDefects.includes(defect)
+                    ? 'bg-danger-500/10 border-danger-500/40 text-dynamic'
+                    : 'bg-sub border-main text-muted hover:bg-sub/80'
+                    }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDefects.includes(defect)}
+                    onChange={() => toggleDefect(defect)}
+                    className="hidden"
+                  />
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${selectedDefects.includes(defect) ? 'bg-danger-500 border-danger-500' : 'border-neutral-700'
+                    }`}>
+                    {selectedDefects.includes(defect) && <Save className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <span className="font-bold text-base">{defect}</span>
+                </label>
+              ))
+            ) : (
+              <p className="text-xs text-muted italic col-span-2 py-2">No pre-defined defect items found. Please enter a reason below.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[11px] font-black text-muted uppercase tracking-widest block ml-1">Defect Reason & Notes (Optional)</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Enter detailed reason for failure..."
+              className="w-full min-h-[100px] bg-sub border border-main rounded-2xl p-4 text-dynamic placeholder:text-dim focus:outline-none focus:border-primary-500/50 transition-all font-medium"
+            />
+          </div>
+
+          {errors._defects && (
+            <p className="mt-3 text-xs font-bold text-danger-400 animate-pulse">{errors._defects}</p>
+          )}
+        </div>
+      )}
 
       {/* Buttons */}
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         <Button
           variant="ghost"
           onClick={onCancel}
           disabled={isLoading}
-          className="flex-1"
+          className="flex-1 py-6 rounded-2xl border border-dynamic opacity-70 hover:opacity-100 transition-all font-bold"
         >
-          취소
+          Cancel
         </Button>
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isLoading}
           isLoading={isLoading}
-          className="flex-[2]"
+          className="flex-[2] py-6 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-400 shadow-[0_8px_20px_rgba(30,58,95,0.3)] font-black"
         >
-          <Save className="w-4 h-4" />
-          저장
+          <Save className="w-5 h-5 mr-1" />
+          {result === 'FAIL' ? 'Report Failure' : 'Save & Finish'}
         </Button>
       </div>
     </Card>

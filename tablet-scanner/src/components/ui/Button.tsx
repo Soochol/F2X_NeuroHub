@@ -36,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       primary: 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white',
       success: 'bg-success-500 hover:bg-success-600 active:bg-success-700 text-white',
       danger: 'bg-danger-500 hover:bg-danger-600 active:bg-danger-700 text-white',
-      ghost: 'bg-neutral-100 hover:bg-neutral-200 active:bg-neutral-300 text-neutral-700',
+      ghost: 'btn-ghost-theme',
     };
 
     const sizes = {

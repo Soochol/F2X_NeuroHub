@@ -152,11 +152,15 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
           cameraId,
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
+            qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const size = Math.floor(minEdge * 0.8);
+              return { width: size, height: size };
+            },
             aspectRatio: 1,
           },
           handleScanSuccess,
-          () => {} // Ignore scan failures (no QR in frame)
+          () => { } // Ignore scan failures (no QR in frame)
         );
       } catch (err) {
         console.error('Scanner init error:', err);
@@ -233,11 +237,11 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       {/* Scanner container */}
       <div
         className={cn(
-          'relative w-[300px] h-[300px]',
-          'rounded-2xl overflow-hidden',
-          'shadow-2xl',
-          scanStatus === 'success' && 'ring-4 ring-success-500',
-          scanStatus === 'error' && 'ring-4 ring-danger-500'
+          'relative w-[85vw] h-[85vw] max-w-[600px] max-h-[600px]',
+          'rounded-3xl overflow-hidden',
+          'shadow-2xl border-2 border-white/10',
+          scanStatus === 'success' && 'ring-8 ring-success-500',
+          scanStatus === 'error' && 'ring-8 ring-danger-500'
         )}
       >
         {/* Camera view */}

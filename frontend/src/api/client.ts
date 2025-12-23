@@ -15,6 +15,22 @@ import {
 import Logger from '@/utils/logger';
 import { toast, notify } from '@/utils/toast';
 
+// 토큰 갱신 중인지 여부
+let isRefreshing = false;
+// 갱신 중 대기 중인 요청들
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Vite 프록시 사용 시 상대 경로, 직접 연결 시 전체 URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
@@ -163,7 +179,10 @@ function handleLegacyError(error: AxiosError<APIError>): void {
   Logger.warn('Legacy error format detected:', { statusCode, message });
 
   if (statusCode === 401) {
+    // Note: Auto-refresh is handled in the interceptor, 
+    // this fallback only triggers if refresh also fails.
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     toast.warning('세션이 만료되었습니다');
     setTimeout(() => {
@@ -194,18 +213,19 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  (error: AxiosError<StandardErrorResponse | APIError>) => {
-    const requestUrl = error.config?.url;
+  async (error: AxiosError<StandardErrorResponse | APIError>) => {
+    const originalRequest = error.config;
+    const requestUrl = originalRequest?.url;
 
     // 네트워크 에러 (응답 없음) - CORS 또는 서버 연결 문제
     if (!error.response) {
+      // ... (existing network error handling)
       Logger.error('Network error (no response):', {
         url: requestUrl,
         message: error.message,
         code: error.code,
       });
 
-      // CORS 에러 또는 서버 연결 실패
       if (error.message === 'Network Error') {
         toast.error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인하세요.');
       } else if (error.code === 'ECONNABORTED') {
@@ -219,6 +239,65 @@ apiClient.interceptors.response.use(
     const errorData = error.response.data;
     const statusCode = error.response.status;
 
+    // 401 Unauthorized 에러 처리 (토큰 자동 갱신)
+    if (statusCode === 401 && originalRequest && !originalRequest.headers._retry) {
+      // 로그인 요청이나 리프레시 요청 자체는 제외
+      if (!requestUrl?.includes('/auth/login') && !requestUrl?.includes('/auth/refresh')) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = 'Bearer ' + token;
+              }
+              return apiClient(originalRequest);
+            })
+            .catch((err) => {
+              return Promise.reject(err);
+            });
+        }
+
+        // @ts-ignore - custom flag
+        originalRequest.headers._retry = true;
+        isRefreshing = true;
+
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          try {
+            // circular dependency 방지를 위해 여기서 직접 호출하거나 authApi를 지연 임포트
+            // 여기선 간단히 axios 인스턴스를 직접 사용
+            const res = await axios.post(`${API_BASE_URL}/api/${API_VERSION}/auth/refresh`, {
+              refresh_token: refreshToken
+            });
+
+            const { access_token, refresh_token: newRefreshToken } = res.data;
+            localStorage.setItem('access_token', access_token);
+            if (newRefreshToken) {
+              localStorage.setItem('refresh_token', newRefreshToken);
+            }
+
+            apiClient.defaults.headers.common['Authorization'] = 'Bearer ' + access_token;
+            processQueue(null, access_token);
+
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = 'Bearer ' + access_token;
+            }
+            return apiClient(originalRequest);
+          } catch (refreshError) {
+            processQueue(refreshError, null);
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          } finally {
+            isRefreshing = false;
+          }
+        }
+      }
+    }
+
     Logger.error('API Response Error:', {
       url: requestUrl,
       status: statusCode,
@@ -226,17 +305,21 @@ apiClient.interceptors.response.use(
     });
 
     // 로그인 요청에서 발생한 에러는 컴포넌트에서 처리하도록 넘김
-    // (자동 로그아웃/리다이렉트 하지 않음, toast도 사용하지 않음)
     if (requestUrl?.includes('/auth/login')) {
       return Promise.reject(error);
     }
 
     // 표준 에러 응답 처리
     if (isStandardErrorResponse(errorData)) {
-      handleStandardError(errorData, statusCode);
-    }
-    // 레거시 에러 응답 처리
-    else {
+      // 401 인증 에러 메시지 중 토큰 만료와 관련된 것만 처리 (refresh로 해결 안된 경우)
+      const { error_code } = errorData;
+      if (error_code === ErrorCode.UNAUTHORIZED || error_code === ErrorCode.INVALID_TOKEN || error_code === ErrorCode.TOKEN_EXPIRED) {
+        // 이미 위에서 refresh 시도 후 실패했거나, refresh token이 없는 경우
+        handleStandardError(errorData, statusCode);
+      } else {
+        handleStandardError(errorData, statusCode);
+      }
+    } else {
       handleLegacyError(error as AxiosError<APIError>);
     }
 

@@ -100,6 +100,10 @@ class ProcessBase(BaseModel):
         max_length=50,
         description="Process type: MANUFACTURING (standard production P1-P6) or SERIAL_CONVERSION (serial assignment P7+)"
     )
+    defect_items: list[str] = Field(
+        default_factory=list,
+        description="Predefined list of defect descriptions for this process"
+    )
 
     @field_validator("process_code")
     @classmethod
@@ -151,6 +155,16 @@ class ProcessBase(BaseModel):
             return {}
         if not isinstance(value, dict):
             raise ValueError("quality_criteria must be a dictionary")
+        return value
+
+    @field_validator("defect_items")
+    @classmethod
+    def validate_defect_items(cls, value: list[str]) -> list[str]:
+        """Validate defect_items field as list of strings."""
+        if not isinstance(value, list):
+            raise ValueError("defect_items must be a list")
+        if not all(isinstance(item, str) for item in value):
+            raise ValueError("defect_items must be a list of strings")
         return value
 
 
@@ -263,6 +277,10 @@ class ProcessUpdate(BaseModel):
         max_length=50,
         description="Process type: MANUFACTURING or SERIAL_CONVERSION"
     )
+    defect_items: Optional[list[str]] = Field(
+        default=None,
+        description="Predefined list of defect descriptions for this process"
+    )
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -312,6 +330,18 @@ class ProcessUpdate(BaseModel):
         """
         if value is not None and not isinstance(value, dict):
             raise ValueError("quality_criteria must be a dictionary")
+        return value
+
+    @field_validator("defect_items")
+    @classmethod
+    def validate_defect_items(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate defect_items field as list of strings if provided."""
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            raise ValueError("defect_items must be a list")
+        if not all(isinstance(item, str) for item in value):
+            raise ValueError("defect_items must be a list of strings")
         return value
 
 
