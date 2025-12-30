@@ -156,7 +156,7 @@ export function DashboardPage() {
         >
           System Health
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-3 gap-4 text-sm">
           {/* Station Service Status */}
           <div>
             <span style={{ color: 'var(--color-text-secondary)' }}>Station Service</span>
@@ -200,17 +200,6 @@ export function DashboardPage() {
                 status={websocketStatus === 'connected' ? 'connected' : websocketStatus === 'connecting' ? 'warning' : 'disconnected'}
                 size="sm"
               />
-            </div>
-          </div>
-
-          {/* Batches Running */}
-          <div>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Batches Running</span>
-            <div
-              className="mt-1 font-medium"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {isStationServiceConnected ? (health?.batchesRunning ?? runningBatches) : '-'}
             </div>
           </div>
         </div>

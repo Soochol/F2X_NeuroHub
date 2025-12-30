@@ -1,5 +1,6 @@
 /**
  * WebSocket context for real-time communication with Station Service.
+ * Uses native WebSocket API to connect to FastAPI WebSocket endpoint.
  */
 
 import {
@@ -10,21 +11,11 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useBatchStore } from '../stores/batchStore';
 import { useLogStore } from '../stores/logStore';
 import { WEBSOCKET_CONFIG } from '../config';
-import type {
-  ClientMessage,
-  ServerMessage,
-  BatchStatusMessage,
-  StepStartMessage,
-  StepCompleteMessage,
-  SequenceCompleteMessage,
-  LogMessage,
-  ErrorMessage,
-} from '../types';
+import type { ClientMessage, ServerMessage } from '../types';
 
 /**
  * WebSocket context value interface.
@@ -54,12 +45,49 @@ function generateLogId(): number {
   return Date.now() * 1000 + Math.floor(Math.random() * 1000);
 }
 
-export function WebSocketProvider({ children, url = WEBSOCKET_CONFIG.path }: WebSocketProviderProps) {
-  const socketRef = useRef<Socket | null>(null);
+/**
+ * Get WebSocket URL based on current location.
+ */
+function getWebSocketUrl(path: string): string {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  return `${protocol}//${host}${path}`;
+}
+
+/**
+ * Convert snake_case keys to camelCase recursively.
+ */
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function transformKeys<T>(obj: unknown): T {
+  if (obj === null || obj === undefined) {
+    return obj as T;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => transformKeys(item)) as T;
+  }
+
+  if (typeof obj === 'object') {
+    const transformed: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      transformed[snakeToCamel(key)] = transformKeys(value);
+    }
+    return transformed as T;
+  }
+
+  return obj as T;
+}
+
+export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderProps) {
+  const socketRef = useRef<WebSocket | null>(null);
   const subscribedBatchIds = useRef<Set<string>>(new Set());
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptRef = useRef(0);
 
   // Use selectors to extract stable action references and avoid infinite loops
-  // (extracting with destructuring causes new references on every render)
   const setWebSocketStatus = useConnectionStore((s) => s.setWebSocketStatus);
   const updateHeartbeat = useConnectionStore((s) => s.updateHeartbeat);
   const resetReconnectAttempts = useConnectionStore((s) => s.resetReconnectAttempts);
@@ -149,77 +177,67 @@ export function WebSocketProvider({ children, url = WEBSOCKET_CONFIG.path }: Web
     [updateBatchStatus, updateStepProgress, addLog]
   );
 
-  // Initialize WebSocket connection
-  useEffect(() => {
+  // Connect to WebSocket
+  const connect = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
     setWebSocketStatus('connecting');
 
-    const socket = io(url, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: WEBSOCKET_CONFIG.reconnectionDelay,
-      reconnectionDelayMax: WEBSOCKET_CONFIG.reconnectionDelayMax,
-    });
+    const wsUrl = getWebSocketUrl(url);
+    const socket = new WebSocket(wsUrl);
 
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
+    socket.onopen = () => {
       setWebSocketStatus('connected');
       resetReconnectAttempts();
+      reconnectAttemptRef.current = 0;
       updateHeartbeat();
 
       // Re-subscribe to previously subscribed batches
       if (subscribedBatchIds.current.size > 0) {
-        socket.emit('message', {
+        const message: ClientMessage = {
           type: 'subscribe',
           batchIds: Array.from(subscribedBatchIds.current),
-        });
+        };
+        socket.send(JSON.stringify(message));
       }
-    });
-
-    socket.on('disconnect', () => {
-      setWebSocketStatus('disconnected');
-    });
-
-    socket.on('connect_error', () => {
-      setWebSocketStatus('error');
-      incrementReconnectAttempts();
-    });
-
-    socket.on('message', (data: ServerMessage) => {
-      updateHeartbeat();
-      handleMessage(data);
-    });
-
-    // Handle individual event types as well (for flexibility)
-    socket.on('batch_status', (data: BatchStatusMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'batch_status', batchId: data.batchId, data });
-    });
-
-    socket.on('step_start', (data: StepStartMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'step_start', batchId: data.batchId, data });
-    });
-
-    socket.on('step_complete', (data: StepCompleteMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'step_complete', batchId: data.batchId, data });
-    });
-
-    socket.on('sequence_complete', (data: SequenceCompleteMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'sequence_complete', batchId: data.batchId, data });
-    });
-
-    socket.on('log', (data: LogMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'log', batchId: data.batchId, data });
-    });
-
-    socket.on('error', (data: ErrorMessage['data'] & { batchId: string }) => {
-      handleMessage({ type: 'error', batchId: data.batchId, data });
-    });
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
     };
+
+    socket.onmessage = (event) => {
+      updateHeartbeat();
+      try {
+        const rawData = JSON.parse(event.data);
+        // Transform snake_case to camelCase
+        const data = transformKeys<ServerMessage>(rawData);
+        handleMessage(data);
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+      }
+    };
+
+    socket.onclose = () => {
+      setWebSocketStatus('disconnected');
+      socketRef.current = null;
+
+      // Reconnect with exponential backoff
+      const delay = Math.min(
+        WEBSOCKET_CONFIG.reconnectionDelay * Math.pow(2, reconnectAttemptRef.current),
+        WEBSOCKET_CONFIG.reconnectionDelayMax
+      );
+      reconnectAttemptRef.current++;
+      incrementReconnectAttempts();
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connect();
+      }, delay);
+    };
+
+    socket.onerror = () => {
+      setWebSocketStatus('error');
+    };
+
+    socketRef.current = socket;
   }, [
     url,
     setWebSocketStatus,
@@ -229,15 +247,31 @@ export function WebSocketProvider({ children, url = WEBSOCKET_CONFIG.path }: Web
     handleMessage,
   ]);
 
+  // Initialize WebSocket connection
+  useEffect(() => {
+    connect();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+  }, [connect]);
+
   // Subscribe to batch updates
   const subscribe = useCallback((batchIds: string[]) => {
     batchIds.forEach((id) => subscribedBatchIds.current.add(id));
 
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('message', {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      const message: ClientMessage = {
         type: 'subscribe',
         batchIds,
-      });
+      };
+      socketRef.current.send(JSON.stringify(message));
     }
   }, []);
 
@@ -245,18 +279,19 @@ export function WebSocketProvider({ children, url = WEBSOCKET_CONFIG.path }: Web
   const unsubscribe = useCallback((batchIds: string[]) => {
     batchIds.forEach((id) => subscribedBatchIds.current.delete(id));
 
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('message', {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      const message: ClientMessage = {
         type: 'unsubscribe',
         batchIds,
-      });
+      };
+      socketRef.current.send(JSON.stringify(message));
     }
   }, []);
 
   // Send a message
   const send = useCallback((message: ClientMessage) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('message', message);
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify(message));
     }
   }, []);
 
