@@ -15,9 +15,8 @@ import {
 } from 'lucide-react';
 import { equipmentApi } from '@/api';
 import type { Equipment } from '@/types/api';
+import Logger from '@/utils/logger';
 import styles from './EquipmentStatusPanel.module.css';
-
-type EquipmentStatus = 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE' | 'RETIRED';
 
 interface EquipmentStatusPanelProps {
   productionLineId?: number;
@@ -112,7 +111,7 @@ export const EquipmentStatusPanel = ({
       setEquipment(data);
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch equipment:', err);
+      Logger.error('Failed to fetch equipment:', err);
       setError('Failed to load equipment status');
     } finally {
       setIsLoading(false);

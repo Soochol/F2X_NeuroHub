@@ -4,273 +4,204 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python project optimized for modern Python development. The project uses industry-standard tools and follows best practices for scalable application development.
+F2X NeuroHub MES (Manufacturing Execution System) - A full-stack application for tracking 8 manufacturing processes in a production line. The system handles LOT and serial number management, process data collection, real-time analytics, and audit logging.
+
+### Manufacturing Processes (8 steps)
+1. Laser Marking (레이저 마킹)
+2. LMA Assembly (LMA 조립)
+3. Sensor Inspection (센서 검사)
+4. Firmware Upload (펌웨어 업로드)
+5. Robot Assembly (로봇 조립)
+6. Performance Testing (성능검사)
+7. Label Printing (라벨 프린팅)
+8. Packaging + Visual Inspection (포장 + 외관검사)
+
+## Architecture
+
+```
+F2X_NeuroHub/
+├── backend/              # FastAPI REST API (main MES server)
+├── frontend/             # React + Vite dashboard (Ant Design)
+├── tablet-scanner/       # React PWA for QR scanning (antd-mobile, Tailwind)
+├── neurohub_client/      # PySide6 desktop application
+├── station_service/      # FastAPI service for test sequence execution
+├── station_ui/           # React UI for station service (Tailwind)
+├── sequences/            # Python test sequence definitions
+└── database/             # PostgreSQL DDL scripts and views
+```
+
+### Backend (FastAPI)
+- Entry: `backend/app/main.py`
+- API routes: `backend/app/api/v1/` (auth, analytics, lots, serials, process_data, etc.)
+- Models: `backend/app/models/` (SQLAlchemy 2.0)
+- Schemas: `backend/app/schemas/` (Pydantic v2)
+- CRUD: `backend/app/crud/`
+- Database: PostgreSQL with SQLAlchemy, Alembic migrations in `backend/alembic/`
+
+### Station Service (Test Sequence Executor)
+- Entry: `station_service/main.py`
+- Executes test sequences defined in `sequences/`
+- IPC communication with hardware via `station_service/ipc/`
+- WebSocket for real-time updates
+- SQLite for local storage, syncs to backend
+
+### Frontend Applications
+All use React + TypeScript + Vite:
+- **frontend**: Main dashboard with Ant Design, React Query, Recharts
+- **tablet-scanner**: Mobile QR scanner with antd-mobile, Zustand, PWA support
+- **station_ui**: Station monitoring with Tailwind, Zustand, socket.io-client
 
 ## Development Commands
 
-### Environment Management
-- `python -m venv venv` - Create virtual environment
-- `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows) - Activate virtual environment
-- `deactivate` - Deactivate virtual environment
-- `pip install -r requirements.txt` - Install dependencies
-- `pip install -r requirements-dev.txt` - Install development dependencies
-
-### Package Management
-- `pip install <package>` - Install a package
-- `pip install -e .` - Install project in development mode
-- `pip freeze > requirements.txt` - Generate requirements file
-- `pip-tools compile requirements.in` - Compile requirements with pip-tools
-
-### Testing Commands
-- `pytest` - Run all tests
-- `pytest -v` - Run tests with verbose output
-- `pytest --cov` - Run tests with coverage report
-- `pytest --cov-report=html` - Generate HTML coverage report
-- `pytest -x` - Stop on first failure
-- `pytest -k "test_name"` - Run specific test by name
-- `python -m unittest` - Run tests with unittest
-
-### Code Quality Commands
-- `black .` - Format code with Black
-- `black --check .` - Check code formatting without changes
-- `isort .` - Sort imports
-- `isort --check-only .` - Check import sorting
-- `flake8` - Run linting with Flake8
-- `pylint src/` - Run linting with Pylint
-- `mypy src/` - Run type checking with MyPy
-
-### Development Tools
-- `python -m pip install --upgrade pip` - Upgrade pip
-- `python -c "import sys; print(sys.version)"` - Check Python version
-- `python -m site` - Show Python site information
-- `python -m pdb script.py` - Debug with pdb
-
-## Technology Stack
-
-### Core Technologies
-- **Python** - Primary programming language (3.8+)
-- **pip** - Package management
-- **venv** - Virtual environment management
-
-### Common Frameworks
-- **Django** - High-level web framework
-- **Flask** - Micro web framework
-- **FastAPI** - Modern API framework with automatic documentation
-- **SQLAlchemy** - SQL toolkit and ORM
-- **Pydantic** - Data validation using Python type hints
-
-### Data Science & ML
-- **NumPy** - Numerical computing
-- **Pandas** - Data manipulation and analysis
-- **Matplotlib/Seaborn** - Data visualization
-- **Scikit-learn** - Machine learning library
-- **TensorFlow/PyTorch** - Deep learning frameworks
-
-### Testing Frameworks
-- **pytest** - Testing framework
-- **unittest** - Built-in testing framework
-- **pytest-cov** - Coverage plugin for pytest
-- **factory-boy** - Test fixtures
-- **responses** - Mock HTTP requests
-
-### Code Quality Tools
-- **Black** - Code formatter
-- **isort** - Import sorter
-- **flake8** - Style guide enforcement
-- **pylint** - Code analysis
-- **mypy** - Static type checker
-- **pre-commit** - Git hooks framework
-
-## Project Structure Guidelines
-
-### File Organization
-```
-src/
-├── package_name/
-│   ├── __init__.py
-│   ├── main.py          # Application entry point
-│   ├── models/          # Data models
-│   ├── views/           # Web views (Django/Flask)
-│   ├── api/             # API endpoints
-│   ├── services/        # Business logic
-│   ├── utils/           # Utility functions
-│   └── config/          # Configuration files
-tests/
-├── __init__.py
-├── conftest.py          # pytest configuration
-├── test_models.py
-├── test_views.py
-└── test_utils.py
-requirements/
-├── base.txt            # Base requirements
-├── dev.txt             # Development requirements
-└── prod.txt            # Production requirements
-```
-
-### Naming Conventions
-- **Files/Modules**: Use snake_case (`user_profile.py`)
-- **Classes**: Use PascalCase (`UserProfile`)
-- **Functions/Variables**: Use snake_case (`get_user_data`)
-- **Constants**: Use UPPER_SNAKE_CASE (`API_BASE_URL`)
-- **Private methods**: Prefix with underscore (`_private_method`)
-
-## Python Guidelines
-
-### Type Hints
-- Use type hints for function parameters and return values
-- Import types from `typing` module when needed
-- Use `Optional` for nullable values
-- Use `Union` for multiple possible types
-- Document complex types with comments
-
-### Code Style
-- Follow PEP 8 style guide
-- Use meaningful variable and function names
-- Keep functions focused and single-purpose
-- Use docstrings for modules, classes, and functions
-- Limit line length to 88 characters (Black default)
-
-### Best Practices
-- Use list comprehensions for simple transformations
-- Prefer `pathlib` over `os.path` for file operations
-- Use context managers (`with` statements) for resource management
-- Handle exceptions appropriately with try/except blocks
-- Use `logging` module instead of print statements
-
-## Testing Standards
-
-### Test Structure
-- Organize tests to mirror source code structure
-- Use descriptive test names that explain the behavior
-- Follow AAA pattern (Arrange, Act, Assert)
-- Use fixtures for common test data
-- Group related tests in classes
-
-### Coverage Goals
-- Aim for 90%+ test coverage
-- Write unit tests for business logic
-- Use integration tests for external dependencies
-- Mock external services in tests
-- Test error conditions and edge cases
-
-### pytest Configuration
-```python
-# pytest.ini or pyproject.toml
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "--cov=src --cov-report=term-missing"
-```
-
-## Virtual Environment Setup
-
-### Creation and Activation
+### Backend
 ```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate (Linux/Mac)
+cd backend
 source venv/bin/activate
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"              # Install with dev dependencies
+uvicorn app.main:app --reload        # Dev server on :8000
+pytest                               # Run all tests
+pytest tests/unit/test_security.py -v  # Run specific test
+pytest --cov=app --cov-report=html   # Coverage report
 ```
 
-### Requirements Management
-- Use `requirements.txt` for production dependencies
-- Use `requirements-dev.txt` for development dependencies
-- Consider using `pip-tools` for dependency resolution
-- Pin versions for reproducible builds
-
-## Django-Specific Guidelines
-
-### Project Structure
-```
-project_name/
-├── manage.py
-├── project_name/
-│   ├── __init__.py
-│   ├── settings/
-│   ├── urls.py
-│   └── wsgi.py
-├── apps/
-│   ├── users/
-│   ├── products/
-│   └── orders/
-└── requirements/
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev                          # Dev server on :5173
+npm run build                        # Build (tsc + vite)
+npm run lint                         # ESLint
+npm run test                         # Vitest
+npm run test:coverage                # Coverage
+npm run storybook                    # Storybook on :6006
 ```
 
-### Common Commands
-- `python manage.py runserver` - Start development server
-- `python manage.py migrate` - Apply database migrations
-- `python manage.py makemigrations` - Create new migrations
-- `python manage.py createsuperuser` - Create admin user
-- `python manage.py collectstatic` - Collect static files
-- `python manage.py test` - Run Django tests
-
-## FastAPI-Specific Guidelines
-
-### Project Structure
-```
-src/
-├── main.py              # FastAPI application
-├── api/
-│   ├── __init__.py
-│   ├── dependencies.py  # Dependency injection
-│   └── v1/
-│       ├── __init__.py
-│       └── endpoints/
-├── core/
-│   ├── __init__.py
-│   ├── config.py       # Settings
-│   └── security.py    # Authentication
-├── models/
-├── schemas/            # Pydantic models
-└── services/
+### Tablet Scanner
+```bash
+cd tablet-scanner
+npm install
+npm run dev                          # Dev server with SSL (for camera access)
+npm run build
+npm run lint
 ```
 
-### Common Commands
-- `uvicorn main:app --reload` - Start development server
-- `uvicorn main:app --host 0.0.0.0 --port 8000` - Start production server
+### Station Service
+```bash
+cd station_service
+python -m station_service.main       # Run directly
+uvicorn station_service.main:app --host 0.0.0.0 --port 8080
+STATION_CONFIG=/path/to/config.yaml python -m station_service.main
+```
 
-## Security Guidelines
+### Station UI
+```bash
+cd station_ui
+npm install
+npm run dev
+npm run build
+npm run lint
+```
 
-### Dependencies
-- Regularly update dependencies with `pip list --outdated`
-- Use `safety` package to check for known vulnerabilities
-- Pin dependency versions in requirements files
-- Use virtual environments to isolate dependencies
+### Docker
+```bash
+docker-compose up -d                 # Start all services
+docker-compose -f docker-compose.dev.yml up -d  # Development mode
+docker-compose logs -f backend       # View logs
+docker exec -it f2x-postgres psql -U postgres -d f2x_neurohub_mes
+```
 
-### Code Security
-- Validate input data with Pydantic or similar
-- Use environment variables for sensitive configuration
-- Implement proper authentication and authorization
-- Sanitize data before database operations
-- Use HTTPS for production deployments
+### Database
+```bash
+cd backend
+alembic upgrade head                 # Apply migrations
+alembic revision --autogenerate -m "description"  # Create migration
+```
 
-## Development Workflow
+## Key Concepts
 
-### Before Starting
-1. Check Python version compatibility
-2. Create and activate virtual environment
-3. Install dependencies from requirements files
-4. Run type checking with `mypy`
+### LOT & Serial Tracking
+- LOT: Production batch (max 100 units), format: `WF-KR-YYMMDD{D|N}-nnn`
+- Serial: Individual unit within a LOT
+- Status flow: CREATED → IN_PROGRESS → PASSED/FAILED
 
-### During Development
-1. Use type hints for better code documentation
-2. Run tests frequently to catch issues early
-3. Use meaningful commit messages
-4. Format code with Black before committing
+### WIP (Work In Progress)
+- Tracks items currently being processed
+- Links LOT/Serial to current process step
 
-### Before Committing
-1. Run full test suite: `pytest`
-2. Check code formatting: `black --check .`
-3. Sort imports: `isort --check-only .`
-4. Run linting: `flake8`
-5. Run type checking: `mypy src/`
+### Process Data
+- JSONB fields for flexible `measurements` and `defects`
+- Data level: LOT or SERIAL
+- Result: PASS, FAIL, or REWORK (max 3 reworks)
+
+### Role-Based Access Control
+- ADMIN: Full access including user management and audit logs
+- MANAGER: LOT/product management, view all records
+- OPERATOR: Process data entry, serial management
+
+## Tech Stack
+
+| Component | Technologies |
+|-----------|-------------|
+| Backend | FastAPI, SQLAlchemy 2.0, Pydantic v2, PostgreSQL, Alembic |
+| Frontend | React 19, Vite 7, Ant Design 5, React Query, Recharts |
+| Tablet Scanner | React 19, antd-mobile, Zustand, Tailwind CSS 4, PWA |
+| Station Service | FastAPI, SQLite, WebSocket, asyncio |
+| Station UI | React 18, Tailwind CSS 3, Zustand, socket.io |
+| Desktop Client | PySide6 (Qt) |
+
+## Environment Variables
+
+### Backend (.env)
+```
+DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/f2x_neurohub_mes
+SECRET_KEY=your-secret-key
+DEBUG=True
+API_V1_PREFIX=/api/v1
+```
+
+### Station Service
+```
+STATION_CONFIG=/path/to/station.yaml
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+## API Documentation
+- Backend Swagger: http://localhost:8000/api/v1/docs
+- Backend ReDoc: http://localhost:8000/api/v1/redoc
+- Station Service: http://localhost:8080/docs
+
+## Testing
+
+### Backend Tests
+```bash
+cd backend
+pytest                               # All tests
+pytest -x                            # Stop on first failure
+pytest -k "test_auth"               # Run tests matching pattern
+pytest tests/integration/ -v         # Integration tests only
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm run test                         # Watch mode
+npm run test:coverage               # With coverage
+npm run test:e2e                    # Playwright E2E tests
+```
+
+## SuperClaude Rules
+When /sc: commands are detected by hooks, ALWAYS use Skill tool FIRST.
+Never attempt to handle these commands directly.
+
+## Code Style
+
+### Python
+- Black for formatting (88 char line length)
+- isort for import sorting
+- Type hints required for function signatures
+- Docstrings for public APIs
+
+### TypeScript
+- ESLint with React hooks rules
+- Strict TypeScript configuration
+- Prefer functional components with hooks

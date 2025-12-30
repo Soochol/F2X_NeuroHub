@@ -8,10 +8,10 @@
  * - Rework count
  */
 
-import { Card, StatusBadge } from '@/components/common';
+import { Card } from '@/components/common';
 import { formatSerialNumberV1 } from '@/utils/serialNumber';
 import { format } from 'date-fns';
-import type { Serial, SerialStatus } from '@/types/api';
+import type { Serial } from '@/types/api';
 
 interface WIPInfoCardProps {
   serial: Serial;

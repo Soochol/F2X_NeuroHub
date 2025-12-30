@@ -199,3 +199,26 @@ input[type="date"] {
 [data-theme="light"] input[type="date"] {
   color-scheme: light;
 }
+
+/* Sidebar Navigation Styles */
+.sidebar-nav-item:hover:not([style*="background-color: var(--color-brand)"]) {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+.sidebar-nav-group:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Sidebar scrollbar - thinner */
+.sidebar nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar nav::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.sidebar nav::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}

@@ -4,7 +4,7 @@
  * Displays complete process history for a WIP item
  */
 
-import { Card } from '../../molecules';
+import { Card } from '@/components/molecules';
 import { ProcessResult, type WipTrace } from '@/types/api';
 import { format } from 'date-fns';
 

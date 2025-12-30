@@ -13,8 +13,12 @@ import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ScannerOverlay } from './scanner/ScannerOverlay';
 import { CameraSelector } from './scanner/CameraSelector';
+import { SCAN_DEBOUNCE_MS, SCANNER_INIT_DELAY_MS } from '@/constants';
+import { logger } from '@/services/logger';
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'error' | 'processing';
+
+const scannerLogger = logger.scope('QrScanner');
 
 interface QrScannerProps {
   onScan: (decodedText: string) => void;
@@ -58,8 +62,8 @@ export const QrScanner: React.FC<QrScannerProps> = ({
   const handleScanSuccess = useCallback(
     (decodedText: string) => {
       const now = Date.now();
-      // Prevent same code within 2 seconds
-      if (decodedText === lastScanned && now - lastScanTime.current < 2000) {
+      // Prevent same code within debounce period
+      if (decodedText === lastScanned && now - lastScanTime.current < SCAN_DEBOUNCE_MS) {
         return;
       }
 
@@ -141,7 +145,10 @@ export const QrScanner: React.FC<QrScannerProps> = ({
             aspectRatio,
           },
           handleScanSuccess,
-          () => {} // Ignore failures
+          (errorMessage: string) => {
+            // Log scan failures for debugging (not user-facing errors)
+            scannerLogger.debug('Scan attempt failed', errorMessage);
+          }
         );
 
         setIsScanning(true);
@@ -198,12 +205,13 @@ export const QrScanner: React.FC<QrScannerProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       startScanner();
-    }, 100);
+    }, SCANNER_INIT_DELAY_MS);
 
     return () => {
       clearTimeout(timer);
       stopScanner();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle disabled state
@@ -213,6 +221,7 @@ export const QrScanner: React.FC<QrScannerProps> = ({
     } else if (!disabled && !isScanning && !error) {
       startScanner();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disabled]);
 
   const isActive = isScanning && !disabled;

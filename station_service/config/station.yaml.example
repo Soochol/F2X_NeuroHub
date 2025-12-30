@@ -1,0 +1,60 @@
+# Station Service Configuration Example
+# Copy this file to station.yaml and modify as needed
+
+# Station identification
+station:
+  id: "station_001"
+  name: "Test Station 1"
+  description: "PCB voltage testing station"
+
+# HTTP server settings
+server:
+  host: "0.0.0.0"  # Use "127.0.0.1" for local only
+  port: 8080
+
+# Backend API connection (NeuroHub)
+backend:
+  url: "http://neurohub.local:3000"  # Backend server URL
+  api_key: "${STATION_BACKEND_API_KEY}"  # Use environment variable
+  sync_interval: 30  # Seconds between sync attempts
+
+# Batch configurations
+batches:
+  - id: "batch_1"
+    name: "Batch 1"
+    sequence_package: "sequences/pcb_voltage_test"
+    auto_start: true
+    hardware:
+      multimeter:
+        driver: "drivers.keithley"
+        class: "Keithley2000"
+        port: "COM3"
+        baudrate: 9600
+      power_supply:
+        driver: "drivers.agilent"
+        class: "AgilentE3631A"
+        port: "COM4"
+        baudrate: 9600
+
+  - id: "batch_2"
+    name: "Batch 2"
+    sequence_package: "sequences/pcb_voltage_test"
+    auto_start: false
+    hardware:
+      multimeter:
+        driver: "drivers.keithley"
+        class: "Keithley2000"
+        port: "COM5"
+        baudrate: 9600
+      power_supply:
+        driver: "drivers.agilent"
+        class: "AgilentE3631A"
+        port: "COM6"
+        baudrate: 9600
+
+# Logging settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "data/logs/station.log"
+  max_size: "10MB"
+  backup_count: 5

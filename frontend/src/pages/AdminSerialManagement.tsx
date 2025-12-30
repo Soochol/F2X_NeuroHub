@@ -8,7 +8,7 @@ import { Navigate } from 'react-router-dom';
 import { Card, Button, Input, Select, Modal } from '@/components/common';
 import { lotsApi, serialsApi } from '@/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole, LotStatus, SerialStatus, type Lot, type Serial, getErrorMessage } from '@/types/api';
+import { UserRole, LotStatus, SerialStatus, type Lot, type Serial, type LotQueryParams, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 import { AlertTriangle, Download, AlertCircle } from 'lucide-react';
 
@@ -52,7 +52,7 @@ export const AdminSerialManagement = () => {
     setError('');
     try {
       // Fetch LOTs
-      const params: any = { limit: 100 };
+      const params: Partial<LotQueryParams> = { limit: 100 };
       if (statusFilter) params.status = statusFilter;
 
       const lotsResponse = await lotsApi.getLots(params);

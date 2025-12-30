@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Select, Input, Card } from '@/components/common';
-import { LotCreateModal } from '@/components/lots';
+import { LotCreateModal } from '@/components/organisms/lots';
 import { LotStatus, SerialStatus, type Lot } from '@/types/api';
 import { format } from 'date-fns';
 import { AlertCircle, Plus } from 'lucide-react';

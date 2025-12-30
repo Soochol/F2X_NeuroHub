@@ -140,6 +140,8 @@ export interface Equipment {
   updated_at: string;
 }
 
+export type ProcessType = 'MANUFACTURING' | 'SERIAL_CONVERSION';
+
 export interface Process {
   id: number;
   process_number: number;
@@ -154,6 +156,7 @@ export interface Process {
   auto_print_label: boolean;
   label_template_type?: string | null;
   defect_items?: string[];
+  process_type?: ProcessType;
   created_at: string;
   updated_at: string;
 }

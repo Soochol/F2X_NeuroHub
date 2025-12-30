@@ -19,9 +19,8 @@ interface AppState {
   // Settings
   settings: AppSettings;
 
-  // Process
+  // Process definitions (shared reference data)
   processes: Process[];
-  selectedProcessId: number | null;
 
   // Statistics
   todayStats: TodayStatistics;
@@ -38,7 +37,6 @@ interface AppState {
   logout: () => void;
   setSettings: (settings: Partial<AppSettings>) => void;
   setProcesses: (processes: Process[]) => void;
-  setSelectedProcess: (processId: number | null) => void;
   setTodayStats: (stats: TodayStatistics) => void;
   addScanResult: (result: ScanResult) => void;
   clearScanHistory: () => void;
@@ -69,7 +67,6 @@ export const useAppStore = create<AppState>()(
       isAuthenticated: false,
       settings: defaultSettings,
       processes: [],
-      selectedProcessId: null,
       todayStats: defaultStats,
       scanHistory: [],
       isLoading: false,
@@ -102,8 +99,6 @@ export const useAppStore = create<AppState>()(
 
       setProcesses: (processes) => set({ processes }),
 
-      setSelectedProcess: (processId) => set({ selectedProcessId: processId }),
-
       setTodayStats: (stats) => set({ todayStats: stats }),
 
       addScanResult: (result) => set((state) => ({
@@ -132,7 +127,6 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         settings: state.settings,
-        selectedProcessId: state.selectedProcessId,
       }),
     }
   )

@@ -9,3 +9,6 @@ export { Button, Input, Select, ThemeToggle, ThemeToggleIcon, StatusBadge, RoleB
 
 // Re-export molecules
 export { Card, Modal } from '../molecules';
+
+// Error handling
+export { ErrorBoundary, PageErrorBoundary } from './ErrorBoundary';

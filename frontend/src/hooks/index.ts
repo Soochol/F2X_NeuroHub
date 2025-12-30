@@ -7,3 +7,5 @@ export * from './useProductModels';
 export * from './useProductionLines';
 export * from './useSerials';
 export * from './useRealtimeMetrics';
+export * from './useEquipment';
+export * from './useDashboard';

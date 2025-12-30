@@ -56,7 +56,7 @@ router = APIRouter(
 def list_error_logs(
     *,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),  # TODO: Use admin check
+    current_user: User = Depends(deps.get_current_admin_user),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(
         50,
@@ -114,7 +114,7 @@ def list_error_logs(
         ErrorLogListResponse with error logs list and pagination info
 
     Security:
-        - Requires admin role (TODO: implement role check)
+        - Requires admin role (enforced via get_current_admin_user dependency)
     """
     try:
         # Get filtered error logs
@@ -167,7 +167,7 @@ def list_error_logs(
 def get_error_stats(
     *,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),  # TODO: Use admin check
+    current_user: User = Depends(deps.get_current_admin_user),
     hours: int = Query(
         24,
         ge=1,
@@ -191,7 +191,7 @@ def get_error_stats(
         ErrorLogStats with comprehensive error statistics
 
     Security:
-        - Requires admin role (TODO: implement role check)
+        - Requires admin role (enforced via get_current_admin_user dependency)
     """
     try:
         stats = crud.error_log.get_stats(db, hours=hours)
@@ -210,7 +210,7 @@ def get_error_stats(
 def get_error_log(
     *,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),  # TODO: Use admin check
+    current_user: User = Depends(deps.get_current_admin_user),
     error_log_id: int = Path(..., gt=0, description="Error log ID"),
 ):
     """
@@ -226,7 +226,7 @@ def get_error_log(
         404: Error log not found
 
     Security:
-        - Requires admin role (TODO: implement role check)
+        - Requires admin role (enforced via get_current_admin_user dependency)
     """
     try:
         error_log = crud.error_log.get(db, error_log_id=error_log_id)
@@ -259,7 +259,7 @@ def get_error_log(
 def get_error_by_trace_id(
     *,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),  # TODO: Use admin check
+    current_user: User = Depends(deps.get_current_admin_user),
     trace_id: UUID = Path(..., description="Trace ID from StandardErrorResponse"),
 ):
     """
@@ -278,7 +278,7 @@ def get_error_by_trace_id(
         404: Error log not found for given trace ID
 
     Security:
-        - Requires admin role (TODO: implement role check)
+        - Requires admin role (enforced via get_current_admin_user dependency)
 
     Example:
         GET /api/v1/error-logs/trace/a1b2c3d4-e5f6-7890-abcd-ef1234567890

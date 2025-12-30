@@ -12,7 +12,6 @@ from PySide6.QtCore import QObject, Signal
 from utils.exception_handler import safe_cleanup
 from utils.wip_validator import validate_wip_id
 
-from .api_client import APIClient
 from .workers import APIWorker
 
 logger = logging.getLogger(__name__)
@@ -27,9 +26,9 @@ class WorkService(QObject):
     serial_converted = Signal(dict) # Serial converted successfully
     error_occurred = Signal(str)    # Operation failed
 
-    def __init__(self, api_client: APIClient, config: Any) -> None:
+    def __init__(self, api_client, config: Any) -> None:
         super().__init__()
-        self.api_client: APIClient = api_client
+        self.api_client = api_client
         self.config: Any = config
         self._active_workers: List[APIWorker] = []
 

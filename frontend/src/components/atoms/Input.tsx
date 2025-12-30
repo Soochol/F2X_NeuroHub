@@ -5,7 +5,7 @@
  * Supports labels, error states, and uses forwardRef for DOM access.
  */
 
-import { forwardRef, type InputHTMLAttributes, type Ref } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes, type Ref } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Label text displayed above the input */
@@ -36,8 +36,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, wrapperClassName, inputClassName, wrapperStyle, id, ...props }, ref: Ref<HTMLInputElement>) => {
-    // Generate unique ID if not provided
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
     return (
       <div

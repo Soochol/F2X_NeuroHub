@@ -12,7 +12,8 @@ from PySide6.QtGui import QIcon
 # Import configuration
 from utils.config import AppConfig
 
-# Import services
+# Import service interfaces and implementations
+from services import IAPIClient, IAuthService, IWorkService
 from services.api_client import APIClient
 from services.auth_service import AuthService
 from services.work_service import WorkService
@@ -31,6 +32,7 @@ from views.login_dialog import LoginDialog
 from utils.logger import setup_logger
 from utils.theme_manager import load_theme
 from utils.exception_handler import ExceptionHandler
+from utils.service_registry import ServiceRegistry, register_service
 
 # Setup logger
 logger = setup_logger()
@@ -77,13 +79,19 @@ def main():
         logger.info(f"API URL: {config.api_base_url}")
         logger.info(f"Watch Folder: {config.watch_folder}")
 
-        # Initialize API Client
-        api_client = APIClient(config.api_base_url)
-        logger.info("API Client initialized")
+        # Initialize Service Registry
+        registry = ServiceRegistry()
+        logger.info("Service Registry initialized")
 
-        # Initialize Auth Service
+        # Initialize API Client and register
+        api_client = APIClient(config.api_base_url)
+        register_service(IAPIClient, api_client)
+        logger.info("API Client initialized and registered")
+
+        # Initialize Auth Service and register
         auth_service = AuthService(api_client)
-        logger.info("Auth Service initialized")
+        register_service(IAuthService, auth_service)
+        logger.info("Auth Service initialized and registered")
 
         # Authentication flow - Always require login
         logger.info("Always requiring login - auto-login disabled")
@@ -146,9 +154,10 @@ def main():
             f"Equipment: {config.equipment_code or '(미설정)'}"
         )
 
-        # Initialize Work Service
+        # Initialize Work Service and register
         work_service = WorkService(api_client, config)
-        logger.info("Work Service initialized")
+        register_service(IWorkService, work_service)
+        logger.info("Work Service initialized and registered")
 
         # Initialize Barcode Service
         barcode_service = BarcodeService()

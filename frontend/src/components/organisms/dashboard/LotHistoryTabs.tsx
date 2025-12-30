@@ -24,24 +24,6 @@ interface LotSummary {
   created_at?: string;
 }
 
-// Calculate progress safely
-const getProgress = (lot: LotSummary): number => {
-  // Check progress_percentage first (from API)
-  if (lot.progress_percentage !== undefined && !isNaN(lot.progress_percentage)) return lot.progress_percentage;
-  if (lot.progress !== undefined && !isNaN(lot.progress)) return lot.progress;
-
-  const started = lot.started_count ?? lot.target_quantity ?? 0;
-  const completed = lot.completed_count ?? 0;
-  if (started === 0) return 0;
-  const result = (completed / started) * 100;
-  return isNaN(result) ? 0 : result;
-};
-
-// Get started count (supports both field names)
-const getStartedCount = (lot: LotSummary): number => {
-  return lot.started_count ?? lot.target_quantity ?? 0;
-};
-
 // Get defective count (supports both field names)
 const getDefectiveCount = (lot: LotSummary): number => {
   return lot.defective_count ?? lot.failed_count ?? 0;

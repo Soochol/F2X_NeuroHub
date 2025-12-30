@@ -1,15 +1,16 @@
 /**
- * F2X NeuroHub MES - Dashboard Page (Refactored)
+ * F2X NeuroHub MES - Dashboard Page
  *
  * Features:
  * - Real-time WebSocket updates with polling fallback
+ * - TanStack Query for data fetching and caching
  * - Enhanced KPI cards with trends
  * - Equipment status monitoring
  * - Defect trend visualization
  * - Mobile-responsive layout for shop floor tablets
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Spin, Typography } from 'antd';
 import {
   Package,
@@ -19,59 +20,28 @@ import {
   Gauge,
   Server,
 } from 'lucide-react';
-import { dashboardApi, equipmentApi } from '@/api';
-import type { DashboardSummary, ProcessCycleTime, Equipment } from '@/types/api';
-import { getErrorMessage } from '@/types/api';
 import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics';
+import { useCycleTimes, useActiveEquipment } from '@/hooks';
 import { RealTimeIndicator } from '@/components/atoms/RealTimeIndicator';
 import { EnhancedKPICard } from '@/components/molecules/EnhancedKPICard';
 import type { KPIStatus } from '@/components/molecules/EnhancedKPICard';
-import { ProcessFlowDiagram } from '@/components/charts';
-import { CycleTimeChart } from '@/components/charts/CycleTimeChart';
-import { DefectTrendChart } from '@/components/charts/DefectTrendChart';
+import { ProcessFlowDiagram, CycleTimeChart, DefectTrendChart } from '@/components/organisms/charts';
 import { EquipmentStatusPanel } from '@/components/organisms/dashboard/EquipmentStatusPanel';
 import { LotHistoryTabs } from '@/components/organisms/dashboard/LotHistoryTabs';
 import styles from './DashboardPage.module.css';
 
+/** Shift duration constant for throughput calculation */
+const SHIFT_HOURS = 8;
+
 export const DashboardPage = () => {
-  const { dashboardData, isConnected, lastUpdate, error: wsError, refetch } = useRealtimeMetrics();
-  const [cycleTimes, setCycleTimes] = useState<ProcessCycleTime[]>([]);
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Real-time metrics via WebSocket with polling fallback
+  const { dashboardData, isConnected, lastUpdate } = useRealtimeMetrics();
 
-  // Fetch additional data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [cycleTimeData, equipmentData] = await Promise.all([
-          dashboardApi.getCycleTimes(),
-          equipmentApi.getActiveEquipment(),
-        ]);
-        setCycleTimes(cycleTimeData);
-        setEquipment(equipmentData);
-        setError(null);
-      } catch (err: unknown) {
-        setError(getErrorMessage(err, 'Failed to load dashboard data'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // TanStack Query hooks for additional data
+  const { data: cycleTimes = [], isLoading: isCycleTimesLoading } = useCycleTimes(7);
+  const { data: equipment = [], isLoading: isEquipmentLoading } = useActiveEquipment();
 
-    fetchData();
-
-    // Refresh cycle times every 60 seconds
-    const cycleTimeInterval = setInterval(async () => {
-      try {
-        const data = await dashboardApi.getCycleTimes();
-        setCycleTimes(data);
-      } catch (err) {
-        console.error('Failed to refresh cycle times:', err);
-      }
-    }, 60000);
-
-    return () => clearInterval(cycleTimeInterval);
-  }, []);
+  const isLoading = isCycleTimesLoading || isEquipmentLoading;
 
   // Calculate KPI values
   const kpiData = useMemo(() => {
@@ -88,9 +58,9 @@ export const DashboardPage = () => {
     ).length;
     const equipmentTotal = equipment.length;
 
-    // Throughput (simplified - units per hour based on recent data)
+    // Throughput calculation
     const throughput = dashboardData.total_completed > 0
-      ? Math.round(dashboardData.total_completed / 8) // Assuming 8-hour shift
+      ? Math.round(dashboardData.total_completed / SHIFT_HOURS)
       : 0;
 
     return {
@@ -104,7 +74,7 @@ export const DashboardPage = () => {
     };
   }, [dashboardData, equipment]);
 
-  // Determine KPI status colors
+  // KPI status color helpers
   const getPassRateStatus = (rate: number): KPIStatus => {
     if (rate >= 98) return 'success';
     if (rate >= 95) return 'warning';
@@ -125,6 +95,7 @@ export const DashboardPage = () => {
     return 'error';
   };
 
+  // Loading state
   if (isLoading && !dashboardData) {
     return (
       <div className={styles.loadingContainer}>
@@ -134,14 +105,7 @@ export const DashboardPage = () => {
     );
   }
 
-  if (error && !dashboardData) {
-    return (
-      <div className={styles.errorContainer}>
-        Error: {error}
-      </div>
-    );
-  }
-
+  // Empty state
   if (!dashboardData || !kpiData) {
     return (
       <div className={styles.emptyContainer}>

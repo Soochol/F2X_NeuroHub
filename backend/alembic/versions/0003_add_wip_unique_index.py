@@ -8,9 +8,13 @@ This migration adds a unique partial index on (lot_id, process_id, wip_id) to en
 data integrity for WIP-level process tracking. The index only applies when wip_id
 is NOT NULL, allowing multiple LOT-level entries for the same process.
 """
+import logging
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = '0003_add_wip_unique_index'
@@ -42,8 +46,13 @@ def upgrade() -> None:
                 ON process_data(lot_id, process_id, wip_id)
                 WHERE wip_id IS NOT NULL
             """))
-        except Exception:
+        except Exception as e:
             # Fallback for older SQLite versions
+            logger.warning(
+                "Failed to create index with IF NOT EXISTS syntax, "
+                "attempting fallback for older SQLite: %s",
+                str(e)
+            )
             # First check if index exists
             result = bind.execute(text("""
                 SELECT name FROM sqlite_master

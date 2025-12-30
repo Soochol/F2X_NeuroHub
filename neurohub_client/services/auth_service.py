@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from .api_client import APIClient
 from .workers import APIWorker
 
 logger = logging.getLogger(__name__)
@@ -27,11 +26,11 @@ class AuthService(QObject):
     token_refreshed = Signal()     # Emit when token is auto-refreshed
     auto_relogin_success = Signal()  # Emit when auto re-login succeeds
 
-    def __init__(self, api_client: APIClient):
+    def __init__(self, api_client):
         super().__init__()
         self.api_client = api_client
-        self.access_token: Optional[str] = None
-        self.current_user: Optional[Dict[str, Any]] = None
+        self._access_token: Optional[str] = None
+        self._current_user: Optional[Dict[str, Any]] = None
         self._active_workers: List[APIWorker] = []
 
         # Stored credentials for auto re-login (PySide app only, local use)
@@ -48,6 +47,26 @@ class AuthService(QObject):
         self._refresh_retry_count = 0
         self._max_refresh_retries = 3
         self._relogin_in_progress = False
+
+    @property
+    def access_token(self) -> Optional[str]:
+        """Get current access token."""
+        return self._access_token
+
+    @access_token.setter
+    def access_token(self, value: Optional[str]) -> None:
+        """Set current access token."""
+        self._access_token = value
+
+    @property
+    def current_user(self) -> Optional[Dict[str, Any]]:
+        """Get current authenticated user data."""
+        return self._current_user
+
+    @current_user.setter
+    def current_user(self, value: Optional[Dict[str, Any]]) -> None:
+        """Set current authenticated user data."""
+        self._current_user = value
 
     def login(self, username: str, password: str):
         """

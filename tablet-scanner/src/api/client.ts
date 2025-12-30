@@ -2,6 +2,8 @@
  * API Client for Tablet Scanner App
  */
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { logger } from '@/services/logger';
+import { STORAGE_KEYS, API_TIMEOUT_MS, API_BASE_URL } from '@/constants';
 import type {
   Process,
   WIPTrace,
@@ -14,24 +16,39 @@ import type {
   LoginResponse,
 } from '@/types';
 
+const apiLogger = logger.scope('API');
+
+// Type-safe queue item for failed requests during token refresh
+interface QueuedRequest {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}
+
+// Extended request config with retry flag
+interface ExtendedAxiosHeaders {
+  _retry?: boolean;
+  Authorization?: string;
+  [key: string]: unknown;
+}
+
 // Create axios instance
 const createApiClient = (baseURL: string): AxiosInstance => {
   const client = axios.create({
     baseURL,
-    timeout: 10000,
+    timeout: API_TIMEOUT_MS,
     headers: {
       'Content-Type': 'application/json',
     },
   });
 
   let isRefreshing = false;
-  let failedQueue: any[] = [];
+  let failedQueue: QueuedRequest[] = [];
 
-  const processQueue = (error: any, token: string | null = null) => {
+  const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue.forEach((prom) => {
       if (error) {
         prom.reject(error);
-      } else {
+      } else if (token) {
         prom.resolve(token);
       }
     });
@@ -41,7 +58,7 @@ const createApiClient = (baseURL: string): AxiosInstance => {
   // Request interceptor - add auth token
   client.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -56,7 +73,7 @@ const createApiClient = (baseURL: string): AxiosInstance => {
     async (error: AxiosError) => {
       const originalRequest = error.config;
 
-      if (error.response?.status === 401 && originalRequest && !originalRequest.headers._retry) {
+      if (error.response?.status === 401 && originalRequest && !(originalRequest.headers as ExtendedAxiosHeaders)._retry) {
         const url = originalRequest.url || '';
         if (!url.includes('/auth/login') && !url.includes('/auth/refresh')) {
           if (isRefreshing) {
@@ -65,18 +82,17 @@ const createApiClient = (baseURL: string): AxiosInstance => {
             })
               .then((token) => {
                 if (originalRequest.headers) {
-                  originalRequest.headers.Authorization = 'Bearer ' + token;
+                  (originalRequest.headers as ExtendedAxiosHeaders).Authorization = 'Bearer ' + token;
                 }
                 return client(originalRequest);
               })
               .catch((err) => Promise.reject(err));
           }
 
-          // @ts-ignore
-          originalRequest.headers._retry = true;
+          (originalRequest.headers as ExtendedAxiosHeaders)._retry = true;
           isRefreshing = true;
 
-          const refreshToken = localStorage.getItem('refresh_token');
+          const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
           if (refreshToken) {
             try {
               const res = await axios.post(`${client.defaults.baseURL}/auth/refresh`, {
@@ -84,21 +100,21 @@ const createApiClient = (baseURL: string): AxiosInstance => {
               });
 
               const { access_token, refresh_token: newRefreshToken } = res.data;
-              localStorage.setItem('access_token', access_token);
+              localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
               if (newRefreshToken) {
-                localStorage.setItem('refresh_token', newRefreshToken);
+                localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
               }
 
               processQueue(null, access_token);
 
               if (originalRequest.headers) {
-                originalRequest.headers.Authorization = 'Bearer ' + access_token;
+                (originalRequest.headers as ExtendedAxiosHeaders).Authorization = 'Bearer ' + access_token;
               }
               return client(originalRequest);
             } catch (refreshError) {
               processQueue(refreshError, null);
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
+              localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+              localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
               window.location.href = '/login';
               return Promise.reject(refreshError);
             } finally {
@@ -109,8 +125,8 @@ const createApiClient = (baseURL: string): AxiosInstance => {
       }
 
       if (error.response?.status === 401) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
         window.location.href = '/login';
       }
       return Promise.reject(error);
@@ -127,7 +143,7 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_BASE_URL;
   }
   // 개발 환경에서는 프록시 사용
-  return '/api/v1';
+  return API_BASE_URL;
 };
 
 let apiClient = createApiClient(getApiBaseUrl());
@@ -148,8 +164,8 @@ export const authApi = {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
 
-    localStorage.setItem('access_token', response.data.access_token);
-    localStorage.setItem('refresh_token', response.data.refresh_token);
+    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.access_token);
+    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token);
 
     return response.data;
   },
@@ -158,22 +174,22 @@ export const authApi = {
     const response = await apiClient.post<LoginResponse>('/auth/refresh', {
       refresh_token: refreshToken,
     });
-    localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.access_token);
     if (response.data.refresh_token) {
-      localStorage.setItem('refresh_token', response.data.refresh_token);
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token);
     }
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
     try {
       await apiClient.post('/auth/logout', { refresh_token: refreshToken });
     } catch (e) {
-      console.error('Logout error', e);
+      apiLogger.error('Logout error', e);
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   },
 };
 

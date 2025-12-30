@@ -6,11 +6,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Modal } from '@/components/common';
 import { lotsApi } from '@/api';
-import { LotStatus, type Lot, getErrorMessage } from '@/types/api';
+import { type Lot, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 import { Calendar, TrendingUp, CheckCircle, Layers, QrCode, Printer } from 'lucide-react';
 import { notify } from '@/utils/toast';
 import { printWIPLabel } from '@/utils/zebraPrint';
+import Logger from '@/utils/logger';
 
 export const WipGenerationPage = () => {
     const [lots, setLots] = useState<Lot[]>([]);
@@ -25,7 +26,12 @@ export const WipGenerationPage = () => {
     const [generatedCount, setGeneratedCount] = useState(0);
     const [generatedTotal, setGeneratedTotal] = useState(0);
 
-    const [lastGeneratedWipIds, setLastGeneratedWipIds] = useState<any[]>([]);
+    /** Generated WIP item with wip_id */
+    interface GeneratedWipItem {
+        wip_id: string;
+        sequence_in_lot: number;
+    }
+    const [lastGeneratedWipIds, setLastGeneratedWipIds] = useState<GeneratedWipItem[]>([]);
     const [isPrinting, setIsPrinting] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -366,23 +372,22 @@ export const WipGenerationPage = () => {
                         {lastGeneratedWipIds.length === 1 && (
                             <Button
                                 onClick={async () => {
-                                    console.log('Print button clicked');
-                                    console.log('WIP ID:', (lastGeneratedWipIds[0] as any).wip_id);
+                                    const wipId = lastGeneratedWipIds[0].wip_id;
+                                    Logger.debug('Print button clicked, WIP ID:', wipId);
 
                                     setIsPrinting(true);
                                     try {
-                                        console.log('Calling printWIPLabel...');
-                                        await printWIPLabel((lastGeneratedWipIds[0] as any).wip_id);
-                                        console.log('Print successful');
+                                        await printWIPLabel(wipId);
                                         notify.success({
                                             title: 'Print Successful',
                                             description: 'Label sent to printer'
                                         });
-                                    } catch (error: any) {
-                                        console.error('Print error:', error);
+                                    } catch (error: unknown) {
+                                        Logger.error('Print error:', error);
+                                        const message = error instanceof Error ? error.message : 'Unknown error';
                                         notify.error({
                                             title: 'Print Failed',
-                                            description: error.message || 'Unknown error'
+                                            description: message
                                         });
                                     } finally {
                                         setIsPrinting(false);

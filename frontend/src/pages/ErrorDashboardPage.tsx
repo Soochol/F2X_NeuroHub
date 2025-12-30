@@ -45,8 +45,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { errorLogsApi } from '../api';
-import type { ErrorLog, ErrorLogStats } from '../api';
+import { errorLogsApi } from '@/api';
+import type { ErrorLog, ErrorLogStats, ErrorLogFilters } from '@/api';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
 
@@ -128,7 +128,7 @@ const ErrorDashboardPage: React.FC = () => {
   const fetchErrorLogs = async () => {
     setLoadingLogs(true);
     try {
-      const filters: any = {
+      const filters: ErrorLogFilters = {
         skip: (currentPage - 1) * pageSize,
         limit: pageSize,
       };
@@ -286,8 +286,17 @@ const ErrorDashboardPage: React.FC = () => {
   /**
    * Custom label renderer for Pie chart with theme support
    */
-  const renderPieLabel = (props: any) => {
-    const { cx, cy, midAngle, innerRadius, outerRadius, name, value } = props;
+  interface PieLabelProps {
+    cx?: number;
+    cy?: number;
+    midAngle?: number;
+    innerRadius?: number;
+    outerRadius?: number;
+    name?: string;
+    value?: number;
+  }
+  const renderPieLabel = (props: PieLabelProps) => {
+    const { cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, name = '', value = 0 } = props;
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);

@@ -4,22 +4,33 @@
  */
 
 import apiClient from '@/api/client';
+import type { AxiosError } from 'axios';
+
+interface PrintResponse {
+    success: boolean;
+    message?: string;
+}
+
+interface ErrorResponseData {
+    detail?: string;
+}
 
 /**
  * Print WIP label via backend API
  */
 export const printWIPLabel = async (wipId: string): Promise<void> => {
     try {
-        const response = await apiClient.post(`/wip-items/${wipId}/print-label`);
+        const response = await apiClient.post<PrintResponse>(`/wip-items/${wipId}/print-label`);
 
         if (!response.data.success) {
             throw new Error(response.data.message || 'Print failed');
         }
-    } catch (error: any) {
-        if (error.response?.data?.detail) {
-            throw new Error(error.response.data.detail);
+    } catch (error: unknown) {
+        const axiosError = error as AxiosError<ErrorResponseData>;
+        if (axiosError.response?.data?.detail) {
+            throw new Error(axiosError.response.data.detail);
         }
-        throw new Error(error.message || 'Failed to print label');
+        throw new Error(axiosError.message || 'Failed to print label');
     }
 };
 
@@ -31,6 +42,10 @@ export const printSerialLabel = async (
     lotNumber?: string,
     productModel?: string
 ): Promise<void> => {
+    // Placeholder: log parameters for future implementation
+    void serialNumber;
+    void lotNumber;
+    void productModel;
     // TODO: Implement serial label printing API
     throw new Error('Serial label printing not yet implemented');
 };
@@ -48,10 +63,14 @@ export const isBrowserPrintAvailable = async (): Promise<boolean> => {
     return true; // Always return true since we're using backend
 };
 
-export const getDefaultPrinter = async (): Promise<any> => {
+interface PrinterInfo {
+    name: string;
+}
+
+export const getDefaultPrinter = async (): Promise<PrinterInfo> => {
     return { name: 'Backend Printer Service' };
 };
 
-export const getAvailablePrinters = async (): Promise<any[]> => {
+export const getAvailablePrinters = async (): Promise<PrinterInfo[]> => {
     return [];
 };

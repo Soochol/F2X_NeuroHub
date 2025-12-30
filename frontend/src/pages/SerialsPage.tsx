@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SerialSearch, SerialTraceView } from '@/components/serials';
+import { SerialSearch, SerialTraceView } from '@/components/organisms/serials';
 import { Card } from '@/components/common';
 import { serialsApi } from '@/api';
 import type { SerialTrace } from '@/types/api';

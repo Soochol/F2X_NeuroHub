@@ -63,7 +63,7 @@ test.describe('Error Handling System', () => {
       await expect(page).toHaveURL('/login', { timeout: 3000 });
     });
 
-    test('should show session expired message', async ({ page, context }) => {
+    test('should show session expired message', async ({ page }) => {
       // Set invalid token
       await page.evaluate(() => {
         localStorage.setItem('access_token', 'invalid_token');

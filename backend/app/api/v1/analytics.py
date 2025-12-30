@@ -9,8 +9,11 @@ Provides aggregated data and statistics for:
     - Real-time status
 """
 
+import logging
 from datetime import date as date_module, datetime, timedelta
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 # Alias for clarity
 date = date_module
@@ -69,9 +72,9 @@ async def websocket_live_metrics(
             await asyncio.sleep(5)  # Update every 5 seconds
             
     except WebSocketDisconnect:
-        print("Client disconnected from metrics websocket")
+        logger.debug("Client disconnected from metrics websocket")
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.info(f"WebSocket error: {e}")
         try:
             await websocket.close()
         except:

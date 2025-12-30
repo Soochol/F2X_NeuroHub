@@ -6,6 +6,10 @@
  */
 import { get, set, del, keys } from 'idb-keyval';
 import type { ProcessStartRequest, ProcessCompleteRequest } from '@/types';
+import { STORAGE_KEYS, QUEUE_MAX_RETRIES } from '@/constants';
+import { logger } from './logger';
+
+const queueLogger = logger.scope('OfflineQueue');
 
 // Queue item types
 interface QueueItemBase {
@@ -28,7 +32,7 @@ interface CompleteQueueItem extends QueueItemBase {
 type QueueItem = StartQueueItem | CompleteQueueItem;
 
 // Queue storage key prefix
-const QUEUE_PREFIX = 'offline-queue-';
+const QUEUE_PREFIX = STORAGE_KEYS.OFFLINE_QUEUE_PREFIX;
 
 // Generate unique ID
 const generateId = (): string => {
@@ -49,11 +53,11 @@ export const addToQueue = async (
     data,
     timestamp: Date.now(),
     retryCount: 0,
-    maxRetries: 5,
+    maxRetries: QUEUE_MAX_RETRIES,
   } as QueueItem;
 
   await set(`${QUEUE_PREFIX}${id}`, item);
-  console.log(`[OfflineQueue] Added item: ${id}, type: ${type}`);
+  queueLogger.info(`Added item: ${id}, type: ${type}`);
 
   return id;
 };
@@ -92,7 +96,7 @@ export const getQueueCount = async (): Promise<number> => {
  */
 export const removeFromQueue = async (id: string): Promise<void> => {
   await del(`${QUEUE_PREFIX}${id}`);
-  console.log(`[OfflineQueue] Removed item: ${id}`);
+  queueLogger.info(`Removed item: ${id}`);
 };
 
 /**
@@ -107,7 +111,7 @@ export const incrementRetryCount = async (id: string): Promise<boolean> => {
   if (item.retryCount >= item.maxRetries) {
     // Move to failed queue or remove
     await del(`${QUEUE_PREFIX}${id}`);
-    console.log(`[OfflineQueue] Item ${id} exceeded max retries, removed`);
+    queueLogger.warn(`Item ${id} exceeded max retries, removed`);
     return false;
   }
 
@@ -148,7 +152,7 @@ export const processQueue = async (
         if (!canRetry) failed++;
       }
     } catch (error) {
-      console.error(`[OfflineQueue] Failed to process item ${item.id}:`, error);
+      queueLogger.error(`Failed to process item ${item.id}`, error);
       const canRetry = await incrementRetryCount(item.id);
       if (!canRetry) failed++;
     }
@@ -170,7 +174,7 @@ export const clearQueue = async (): Promise<void> => {
     await del(key as string);
   }
 
-  console.log(`[OfflineQueue] Cleared ${queueKeys.length} items`);
+  queueLogger.info(`Cleared ${queueKeys.length} items`);
 };
 
 /**

@@ -5,9 +5,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Select } from '@/components/common';
 import { alertsApi } from '@/api';
-import { AlertSeverity, AlertStatus, type Alert } from '@/types/api';
+import { AlertSeverity, AlertStatus, type Alert, type AlertQueryParams } from '@/types/api';
 import { format } from 'date-fns';
 import { formatSerialNumber } from '@/utils/serialNumber';
+import Logger from '@/utils/logger';
 
 export const AlertsPage = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -40,7 +41,7 @@ export const AlertsPage = () => {
     setIsLoading(true);
     setError('');
     try {
-      const params: any = {
+      const params: Partial<AlertQueryParams> = {
         skip: currentPage * alertsPerPage,
         limit: alertsPerPage,
       };
@@ -51,8 +52,9 @@ export const AlertsPage = () => {
       setAlerts(response.alerts);
       setTotalAlerts(response.total);
       setUnreadCount(response.unread_count);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load alerts');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load alerts';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -62,8 +64,8 @@ export const AlertsPage = () => {
     try {
       await alertsApi.markAsRead(alertId);
       fetchAlerts();
-    } catch (err: any) {
-      console.error('Failed to mark as read:', err);
+    } catch (err: unknown) {
+      Logger.error('Failed to mark as read:', err);
     }
   };
 
@@ -73,8 +75,8 @@ export const AlertsPage = () => {
       await alertsApi.bulkMarkAsRead(ids);
       setSelectedAlertIds(new Set());
       fetchAlerts();
-    } catch (err: any) {
-      console.error('Failed to bulk mark as read:', err);
+    } catch (err: unknown) {
+      Logger.error('Failed to bulk mark as read:', err);
     }
   };
 

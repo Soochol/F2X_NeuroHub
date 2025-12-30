@@ -4,6 +4,7 @@
 
 import apiClient from '../client';
 import type { LoginRequest, LoginResponse, User } from '@/types/api';
+import Logger from '@/utils/logger';
 
 export const authApi = {
   /**
@@ -64,7 +65,7 @@ export const authApi = {
       });
     } catch (error) {
       // Still logout locally even if server call fails
-      console.error('Logout error:', error);
+      Logger.error('Logout error:', error);
     }
 
     // Clear stored data

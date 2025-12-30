@@ -1,43 +1,57 @@
 /**
  * Logger utility for environment-based logging.
- * Logs are only displayed in development environment.
+ * Logs are only displayed in development environment (except errors).
+ *
+ * Usage:
+ *   Logger.log('message', data);
+ *   Logger.error('Error occurred:', error);
  */
+
+/** Log argument type - accepts any serializable value */
+type LogArg = unknown;
+
 class Logger {
     private static isDev = import.meta.env.DEV;
 
-    static log(...args: any[]) {
+    /**
+     * General logging (dev only)
+     */
+    static log(...args: LogArg[]): void {
         if (this.isDev) {
             console.log(...args);
         }
     }
 
-    static info(...args: any[]) {
+    /**
+     * Info level logging (dev only)
+     */
+    static info(...args: LogArg[]): void {
         if (this.isDev) {
             console.info(...args);
         }
     }
 
-    static warn(...args: any[]) {
+    /**
+     * Warning level logging (dev only)
+     */
+    static warn(...args: LogArg[]): void {
         if (this.isDev) {
             console.warn(...args);
         }
     }
 
-    static error(...args: any[]) {
-        // Errors should probably be logged in production too, or sent to a tracking service (e.g. Sentry)
-        // For now, we'll always log errors to console, but we can filter if needed.
-        // If the requirement is strict "no console in prod", we can wrap it.
-        // However, usually console.error is useful in prod for debugging if no Sentry.
-        // Based on user request "Replace console.log/error", I will wrap it but maybe allow it if critical.
-        // Let's stick to dev-only for now as requested, or maybe allow error in prod?
-        // The request said "Environment-based logging system".
-        // I'll allow error in prod for now as it's critical, but maybe silence it if strictly requested.
-        // "Replace console.log/error in api/client.ts" -> usually we want to see API errors.
-        // I'll log errors in all envs for now, but use this wrapper so we can control it later.
+    /**
+     * Error level logging (always enabled for production debugging)
+     * Consider integrating with error tracking service (e.g., Sentry) in production
+     */
+    static error(...args: LogArg[]): void {
         console.error(...args);
     }
 
-    static debug(...args: any[]) {
+    /**
+     * Debug level logging (dev only)
+     */
+    static debug(...args: LogArg[]): void {
         if (this.isDev) {
             console.debug(...args);
         }

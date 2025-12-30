@@ -8,7 +8,6 @@ import { Card, Button } from '@/components/common';
 import {
     isBrowserPrintAvailable,
     getDefaultPrinter,
-    getAvailablePrinters,
     printTestLabel,
     printWIPLabel,
     printSerialLabel
@@ -33,8 +32,8 @@ export const ZebraPrinterTest = () => {
             setPrinterName(printer.name);
             setMessage(`Connected to: ${printer.name}`);
             setStatus('success');
-        } catch (error: any) {
-            setMessage(error.message);
+        } catch (error: unknown) {
+            setMessage(error instanceof Error ? error.message : 'Unknown error');
             setStatus('error');
         }
     };
@@ -47,8 +46,8 @@ export const ZebraPrinterTest = () => {
             await printTestLabel();
             setMessage('Test label sent to printer!');
             setStatus('success');
-        } catch (error: any) {
-            setMessage(`Print failed: ${error.message}`);
+        } catch (error: unknown) {
+            setMessage(`Print failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             setStatus('error');
         }
     };
@@ -61,8 +60,8 @@ export const ZebraPrinterTest = () => {
             await printWIPLabel('WIP-KR01PSA2511-001');
             setMessage('WIP label sent to printer!');
             setStatus('success');
-        } catch (error: any) {
-            setMessage(`Print failed: ${error.message}`);
+        } catch (error: unknown) {
+            setMessage(`Print failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             setStatus('error');
         }
     };
@@ -79,8 +78,8 @@ export const ZebraPrinterTest = () => {
             );
             setMessage('Serial label sent to printer!');
             setStatus('success');
-        } catch (error: any) {
-            setMessage(`Print failed: ${error.message}`);
+        } catch (error: unknown) {
+            setMessage(`Print failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             setStatus('error');
         }
     };

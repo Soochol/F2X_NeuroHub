@@ -1,2 +1,3 @@
 export * from './offlineQueue';
-export * from './soundService';
+export * from './feedbackService';
+export * from './logger';

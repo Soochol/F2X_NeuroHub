@@ -17,14 +17,21 @@ import { toast, notify } from '@/utils/toast';
 
 // 토큰 갱신 중인지 여부
 let isRefreshing = false;
-// 갱신 중 대기 중인 요청들
-let failedQueue: any[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+/** Queued request item for token refresh */
+interface QueuedRequest {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}
+
+// 갱신 중 대기 중인 요청들
+let failedQueue: QueuedRequest[] = [];
+
+const processQueue = (error: unknown, token: string | null = null): void => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
-    } else {
+    } else if (token) {
       prom.resolve(token);
     }
   });
@@ -198,9 +205,9 @@ function handleLegacyError(error: AxiosError<APIError>): void {
 /**
  * 에러 응답이 표준 포맷인지 확인
  */
-function isStandardErrorResponse(data: any): data is StandardErrorResponse {
+function isStandardErrorResponse(data: unknown): data is StandardErrorResponse {
   return (
-    data &&
+    data !== null &&
     typeof data === 'object' &&
     'error_code' in data &&
     'message' in data &&
@@ -240,7 +247,8 @@ apiClient.interceptors.response.use(
     const statusCode = error.response.status;
 
     // 401 Unauthorized 에러 처리 (토큰 자동 갱신)
-    if (statusCode === 401 && originalRequest && !originalRequest.headers._retry) {
+    const headers = originalRequest?.headers as Record<string, unknown> | undefined;
+    if (statusCode === 401 && originalRequest && !headers?._retry) {
       // 로그인 요청이나 리프레시 요청 자체는 제외
       if (!requestUrl?.includes('/auth/login') && !requestUrl?.includes('/auth/refresh')) {
         if (isRefreshing) {
@@ -258,8 +266,8 @@ apiClient.interceptors.response.use(
             });
         }
 
-        // @ts-ignore - custom flag
-        originalRequest.headers._retry = true;
+        // Set retry flag to prevent infinite loop
+        (originalRequest.headers as Record<string, unknown>)._retry = true;
         isRefreshing = true;
 
         const refreshToken = localStorage.getItem('refresh_token');

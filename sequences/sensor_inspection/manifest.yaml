@@ -1,0 +1,65 @@
+name: sensor_inspection
+version: "1.0.0"
+author: "NeuroHub Team"
+description: "Sensor calibration and inspection sequence for quality verification"
+
+entry_point:
+  module: sequence
+  class: SensorInspectionSequence
+
+hardware:
+  sensor_interface:
+    display_name: "Sensor Interface Unit"
+    driver: mock_sensor
+    class: MockSensorInterface
+    description: "Interface for sensor calibration and data acquisition"
+    config_schema:
+      port:
+        type: string
+        required: false
+        default: "/dev/ttyUSB1"
+        description: "Serial port for sensor interface connection"
+      sample_rate:
+        type: integer
+        required: false
+        default: 100
+        min: 10
+        max: 1000
+        description: "Sample rate in Hz"
+
+parameters:
+  calibration_cycles:
+    display_name: "Calibration Cycles"
+    type: integer
+    default: 3
+    min: 1
+    max: 10
+    unit: ""
+    description: "Number of calibration cycles to perform"
+  tolerance_percent:
+    display_name: "Tolerance Percentage"
+    type: float
+    default: 5.0
+    min: 0.1
+    max: 20.0
+    unit: "%"
+    description: "Acceptable deviation percentage from reference value"
+  reference_value:
+    display_name: "Reference Value"
+    type: float
+    default: 100.0
+    min: 0.0
+    max: 1000.0
+    unit: ""
+    description: "Reference calibration value"
+  warmup_time:
+    display_name: "Warmup Time"
+    type: float
+    default: 2.0
+    min: 0.5
+    max: 30.0
+    unit: "s"
+    description: "Sensor warmup time in seconds"
+
+dependencies:
+  python: []

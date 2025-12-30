@@ -3,22 +3,21 @@
  * Manage and monitor LOT status
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Card, Button, Input, Select } from '@/components/common';
-import { LotDetailModal } from '@/components/lots';
+import { LotDetailModal } from '@/components/organisms/lots';
 import { lotsApi, serialsApi } from '@/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole, LotStatus, SerialStatus, type Lot, type Serial, getErrorMessage } from '@/types/api';
+import { UserRole, LotStatus, SerialStatus, type Lot, type Serial, type LotQueryParams, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';
 import { Download, AlertCircle } from 'lucide-react';
 
+type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'passed_quantity' | 'production_date' | 'created_at' | null;
+type SortDirection = 'asc' | 'desc';
+
 export const LotMonitorPage = () => {
     const { user } = useAuth();
-
-    if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.MANAGER) {
-        return <Navigate to="/" replace />;
-    }
 
     const [lots, setLots] = useState<Lot[]>([]);
     const [serials, setSerials] = useState<Serial[]>([]);
@@ -27,22 +26,14 @@ export const LotMonitorPage = () => {
     const [statusFilter, setStatusFilter] = useState<LotStatus | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
-
-    // Sorting
-    type SortColumn = 'lot_number' | 'status' | 'target_quantity' | 'passed_quantity' | 'production_date' | 'created_at' | null;
-    type SortDirection = 'asc' | 'desc';
     const [sortColumn, setSortColumn] = useState<SortColumn>('created_at');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-    useEffect(() => {
-        fetchData();
-    }, [statusFilter, sortColumn, sortDirection]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError('');
         try {
-            const params: any = { limit: 100 };
+            const params: Partial<LotQueryParams> = { limit: 100 };
             if (statusFilter) params.status = statusFilter;
 
             const lotsResponse = await lotsApi.getLots(params);
@@ -56,7 +47,15 @@ export const LotMonitorPage = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [statusFilter]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.MANAGER) {
+        return <Navigate to="/" replace />;
+    }
 
     const getLotSerialStats = (lot: Lot) => {
         const lotSerials = serials.filter((s) => s.lot_id === lot.id);

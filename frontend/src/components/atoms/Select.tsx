@@ -2,7 +2,7 @@
  * Reusable Select Component
  */
 
-import { forwardRef, type SelectHTMLAttributes, type Ref } from 'react';
+import { forwardRef, useId, type SelectHTMLAttributes, type Ref } from 'react';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -14,8 +14,8 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, options, wrapperStyle, id, ...props }, ref: Ref<HTMLSelectElement>) => {
-    // Generate unique ID if not provided
-    const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const selectId = id || generatedId;
 
     return (
       <div style={{ marginBottom: '15px', ...wrapperStyle }}>

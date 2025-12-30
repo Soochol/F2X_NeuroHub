@@ -28,6 +28,11 @@ let config: FeedbackConfig = {
   visualEnabled: true,
 };
 
+// WebKit AudioContext type for Safari compatibility
+type WebkitWindow = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 // 오디오 컨텍스트 (lazy initialization)
 let audioContext: AudioContext | null = null;
 
@@ -36,7 +41,10 @@ let audioContext: AudioContext | null = null;
  */
 export function initAudioContext(): void {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+    if (AudioContextClass) {
+      audioContext = new AudioContextClass();
+    }
   }
 }
 

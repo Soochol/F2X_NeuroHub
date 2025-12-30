@@ -10,6 +10,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
+import { ErrorBoundary } from './components/common';
 
 // Lazy load pages
 const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
@@ -26,15 +27,15 @@ const SerialsPage = lazy(() => import('./pages/SerialsPage').then(module => ({ d
 const SerialGenerationPage = lazy(() => import('./pages/SerialGenerationPage').then(module => ({ default: module.SerialGenerationPage })));
 const SerialByLotPage = lazy(() => import('./pages/SerialByLotPage').then(module => ({ default: module.SerialByLotPage })));
 
-// Admin Pages
+// Admin Pages - Direct imports from AdminPage (removes unnecessary wrapper files)
 const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
-const AdminEquipmentPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminEquipmentPage })));
-const AdminUsersPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminUsersPage })));
-const AdminProcessesPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProcessesPage })));
-const AdminProductsPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProductsPage })));
-const AdminProductionLinesPage = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminProductionLinesPage })));
-const SerialInspectorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.SerialInspectorPage })));
-const LotMonitorPage = lazy(() => import('./pages/admin').then(module => ({ default: module.LotMonitorPage })));
+const AdminEquipmentPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.EquipmentManagement })));
+const AdminUsersPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.UserManagement })));
+const AdminProcessesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProcessManagement })));
+const AdminProductsPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProductModelManagement })));
+const AdminProductionLinesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProductionLineManagement })));
+const SerialInspectorPage = lazy(() => import('./pages/admin/SerialInspectorPage').then(module => ({ default: module.SerialInspectorPage })));
+const LotMonitorPage = lazy(() => import('./pages/admin/LotMonitorPage').then(module => ({ default: module.LotMonitorPage })));
 
 // Quality Pages
 const ProcessDefectRatePage = lazy(() => import('./pages/ProcessDefectRatePage').then(module => ({ default: module.ProcessDefectRatePage })));
@@ -59,10 +60,11 @@ function AppContent() {
   const { isDark } = useTheme();
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-        token: {
+    <ErrorBoundary>
+      <ConfigProvider
+        theme={{
+          algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+          token: {
           // Brand colors
           colorPrimary: '#3ecf8e',
           colorSuccess: isDark ? '#3ecf8e' : '#22c55e',
@@ -146,6 +148,7 @@ function AppContent() {
         </AuthProvider>
       </AntApp>
     </ConfigProvider>
+  </ErrorBoundary>
   );
 }
 

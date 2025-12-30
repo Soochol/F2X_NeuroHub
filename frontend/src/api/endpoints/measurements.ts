@@ -10,7 +10,6 @@ import type {
   MeasurementHistoryFilters,
   MeasurementHistoryListResponse,
   MeasurementSummaryResponse,
-  MeasurementCodeInfo,
   MeasurementCodesResponse,
 } from '@/types/api';
 

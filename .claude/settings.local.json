@@ -16,9 +16,54 @@
       "Bash(npx tsc:*)",
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(npm run build:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(npm run lint)",
+      "Bash(./node_modules/.bin/eslint:*)",
+      "Bash(mkdir:*)",
+      "Skill(sc:design)",
+      "Skill(sc:design:*)",
+      "Bash(tree:*)",
+      "Bash(sudo docker ps:*)",
+      "Bash(sudo docker compose:*)",
+      "Bash(ss:*)",
+      "Bash(netstat:*)",
+      "Bash(sudo -S docker ps:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python3.11:*)",
+      "Bash(python3.10:*)",
+      "Bash(for f in /home/dev/code/F2X_NeuroHub/station_service/models/*.py)",
+      "Bash(do)",
+      "Bash(done)",
+      "Skill(sc:analyze)",
+      "Skill(sc:analyze:*)",
+      "Skill(sc:help)",
+      "Skill(sc:help:*)",
+      "Skill(sc:implement)",
+      "Skill(sc:implement:*)",
+      "Bash(pkill:*)",
+      "Bash(cat:*)",
+      "Bash(sudo -S docker compose:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/sc-command-hook.py\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
   }
 }

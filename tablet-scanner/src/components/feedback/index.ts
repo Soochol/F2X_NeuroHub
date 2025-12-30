@@ -6,3 +6,8 @@ export {
   useToast,
   toast,
 } from './ToastNotification';
+
+export {
+  ErrorBoundary,
+  withErrorBoundary,
+} from './ErrorBoundary';

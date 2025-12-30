@@ -19,9 +19,9 @@ export const MainLayout = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar isCollapsed={isSidebarCollapsed} />
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={toggleSidebar} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Header onToggleSidebar={toggleSidebar} isSidebarCollapsed={isSidebarCollapsed} />
+        <Header />
         <main style={{
           flex: 1,
           overflow: 'auto',

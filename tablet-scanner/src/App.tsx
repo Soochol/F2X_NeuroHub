@@ -9,7 +9,7 @@ import { useAppStore } from '@/store/appStore';
 import { useUIStore } from '@/store/slices/uiSlice';
 import { LoginPage } from '@/pages/LoginPage';
 import { WorkPage } from '@/pages/WorkPage';
-import { ToastProvider } from '@/components/feedback';
+import { ToastProvider, ErrorBoundary } from '@/components/feedback';
 
 // Import animations
 import '@/styles/animations.css';
@@ -39,26 +39,30 @@ function App() {
   }, [theme]);
 
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <div
-          className="w-full h-full min-h-screen"
-        >
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <WorkPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </ToastProvider>
+    <ErrorBoundary componentName="App">
+      <ToastProvider>
+        <BrowserRouter>
+          <div
+            className="w-full h-full min-h-screen"
+          >
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary componentName="WorkPage">
+                      <WorkPage />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

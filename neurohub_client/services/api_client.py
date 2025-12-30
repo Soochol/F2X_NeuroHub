@@ -16,9 +16,13 @@ class APIClient:
     """Simplified API client with JWT authentication and retry logic."""
 
     def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url.rstrip('/')
+        self._base_url = base_url.rstrip('/')
         self.token: Optional[str] = None
         self.session = self._create_session()
+
+    def get_base_url(self) -> str:
+        """Get the API base URL."""
+        return self._base_url
 
     def _create_session(self) -> requests.Session:
         """Create session with retry strategy."""
@@ -51,7 +55,7 @@ class APIClient:
 
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """GET request with error handling."""
-        url = f"{self.base_url}{endpoint}"
+        url = f"{self._base_url}{endpoint}"
 
         # Debug logging - request details
         logger.debug(f"=== API GET Request ===")
@@ -68,7 +72,7 @@ class APIClient:
             return result
         except ConnectionError as e:
             logger.error(f"Connection error: {e}")
-            raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self.base_url}")
+            raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self._base_url}")
         except Timeout as e:
             logger.error(f"Timeout error: {e}")
             raise Timeout("서버 응답 시간이 초과되었습니다 (10초)")
@@ -81,7 +85,7 @@ class APIClient:
 
     def post(self, endpoint: str, data: Dict[str, Any]) -> Any:
         """POST request with error handling."""
-        url = f"{self.base_url}{endpoint}"
+        url = f"{self._base_url}{endpoint}"
 
         # Debug logging - request details
         logger.debug(f"=== API POST Request ===")
@@ -98,7 +102,7 @@ class APIClient:
             return result
         except ConnectionError as e:
             logger.error(f"Connection error: {e}")
-            raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self.base_url}")
+            raise ConnectionError(f"백엔드 서버에 연결할 수 없습니다: {self._base_url}")
         except Timeout as e:
             logger.error(f"Timeout error: {e}")
             raise Timeout("서버 응답 시간이 초과되었습니다 (10초)")

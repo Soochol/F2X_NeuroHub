@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { dashboardApi } from '@/api';
 import type { DashboardSummary } from '@/types/api';
+import Logger from '@/utils/logger';
 
 export interface RealtimeMetrics {
   timestamp: string;
@@ -43,6 +44,7 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const connectWebSocketRef = useRef<() => void>(() => {});
 
   // Fetch dashboard data via REST API (fallback or initial load)
   const fetchDashboardData = useCallback(async () => {
@@ -52,7 +54,7 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
       setLastUpdate(new Date());
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
+      Logger.error('Failed to fetch dashboard data:', err);
       setError('Failed to load dashboard data');
     }
   }, []);
@@ -74,7 +76,7 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        Logger.log('WebSocket connected');
         setIsConnected(true);
         setError(null);
         reconnectAttemptRef.current = 0;
@@ -92,17 +94,17 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
           setMetrics(data);
           setLastUpdate(new Date());
         } catch (err) {
-          console.error('Failed to parse WebSocket message:', err);
+          Logger.error('Failed to parse WebSocket message:', err);
         }
       };
 
       ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
+        Logger.error('WebSocket error:', event);
         setError('WebSocket connection error');
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        Logger.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         wsRef.current = null;
 
@@ -118,12 +120,12 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
         reconnectAttemptRef.current++;
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log(`Attempting WebSocket reconnection (attempt ${reconnectAttemptRef.current})`);
-          connectWebSocket();
+          Logger.log(`Attempting WebSocket reconnection (attempt ${reconnectAttemptRef.current})`);
+          connectWebSocketRef.current();
         }, delay);
       };
     } catch (err) {
-      console.error('Failed to create WebSocket:', err);
+      Logger.error('Failed to create WebSocket:', err);
       setError('Failed to connect to real-time updates');
 
       // Fall back to polling
@@ -133,12 +135,19 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
     }
   }, [fetchDashboardData]);
 
+  // Update the ref whenever connectWebSocket changes
+  useEffect(() => {
+    connectWebSocketRef.current = connectWebSocket;
+  }, [connectWebSocket]);
+
   // Manual refetch
   const refetch = useCallback(async () => {
     await fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Initial setup
+  // Initial setup - fetch data and establish WebSocket connection
+  // This is intentional initialization, not a state sync anti-pattern
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     // Fetch initial data
     fetchDashboardData();
@@ -159,6 +168,7 @@ export function useRealtimeMetrics(): UseRealtimeMetricsReturn {
       }
     };
   }, [connectWebSocket, fetchDashboardData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return {
     metrics,

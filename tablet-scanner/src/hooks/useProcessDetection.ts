@@ -132,6 +132,7 @@ export const useProcessDetection = (
  */
 export const determineAction = (
   inProgressProcess: number | null,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Reserved for future logic
   _completedProcesses: number[]
 ): 'start' | 'complete' | 'none' => {
   if (inProgressProcess !== null) {

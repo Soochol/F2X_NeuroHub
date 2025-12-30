@@ -39,6 +39,13 @@ import type {
   ProcessStartRequest,
   ProcessCompleteRequest,
 } from '@/types';
+import {
+  WIP_ID_PATTERN,
+  QUEUE_CHECK_INTERVAL_MS,
+  AUTO_START_DELAY_MS,
+  MAX_PROCESS_COUNT,
+} from '@/constants';
+import { logger } from '@/services/logger';
 
 // Work Page Components
 import { QuickWorkPanel } from '@/components/work';
@@ -54,13 +61,19 @@ export const WorkPage: React.FC = () => {
 
   const { theme, toggleTheme } = useUIStore();
 
-  // Network & sync state
-  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>(
+  // Network & sync state (used for future sync status UI)
+  const [_networkStatus, setNetworkStatus] = useState<'online' | 'offline'>(
     isOnline() ? 'online' : 'offline'
   );
-  const [queueCount, setQueueCount] = useState(0);
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [_queueCount, setQueueCount] = useState(0);
+  const [_syncProgress, setSyncProgress] = useState(0);
+  const [_isSyncing, setIsSyncing] = useState(false);
+
+  // Suppress unused variable warnings - these are for future sync UI
+  void _networkStatus;
+  void _queueCount;
+  void _syncProgress;
+  void _isSyncing;
 
   // Scan state
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -111,7 +124,7 @@ export const WorkPage: React.FC = () => {
       setQueueCount(count);
     };
     updateQueueCount();
-    const interval = setInterval(updateQueueCount, 5000);
+    const interval = setInterval(updateQueueCount, QUEUE_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -124,7 +137,7 @@ export const WorkPage: React.FC = () => {
         const data = await processApi.getAll();
         setProcesses(data);
       } catch (err) {
-        console.error('Failed to load processes:', err);
+        logger.error('Failed to load processes', err);
         toast.error('Process Load Failed', getErrorMessage(err), 4000);
       }
     };
@@ -183,8 +196,7 @@ export const WorkPage: React.FC = () => {
       processingRef.current = true;
 
       // WIP ID 검증
-      const wipPattern = /^WIP-[A-Z0-9-]{10,20}-\d{3}$/;
-      if (!wipPattern.test(wipId)) {
+      if (!WIP_ID_PATTERN.test(wipId)) {
         toast.error('Invalid Format', 'WIP ID format is invalid', 3000);
         await feedbackError();
         processingRef.current = false;
@@ -209,7 +221,7 @@ export const WorkPage: React.FC = () => {
           setProcesses(freshProcesses);
           currentProcesses = freshProcesses;
         } catch (syncErr) {
-          console.error('Failed to sync processes on scan:', syncErr);
+          logger.error('Failed to sync processes on scan', syncErr);
         }
 
         // 바로 착공 시작 로직 (Auto-Start)
@@ -217,7 +229,7 @@ export const WorkPage: React.FC = () => {
         const inProgress = trace.process_history.find(h => h.start_time && !h.complete_time);
 
         if (!inProgress) {
-          // 2. 다음 공정 번호 찾기 (1~8 중 PASS가 아닌 첫 번째)
+          // 2. 다음 공정 번호 찾기 (1~MAX_PROCESS_COUNT 중 PASS가 아닌 첫 번째)
           const completedNumbers = new Set(
             trace.process_history
               .filter(h => h.complete_time && h.result === 'PASS')
@@ -225,7 +237,7 @@ export const WorkPage: React.FC = () => {
           );
 
           let nextNum = null;
-          for (let i = 1; i <= 8; i++) {
+          for (let i = 1; i <= MAX_PROCESS_COUNT; i++) {
             if (!completedNumbers.has(i)) {
               nextNum = i;
               break;
@@ -238,7 +250,7 @@ export const WorkPage: React.FC = () => {
               // 약간의 지연 후 자동 착공 (UI 업데이트 보장)
               setTimeout(async () => {
                 await handleStart(nextProcess.id, trace);
-              }, 300);
+              }, AUTO_START_DELAY_MS);
             }
           }
         }
@@ -385,7 +397,7 @@ export const WorkPage: React.FC = () => {
   const handleScanNext = () => {
     setCurrentTrace(null);
     // 바로 스캔 모달 열기
-    setTimeout(() => setShowScannerModal(true), 300);
+    setTimeout(() => setShowScannerModal(true), AUTO_START_DELAY_MS);
   };
 
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Button } from '../components/common';
-import { printerApi } from '../api/endpoints/printer';
-import { useAsyncData } from '../hooks/useAsyncData';
-import type { PrinterStatus, PrintLog, PrintStatistics } from '../types/api';
+import { Card, Button } from '@/components/common';
+import { printerApi } from '@/api/endpoints/printer';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import type { PrinterStatus, PrintLog, PrintStatistics } from '@/types/api';
 
 const PrinterMonitoringPage: React.FC = () => {
     // State for filters
@@ -65,7 +65,7 @@ const PrinterMonitoringPage: React.FC = () => {
             } else {
                 alert(`테스트 출력 실패: ${result.message}`);
             }
-        } catch (err) {
+        } catch {
             alert('테스트 출력 중 오류가 발생했습니다.');
         }
     };

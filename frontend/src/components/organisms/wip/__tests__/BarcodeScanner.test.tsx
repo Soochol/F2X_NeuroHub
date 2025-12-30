@@ -299,7 +299,6 @@ describe('BarcodeScanner', () => {
   });
 
   it('shows invalid format error when trying to scan invalid serial', async () => {
-    const user = userEvent.setup();
     render(<BarcodeScanner onScan={mockOnScan} />);
 
     const input = screen.getByLabelText(/serial number/i);

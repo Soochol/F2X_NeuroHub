@@ -55,9 +55,8 @@ export const ProcessTimeline: React.FC<ProcessTimelineProps> = ({
 
           {/* Process Steps */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
-            {sortedProcesses.map((process, index) => {
+            {sortedProcesses.map((process) => {
               const status = getProcessStatus(process);
-              const isLast = index === sortedProcesses.length - 1;
 
               return (
                 <div

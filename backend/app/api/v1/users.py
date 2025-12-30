@@ -40,9 +40,14 @@ from app.api import deps
 from app.core.exceptions import (
     DatabaseException,
     DuplicateResourceException,
+    InsufficientPermissionsException,
+    UnauthorizedException,
     UserNotFoundException,
     ValidationException,
 )
+from app.core.security import get_password_hash
+from app.crud.user import verify_password
+from app.models import User
 from app.models.user import UserRole
 from app.schemas.user import (
     UserCreate,
@@ -426,7 +431,7 @@ def delete_user(
 
 
 # ============================================================================
-# Future endpoints (to be implemented with authentication phase)
+# Authenticated user endpoints
 # ============================================================================
 
 @router.get(
@@ -435,10 +440,8 @@ def delete_user(
     summary="Get current user",
     description="Retrieve the current authenticated user's profile.",
 )
-def get_current_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    # current_user: User = Depends(deps.get_current_active_user),  # Auth Phase
+def get_current_user_profile(
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     Get current user profile.
@@ -447,12 +450,8 @@ def get_current_user(
 
     Returns:
         UserInDB schema for current user
-
-    Note:
-        Endpoint structure is ready but authentication dependency is not yet implemented.
     """
-    # TODO: Implement when authentication is available
-    raise NotImplementedException(feature="Authentication")
+    return current_user
 
 
 @router.put(
@@ -461,11 +460,11 @@ def get_current_user(
     summary="Update current user profile",
     description="Update the current authenticated user's profile information.",
 )
-def update_current_user(
+def update_current_user_profile(
     *,
     db: Session = Depends(deps.get_db),
     user_in: UserUpdate,
-    # current_user: User = Depends(deps.get_current_active_user),  # Auth Phase
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     Update current user profile.
@@ -479,46 +478,110 @@ def update_current_user(
     Returns:
         Updated UserInDB schema for current user
 
-    Note:
-        Endpoint structure is ready but authentication dependency is not yet implemented.
+    Security:
+        - Users cannot change their own role (requires admin)
+        - Username/email uniqueness is validated
     """
-    # TODO: Implement when authentication is available
-    raise NotImplementedException(feature="Authentication")
+    # Prevent users from changing their own role
+    if user_in.role is not None and user_in.role != current_user.role:
+        raise InsufficientPermissionsException(
+            message="Cannot change your own role. Contact an administrator."
+        )
+
+    # Check if new username is unique (if being changed)
+    if user_in.username and user_in.username.lower() != current_user.username:
+        existing_user = crud.user.get_by_username(db, username=user_in.username)
+        if existing_user:
+            raise DuplicateResourceException(
+                resource_type="User",
+                identifier=f"username='{user_in.username}'"
+            )
+
+    # Check if new email is unique (if being changed)
+    if user_in.email and current_user.email and user_in.email.lower() != current_user.email:
+        existing_user = crud.user.get_by_email(db, email=user_in.email)
+        if existing_user:
+            raise DuplicateResourceException(
+                resource_type="User",
+                identifier=f"email='{user_in.email}'"
+            )
+
+    try:
+        db_user = crud.user.update(db, user_id=current_user.id, user_in=user_in)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except (IntegrityError, SQLAlchemyError) as e:
+        db.rollback()
+        logger.error(f"[UPDATE_CURRENT_USER] Error: {e}")
+        raise DatabaseException(message="Failed to update profile")
 
 
 @router.put(
     "/{user_id}/password",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Change user password",
-    description="Change a user's password. Admin only.",
+    description="Change a user's password. Users can change their own password, admins can change any password.",
 )
 def change_user_password(
     *,
     db: Session = Depends(deps.get_db),
     user_id: int = Path(..., gt=0, description="ID of user whose password to change"),
-    old_password: str,
-    new_password: str,
-    # current_user: User = Depends(deps.get_current_active_user),  # Auth Phase
+    old_password: str = Query(..., min_length=1, description="Current password for verification"),
+    new_password: str = Query(..., min_length=4, description="New password (min 4 characters)"),
+    current_user: User = Depends(deps.get_current_active_user),
 ):
     """
     Change a user's password.
 
-    Allows password reset with verification of current password.
-    Requires admin privileges to change another user's password.
+    Users can change their own password by providing the current password.
+    Admins can change any user's password without the old password requirement.
 
     Args:
         user_id: ID of user whose password to change
-        old_password: Current password for verification
+        old_password: Current password for verification (required for self-change)
         new_password: New password (must meet security requirements)
 
     Raises:
         HTTPException 404: User not found
         HTTPException 401: Current password is incorrect
+        HTTPException 403: Not authorized to change this user's password
         HTTPException 422: New password does not meet requirements
 
-    Note:
-        Endpoint structure is ready but full authentication and verification
-        logic will be implemented in authentication phase.
+    Security:
+        - Non-admin users can only change their own password
+        - Admin users can change any user's password
+        - Old password verification is required for non-admin self-change
     """
-    # TODO: Implement when authentication is available
-    raise NotImplementedException(feature="Authentication")
+    # Get target user
+    target_user = crud.user.get(db, user_id=user_id)
+    if not target_user:
+        raise UserNotFoundException(user_id=user_id)
+
+    # Authorization check
+    is_admin = current_user.role == UserRole.ADMIN
+    is_self = current_user.id == user_id
+
+    if not is_admin and not is_self:
+        raise InsufficientPermissionsException(
+            message="You can only change your own password"
+        )
+
+    # Verify old password (required for non-admin users changing their own password)
+    if is_self and not is_admin:
+        if not verify_password(old_password, target_user.password_hash):
+            raise UnauthorizedException(message="Current password is incorrect")
+
+    # Validate new password
+    if len(new_password) < 4:
+        raise ValidationException(message="New password must be at least 4 characters")
+
+    # Update password
+    try:
+        target_user.password_hash = get_password_hash(new_password)
+        db.commit()
+        logger.info(f"[CHANGE_PASSWORD] User {user_id} password changed by user {current_user.id}")
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"[CHANGE_PASSWORD] Error: {e}")
+        raise DatabaseException(message="Failed to change password")

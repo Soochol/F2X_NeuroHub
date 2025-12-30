@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import logging
+import os
 import uuid
 from datetime import datetime
 
@@ -53,7 +54,7 @@ from app.api.v1 import (
 )
 
 # Import middleware
-from app.middleware import ErrorLoggingMiddleware
+from app.middleware import ErrorLoggingMiddleware, RateLimitMiddleware
 
 
 # Configure logging
@@ -67,7 +68,44 @@ def init_default_admin():
     """
     Create default admin user if not exists.
     Called on application startup for fresh deployments.
+
+    Environment variables:
+        DEFAULT_ADMIN_USERNAME: Admin username (default: 'admin')
+        DEFAULT_ADMIN_PASSWORD: Admin password (REQUIRED in production)
+        DEFAULT_ADMIN_EMAIL: Admin email (default: 'admin@f2x.com')
     """
+    # Read credentials from environment variables
+    default_password = "admin123"  # Only used as fallback in DEBUG mode
+    admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "")
+    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@f2x.com")
+
+    # Validate password in production mode
+    if not settings.DEBUG:
+        if not admin_password:
+            logger.error(
+                "SECURITY ERROR: DEFAULT_ADMIN_PASSWORD environment variable is required in production mode. "
+                "Set DEBUG=True for development or provide a secure password."
+            )
+            return
+        if admin_password == default_password:
+            logger.error(
+                "SECURITY ERROR: Cannot use default password in production mode. "
+                "Please set a secure DEFAULT_ADMIN_PASSWORD environment variable."
+            )
+            return
+
+    # In DEBUG mode, allow fallback to default password with warning
+    if not admin_password:
+        if settings.DEBUG:
+            admin_password = default_password
+            logger.warning(
+                "Using default admin password in DEBUG mode. "
+                "Set DEFAULT_ADMIN_PASSWORD environment variable for production."
+            )
+        else:
+            return  # Should not reach here due to check above, but safety fallback
+
     db = SessionLocal()
     try:
         # Check if any admin user exists
@@ -75,16 +113,20 @@ def init_default_admin():
         if not admin_user:
             logger.info("No admin user found. Creating default admin...")
             new_admin = User(
-                username="admin",
-                email="admin@f2x.com",
-                password_hash=get_password_hash("admin123"),
+                username=admin_username,
+                email=admin_email,
+                password_hash=get_password_hash(admin_password),
                 full_name="System Administrator",
                 role=UserRole.ADMIN,
                 is_active=True
             )
             db.add(new_admin)
             db.commit()
-            logger.info("Default admin created: username='admin', password='admin123'")
+            # Log creation without exposing actual password
+            logger.info(
+                f"Default admin created: username='{admin_username}', "
+                f"email='{admin_email}', password=***SET_FROM_ENV***"
+            )
         else:
             logger.info(f"Admin user exists: {admin_user.username}")
     except Exception as e:
@@ -120,23 +162,23 @@ app = FastAPI(
 )
 
 
-# Configure CORS
+# Configure CORS (from settings for environment-specific configuration)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://localhost:3003",
-        "http://localhost:3004",
-        "http://localhost:3005",
-        "http://localhost:3008",
-        "http://localhost:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
+
+# Add Rate Limiting Middleware (before error logging)
+if settings.RATE_LIMIT_ENABLED:
+    app.add_middleware(
+        RateLimitMiddleware,
+        default_limit=settings.RATE_LIMIT_DEFAULT_REQUESTS,
+        default_window=settings.RATE_LIMIT_DEFAULT_WINDOW,
+        enabled=settings.RATE_LIMIT_ENABLED,
+    )
 
 # Add Error Logging Middleware (after CORS for proper request handling)
 app.add_middleware(ErrorLoggingMiddleware)
@@ -334,14 +376,109 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Health check endpoint
+# Health check endpoint with database ping
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring."""
+    """
+    Health check endpoint for container orchestration and monitoring.
+
+    Performs a lightweight database connectivity check and returns
+    service status. Use /health/detailed for comprehensive diagnostics.
+    """
+    db_status = "healthy"
+    db_error = None
+
+    try:
+        # Quick database connectivity test
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+        finally:
+            db.close()
+    except Exception as e:
+        db_status = "unhealthy"
+        db_error = str(e)
+        logger.error(f"Health check database ping failed: {e}")
+
+    overall_status = "healthy" if db_status == "healthy" else "degraded"
+
     return {
-        "status": "healthy",
+        "status": overall_status,
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "checks": {
+            "database": {
+                "status": db_status,
+                "error": db_error,
+            },
+        },
+    }
+
+
+@app.get("/health/detailed")
+async def health_check_detailed():
+    """
+    Detailed health check with comprehensive system diagnostics.
+
+    Returns detailed information about all service components including:
+    - Database connectivity and basic stats
+    - Cache statistics
+    - Rate limiter status
+    - Memory usage
+    """
+    import time
+    start_time = time.time()
+
+    # Database check with timing
+    db_status = "healthy"
+    db_error = None
+    db_latency_ms = None
+
+    try:
+        db_start = time.time()
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+            db_latency_ms = round((time.time() - db_start) * 1000, 2)
+        finally:
+            db.close()
+    except Exception as e:
+        db_status = "unhealthy"
+        db_error = str(e)
+        logger.error(f"Health check database ping failed: {e}")
+
+    # Cache statistics
+    cache_stats = None
+    try:
+        from app.core.cache import get_cache_stats
+        cache_stats = get_cache_stats()
+    except Exception as e:
+        logger.warning(f"Failed to get cache stats: {e}")
+
+    overall_status = "healthy" if db_status == "healthy" else "degraded"
+    total_latency_ms = round((time.time() - start_time) * 1000, 2)
+
+    return {
+        "status": overall_status,
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "timestamp": datetime.utcnow().isoformat(),
+        "latency_ms": total_latency_ms,
+        "checks": {
+            "database": {
+                "status": db_status,
+                "latency_ms": db_latency_ms,
+                "error": db_error,
+            },
+            "cache": cache_stats,
+        },
+        "config": {
+            "debug": settings.DEBUG,
+            "rate_limit_enabled": settings.RATE_LIMIT_ENABLED,
+            "cache_enabled": settings.CACHE_ENABLED,
+        },
     }
 
 

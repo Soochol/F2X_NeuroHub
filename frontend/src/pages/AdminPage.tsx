@@ -76,14 +76,18 @@ export const AdminPage = () => {
 
 const UserManagement = () => {
   const { message } = App.useApp();
-  const { data: users, isLoading, error, refetch, setError } = useAsyncData<User[]>({
+  const { data: users, isLoading, error, refetch } = useAsyncData<User[]>({
     fetchFn: () => usersApi.getUsers(), initialData: [], errorMessage: 'Failed to load users'
   });
   const modal = useModalState<User>();
   const form = useFormState<UserFormData>({ username: '', full_name: '', email: '', password: '', role: UserRoleEnum.OPERATOR, is_active: true });
 
   const handleOpenModal = (user?: User) => {
-    user ? form.setFormData({ username: user.username, full_name: user.full_name, email: '', password: '', role: user.role, is_active: user.is_active }) : form.resetForm();
+    if (user) {
+      form.setFormData({ username: user.username, full_name: user.full_name, email: '', password: '', role: user.role, is_active: user.is_active });
+    } else {
+      form.resetForm();
+    }
     modal.open(user);
   };
 
@@ -213,7 +217,7 @@ const UserManagement = () => {
 
 const ProcessManagement = () => {
   const { message } = App.useApp();
-  const { data: processes, isLoading, error, refetch, setError } = useAsyncData<Process[]>({
+  const { data: processes, isLoading, error, refetch } = useAsyncData<Process[]>({
     fetchFn: async () => (await processesApi.getProcesses()).sort((a, b) => a.sort_order - b.sort_order),
     initialData: [], errorMessage: 'Failed to load processes'
   });
@@ -292,12 +296,12 @@ const ProcessManagement = () => {
         description: process.description || '',
         sort_order: process.sort_order,
         is_active: process.is_active,
-        estimated_duration_seconds: (process as any).estimated_duration_seconds ?? '',
-        quality_criteria: JSON.stringify((process as any).quality_criteria || {}, null, 2),
-        defect_items: (process as any).defect_items || [],
+        estimated_duration_seconds: process.estimated_duration_seconds ?? '',
+        quality_criteria: JSON.stringify(process.quality_criteria || {}, null, 2),
+        defect_items: process.defect_items || [],
         auto_print_label: process.auto_print_label ?? false,
         label_template_type: process.label_template_type ?? null,
-        process_type: (process as any).process_type || 'MANUFACTURING'
+        process_type: process.process_type || 'MANUFACTURING'
       });
     } else {
       // Find max process_number from existing processes to avoid duplicates
@@ -489,12 +493,13 @@ const ProcessManagement = () => {
             <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', alignItems: 'flex-start' }}>
               <Input
                 placeholder="Enter new defect item"
-                onKeyDown={(e: any) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (e.currentTarget.value.trim()) {
-                      addDefectItem(e.currentTarget.value);
-                      e.currentTarget.value = '';
+                    const target = e.currentTarget;
+                    if (target.value.trim()) {
+                      addDefectItem(target.value);
+                      target.value = '';
                     }
                   }
                 }}
@@ -503,9 +508,9 @@ const ProcessManagement = () => {
               <Button
                 size="md"
                 style={{ height: '38px', minWidth: '80px', marginTop: '0' }}
-                onClick={(e: any) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.preventDefault();
-                  const input = (e.currentTarget.parentElement?.querySelector('input')) as HTMLInputElement;
+                  const input = e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null;
                   if (input && input.value.trim()) {
                     addDefectItem(input.value);
                     input.value = '';
@@ -683,14 +688,18 @@ const ProcessManagement = () => {
 
 const ProductModelManagement = () => {
   const { message } = App.useApp();
-  const { data: products, isLoading, error, refetch, setError } = useAsyncData<ProductModel[]>({
+  const { data: products, isLoading, error, refetch } = useAsyncData<ProductModel[]>({
     fetchFn: () => productModelsApi.getProductModels(), initialData: [], errorMessage: 'Failed to load product models'
   });
   const modal = useModalState<ProductModel>();
   const form = useFormState<ProductFormData>({ model_code: '', model_name: '', category: '', status: 'ACTIVE' });
 
   const handleOpenModal = (product?: ProductModel) => {
-    product ? form.setFormData({ model_code: product.model_code, model_name: product.model_name, category: product.category || '', status: product.status }) : form.resetForm();
+    if (product) {
+      form.setFormData({ model_code: product.model_code, model_name: product.model_name, category: product.category || '', status: product.status });
+    } else {
+      form.resetForm();
+    }
     modal.open(product);
   };
 
@@ -767,14 +776,18 @@ const ProductModelManagement = () => {
 
 const ProductionLineManagement = () => {
   const { message } = App.useApp();
-  const { data: productionLines, isLoading, error, refetch, setError } = useAsyncData<ProductionLine[]>({
+  const { data: productionLines, isLoading, error, refetch } = useAsyncData<ProductionLine[]>({
     fetchFn: () => productionLinesApi.getProductionLines(), initialData: [], errorMessage: 'Failed to load production lines'
   });
   const modal = useModalState<ProductionLine>();
   const form = useFormState<ProductionLineFormData>({ line_code: '', line_name: '', description: '', cycle_time_sec: '', location: '', is_active: true });
 
   const handleOpenModal = (productionLine?: ProductionLine) => {
-    productionLine ? form.setFormData({ line_code: productionLine.line_code, line_name: productionLine.line_name, description: productionLine.description || '', cycle_time_sec: productionLine.cycle_time_sec ?? '', location: productionLine.location || '', is_active: productionLine.is_active }) : form.resetForm();
+    if (productionLine) {
+      form.setFormData({ line_code: productionLine.line_code, line_name: productionLine.line_name, description: productionLine.description || '', cycle_time_sec: productionLine.cycle_time_sec ?? '', location: productionLine.location || '', is_active: productionLine.is_active });
+    } else {
+      form.resetForm();
+    }
     modal.open(productionLine);
   };
 
@@ -858,7 +871,7 @@ const ProductionLineManagement = () => {
 
 const EquipmentManagement = () => {
   const { message } = App.useApp();
-  const { data: equipment, isLoading, error, refetch, setError } = useAsyncData<Equipment[]>({
+  const { data: equipment, isLoading, error, refetch } = useAsyncData<Equipment[]>({
     fetchFn: () => equipmentApi.getEquipment(), initialData: [], errorMessage: 'Failed to load equipment'
   });
   const { data: processes } = useAsyncData<Process[]>({
@@ -871,19 +884,23 @@ const EquipmentManagement = () => {
   const form = useFormState<EquipmentFormData>({ equipment_code: '', equipment_name: '', equipment_type: '', description: '', process_id: '', production_line_id: '', manufacturer: '', model_number: '', serial_number: '', status: 'AVAILABLE', is_active: true });
 
   const handleOpenModal = (equip?: Equipment) => {
-    equip ? form.setFormData({
-      equipment_code: equip.equipment_code,
-      equipment_name: equip.equipment_name,
-      equipment_type: equip.equipment_type,
-      description: equip.description || '',
-      process_id: equip.process_id || '',
-      production_line_id: equip.production_line_id || '',
-      manufacturer: equip.manufacturer || '',
-      model_number: equip.model_number || '',
-      serial_number: equip.serial_number || '',
-      status: equip.status || 'AVAILABLE',
-      is_active: equip.is_active
-    }) : form.resetForm();
+    if (equip) {
+      form.setFormData({
+        equipment_code: equip.equipment_code,
+        equipment_name: equip.equipment_name,
+        equipment_type: equip.equipment_type,
+        description: equip.description || '',
+        process_id: equip.process_id || '',
+        production_line_id: equip.production_line_id || '',
+        manufacturer: equip.manufacturer || '',
+        model_number: equip.model_number || '',
+        serial_number: equip.serial_number || '',
+        status: equip.status || 'AVAILABLE',
+        is_active: equip.is_active
+      });
+    } else {
+      form.resetForm();
+    }
     modal.open(equip);
   };
 

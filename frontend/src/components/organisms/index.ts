@@ -5,13 +5,16 @@
  */
 
 // Charts
+export * from './charts';
 
-export { ProcessWipChart } from './charts/ProcessWipChart';
+// Dashboard
+export * from './dashboard';
 
 // Lots
-export { LotCreateModal } from './lots/LotCreateModal';
-export { LotDetailModal } from './lots/LotDetailModal';
+export * from './lots';
 
 // Serials
-export { SerialSearch } from './serials/SerialSearch';
-export { SerialTraceView } from './serials/SerialTraceView';
+export * from './serials';
+
+// WIP
+export * from './wip';

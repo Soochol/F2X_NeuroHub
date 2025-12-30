@@ -3,7 +3,7 @@
  * Detect and manage problematic serials that require admin attention
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Card, Button, Select, Modal } from '@/components/common';
 import { serialsApi } from '@/api';
@@ -17,12 +17,47 @@ interface ProblemSerial {
     severity: 'high' | 'medium' | 'low';
 }
 
+const identifyProblemSerials = (serialsList: Serial[]): ProblemSerial[] => {
+    const problems: ProblemSerial[] = [];
+    const now = new Date();
+
+    serialsList.forEach((serial) => {
+        // Check for stuck serials (24+ hours)
+        if (serial.status === SerialStatus.IN_PROGRESS && serial.created_at) {
+            const hoursSinceCreation = (now.getTime() - new Date(serial.created_at).getTime()) / (1000 * 60 * 60);
+            if (hoursSinceCreation > 24) {
+                problems.push({
+                    serial,
+                    issue: `Stuck in process for ${Math.floor(hoursSinceCreation)} hours`,
+                    severity: 'high',
+                });
+            }
+        }
+
+        // Check for excessive rework
+        if (serial.rework_count && serial.rework_count >= 3) {
+            problems.push({
+                serial,
+                issue: `Rework count: ${serial.rework_count} (maximum reached)`,
+                severity: 'high',
+            });
+        }
+
+        // Check for failed serials
+        if (serial.status === SerialStatus.FAIL) {
+            problems.push({
+                serial,
+                issue: 'Failed - requires action',
+                severity: 'medium',
+            });
+        }
+    });
+
+    return problems;
+};
+
 export const SerialInspectorPage = () => {
     const { user } = useAuth();
-
-    if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.MANAGER) {
-        return <Navigate to="/" replace />;
-    }
 
     const [serials, setSerials] = useState<Serial[]>([]);
     const [problemSerials, setProblemSerials] = useState<ProblemSerial[]>([]);
@@ -36,11 +71,7 @@ export const SerialInspectorPage = () => {
     const [changeReason, setChangeReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError('');
         try {
@@ -55,46 +86,15 @@ export const SerialInspectorPage = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const identifyProblemSerials = (serialsList: Serial[]): ProblemSerial[] => {
-        const problems: ProblemSerial[] = [];
-        const now = new Date();
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-        serialsList.forEach((serial) => {
-            // Check for stuck serials (24+ hours)
-            if (serial.status === SerialStatus.IN_PROGRESS && serial.created_at) {
-                const hoursSinceCreation = (now.getTime() - new Date(serial.created_at).getTime()) / (1000 * 60 * 60);
-                if (hoursSinceCreation > 24) {
-                    problems.push({
-                        serial,
-                        issue: `Stuck in process for ${Math.floor(hoursSinceCreation)} hours`,
-                        severity: 'high',
-                    });
-                }
-            }
-
-            // Check for excessive rework
-            if (serial.rework_count && serial.rework_count >= 3) {
-                problems.push({
-                    serial,
-                    issue: `Rework count: ${serial.rework_count} (maximum reached)`,
-                    severity: 'high',
-                });
-            }
-
-            // Check for failed serials
-            if (serial.status === SerialStatus.FAIL) {
-                problems.push({
-                    serial,
-                    issue: 'Failed - requires action',
-                    severity: 'medium',
-                });
-            }
-        });
-
-        return problems;
-    };
+    if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.MANAGER) {
+        return <Navigate to="/" replace />;
+    }
 
     const handleForceStatusChange = async () => {
         if (!selectedSerial || !changeReason.trim()) {

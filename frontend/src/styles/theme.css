@@ -6,8 +6,7 @@
  */
 
 /* Dark theme (default) - Supabase-inspired */
-:root,
-[data-theme="dark"] {
+:root {
   /* Brand colors */
   --color-brand-50: #e6f9f0;
   --color-brand-100: #b3ecd6;
@@ -90,6 +89,15 @@
   --color-error-light: rgba(245, 101, 101, 0.15);
   --color-info-light: rgba(59, 130, 246, 0.15);
 
+  /* Status background colors (for badges, tags, etc.) */
+  --color-success-bg: rgba(39, 174, 96, 0.15);
+  --color-warning-bg: rgba(243, 156, 18, 0.15);
+  --color-error-bg: rgba(245, 101, 101, 0.15);
+  --color-info-bg: rgba(52, 152, 219, 0.15);
+
+  /* Brand alpha */
+  --color-brand-alpha: rgba(62, 207, 142, 0.2);
+
   /* Alias for common border usage */
   --color-border: #2e2e2e;
 
@@ -115,7 +123,8 @@
 }
 
 /* Light theme */
-[data-theme="light"] {
+html[data-theme="light"],
+:root[data-theme="light"] {
   /* Brand colors remain the same */
   --color-brand-50: #e6f9f0;
   --color-brand-100: #b3ecd6;
@@ -197,6 +206,15 @@
   --color-warning-light: rgba(245, 158, 11, 0.1);
   --color-error-light: rgba(239, 68, 68, 0.1);
   --color-info-light: rgba(59, 130, 246, 0.1);
+
+  /* Status background colors (for badges, tags, etc.) */
+  --color-success-bg: rgba(34, 197, 94, 0.12);
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-error-bg: rgba(239, 68, 68, 0.12);
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+
+  /* Brand alpha */
+  --color-brand-alpha: rgba(36, 180, 126, 0.2);
 
   /* Alias for common border usage */
   --color-border: #e3e5e8;

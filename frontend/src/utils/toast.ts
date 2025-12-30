@@ -5,14 +5,9 @@
  */
 
 import { message, notification } from 'antd';
-import type { ArgsProps } from 'antd/es/message';
-import type { ArgsProps as NotificationArgsProps } from 'antd/es/notification';
 
 // Default duration in seconds
 const DEFAULT_DURATION = 3;
-
-// Toast message types
-type ToastType = 'success' | 'error' | 'info' | 'warning' | 'loading';
 
 interface ToastOptions {
   duration?: number;

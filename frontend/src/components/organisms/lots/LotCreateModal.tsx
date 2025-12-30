@@ -1,8 +1,8 @@
 // LOT Creation Modal Component
 
 import { useState, useMemo, type FormEvent } from 'react';
-import { Input, Select, Button } from '../../atoms';
-import { Modal } from '../../molecules';
+import { Input, Select, Button } from '@/components/atoms';
+import { Modal } from '@/components/molecules';
 import { lotsApi } from '@/api';
 import { type LotCreate, type ProductModel, type ProductionLine, getErrorMessage } from '@/types/api';
 

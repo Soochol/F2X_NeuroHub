@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 # PostgreSQL test database configuration
 # Use separate test database to avoid interfering with dev data
-TEST_DATABASE_URL = "postgresql://postgres:postgres123@localhost:5432/f2x_neurohub_mes_test"
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://postgres:postgres123@localhost:5432/f2x_neurohub_mes_test")
 
 # Mock the database configuration before importing the app
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL

@@ -34,8 +34,9 @@ export const AnalyticsPage = () => {
       ]);
       setProductionStats(stats);
       setCycleTimeAnalysis(cycleTime);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load analytics data');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load analytics data';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

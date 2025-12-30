@@ -4,7 +4,7 @@
  * Displays complete process history for a serial number
  */
 
-import { Card } from '../../molecules';
+import { Card } from '@/components/molecules';
 import { ProcessResult, type SerialTrace } from '@/types/api';
 import { format } from 'date-fns';
 import { formatSerialNumber } from '@/utils/serialNumber';

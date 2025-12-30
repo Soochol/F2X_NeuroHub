@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '@/components/common';
-import { Search, Package, ArrowRight, AlertCircle, QrCode, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowRight, AlertCircle, QrCode, Calendar, CheckCircle, XCircle, Clock, Package } from 'lucide-react';
 import { lotsApi, wipItemsApi } from '@/api';
 import type { Lot, WIPItem } from '@/types/api';
 import { getErrorMessage } from '@/types/api';

@@ -3,8 +3,8 @@
  */
 
 import { useState, type FormEvent, useRef, useEffect } from 'react';
-import { Button } from '../../atoms';
-import { Card } from '../../molecules';
+import { Button } from '@/components/atoms';
+import { Card } from '@/components/molecules';
 import { QrCode, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { validateWipId } from '@/utils/wip';
 

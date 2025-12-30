@@ -8,6 +8,8 @@ from app.models import (
     LotStatus, SerialStatus, ProcessResult
 )
 from app.models.wip_item import WIPItem, WIPStatus
+from app.core.cache import cached, invalidate_cache
+
 
 class AnalyticsService:
     """
@@ -17,6 +19,7 @@ class AnalyticsService:
 
     # --- Analytics API Methods ---
 
+    @cached(ttl=60, key_prefix="analytics")  # Cache for 1 minute
     def get_analytics_summary(self, db: Session) -> Dict[str, Any]:
         """Get overall production statistics for Analytics page."""
         today = date.today()
@@ -133,6 +136,7 @@ class AnalyticsService:
             }
         }
 
+    @cached(ttl=120, key_prefix="analytics")  # Cache for 2 minutes
     def get_production_statistics(self, db: Session, start_date: date, end_date: date) -> Dict[str, Any]:
         """Get production statistics for a date range."""
         total_lots = db.query(func.count(Lot.id)).filter(
@@ -197,6 +201,7 @@ class AnalyticsService:
             "defect_rate": defect_rate
         }
 
+    @cached(ttl=60, key_prefix="analytics")  # Cache for 1 minute
     def get_process_performance(self, db: Session) -> Dict[str, Any]:
         """Get performance metrics for all processes."""
         processes = db.query(Process).order_by(Process.process_number).all()
@@ -255,6 +260,7 @@ class AnalyticsService:
             }
         }
 
+    @cached(ttl=120, key_prefix="analytics")  # Cache for 2 minutes
     def get_quality_metrics(self, db: Session, start_date: date, end_date: date) -> Dict[str, Any]:
         """Get detailed quality metrics."""
         total_inspected = db.query(func.count(Serial.id)).filter(
@@ -581,6 +587,7 @@ class AnalyticsService:
 
     # --- Dashboard API Methods ---
 
+    @cached(ttl=30, key_prefix="dashboard")  # Cache for 30 seconds (frequently updated)
     def get_dashboard_summary(self, db: Session, target_date: date) -> Dict[str, Any]:
         """Get dashboard summary with key production metrics."""
         start_of_day = datetime.combine(target_date, datetime.min.time())
@@ -752,6 +759,7 @@ class AnalyticsService:
             "process_wip": process_wip
         }
 
+    @cached(ttl=30, key_prefix="dashboard")  # Cache for 30 seconds
     def get_dashboard_lots(self, db: Session, status: Optional[LotStatus], limit: int) -> Dict[str, Any]:
         """Get LOTs list for dashboard display."""
         query = db.query(Lot)
@@ -796,6 +804,7 @@ class AnalyticsService:
             "total": total
         }
 
+    @cached(ttl=30, key_prefix="dashboard")  # Cache for 30 seconds
     def get_process_wip(self, db: Session) -> Dict[str, Any]:
         """Get Work In Progress (WIP) breakdown by process."""
         processes = (
@@ -851,6 +860,7 @@ class AnalyticsService:
             "bottleneck_process": bottleneck_process
         }
 
+    @cached(ttl=60, key_prefix="dashboard")  # Cache for 1 minute
     def get_process_cycle_times(self, db: Session, days: int = 7) -> List[Dict[str, Any]]:
         """Get average cycle time for each process."""
         start_date = date.today() - timedelta(days=days)

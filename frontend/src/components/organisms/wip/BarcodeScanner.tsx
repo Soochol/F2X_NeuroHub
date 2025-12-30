@@ -8,7 +8,7 @@
  * - Serial number formatting
  */
 
-import { useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Input, Button } from '@/components/common';
 import { validateSerialNumberV1, formatSerialNumberV1 } from '@/utils/serialNumber';
 
@@ -31,13 +31,30 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset input after scanning
+  // Define handleScanComplete before useEffect that uses it
+  const handleScanComplete = useCallback((serialNumber: string) => {
+    const normalized = serialNumber.toUpperCase().trim();
+
+    if (!validateSerialNumberV1(normalized)) {
+      setError('Invalid serial number format. Expected 14 characters (e.g., KR01PSA2511001)');
+      return;
+    }
+
+    setError('');
+    setInput('');
+    onScan(normalized);
+  }, [onScan]);
+
+  // Reset input when isScanning prop changes to false
+  // This is intentional state sync with prop - not an anti-pattern
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!isScanning) {
       setInput('');
       setError('');
     }
   }, [isScanning]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -75,22 +92,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       window.addEventListener('keypress', handleKeyPress);
       return () => window.removeEventListener('keypress', handleKeyPress);
     }
-  }, [scanBuffer, lastKeyTime]);
+  }, [scanBuffer, lastKeyTime, handleScanComplete]);
 
-  const handleScanComplete = (serialNumber: string) => {
-    const normalized = serialNumber.toUpperCase().trim();
-
-    if (!validateSerialNumberV1(normalized)) {
-      setError('Invalid serial number format. Expected 14 characters (e.g., KR01PSA2511001)');
-      return;
-    }
-
-    setError('');
-    setInput('');
-    onScan(normalized);
-  };
-
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     setInput(value);
 
@@ -101,20 +105,20 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     } else {
       setError('');
     }
-  };
+  }, []);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && input.length === 14) {
       e.preventDefault();
       handleScanComplete(input);
     }
-  };
+  }, [input, handleScanComplete]);
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = useCallback(() => {
     if (input.length === 14) {
       handleScanComplete(input);
     }
-  };
+  }, [input, handleScanComplete]);
 
   return (
     <div

@@ -13,6 +13,12 @@ export default defineConfig({
   server: {
     host: true, // 외부 접속 허용 (0.0.0.0)
     port: 3000,
+    hmr: {
+      // Docker 환경에서 HMR WebSocket 연결 설정
+      host: '127.0.0.1',
+      port: 5173,
+      clientPort: 5173,
+    },
     proxy: {
       '/api': {
         // Docker 환경에서는 VITE_PROXY_TARGET 환경변수 사용

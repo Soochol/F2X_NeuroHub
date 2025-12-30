@@ -46,12 +46,12 @@ export const QuickWorkModal: React.FC<QuickWorkModalProps> = ({
   onClose,
   trace,
   processes,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Reserved for external loading state
   isLoading: _isLoading = false,
   onStart,
   onComplete,
   onScanNext,
 }) => {
-  // _isLoading은 외부 로딩 상태를 위해 예약됨 (현재 actionLoading 사용)
   // 상태
   const [step, setStep] = useState<ModalStep>('flow-view');
   const [selectedProcessNumber, setSelectedProcessNumber] = useState<number | null>(null);

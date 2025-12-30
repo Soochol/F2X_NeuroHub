@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Button, Select, Input } from '../../atoms';
-import { Modal } from '../../molecules';
+import { Button, Select } from '@/components/atoms';
+import { Modal } from '@/components/molecules';
 import { lotsApi } from '@/api';
 import { LotStatus, type Lot, type LotUpdate, getErrorMessage } from '@/types/api';
 import { format } from 'date-fns';

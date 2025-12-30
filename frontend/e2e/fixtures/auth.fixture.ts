@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, Page } from '@playwright/test';
 
 /**
  * Authentication fixture for E2E tests
+ * Note: 'use' is a Playwright fixture function, not a React hook
  */
 export const test = base.extend<{ authenticatedPage: Page }>({
   authenticatedPage: async ({ page }, use) => {
