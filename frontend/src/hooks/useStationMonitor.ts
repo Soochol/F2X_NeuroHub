@@ -242,19 +242,17 @@ export const useStationWebSocket = (
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log('[StationWS] Connected to', wsUrl);
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
         onConnect?.();
-
-        // Subscribe to batch IDs
-        batchIds.forEach((batchId) => {
-          ws.send(JSON.stringify({ type: 'subscribe', batch_id: batchId }));
-        });
+        // NOTE: Subscription handled by separate useEffect to avoid dependency issues
       };
 
       ws.onmessage = (event) => {
         try {
+          console.log('[StationWS] Received:', event.data);
           const message = JSON.parse(event.data) as StationWebSocketMessage;
 
           // Auto-invalidate queries on batch lifecycle events
@@ -265,7 +263,7 @@ export const useStationWebSocket = (
 
           onMessage?.(message);
         } catch (err) {
-          console.error('Failed to parse WebSocket message:', err);
+          console.error('[StationWS] Failed to parse message:', err);
         }
       };
 
@@ -288,7 +286,7 @@ export const useStationWebSocket = (
     } catch (err) {
       setError('Failed to create WebSocket connection');
     }
-  }, [host, port, onMessage, onConnect, onDisconnect, autoReconnect, batchIds, queryClient]);
+  }, [host, port, onMessage, onConnect, onDisconnect, autoReconnect, queryClient]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -302,13 +300,15 @@ export const useStationWebSocket = (
 
   const subscribe = useCallback((batchId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'subscribe', batch_id: batchId }));
+      console.log('[StationWS] Subscribing to batch:', batchId);
+      wsRef.current.send(JSON.stringify({ type: 'subscribe', batch_ids: [batchId] }));
     }
   }, []);
 
   const unsubscribe = useCallback((batchId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'unsubscribe', batch_id: batchId }));
+      console.log('[StationWS] Unsubscribing from batch:', batchId);
+      wsRef.current.send(JSON.stringify({ type: 'unsubscribe', batch_ids: [batchId] }));
     }
   }, []);
 
