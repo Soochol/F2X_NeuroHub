@@ -6,18 +6,18 @@
 
 import { useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers, Plus } from 'lucide-react';
+import { Layers, Plus, WifiOff } from 'lucide-react';
 import {
   useBatchList,
   useStartBatch,
   useStopBatch,
-  useStartSequence,
-  useStopSequence,
+  useDeleteBatch,
   useWebSocket,
   useSequenceList,
   useCreateBatches,
 } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
+import { useConnectionStore } from '../stores/connectionStore';
 import { useShallow } from 'zustand/react/shallow';
 import { BatchList } from '../components/organisms/batches/BatchList';
 import { CreateBatchWizard } from '../components/organisms/batches/CreateBatchWizard';
@@ -33,38 +33,27 @@ export function BatchesPage() {
 
   const { data: batches, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
-  const { subscribe, unsubscribe } = useWebSocket();
+  const { subscribe, unsubscribe, isConnected } = useWebSocket();
+
+  // Connection status for Create Batch button
+  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
+  const isServerConnected = isConnected && websocketStatus === 'connected';
 
   // Use useShallow to prevent re-renders when map contents haven't changed
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const localBatches = useBatchStore(useShallow((state) => state.localBatches));
   const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
-  const localBatchStats = useBatchStore(useShallow((state) => state.localBatchStats));
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
-  const removeLocalBatch = useBatchStore((state) => state.removeLocalBatch);
-  const clearLocalBatchSteps = useBatchStore((state) => state.clearLocalBatchSteps);
 
-  // Combine API batches and local batches
+  // Get server batches only (no local batches)
   const storeBatches = useMemo(() => {
-    const apiBatches = Array.from(batchesMap.values());
-    const localBatchArray = Array.from(localBatches.values());
-    return [...apiBatches, ...localBatchArray];
-  }, [batchesMap, localBatches]);
-
-  // Combine statistics from both sources
-  const combinedStatistics = useMemo(() => {
-    const combined = new Map<string, { total: number; pass: number; fail: number; passRate: number }>();
-    batchStatistics.forEach((stats, id) => combined.set(id, stats));
-    localBatchStats.forEach((stats, id) => combined.set(id, stats));
-    return combined;
-  }, [batchStatistics, localBatchStats]);
+    return Array.from(batchesMap.values());
+  }, [batchesMap]);
 
   const startBatch = useStartBatch();
   const stopBatch = useStopBatch();
-  const startSequence = useStartSequence();
-  const stopSequence = useStopSequence();
+  const deleteBatch = useDeleteBatch();
   const createBatches = useCreateBatches();
 
   // Subscribe to all batches for real-time updates
@@ -84,21 +73,11 @@ export function BatchesPage() {
   };
 
   const handleStartBatch = async (id: string) => {
-    // For local batches, use startSequence which handles simulation
-    if (id.startsWith('local-batch-')) {
-      await startSequence.mutateAsync({ batchId: id, request: undefined });
-    } else {
-      await startBatch.mutateAsync(id);
-    }
+    await startBatch.mutateAsync(id);
   };
 
   const handleStopBatch = async (id: string) => {
-    // For local batches, use stopSequence
-    if (id.startsWith('local-batch-')) {
-      await stopSequence.mutateAsync(id);
-    } else {
-      await stopBatch.mutateAsync(id);
-    }
+    await stopBatch.mutateAsync(id);
   };
 
   const handleCreateBatches = async (request: CreateBatchRequest) => {
@@ -106,10 +85,9 @@ export function BatchesPage() {
     closeWizard();
   };
 
-  const handleDeleteBatch = (id: string) => {
-    if (id.startsWith('local-batch-') && window.confirm('Are you sure you want to delete this batch?')) {
-      clearLocalBatchSteps(id);
-      removeLocalBatch(id);
+  const handleDeleteBatch = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this batch?')) {
+      await deleteBatch.mutateAsync(id);
     }
   };
 
@@ -129,14 +107,27 @@ export function BatchesPage() {
           <Layers className="w-6 h-6 text-brand-500" />
           <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Batches</h2>
         </div>
-        <Button variant="primary" onClick={openWizard}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Batch
-        </Button>
+        <div className="flex items-center gap-3">
+          {!isServerConnected && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/30">
+              <WifiOff className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-amber-500">Server disconnected</span>
+            </div>
+          )}
+          <Button
+            variant="primary"
+            onClick={openWizard}
+            disabled={!isServerConnected}
+            title={!isServerConnected ? 'Server connection required to create batches' : undefined}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Batch
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Panel */}
-      <BatchStatisticsPanel batches={displayBatches} statistics={combinedStatistics} />
+      <BatchStatisticsPanel batches={displayBatches} statistics={batchStatistics} />
 
       {/* Batch List */}
       <BatchList
@@ -145,7 +136,7 @@ export function BatchesPage() {
         onStop={handleStopBatch}
         onDelete={handleDeleteBatch}
         onSelect={handleSelectBatch}
-        isLoading={startBatch.isPending || stopBatch.isPending || startSequence.isPending || stopSequence.isPending}
+        isLoading={startBatch.isPending || stopBatch.isPending || deleteBatch.isPending}
       />
 
       {/* Create Batch Wizard Modal */}

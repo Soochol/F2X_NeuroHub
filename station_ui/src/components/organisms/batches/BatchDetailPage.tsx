@@ -201,7 +201,7 @@ export function BatchDetailPage({
             <InfoCard label="Name" value={batch.sequenceName || 'Not assigned'} />
             <InfoCard label="Version" value={batch.sequenceVersion || '-'} />
             <InfoCard label="Package" value={batch.sequencePackage || '-'} />
-            <InfoCard label="Total Steps" value={batch.totalSteps.toString()} />
+            <InfoCard label="Total Steps" value={(batch.totalSteps ?? 0).toString()} />
           </div>
         </CollapsibleSection>
 

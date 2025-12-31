@@ -205,11 +205,15 @@ async def lifespan(app: FastAPI):
         await batch_manager.start()
         logger.info("BatchManager started")
 
-        # Start SyncEngine
+        # Start SyncEngine with station info for auto-registration
         sync_engine = SyncEngine(
             config=config.backend,
             database=database,
             event_emitter=event_emitter,
+            station_name=config.station.name,
+            station_description=config.station.description,
+            server_host=config.server.host,
+            server_port=config.server.port,
         )
         await sync_engine.start()
         logger.info("SyncEngine started")
@@ -267,7 +271,14 @@ def get_cors_origins() -> list[str]:
     if cors_origins_env:
         return [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
     # Default origins for development
-    return ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"]
+    return [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:5173",
+    ]
 
 
 def create_application() -> FastAPI:

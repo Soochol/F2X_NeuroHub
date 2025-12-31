@@ -14,12 +14,18 @@ export default defineConfig({
     host: true, // 외부 접속 허용 (0.0.0.0)
     port: 3000,
     hmr: {
-      // Docker 환경에서 HMR WebSocket 연결 설정
-      host: '127.0.0.1',
-      port: 5173,
-      clientPort: 5173,
+      // HMR WebSocket - use same port as dev server
+      // Setting to false disables HMR WebSocket errors when port is in use
+      protocol: 'ws',
+      host: 'localhost',
     },
     proxy: {
+      // WebSocket proxy for real-time metrics (must be before /api)
+      '/api/v1/analytics/ws': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
+      },
       '/api': {
         // Docker 환경에서는 VITE_PROXY_TARGET 환경변수 사용
         // 로컬 개발: http://localhost:8000

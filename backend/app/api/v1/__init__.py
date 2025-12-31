@@ -40,6 +40,7 @@ from app.api.v1 import (
     error_logs,
     async_operations,
     search,
+    stations,
 )
 
 __all__ = [
@@ -61,4 +62,5 @@ __all__ = [
     "error_logs",
     "async_operations",
     "search",
+    "stations",
 ]

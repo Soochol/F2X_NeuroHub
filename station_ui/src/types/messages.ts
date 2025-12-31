@@ -129,6 +129,30 @@ export interface SubscriptionAckMessage {
 }
 
 /**
+ * Server message when a batch is created.
+ */
+export interface BatchCreatedMessage {
+  type: 'batch_created';
+  batchId: string;
+  data: {
+    id: string;
+    name: string;
+    sequencePackage?: string;
+  };
+}
+
+/**
+ * Server message when a batch is deleted.
+ */
+export interface BatchDeletedMessage {
+  type: 'batch_deleted';
+  batchId: string;
+  data: {
+    id: string;
+  };
+}
+
+/**
  * Union type for all server messages.
  */
 export type ServerMessage =
@@ -138,4 +162,6 @@ export type ServerMessage =
   | SequenceCompleteMessage
   | LogMessage
   | ErrorMessage
-  | SubscriptionAckMessage;
+  | SubscriptionAckMessage
+  | BatchCreatedMessage
+  | BatchDeletedMessage;

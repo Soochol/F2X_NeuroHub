@@ -10,8 +10,11 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from station_service.api.dependencies import get_batch_manager, get_config
+from station_service.api.dependencies import get_batch_manager, get_config, get_sequence_loader
 from station_service.api.schemas.batch import (
+    BatchCreateRequest,
+    BatchCreateResponse,
+    BatchDeleteResponse,
     BatchDetail,
     BatchExecution,
     BatchSequenceInfo,
@@ -24,15 +27,20 @@ from station_service.api.schemas.batch import (
     SequenceStartRequest,
     SequenceStartResponse,
     SequenceStopResponse,
+    StepResult,
 )
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
 from station_service.batch.manager import BatchManager
 from station_service.core.exceptions import (
     BatchAlreadyRunningError,
+    BatchError,
     BatchNotFoundError,
     BatchNotRunningError,
 )
-from station_service.models.config import StationConfig
+from station_service.models.config import BatchConfig, StationConfig
+from station_service.api.websocket import broadcast_batch_created, broadcast_batch_deleted
+from station_service.sequence.loader import SequenceLoader
+from station_service.sequence.decorators import collect_steps
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +170,7 @@ async def get_all_batch_statistics(
 async def get_batch(
     batch_id: str = Path(..., description="Unique batch identifier"),
     batch_manager: BatchManager = Depends(get_batch_manager),
-    config: StationConfig = Depends(get_config),
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
 ) -> ApiResponse[BatchDetail]:
     """
     Get detailed information for a specific batch.
@@ -170,18 +178,58 @@ async def get_batch(
     try:
         status_data = await batch_manager.get_batch_status(batch_id)
 
-        # Find batch config
-        batch_config = None
-        for bc in config.batches:
-            if bc.id == batch_id:
-                batch_config = bc
-                break
+        # Get batch config from manager (supports both static YAML and runtime-created batches)
+        batch_config = batch_manager.get_batch_config(batch_id)
 
         if batch_config is None:
             raise BatchNotFoundError(batch_id)
 
         # Get hardware status
         hardware_status = await batch_manager.get_hardware_status(batch_id)
+
+        # Build steps from status_data
+        steps_data = status_data.get("steps", [])
+        steps: List[StepResult] = []
+
+        if steps_data:
+            # Use steps from execution status
+            steps = [
+                StepResult(
+                    name=s.get("name", ""),
+                    status=s.get("status", "pending"),
+                    duration=s.get("duration"),
+                    result=s.get("result"),
+                )
+                for s in steps_data
+            ]
+        else:
+            # Load step metadata from sequence package
+            try:
+                package_name = batch_config.sequence_package
+                manifest = await sequence_loader.load_package(package_name)
+                package_path = sequence_loader.get_package_path(package_name)
+                sequence_class = await sequence_loader.load_sequence_class(manifest, package_path)
+
+                # Collect step metadata from the sequence class
+                step_infos = collect_steps(sequence_class)
+
+                # Create placeholder steps with pending status
+                for idx, (method_name, _, step_meta) in enumerate(step_infos):
+                    step_name = step_meta.name or method_name
+                    steps.append(StepResult(
+                        name=step_name,
+                        status="pending",
+                        duration=None,
+                        result=None,
+                    ))
+            except Exception as e:
+                logger.warning(f"Failed to load sequence steps for {batch_id}: {e}")
+                # Continue without step metadata
+
+        # Update total_steps if we have steps from sequence
+        total_steps = status_data.get("total_steps", 0)
+        if total_steps == 0 and steps:
+            total_steps = len(steps)
 
         detail = BatchDetail(
             id=batch_id,
@@ -198,11 +246,11 @@ async def get_batch(
                 status=status_data.get("status", "idle"),
                 current_step=status_data.get("current_step"),
                 step_index=status_data.get("step_index", 0),
-                total_steps=status_data.get("total_steps", 0),
+                total_steps=total_steps,
                 progress=status_data.get("progress", 0.0),
                 started_at=status_data.get("started_at"),
                 elapsed=status_data.get("elapsed", 0.0),
-                steps=[],
+                steps=steps,
             ),
         )
 
@@ -484,6 +532,135 @@ async def manual_control(
         )
     except Exception as e:
         logger.exception(f"Error executing manual control on batch {batch_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+# ============================================================================
+# Batch CRUD Endpoints
+# ============================================================================
+
+
+@router.post(
+    "",
+    response_model=ApiResponse[BatchCreateResponse],
+    responses={
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Create a new batch",
+    description="""
+    Create a new batch configuration at runtime.
+
+    This adds a new batch to the station without modifying the YAML config.
+    The batch can be started immediately after creation.
+
+    Note: Runtime batches are not persisted and will be lost on station restart.
+    """,
+)
+async def create_batch(
+    request: BatchCreateRequest,
+    batch_manager: BatchManager = Depends(get_batch_manager),
+) -> ApiResponse[BatchCreateResponse]:
+    """
+    Create a new batch configuration.
+    """
+    try:
+        # Create BatchConfig from request
+        batch_config = BatchConfig(
+            id=request.id,
+            name=request.name,
+            sequence_package=request.sequence_package,
+            hardware=request.hardware,
+            auto_start=request.auto_start,
+            process_id=request.process_id,
+        )
+
+        # Add to manager
+        batch_manager.add_batch(batch_config)
+
+        # Broadcast batch created event via WebSocket
+        await broadcast_batch_created(
+            batch_id=request.id,
+            name=request.name,
+            sequence_package=request.sequence_package,
+        )
+
+        return ApiResponse(
+            success=True,
+            data=BatchCreateResponse(
+                batch_id=request.id,
+                name=request.name,
+                status="created",
+            ),
+        )
+
+    except BatchError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception(f"Error creating batch: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@router.delete(
+    "/{batch_id}",
+    response_model=ApiResponse[BatchDeleteResponse],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Delete a batch",
+    description="""
+    Delete a batch configuration.
+
+    The batch must be stopped before deletion.
+    This removes the batch from runtime configuration only.
+
+    Note: This does not modify the YAML config file.
+    """,
+)
+async def delete_batch(
+    batch_id: str = Path(..., description="Unique batch identifier"),
+    batch_manager: BatchManager = Depends(get_batch_manager),
+) -> ApiResponse[BatchDeleteResponse]:
+    """
+    Delete a batch configuration.
+    """
+    try:
+        batch_manager.remove_batch(batch_id)
+
+        # Broadcast batch deleted event via WebSocket
+        await broadcast_batch_deleted(batch_id)
+
+        return ApiResponse(
+            success=True,
+            data=BatchDeleteResponse(
+                batch_id=batch_id,
+                status="deleted",
+            ),
+        )
+
+    except BatchNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Batch '{batch_id}' not found",
+        )
+    except BatchAlreadyRunningError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception(f"Error deleting batch {batch_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),

@@ -25,24 +25,19 @@ export function DashboardPage() {
 
   // Get total stats from store (updated in real-time via WebSocket)
   const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
-  const totalStats = useBatchStore(
-    useShallow((state) => {
-      const { batchStatistics, localBatchStats } = state;
-      const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
-      batchStatistics.forEach((s) => {
-        total.total += s.total;
-        total.pass += s.pass;
-        total.fail += s.fail;
-      });
-      localBatchStats.forEach((s) => {
-        total.total += s.total;
-        total.pass += s.pass;
-        total.fail += s.fail;
-      });
-      total.passRate = total.total > 0 ? total.pass / total.total : 0;
-      return total;
-    })
-  );
+  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+
+  // Compute total stats from batchStatistics (memoized to prevent infinite loops)
+  const totalStats = useMemo(() => {
+    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    batchStatistics.forEach((s) => {
+      total.total += s.total;
+      total.pass += s.pass;
+      total.fail += s.fail;
+    });
+    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    return total;
+  }, [batchStatistics]);
 
   // Connection status from store
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
@@ -66,11 +61,7 @@ export function DashboardPage() {
 
   // Use useShallow to prevent re-renders when array contents haven't changed
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const localBatchesMap = useBatchStore(useShallow((state) => state.localBatches));
-  const storeBatches = useMemo(() => [
-    ...Array.from(batchesMap.values()),
-    ...Array.from(localBatchesMap.values()),
-  ], [batchesMap, localBatchesMap]);
+  const storeBatches = useMemo(() => Array.from(batchesMap.values()), [batchesMap]);
   const logs = useLogStore(useShallow((state) => state.logs.slice(-10)));
 
   // Subscribe to all batches for real-time updates
@@ -292,7 +283,7 @@ export function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayBatches.map((batch) => (
+            {displayBatches.map((batch: import('../types').Batch) => (
               <BatchOverviewCard key={batch.id} batch={batch} />
             ))}
           </div>

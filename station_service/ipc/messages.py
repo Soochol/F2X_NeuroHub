@@ -105,12 +105,12 @@ class IPCResponse:
     @classmethod
     def ok(cls, request_id: str, data: Optional[Dict[str, Any]] = None) -> "IPCResponse":
         """Create success response."""
-        return cls(status="ok", request_id=request_id, data=data)
+        return cls(status="ok", request_id=request_id, data=data, error=None)
 
     @classmethod
-    def error(cls, request_id: str, error: str) -> "IPCResponse":
+    def error(cls, request_id: str, error_msg: str) -> "IPCResponse":
         """Create error response."""
-        return cls(status="error", request_id=request_id, error=error)
+        return cls(status="error", request_id=request_id, error=error_msg)
 
 
 @dataclass

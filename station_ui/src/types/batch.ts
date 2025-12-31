@@ -84,9 +84,9 @@ export interface Batch {
   /** Current step name */
   currentStep?: string;
   /** Current step index (0-based) */
-  stepIndex: number;
+  stepIndex?: number;
   /** Total number of steps */
-  totalSteps: number;
+  totalSteps?: number;
   /** Step names in order */
   stepNames?: string[];
   /** Progress (0.0 to 1.0) */

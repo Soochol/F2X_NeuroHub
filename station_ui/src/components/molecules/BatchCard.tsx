@@ -32,7 +32,6 @@ export function BatchCard({
 }: BatchCardProps) {
   const isRunning = batch.status === 'running' || batch.status === 'starting';
   const canStart = batch.status === 'idle' || batch.status === 'completed' || batch.status === 'error';
-  const isLocalBatch = batch.id.startsWith('local-batch-');
 
   // Default statistics if not provided
   const stats = statistics || { total: 0, pass: 0, fail: 0, passRate: 0 };
@@ -79,13 +78,14 @@ export function BatchCard({
               <Square className="w-4 h-4" />
             </Button>
           )}
-          {isLocalBatch && !isRunning && onDelete && (
+          {!isRunning && onDelete && (
             <Button
-              variant="danger"
+              variant="ghost"
               size="sm"
               onClick={() => onDelete(batch.id)}
               disabled={isLoading}
               title="Delete"
+              className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -132,7 +132,7 @@ export function BatchCard({
           <span style={{ color: 'var(--color-text-secondary)' }}>Step:</span>
           <span className="font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{batch.currentStep}</span>
           <span className="ml-auto" style={{ color: 'var(--color-text-tertiary)' }}>
-            ({batch.stepIndex + 1}/{batch.totalSteps})
+            ({(batch.stepIndex ?? 0) + 1}/{batch.totalSteps ?? 0})
           </span>
         </div>
       )}

@@ -210,7 +210,7 @@ export function CreateBatchWizard({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-5xl max-h-[90vh] rounded-xl border flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-default)' }}>
+      <div className="w-full max-w-5xl rounded-xl border flex flex-col overflow-hidden" style={{ height: '700px', minHeight: '700px', maxHeight: '700px', backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-default)' }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--color-border-default)' }}>
           <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Create Batch</h2>
@@ -255,8 +255,8 @@ export function CreateBatchWizard({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content - fixed height to prevent modal resize between steps */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           {currentStep === 'sequence' && (
             <SequenceSelectStep
               sequences={sequences}

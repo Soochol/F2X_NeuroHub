@@ -32,14 +32,24 @@ class HardwareStatus(BaseModel):
     """Hardware device status information.
 
     Attributes:
+        name: Hardware device name
+        type: Hardware type
         status: Connection status (connected, disconnected, error)
+        configured: Whether the hardware is configured
+        connected: Whether the hardware is connected
         driver: Driver class name
         port: Serial port or IP address
+        details: Additional hardware details
     """
-    status: str = Field(..., description="Connection status")
-    driver: str = Field(..., description="Driver class name")
+    name: str = Field(default="", description="Hardware device name")
+    type: str = Field(default="unknown", description="Hardware type")
+    status: str = Field(default="unknown", description="Connection status")
+    configured: bool = Field(default=True, description="Whether hardware is configured")
+    connected: bool = Field(default=False, description="Whether hardware is connected")
+    driver: Optional[str] = Field(None, description="Driver class name")
     port: Optional[str] = Field(None, description="Serial port path")
     ip: Optional[str] = Field(None, description="IP address for network devices")
+    details: Dict[str, Any] = Field(default_factory=dict, description="Additional hardware details")
 
 
 class StepResult(BaseModel):
@@ -241,3 +251,59 @@ class BatchStatistics(BaseModel):
     pass_rate: float = Field(default=0.0, alias="passRate", description="Pass rate (0.0 to 1.0)", ge=0.0, le=1.0)
 
     model_config = {"populate_by_name": True}
+
+
+# ============================================================================
+# Batch CRUD Request/Response Models
+# ============================================================================
+
+
+class BatchCreateRequest(BaseModel):
+    """Request body for creating a new batch.
+
+    Attributes:
+        id: Unique batch identifier
+        name: Display name of the batch
+        sequence_package: Sequence package path to use
+        hardware: Hardware configuration (device_id -> config)
+        auto_start: Whether to start automatically on station startup
+        process_id: Associated process ID (1-8) for WIP tracking
+    """
+    id: str = Field(..., description="Unique batch identifier", min_length=1)
+    name: str = Field(..., description="Display name of the batch", min_length=1)
+    sequence_package: str = Field(..., description="Sequence package path", min_length=1)
+    hardware: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Hardware configuration"
+    )
+    auto_start: bool = Field(default=False, description="Auto-start on station startup")
+    process_id: Optional[int] = Field(
+        None,
+        description="Associated process ID (1-8) for WIP tracking",
+        ge=1,
+        le=8
+    )
+
+
+class BatchCreateResponse(BaseModel):
+    """Response for batch creation.
+
+    Attributes:
+        batch_id: ID of the created batch
+        name: Name of the created batch
+        status: Creation status ('created')
+    """
+    batch_id: str = Field(..., description="Batch identifier")
+    name: str = Field(..., description="Batch name")
+    status: str = Field(..., description="Creation status")
+
+
+class BatchDeleteResponse(BaseModel):
+    """Response for batch deletion.
+
+    Attributes:
+        batch_id: ID of the deleted batch
+        status: Deletion status ('deleted')
+    """
+    batch_id: str = Field(..., description="Batch identifier")
+    status: str = Field(..., description="Deletion status")

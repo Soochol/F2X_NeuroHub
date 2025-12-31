@@ -106,6 +106,7 @@ class BatchWorker:
         self._total_steps: int = 0
         self._progress: float = 0.0
         self._started_at: Optional[datetime] = None
+        self._step_results: List[Dict[str, Any]] = []  # Track step results
 
         # Backend integration state
         self._backend_client: Optional[BackendClient] = None
@@ -234,6 +235,9 @@ class BatchWorker:
                 "Sequence already running",
             )
 
+        # Reset step results for new execution
+        self._step_results = []
+
         parameters = command.params.get("parameters", {})
 
         # Extract WIP context from parameters
@@ -358,6 +362,7 @@ class BatchWorker:
             "progress": self._progress,
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "execution_id": self._current_execution_id,
+            "steps": self._step_results,  # Include step results
         }
         return IPCResponse.ok(command.request_id, status)
 
@@ -532,23 +537,40 @@ class BatchWorker:
         self._current_step = step_name
         # Note: step_index and total_steps should come from executor context
 
+        # Add new step to results list (use current length as index)
+        self._step_results.append({
+            "name": step_name,
+            "status": "running",
+            "duration": None,
+            "result": None,
+        })
+
         # Schedule async event publication
         asyncio.create_task(self._ipc.step_start(
             step_name=step_name,
-            step_index=step_meta.order,
+            step_index=len(self._step_results) - 1,
             total_steps=self._total_steps,
         ))
 
     def _on_step_complete(self, step_name: str, step_result: StepResult) -> None:
         """Callback for step completion."""
-        self._step_index = step_result.order + 1
+        self._step_index = len(self._step_results)
         if self._total_steps > 0:
             self._progress = self._step_index / self._total_steps
+
+        # Update the last step result (the one that just completed)
+        if self._step_results:
+            self._step_results[-1] = {
+                "name": step_name,
+                "status": "completed" if step_result.passed else "failed",
+                "duration": step_result.duration,
+                "result": step_result.to_dict() if step_result else None,
+            }
 
         # Schedule async event publication
         asyncio.create_task(self._ipc.step_complete(
             step_name=step_name,
-            step_index=step_result.order,
+            step_index=len(self._step_results) - 1,
             duration=step_result.duration or 0,
             passed=step_result.passed,
             result=step_result.to_dict(),

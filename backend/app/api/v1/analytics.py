@@ -45,10 +45,7 @@ def get_operations_metrics(
 
 
 @router.websocket("/ws/metrics/live")
-async def websocket_live_metrics(
-    websocket: WebSocket,
-    db: Session = Depends(deps.get_db),
-):
+async def websocket_live_metrics(websocket: WebSocket):
     """
     WebSocket endpoint for streaming real-time metrics.
     Updates every 5 seconds.
@@ -56,21 +53,17 @@ async def websocket_live_metrics(
     await websocket.accept()
     try:
         while True:
-            # Fetch metrics
-            # Note: In a real async app we might want to use an async DB session here
-            # For now, we'll use the sync session in a blocking way (careful with blocking loop)
-            # or ideally, offload to thread.
-            # Since this is a simple loop, we will just call the aggregator.
-            
-            metrics = MetricsAggregator.get_realtime_dashboard_metrics(db)
-            
-            # Also check for alerts (optional, could be separate)
-            # alert_manager = AlertManager(db)
-            # alert_manager.check_process_failure_rate(1) # Example check
-            
-            await websocket.send_json(metrics)
+            # Create a fresh DB session for each iteration to avoid stale data
+            from app.database import SessionLocal
+            db = SessionLocal()
+            try:
+                metrics = MetricsAggregator.get_realtime_dashboard_metrics(db)
+                await websocket.send_json(metrics)
+            finally:
+                db.close()
+
             await asyncio.sleep(5)  # Update every 5 seconds
-            
+
     except WebSocketDisconnect:
         logger.debug("Client disconnected from metrics websocket")
     except Exception as e:

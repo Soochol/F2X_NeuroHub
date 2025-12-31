@@ -18,10 +18,8 @@ import {
   Package,
   Layers,
   Timer,
-  Trash2,
 } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
-import { useBatch, useStartSequence, useStopSequence, useWebSocket } from '../hooks';
+import { useBatch, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useWebSocket } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { Button } from '../components/atoms/Button';
 import { StatusBadge } from '../components/atoms/StatusBadge';
@@ -39,24 +37,14 @@ export function BatchDetailPage() {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
 
-  // Check if it's a local batch (must be before conditional hooks)
-  const isLocalBatch = batchId?.startsWith('local-batch-') ?? false;
-
   const { data: batch, isLoading } = useBatch(batchId ?? null);
   const { subscribe, unsubscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
-  const removeLocalBatch = useBatchStore((state) => state.removeLocalBatch);
-  const clearLocalBatchSteps = useBatchStore((state) => state.clearLocalBatchSteps);
 
-  // Subscribe to local batch steps from store (reactive with useShallow for array comparison)
-  const localBatchSteps = useBatchStore(
-    useShallow((state) =>
-      isLocalBatch && batchId ? state.localBatchSteps.get(batchId) || [] : []
-    )
-  );
-
+  const startBatch = useStartBatch();
   const startSequence = useStartSequence();
   const stopSequence = useStopSequence();
+  const stopBatch = useStopBatch();
 
   // Subscribe to real-time updates for this batch
   useEffect(() => {
@@ -70,32 +58,55 @@ export function BatchDetailPage() {
     return batchId ? getBatchStats(batchId) : undefined;
   }, [batchId, getBatchStats]);
 
+  // Get steps from BatchDetail or create empty array
+  // IMPORTANT: This useMemo must be before any early returns to comply with Rules of Hooks
+  const steps: StepResult[] = useMemo(() => {
+    if (!batch) return [];
+    if (isBatchDetail(batch) && batch.execution?.steps) {
+      return batch.execution.steps;
+    }
+    return [];
+  }, [batch]);
+
   const handleBack = () => {
     navigate(ROUTES.BATCHES);
   };
 
   const handleStartSequence = async () => {
-    if (batchId) {
+    if (!batchId || !batch) {
+      console.error('[handleStartSequence] Missing batchId or batch');
+      return;
+    }
+
+    try {
+      console.log('[handleStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status);
+
+      // If batch is idle, start batch first then start sequence
+      if (batch.status === 'idle') {
+        console.log('[handleStartSequence] Starting batch first...');
+        await startBatch.mutateAsync(batchId);
+        console.log('[handleStartSequence] Batch started');
+      }
+
+      // Then start sequence
+      console.log('[handleStartSequence] Starting sequence...');
       await startSequence.mutateAsync({ batchId, request: undefined });
+      console.log('[handleStartSequence] Sequence started successfully');
+    } catch (error) {
+      console.error('[handleStartSequence] Error:', error);
     }
   };
 
   const handleStopSequence = async () => {
     if (batchId) {
+      // Stop sequence first, then stop batch
       await stopSequence.mutateAsync(batchId);
+      await stopBatch.mutateAsync(batchId);
     }
   };
 
-  const handleDeleteBatch = () => {
-    if (batchId && isLocalBatch) {
-      if (window.confirm('Are you sure you want to delete this batch?')) {
-        clearLocalBatchSteps(batchId);
-        removeLocalBatch(batchId);
-        navigate(ROUTES.BATCHES);
-      }
-    }
-  };
 
+  // Early returns for loading and not-found states
   if (isLoading) {
     return <LoadingOverlay message="Loading batch details..." />;
   }
@@ -113,19 +124,9 @@ export function BatchDetailPage() {
     );
   }
 
+  // Computed values that depend on batch being defined
   const isRunning = batch.status === 'running' || batch.status === 'starting';
   const canStart = batch.status === 'idle' || batch.status === 'completed' || batch.status === 'error';
-
-  // Get steps from BatchDetail, local store, or create empty array
-  const steps: StepResult[] = useMemo(() => {
-    if (isBatchDetail(batch) && batch.execution?.steps) {
-      return batch.execution.steps;
-    }
-    if (isLocalBatch && localBatchSteps.length > 0) {
-      return localBatchSteps;
-    }
-    return [];
-  }, [batch, isLocalBatch, localBatchSteps]);
 
   // Calculate total elapsed time from steps
   const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
@@ -177,7 +178,7 @@ export function BatchDetailPage() {
             <Button
               variant="primary"
               onClick={handleStartSequence}
-              isLoading={startSequence.isPending}
+              isLoading={startBatch.isPending || startSequence.isPending}
             >
               <Play className="w-4 h-4 mr-2" />
               Start Sequence
@@ -187,20 +188,10 @@ export function BatchDetailPage() {
             <Button
               variant="danger"
               onClick={handleStopSequence}
-              isLoading={stopSequence.isPending}
+              isLoading={stopSequence.isPending || stopBatch.isPending}
             >
               <Square className="w-4 h-4 mr-2" />
               Stop
-            </Button>
-          )}
-          {isLocalBatch && !isRunning && (
-            <Button
-              variant="ghost"
-              onClick={handleDeleteBatch}
-              className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
             </Button>
           )}
         </div>
@@ -233,7 +224,7 @@ export function BatchDetailPage() {
           <MetaCard label="Sequence Name" value={batch.sequenceName || 'Not assigned'} />
           <MetaCard label="Version" value={batch.sequenceVersion || '-'} />
           <MetaCard label="Package" value={batch.sequencePackage || '-'} />
-          <MetaCard label="Total Steps" value={batch.totalSteps.toString()} />
+          <MetaCard label="Total Steps" value={(batch.totalSteps ?? 0).toString()} />
         </div>
       </div>
 
@@ -305,7 +296,7 @@ export function BatchDetailPage() {
           <CheckCircle className="w-5 h-5 text-brand-500" />
           <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Step Results</h2>
         </div>
-        <StepsTable steps={steps} totalSteps={batch.totalSteps} stepNames={batch.stepNames} />
+        <StepsTable steps={steps} totalSteps={batch.totalSteps ?? 0} stepNames={batch.stepNames} />
       </div>
     </div>
   );
@@ -435,7 +426,7 @@ function StepRow({ step }: { step: StepResult }) {
       </td>
       <td className="py-3 pr-4">{getResultBadge()}</td>
       <td className="py-3 pr-4 font-mono" style={{ color: 'var(--color-text-secondary)' }}>
-        {step.duration !== undefined ? `${step.duration.toFixed(2)}s` : '-'}
+        {step.duration != null ? `${step.duration.toFixed(2)}s` : '-'}
       </td>
     </tr>
   );

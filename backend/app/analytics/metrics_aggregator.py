@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
-from sqlalchemy import func, and_, desc
+from sqlalchemy import func, and_, desc, Integer, case
 from sqlalchemy.orm import Session
 
 from app.models.process_data import ProcessData, ProcessResult
@@ -103,7 +103,7 @@ class MetricsAggregator:
         stats = db.query(
             func.count(ProcessData.id).label('total'),
             func.avg(ProcessData.duration_seconds).label('avg_duration'),
-            func.sum(func.cast(ProcessData.result == ProcessResult.PASS, int)).label('passed')
+            func.sum(case((ProcessData.result == ProcessResult.PASS, 1), else_=0)).label('passed')
         ).filter(
             and_(
                 ProcessData.operator_id == operator_id,
@@ -134,7 +134,7 @@ class MetricsAggregator:
         
         recent_stats = db.query(
             func.count(ProcessData.id).label('total'),
-            func.sum(func.cast(ProcessData.result == ProcessResult.FAIL, int)).label('failures')
+            func.sum(case((ProcessData.result == ProcessResult.FAIL, 1), else_=0)).label('failures')
         ).filter(
             ProcessData.created_at >= one_hour_ago
         ).first()

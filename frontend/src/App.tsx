@@ -41,6 +41,10 @@ const LotMonitorPage = lazy(() => import('./pages/admin/LotMonitorPage').then(mo
 const ProcessDefectRatePage = lazy(() => import('./pages/ProcessDefectRatePage').then(module => ({ default: module.ProcessDefectRatePage })));
 const MeasurementAnalysisPage = lazy(() => import('./pages/MeasurementAnalysisPage').then(module => ({ default: module.MeasurementAnalysisPage })));
 
+// Station Monitor Pages
+const StationMonitorPage = lazy(() => import('./pages/stations/StationMonitorPage').then(module => ({ default: module.StationMonitorPage })));
+const StationDetailPage = lazy(() => import('./pages/stations/StationDetailPage').then(module => ({ default: module.StationDetailPage })));
+
 // Other Pages
 const AlertsPage = lazy(() => import('./pages/AlertsPage').then(module => ({ default: module.AlertsPage })));
 
@@ -135,6 +139,10 @@ function AppContent() {
                   {/* Quality Routes */}
                   <Route path="/quality/defect-rate" element={<ProcessDefectRatePage />} />
                   <Route path="/quality/measurements" element={<MeasurementAnalysisPage />} />
+
+                  {/* Station Monitor Routes */}
+                  <Route path="/stations" element={<StationMonitorPage />} />
+                  <Route path="/stations/:stationId" element={<StationDetailPage />} />
 
                   {/* Alerts */}
                   <Route path="/alerts" element={<AlertsPage />} />

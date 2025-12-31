@@ -18,7 +18,6 @@ import type {
   UpdateBatchConfigRequest,
 } from '../../types';
 import apiClient, { extractData } from '../client';
-import { useBatchStore } from '../../stores/batchStore';
 
 /**
  * Get all batches.
@@ -29,11 +28,128 @@ export async function getBatches(): Promise<Batch[]> {
 }
 
 /**
+ * API response shape for batch details (differs from BatchDetail interface).
+ */
+interface BatchDetailApiResponse {
+  id: string;
+  name: string;
+  status: string;
+  sequence?: {
+    name?: string;
+    version?: string;
+    packagePath?: string;
+  };
+  parameters?: Record<string, unknown>;
+  hardware?: Record<string, {
+    name?: string;
+    type?: string;
+    status?: string;
+    configured?: boolean;
+    connected?: boolean;
+    driver?: string;
+    port?: string;
+    ip?: string;
+    details?: Record<string, unknown>;
+  }>;
+  execution?: {
+    status?: string;
+    currentStep?: string;
+    stepIndex?: number;
+    totalSteps?: number;
+    progress?: number;
+    startedAt?: string;
+    elapsed?: number;
+    steps?: Array<{
+      order: number;
+      name: string;
+      status: string;
+      pass: boolean;
+      duration?: number;
+      result?: Record<string, unknown>;
+    }>;
+  };
+}
+
+/**
  * Get batch details by ID.
  */
 export async function getBatch(batchId: string): Promise<BatchDetail> {
-  const response = await apiClient.get<ApiResponse<BatchDetail>>(`/batches/${batchId}`);
-  return extractData(response);
+  const response = await apiClient.get<ApiResponse<BatchDetailApiResponse>>(`/batches/${batchId}`);
+  const data = extractData(response);
+
+  // Transform hardware from API format to HardwareStatus format
+  const hardwareStatus: Record<string, {
+    id: string;
+    driver: string;
+    status: 'connected' | 'disconnected' | 'error';
+    connected: boolean;
+    lastError?: string;
+    config: Record<string, unknown>;
+    info?: Record<string, unknown>;
+  }> = {};
+
+  if (data.hardware) {
+    for (const [hwId, hw] of Object.entries(data.hardware)) {
+      hardwareStatus[hwId] = {
+        id: hwId,
+        driver: hw.driver || hw.type || 'unknown',
+        status: hw.connected ? 'connected' : 'disconnected',
+        connected: hw.connected || false,
+        config: hw.details || {},
+      };
+    }
+  }
+
+  // Transform steps to StepResult format
+  const steps = (data.execution?.steps || []).map((step, index) => ({
+    name: step.name,
+    order: step.order ?? index + 1,  // Use index if order not provided
+    status: step.status as 'pending' | 'running' | 'completed' | 'failed' | 'skipped',
+    // Determine pass based on status and pass field
+    pass: step.pass ?? (step.status === 'completed'),
+    duration: step.duration,
+    result: step.result,
+  }));
+
+  // Extract step names from steps
+  const stepNames = steps.map((step) => step.name);
+
+  // Transform API response to match BatchDetail interface
+  return {
+    id: data.id,
+    name: data.name,
+    status: data.status as BatchDetail['status'],
+    sequenceName: data.sequence?.name || '',
+    sequenceVersion: data.sequence?.version || '',
+    sequencePackage: data.sequence?.packagePath || '',
+    currentStep: data.execution?.currentStep,
+    stepIndex: data.execution?.stepIndex || 0,
+    totalSteps: data.execution?.totalSteps || steps.length,
+    stepNames,
+    progress: data.execution?.progress || 0,
+    startedAt: undefined,
+    elapsed: data.execution?.elapsed || 0,
+    hardwareConfig: {},
+    autoStart: false,
+    parameters: data.parameters || {},
+    hardwareStatus,
+    execution: data.execution ? {
+      // Map API status to ExecutionStatus ('running' | 'completed' | 'failed' | 'stopped')
+      status: (() => {
+        const s = data.execution?.status || 'stopped';
+        if (s === 'idle' || s === 'paused') return 'stopped' as const;
+        if (s === 'running' || s === 'completed' || s === 'failed' || s === 'stopped') return s as 'running' | 'completed' | 'failed' | 'stopped';
+        return 'stopped' as const;
+      })(),
+      currentStep: data.execution.currentStep,
+      stepIndex: data.execution.stepIndex || 0,
+      totalSteps: data.execution.totalSteps || 0,
+      progress: data.execution.progress || 0,
+      startedAt: data.execution.startedAt ? new Date(data.execution.startedAt) : undefined,
+      elapsed: data.execution.elapsed || 0,
+      steps,
+    } : undefined,
+  };
 }
 
 /**
@@ -57,19 +173,22 @@ export async function stopBatch(batchId: string): Promise<BatchStopResponse> {
 }
 
 /**
+ * Delete a batch.
+ */
+export async function deleteBatch(batchId: string): Promise<{ batchId: string; status: string }> {
+  const response = await apiClient.delete<ApiResponse<{ batchId: string; status: string }>>(
+    `/batches/${batchId}`
+  );
+  return extractData(response);
+}
+
+/**
  * Start sequence execution for a batch.
- * For local batches (when API is unavailable), this runs a simulation.
  */
 export async function startSequence(
   batchId: string,
   request?: SequenceStartRequest
 ): Promise<SequenceStartResponse> {
-  // Check if it's a local batch (created when API was unavailable)
-  if (batchId.startsWith('local-batch-')) {
-    // Run simulation for local batches
-    return simulateSequenceStart(batchId, request);
-  }
-
   const response = await apiClient.post<ApiResponse<SequenceStartResponse>>(
     `/batches/${batchId}/sequence/start`,
     request
@@ -78,136 +197,9 @@ export async function startSequence(
 }
 
 /**
- * Simulate sequence execution for local batches.
- * This provides a demo/testing experience when the API is unavailable.
- */
-function simulateSequenceStart(
-  batchId: string,
-  _request?: SequenceStartRequest
-): SequenceStartResponse {
-  const { updateBatchStatus, getBatch, setLocalBatchSteps } = useBatchStore.getState();
-  const batch = getBatch(batchId);
-
-  if (!batch) {
-    throw new Error(`Batch ${batchId} not found`);
-  }
-
-  // Update batch status to running
-  updateBatchStatus(batchId, 'running');
-
-  // Simulate sequence execution with steps
-  const totalSteps = batch.totalSteps || 3;
-  const stepNames = batch.stepNames || [];
-  let currentStepIndex = 0;
-
-  // Initialize steps array with pending status (use actual step names if available)
-  const initialSteps = Array.from({ length: totalSteps }, (_, i) => ({
-    order: i + 1,
-    name: stepNames[i] || `Step ${i + 1}`,
-    status: 'pending' as const,
-    pass: false,
-    duration: undefined,
-    result: undefined,
-    startedAt: undefined,
-    completedAt: undefined,
-  }));
-  setLocalBatchSteps(batchId, initialSteps);
-
-  let stepStartTime: number;
-
-  const runStep = () => {
-    const {
-      getBatch,
-      updateBatchStatus,
-      setLastRunResult,
-      updateStepProgress,
-      incrementBatchStats,
-      updateLocalBatchStep,
-      getLocalBatchSteps,
-    } = useBatchStore.getState();
-    const currentBatch = getBatch(batchId);
-
-    if (!currentBatch || currentBatch.status !== 'running') {
-      return; // Stopped
-    }
-
-    const steps = getLocalBatchSteps(batchId);
-
-    // Complete previous step if exists
-    if (currentStepIndex > 0) {
-      const prevStepIndex = currentStepIndex - 1;
-      const prevStep = steps[prevStepIndex];
-      if (prevStep && prevStep.status === 'running') {
-        const duration = (Date.now() - stepStartTime) / 1000;
-        const passed = Math.random() > 0.15; // 85% pass rate per step
-        updateLocalBatchStep(batchId, prevStepIndex, {
-          ...prevStep,
-          status: 'completed',
-          pass: passed,
-          duration,
-          completedAt: new Date(),
-        });
-      }
-    }
-
-    // Check if all steps are done
-    if (currentStepIndex >= totalSteps) {
-      // Sequence completed - determine overall result
-      const finalSteps = getLocalBatchSteps(batchId);
-      const allPassed = finalSteps.every((s) => s.pass);
-      updateBatchStatus(batchId, 'completed');
-      setLastRunResult(batchId, allPassed);
-      incrementBatchStats(batchId, allPassed);
-      return;
-    }
-
-    // Start current step
-    stepStartTime = Date.now();
-    const currentStep = steps[currentStepIndex];
-    if (currentStep) {
-      updateLocalBatchStep(batchId, currentStepIndex, {
-        ...currentStep,
-        status: 'running',
-        startedAt: new Date(),
-      });
-    }
-
-    // Update progress (use actual step name if available)
-    const stepName = stepNames[currentStepIndex] || `Step ${currentStepIndex + 1}`;
-    updateStepProgress(
-      batchId,
-      stepName,
-      currentStepIndex + 1,
-      (currentStepIndex + 1) / totalSteps
-    );
-
-    currentStepIndex++;
-
-    // Schedule next step (simulate 1-3 seconds per step)
-    setTimeout(runStep, 1000 + Math.random() * 2000);
-  };
-
-  // Start the first step after a small delay
-  setTimeout(runStep, 300);
-
-  return {
-    batchId,
-    executionId: `sim-${Date.now()}`,
-    status: 'started',
-  };
-}
-
-/**
  * Stop sequence execution for a batch.
  */
 export async function stopSequence(batchId: string): Promise<{ status: string }> {
-  // Check if it's a local batch
-  if (batchId.startsWith('local-batch-')) {
-    const { updateBatchStatus } = useBatchStore.getState();
-    updateBatchStatus(batchId, 'idle');
-    return { status: 'stopped' };
-  }
-
   const response = await apiClient.post<ApiResponse<{ status: string }>>(
     `/batches/${batchId}/sequence/stop`
   );
@@ -229,70 +221,59 @@ export async function manualControl(
 }
 
 /**
+ * Server-side batch creation request schema.
+ */
+interface ServerBatchCreateRequest {
+  id: string;
+  name: string;
+  sequence_package: string;
+  hardware?: Record<string, Record<string, unknown>>;
+  auto_start?: boolean;
+  process_id?: number;
+}
+
+/**
+ * Server-side batch creation response schema.
+ */
+interface ServerBatchCreateResponse {
+  batch_id: string;
+  name: string;
+  status: string;
+}
+
+/**
  * Create new batches with configuration.
- * Falls back to local creation if API is unavailable.
+ * Requires server connection - throws error if API is unavailable.
+ * Transforms client request format to server format and creates batches one by one.
  */
 export async function createBatches(
   request: CreateBatchRequest
 ): Promise<CreateBatchResponse> {
-  try {
-    const response = await apiClient.post<ApiResponse<CreateBatchResponse>>(
-      '/batches/create',
-      request
-    );
-    return extractData(response);
-  } catch (error) {
-    // Fallback: create batches locally when API is unavailable
-    console.warn('API unavailable, creating batches locally:', error);
-    return createBatchesLocally(request);
-  }
-}
-
-/**
- * Create batches locally when API is unavailable.
- * Generates batch IDs and stores them in the Zustand store with localStorage persistence.
- */
-function createBatchesLocally(request: CreateBatchRequest): CreateBatchResponse {
   const batchIds: string[] = [];
   const timestamp = new Date().toISOString();
-  const { addLocalBatch, setLocalBatchStatistics } = useBatchStore.getState();
 
+  // Create each batch individually
   for (let i = 0; i < request.quantity; i++) {
-    // Generate a unique batch ID
-    const id = `local-batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`;
-    batchIds.push(id);
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`;
+    const batchName = request.quantity > 1
+      ? `${request.sequenceName} #${i + 1}`
+      : request.sequenceName;
 
-    // Extract step names from stepOrder (prefer displayName for UI)
-    const stepNames = request.stepOrder
-      ?.filter((s) => s.enabled)
-      .sort((a, b) => a.order - b.order)
-      .map((s) => s.displayName || s.name) ?? [];
+    // Transform to server schema
+    const serverRequest: ServerBatchCreateRequest = {
+      id: batchId,
+      name: batchName,
+      sequence_package: request.sequenceName,
+      hardware: {},
+      auto_start: false,
+    };
 
-    // Add each batch to the local store (persisted to localStorage)
-    addLocalBatch({
-      id,
-      name: `${request.sequenceName} #${i + 1}`,
-      status: 'idle',
-      sequenceName: request.sequenceName,
-      sequencePackage: request.sequenceName,
-      currentStep: undefined,
-      stepIndex: 0,
-      totalSteps: stepNames.length,
-      stepNames,
-      progress: 0,
-      startedAt: undefined,
-      elapsed: 0,
-      hardwareConfig: {},
-      autoStart: false,
-    });
-
-    // Initialize statistics (persisted to localStorage)
-    setLocalBatchStatistics(id, {
-      total: 0,
-      pass: 0,
-      fail: 0,
-      passRate: 0,
-    });
+    const response = await apiClient.post<ApiResponse<ServerBatchCreateResponse>>(
+      '/batches',
+      serverRequest
+    );
+    const data = extractData(response);
+    batchIds.push(data.batch_id);
   }
 
   return {

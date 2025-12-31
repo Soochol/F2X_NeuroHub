@@ -1138,157 +1138,79 @@ function Sidebar({ isCollapsed, onToggle, stationId, stationName }) {
     }
   );
 }
-const LOCAL_BATCHES_KEY = "station-ui-local-batches";
-const LOCAL_STATS_KEY = "station-ui-local-batch-stats";
-const LOCAL_STEPS_KEY = "station-ui-local-batch-steps";
-const mapToArray = (map) => Array.from(map.entries());
-const loadPersistedBatches = () => {
+const LEGACY_LOCAL_BATCHES_KEY = "station-ui-local-batches";
+const LEGACY_LOCAL_STATS_KEY = "station-ui-local-batch-stats";
+const LEGACY_LOCAL_STEPS_KEY = "station-ui-local-batch-steps";
+function cleanupLegacyLocalBatches() {
   try {
-    const stored = localStorage.getItem(LOCAL_BATCHES_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return new Map(parsed);
+    const removedKeys = [];
+    if (localStorage.getItem(LEGACY_LOCAL_BATCHES_KEY)) {
+      localStorage.removeItem(LEGACY_LOCAL_BATCHES_KEY);
+      removedKeys.push(LEGACY_LOCAL_BATCHES_KEY);
+    }
+    if (localStorage.getItem(LEGACY_LOCAL_STATS_KEY)) {
+      localStorage.removeItem(LEGACY_LOCAL_STATS_KEY);
+      removedKeys.push(LEGACY_LOCAL_STATS_KEY);
+    }
+    if (localStorage.getItem(LEGACY_LOCAL_STEPS_KEY)) {
+      localStorage.removeItem(LEGACY_LOCAL_STEPS_KEY);
+      removedKeys.push(LEGACY_LOCAL_STEPS_KEY);
+    }
+    if (removedKeys.length > 0) {
+      console.info("Cleaned up legacy local batch data:", removedKeys);
     }
   } catch (e) {
-    console.warn("Failed to load local batches:", e);
+    console.warn("Failed to cleanup legacy local batches:", e);
   }
-  return /* @__PURE__ */ new Map();
-};
-const loadPersistedStats = () => {
-  try {
-    const stored = localStorage.getItem(LOCAL_STATS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return new Map(parsed);
-    }
-  } catch (e) {
-    console.warn("Failed to load local batch stats:", e);
-  }
-  return /* @__PURE__ */ new Map();
-};
-const persistBatches = (batches) => {
-  try {
-    localStorage.setItem(LOCAL_BATCHES_KEY, JSON.stringify(mapToArray(batches)));
-  } catch (e) {
-    console.warn("Failed to persist local batches:", e);
-  }
-};
-const persistStats = (stats) => {
-  try {
-    localStorage.setItem(LOCAL_STATS_KEY, JSON.stringify(mapToArray(stats)));
-  } catch (e) {
-    console.warn("Failed to persist local batch stats:", e);
-  }
-};
-const loadPersistedSteps = () => {
-  try {
-    const stored = localStorage.getItem(LOCAL_STEPS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return new Map(parsed);
-    }
-  } catch (e) {
-    console.warn("Failed to load local batch steps:", e);
-  }
-  return /* @__PURE__ */ new Map();
-};
-const persistSteps = (steps) => {
-  try {
-    localStorage.setItem(LOCAL_STEPS_KEY, JSON.stringify(mapToArray(steps)));
-  } catch (e) {
-    console.warn("Failed to persist local batch steps:", e);
-  }
-};
+}
+cleanupLegacyLocalBatches();
 const useBatchStore = create((set, get) => ({
   // Initial state
   batches: /* @__PURE__ */ new Map(),
-  localBatches: loadPersistedBatches(),
-  localBatchStats: loadPersistedStats(),
-  localBatchSteps: loadPersistedSteps(),
   selectedBatchId: null,
   batchStatistics: /* @__PURE__ */ new Map(),
   isWizardOpen: false,
   // Actions
-  setBatches: (batches) => set({
-    batches: new Map(batches.map((b) => [b.id, b]))
+  setBatches: (batches2) => set({
+    batches: new Map(batches2.map((b) => [b.id, b]))
   }),
   updateBatch: (batch) => set((state) => {
     const newBatches = new Map(state.batches);
     newBatches.set(batch.id, batch);
     return { batches: newBatches };
   }),
-  addLocalBatch: (batch) => set((state) => {
-    const newLocalBatches = new Map(state.localBatches);
-    newLocalBatches.set(batch.id, batch);
-    persistBatches(newLocalBatches);
-    return { localBatches: newLocalBatches };
-  }),
-  removeLocalBatch: (batchId) => set((state) => {
-    const newLocalBatches = new Map(state.localBatches);
-    newLocalBatches.delete(batchId);
-    persistBatches(newLocalBatches);
-    const newLocalStats = new Map(state.localBatchStats);
-    newLocalStats.delete(batchId);
-    persistStats(newLocalStats);
-    return { localBatches: newLocalBatches, localBatchStats: newLocalStats };
+  removeBatch: (batchId) => set((state) => {
+    const newBatches = new Map(state.batches);
+    newBatches.delete(batchId);
+    const newStats = new Map(state.batchStatistics);
+    newStats.delete(batchId);
+    return { batches: newBatches, batchStatistics: newStats };
   }),
   updateBatchStatus: (batchId, status) => set((state) => {
     const batch = state.batches.get(batchId);
-    if (batch) {
-      const newBatches = new Map(state.batches);
-      newBatches.set(batchId, { ...batch, status });
-      return { batches: newBatches };
-    }
-    const localBatch = state.localBatches.get(batchId);
-    if (localBatch) {
-      const newLocalBatches = new Map(state.localBatches);
-      newLocalBatches.set(batchId, { ...localBatch, status });
-      persistBatches(newLocalBatches);
-      return { localBatches: newLocalBatches };
-    }
-    return state;
+    if (!batch) return state;
+    const newBatches = new Map(state.batches);
+    newBatches.set(batchId, { ...batch, status });
+    return { batches: newBatches };
   }),
   setLastRunResult: (batchId, passed) => set((state) => {
     const batch = state.batches.get(batchId);
-    if (batch) {
-      const newBatches = new Map(state.batches);
-      newBatches.set(batchId, { ...batch, lastRunPassed: passed });
-      return { batches: newBatches };
-    }
-    const localBatch = state.localBatches.get(batchId);
-    if (localBatch) {
-      const newLocalBatches = new Map(state.localBatches);
-      newLocalBatches.set(batchId, { ...localBatch, lastRunPassed: passed });
-      persistBatches(newLocalBatches);
-      return { localBatches: newLocalBatches };
-    }
-    return state;
+    if (!batch) return state;
+    const newBatches = new Map(state.batches);
+    newBatches.set(batchId, { ...batch, lastRunPassed: passed });
+    return { batches: newBatches };
   }),
   updateStepProgress: (batchId, currentStep, stepIndex, progress) => set((state) => {
     const batch = state.batches.get(batchId);
-    if (batch) {
-      const newBatches = new Map(state.batches);
-      newBatches.set(batchId, {
-        ...batch,
-        currentStep,
-        stepIndex,
-        progress
-      });
-      return { batches: newBatches };
-    }
-    const localBatch = state.localBatches.get(batchId);
-    if (localBatch) {
-      const newLocalBatches = new Map(state.localBatches);
-      newLocalBatches.set(batchId, {
-        ...localBatch,
-        currentStep,
-        stepIndex,
-        progress
-      });
-      persistBatches(newLocalBatches);
-      return { localBatches: newLocalBatches };
-    }
-    return state;
+    if (!batch) return state;
+    const newBatches = new Map(state.batches);
+    newBatches.set(batchId, {
+      ...batch,
+      currentStep,
+      stepIndex,
+      progress
+    });
+    return { batches: newBatches };
   }),
   updateStepResult: (batchId, stepResult) => set((state) => {
     const batch = state.batches.get(batchId);
@@ -1297,30 +1219,9 @@ const useBatchStore = create((set, get) => ({
     newBatches.set(batchId, {
       ...batch,
       stepIndex: stepResult.order,
-      progress: batch.totalSteps > 0 ? stepResult.order / batch.totalSteps : 0
+      progress: (batch.totalSteps ?? 0) > 0 ? stepResult.order / batch.totalSteps : 0
     });
     return { batches: newBatches };
-  }),
-  setLocalBatchSteps: (batchId, steps) => set((state) => {
-    const newSteps = new Map(state.localBatchSteps);
-    newSteps.set(batchId, steps);
-    persistSteps(newSteps);
-    return { localBatchSteps: newSteps };
-  }),
-  updateLocalBatchStep: (batchId, stepIndex, step) => set((state) => {
-    const newSteps = new Map(state.localBatchSteps);
-    const currentSteps = newSteps.get(batchId) || [];
-    const updatedSteps = [...currentSteps];
-    updatedSteps[stepIndex] = step;
-    newSteps.set(batchId, updatedSteps);
-    persistSteps(newSteps);
-    return { localBatchSteps: newSteps };
-  }),
-  clearLocalBatchSteps: (batchId) => set((state) => {
-    const newSteps = new Map(state.localBatchSteps);
-    newSteps.delete(batchId);
-    persistSteps(newSteps);
-    return { localBatchSteps: newSteps };
   }),
   selectBatch: (batchId) => set({ selectedBatchId: batchId }),
   clearBatches: () => set({ batches: /* @__PURE__ */ new Map() }),
@@ -1330,30 +1231,10 @@ const useBatchStore = create((set, get) => ({
     newStats.set(batchId, stats);
     return { batchStatistics: newStats };
   }),
-  setLocalBatchStatistics: (batchId, stats) => set((state) => {
-    const newLocalStats = new Map(state.localBatchStats);
-    newLocalStats.set(batchId, stats);
-    persistStats(newLocalStats);
-    return { localBatchStats: newLocalStats };
-  }),
   setAllBatchStatistics: (stats) => set({
     batchStatistics: new Map(Object.entries(stats))
   }),
   incrementBatchStats: (batchId, passed) => set((state) => {
-    if (state.localBatches.has(batchId)) {
-      const newLocalStats = new Map(state.localBatchStats);
-      const current2 = newLocalStats.get(batchId) || { total: 0, pass: 0, fail: 0 };
-      const updated2 = {
-        total: current2.total + 1,
-        pass: passed ? current2.pass + 1 : current2.pass,
-        fail: passed ? current2.fail : current2.fail + 1,
-        passRate: 0
-      };
-      updated2.passRate = updated2.total > 0 ? updated2.pass / updated2.total : 0;
-      newLocalStats.set(batchId, updated2);
-      persistStats(newLocalStats);
-      return { localBatchStats: newLocalStats };
-    }
     const newStats = new Map(state.batchStatistics);
     const current = newStats.get(batchId) || { total: 0, pass: 0, fail: 0 };
     const updated = {
@@ -1371,12 +1252,12 @@ const useBatchStore = create((set, get) => ({
   closeWizard: () => set({ isWizardOpen: false }),
   // Selectors
   getBatch: (batchId) => {
-    const { batches, localBatches } = get();
-    return batches.get(batchId) || localBatches.get(batchId);
+    const { batches: batches2 } = get();
+    return batches2.get(batchId);
   },
   getAllBatches: () => {
-    const { batches, localBatches } = get();
-    return [...Array.from(batches.values()), ...Array.from(localBatches.values())];
+    const { batches: batches2 } = get();
+    return Array.from(batches2.values());
   },
   getRunningBatches: () => {
     const allBatches = get().getAllBatches();
@@ -1387,22 +1268,13 @@ const useBatchStore = create((set, get) => ({
     return selectedBatchId ? get().getBatch(selectedBatchId) : void 0;
   },
   getBatchStats: (batchId) => {
-    const { batchStatistics, localBatchStats } = get();
-    return batchStatistics.get(batchId) || localBatchStats.get(batchId);
-  },
-  getLocalBatchSteps: (batchId) => {
-    const { localBatchSteps } = get();
-    return localBatchSteps.get(batchId) || [];
+    const { batchStatistics } = get();
+    return batchStatistics.get(batchId);
   },
   getTotalStats: () => {
-    const { batchStatistics, localBatchStats } = get();
+    const { batchStatistics } = get();
     const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
     batchStatistics.forEach((s) => {
-      total.total += s.total;
-      total.pass += s.pass;
-      total.fail += s.fail;
-    });
-    localBatchStats.forEach((s) => {
       total.total += s.total;
       total.pass += s.pass;
       total.fail += s.fail;
@@ -2084,8 +1956,8 @@ function StatusBar() {
   const [currentTime, setCurrentTime] = reactExports.useState(/* @__PURE__ */ new Date());
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const backendStatus = useConnectionStore((state) => state.backendStatus);
-  const batches = useBatchStore((state) => state.batches);
-  const runningBatches = Array.from(batches.values()).filter(
+  const batches2 = useBatchStore((state) => state.batches);
+  const runningBatches = Array.from(batches2.values()).filter(
     (b) => b.status === "running" || b.status === "starting"
   ).length;
   reactExports.useEffect(() => {
@@ -2162,6 +2034,9 @@ const POLLING_INTERVALS = {
   /** Batch list polling interval (fallback mode when WebSocket is disconnected) */
   batchesFallback: 3e3,
   // 3 seconds - faster polling when WS is down
+  /** Batch detail polling interval (for real-time step updates) */
+  batchDetail: 1e3,
+  // 1 second - fast polling for step progress
   /** Health status polling interval */
   health: 3e4,
   // 30 seconds
@@ -4749,9 +4624,13 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    var _a, _b;
-    if ((_b = (_a = error.response) == null ? void 0 : _a.data) == null ? void 0 : _b.error) {
-      return Promise.reject(error.response.data.error);
+    var _a, _b, _c;
+    const status = (_a = error.response) == null ? void 0 : _a.status;
+    if ((_c = (_b = error.response) == null ? void 0 : _b.data) == null ? void 0 : _c.error) {
+      return Promise.reject({
+        ...error.response.data.error,
+        status
+      });
     }
     if (error.code === "ECONNABORTED") {
       return Promise.reject({
@@ -4767,7 +4646,8 @@ apiClient.interceptors.response.use(
     }
     return Promise.reject({
       code: "UNKNOWN_ERROR",
-      message: error.message || "An unknown error occurred"
+      message: error.message || "An unknown error occurred",
+      status
     });
   }
 );
@@ -4809,73 +4689,147 @@ function useUpdateStationInfo() {
     }
   });
 }
-const isIterable = (obj) => Symbol.iterator in obj;
-const hasIterableEntries = (value) => (
-  // HACK: avoid checking entries type
-  "entries" in value
-);
-const compareEntries = (valueA, valueB) => {
-  const mapA = valueA instanceof Map ? valueA : new Map(valueA.entries());
-  const mapB = valueB instanceof Map ? valueB : new Map(valueB.entries());
-  if (mapA.size !== mapB.size) {
-    return false;
-  }
-  for (const [key, value] of mapA) {
-    if (!mapB.has(key) || !Object.is(value, mapB.get(key))) {
-      return false;
-    }
-  }
-  return true;
+const scriptRel = "modulepreload";
+const assetsURL = function(dep) {
+  return "/ui/" + dep;
 };
-const compareIterables = (valueA, valueB) => {
-  const iteratorA = valueA[Symbol.iterator]();
-  const iteratorB = valueB[Symbol.iterator]();
-  let nextA = iteratorA.next();
-  let nextB = iteratorB.next();
-  while (!nextA.done && !nextB.done) {
-    if (!Object.is(nextA.value, nextB.value)) {
-      return false;
-    }
-    nextA = iteratorA.next();
-    nextB = iteratorB.next();
+const seen = {};
+const __vitePreload = function preload(baseModule, deps, importerUrl) {
+  let promise = Promise.resolve();
+  if (deps && deps.length > 0) {
+    let allSettled2 = function(promises) {
+      return Promise.all(
+        promises.map(
+          (p) => Promise.resolve(p).then(
+            (value) => ({ status: "fulfilled", value }),
+            (reason) => ({ status: "rejected", reason })
+          )
+        )
+      );
+    };
+    document.getElementsByTagName("link");
+    const cspNonceMeta = document.querySelector(
+      "meta[property=csp-nonce]"
+    );
+    const cspNonce = (cspNonceMeta == null ? void 0 : cspNonceMeta.nonce) || (cspNonceMeta == null ? void 0 : cspNonceMeta.getAttribute("nonce"));
+    promise = allSettled2(
+      deps.map((dep) => {
+        dep = assetsURL(dep);
+        if (dep in seen) return;
+        seen[dep] = true;
+        const isCss = dep.endsWith(".css");
+        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
+        if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
+          return;
+        }
+        const link = document.createElement("link");
+        link.rel = isCss ? "stylesheet" : scriptRel;
+        if (!isCss) {
+          link.as = "script";
+        }
+        link.crossOrigin = "";
+        link.href = dep;
+        if (cspNonce) {
+          link.setAttribute("nonce", cspNonce);
+        }
+        document.head.appendChild(link);
+        if (isCss) {
+          return new Promise((res, rej) => {
+            link.addEventListener("load", res);
+            link.addEventListener(
+              "error",
+              () => rej(new Error(`Unable to preload CSS for ${dep}`))
+            );
+          });
+        }
+      })
+    );
   }
-  return !!nextA.done && !!nextB.done;
+  function handlePreloadError(err) {
+    const e = new Event("vite:preloadError", {
+      cancelable: true
+    });
+    e.payload = err;
+    window.dispatchEvent(e);
+    if (!e.defaultPrevented) {
+      throw err;
+    }
+  }
+  return promise.then((res) => {
+    for (const item of res || []) {
+      if (item.status !== "rejected") continue;
+      handlePreloadError(item.reason);
+    }
+    return baseModule().catch(handlePreloadError);
+  });
 };
-function shallow(valueA, valueB) {
-  if (Object.is(valueA, valueB)) {
-    return true;
-  }
-  if (typeof valueA !== "object" || valueA === null || typeof valueB !== "object" || valueB === null) {
-    return false;
-  }
-  if (Object.getPrototypeOf(valueA) !== Object.getPrototypeOf(valueB)) {
-    return false;
-  }
-  if (isIterable(valueA) && isIterable(valueB)) {
-    if (hasIterableEntries(valueA) && hasIterableEntries(valueB)) {
-      return compareEntries(valueA, valueB);
-    }
-    return compareIterables(valueA, valueB);
-  }
-  return compareEntries(
-    { entries: () => Object.entries(valueA) },
-    { entries: () => Object.entries(valueB) }
-  );
-}
-function useShallow(selector) {
-  const prev = React.useRef(void 0);
-  return (state) => {
-    const next = selector(state);
-    return shallow(prev.current, next) ? prev.current : prev.current = next;
-  };
-}
 async function getBatches() {
   const response = await apiClient.get("/batches");
   return extractData(response);
 }
 async function getBatch(batchId) {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
   const response = await apiClient.get(`/batches/${batchId}`);
-  return extractData(response);
+  const data = extractData(response);
+  const hardwareStatus = {};
+  if (data.hardware) {
+    for (const [hwId, hw] of Object.entries(data.hardware)) {
+      hardwareStatus[hwId] = {
+        id: hwId,
+        driver: hw.driver || hw.type || "unknown",
+        status: hw.connected ? "connected" : "disconnected",
+        connected: hw.connected || false,
+        config: hw.details || {}
+      };
+    }
+  }
+  const steps = (((_a = data.execution) == null ? void 0 : _a.steps) || []).map((step, index) => ({
+    name: step.name,
+    order: step.order ?? index + 1,
+    // Use index if order not provided
+    status: step.status,
+    // Determine pass based on status and pass field
+    pass: step.pass ?? step.status === "completed",
+    duration: step.duration,
+    result: step.result
+  }));
+  const stepNames = steps.map((step) => step.name);
+  return {
+    id: data.id,
+    name: data.name,
+    status: data.status,
+    sequenceName: ((_b = data.sequence) == null ? void 0 : _b.name) || "",
+    sequenceVersion: ((_c = data.sequence) == null ? void 0 : _c.version) || "",
+    sequencePackage: ((_d = data.sequence) == null ? void 0 : _d.packagePath) || "",
+    currentStep: (_e = data.execution) == null ? void 0 : _e.currentStep,
+    stepIndex: ((_f = data.execution) == null ? void 0 : _f.stepIndex) || 0,
+    totalSteps: ((_g = data.execution) == null ? void 0 : _g.totalSteps) || steps.length,
+    stepNames,
+    progress: ((_h = data.execution) == null ? void 0 : _h.progress) || 0,
+    startedAt: void 0,
+    elapsed: ((_i = data.execution) == null ? void 0 : _i.elapsed) || 0,
+    hardwareConfig: {},
+    autoStart: false,
+    parameters: data.parameters || {},
+    hardwareStatus,
+    execution: data.execution ? {
+      // Map API status to ExecutionStatus ('running' | 'completed' | 'failed' | 'stopped')
+      status: (() => {
+        var _a2;
+        const s = ((_a2 = data.execution) == null ? void 0 : _a2.status) || "stopped";
+        if (s === "idle" || s === "paused") return "stopped";
+        if (s === "running" || s === "completed" || s === "failed" || s === "stopped") return s;
+        return "stopped";
+      })(),
+      currentStep: data.execution.currentStep,
+      stepIndex: data.execution.stepIndex || 0,
+      totalSteps: data.execution.totalSteps || 0,
+      progress: data.execution.progress || 0,
+      startedAt: data.execution.startedAt ? new Date(data.execution.startedAt) : void 0,
+      elapsed: data.execution.elapsed || 0,
+      steps
+    } : void 0
+  };
 }
 async function startBatch(batchId) {
   const response = await apiClient.post(
@@ -4889,108 +4843,20 @@ async function stopBatch(batchId) {
   );
   return extractData(response);
 }
+async function deleteBatch(batchId) {
+  const response = await apiClient.delete(
+    `/batches/${batchId}`
+  );
+  return extractData(response);
+}
 async function startSequence(batchId, request) {
-  if (batchId.startsWith("local-batch-")) {
-    return simulateSequenceStart(batchId);
-  }
   const response = await apiClient.post(
     `/batches/${batchId}/sequence/start`,
     request
   );
   return extractData(response);
 }
-function simulateSequenceStart(batchId, _request) {
-  const { updateBatchStatus, getBatch: getBatch2, setLocalBatchSteps } = useBatchStore.getState();
-  const batch = getBatch2(batchId);
-  if (!batch) {
-    throw new Error(`Batch ${batchId} not found`);
-  }
-  updateBatchStatus(batchId, "running");
-  const totalSteps = batch.totalSteps || 3;
-  const stepNames = batch.stepNames || [];
-  let currentStepIndex = 0;
-  const initialSteps = Array.from({ length: totalSteps }, (_, i) => ({
-    order: i + 1,
-    name: stepNames[i] || `Step ${i + 1}`,
-    status: "pending",
-    pass: false,
-    duration: void 0,
-    result: void 0,
-    startedAt: void 0,
-    completedAt: void 0
-  }));
-  setLocalBatchSteps(batchId, initialSteps);
-  let stepStartTime;
-  const runStep = () => {
-    const {
-      getBatch: getBatch3,
-      updateBatchStatus: updateBatchStatus2,
-      setLastRunResult,
-      updateStepProgress,
-      incrementBatchStats,
-      updateLocalBatchStep,
-      getLocalBatchSteps
-    } = useBatchStore.getState();
-    const currentBatch = getBatch3(batchId);
-    if (!currentBatch || currentBatch.status !== "running") {
-      return;
-    }
-    const steps = getLocalBatchSteps(batchId);
-    if (currentStepIndex > 0) {
-      const prevStepIndex = currentStepIndex - 1;
-      const prevStep = steps[prevStepIndex];
-      if (prevStep && prevStep.status === "running") {
-        const duration = (Date.now() - stepStartTime) / 1e3;
-        const passed = Math.random() > 0.15;
-        updateLocalBatchStep(batchId, prevStepIndex, {
-          ...prevStep,
-          status: "completed",
-          pass: passed,
-          duration,
-          completedAt: /* @__PURE__ */ new Date()
-        });
-      }
-    }
-    if (currentStepIndex >= totalSteps) {
-      const finalSteps = getLocalBatchSteps(batchId);
-      const allPassed = finalSteps.every((s) => s.pass);
-      updateBatchStatus2(batchId, "completed");
-      setLastRunResult(batchId, allPassed);
-      incrementBatchStats(batchId, allPassed);
-      return;
-    }
-    stepStartTime = Date.now();
-    const currentStep = steps[currentStepIndex];
-    if (currentStep) {
-      updateLocalBatchStep(batchId, currentStepIndex, {
-        ...currentStep,
-        status: "running",
-        startedAt: /* @__PURE__ */ new Date()
-      });
-    }
-    const stepName = stepNames[currentStepIndex] || `Step ${currentStepIndex + 1}`;
-    updateStepProgress(
-      batchId,
-      stepName,
-      currentStepIndex + 1,
-      (currentStepIndex + 1) / totalSteps
-    );
-    currentStepIndex++;
-    setTimeout(runStep, 1e3 + Math.random() * 2e3);
-  };
-  setTimeout(runStep, 300);
-  return {
-    batchId,
-    executionId: `sim-${Date.now()}`,
-    status: "started"
-  };
-}
 async function stopSequence(batchId) {
-  if (batchId.startsWith("local-batch-")) {
-    const { updateBatchStatus } = useBatchStore.getState();
-    updateBatchStatus(batchId, "idle");
-    return { status: "stopped" };
-  }
   const response = await apiClient.post(
     `/batches/${batchId}/sequence/stop`
   );
@@ -5004,48 +4870,24 @@ async function manualControl(batchId, request) {
   return extractData(response);
 }
 async function createBatches(request) {
-  try {
-    const response = await apiClient.post(
-      "/batches/create",
-      request
-    );
-    return extractData(response);
-  } catch (error) {
-    console.warn("API unavailable, creating batches locally:", error);
-    return createBatchesLocally(request);
-  }
-}
-function createBatchesLocally(request) {
-  var _a;
   const batchIds = [];
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-  const { addLocalBatch, setLocalBatchStatistics } = useBatchStore.getState();
   for (let i = 0; i < request.quantity; i++) {
-    const id = `local-batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`;
-    batchIds.push(id);
-    const stepNames = ((_a = request.stepOrder) == null ? void 0 : _a.filter((s) => s.enabled).sort((a, b) => a.order - b.order).map((s) => s.displayName || s.name)) ?? [];
-    addLocalBatch({
-      id,
-      name: `${request.sequenceName} #${i + 1}`,
-      status: "idle",
-      sequenceName: request.sequenceName,
-      sequencePackage: request.sequenceName,
-      currentStep: void 0,
-      stepIndex: 0,
-      totalSteps: stepNames.length,
-      stepNames,
-      progress: 0,
-      startedAt: void 0,
-      elapsed: 0,
-      hardwareConfig: {},
-      autoStart: false
-    });
-    setLocalBatchStatistics(id, {
-      total: 0,
-      pass: 0,
-      fail: 0,
-      passRate: 0
-    });
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${i}`;
+    const batchName = request.quantity > 1 ? `${request.sequenceName} #${i + 1}` : request.sequenceName;
+    const serverRequest = {
+      id: batchId,
+      name: batchName,
+      sequence_package: request.sequenceName,
+      hardware: {},
+      auto_start: false
+    };
+    const response = await apiClient.post(
+      "/batches",
+      serverRequest
+    );
+    const data = extractData(response);
+    batchIds.push(data.batch_id);
   }
   return {
     batchIds,
@@ -5059,6 +4901,19 @@ async function getAllBatchStatistics() {
   );
   return extractData(response);
 }
+const batches = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  createBatches,
+  deleteBatch,
+  getAllBatchStatistics,
+  getBatch,
+  getBatches,
+  manualControl,
+  startBatch,
+  startSequence,
+  stopBatch,
+  stopSequence
+}, Symbol.toStringTag, { value: "Module" }));
 const _ToastManager = class _ToastManager {
   constructor() {
   }
@@ -5115,6 +4970,12 @@ function getErrorMessage(error) {
   }
   return "An unknown error occurred";
 }
+function isAlreadyRunningError(error) {
+  if (error && typeof error === "object" && "status" in error) {
+    return error.status === 409;
+  }
+  return false;
+}
 function useBatchList() {
   const setBatches = useBatchStore((state) => state.setBatches);
   const pollingFallbackActive = useConnectionStore((state) => state.pollingFallbackActive);
@@ -5132,35 +4993,33 @@ function useBatchList() {
   return query;
 }
 function useBatch(batchId) {
-  const isLocalBatch = (batchId == null ? void 0 : batchId.startsWith("local-batch-")) ?? false;
-  const localBatch = useBatchStore(
-    useShallow((state) => {
-      if (!isLocalBatch || !batchId) return void 0;
-      return state.localBatches.get(batchId);
-    })
-  );
-  const query = useQuery({
+  return useQuery({
     queryKey: queryKeys.batch(batchId ?? ""),
     queryFn: () => getBatch(batchId),
-    enabled: !!batchId && !isLocalBatch
+    enabled: !!batchId,
+    refetchInterval: POLLING_INTERVALS.batchDetail
+    // Poll every 1 second for step updates
   });
-  if (isLocalBatch) {
-    return {
-      ...query,
-      data: localBatch,
-      isLoading: false,
-      isError: !localBatch
-    };
-  }
-  return query;
 }
 function useStartBatch() {
   const queryClient2 = useQueryClient();
   return useMutation({
-    mutationFn: (batchId) => startBatch(batchId),
-    onSuccess: () => {
+    mutationFn: async (batchId) => {
+      try {
+        return await startBatch(batchId);
+      } catch (error) {
+        if (isAlreadyRunningError(error)) {
+          return { batchId, status: "already_running", message: "Batch already running" };
+        }
+        throw error;
+      }
+    },
+    onSuccess: (result) => {
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
-      toast.success("Batch started successfully");
+      if ("status" in result && result.status === "already_running") ;
+      else {
+        toast.success("Batch started successfully");
+      }
     },
     onError: (error) => {
       toast.error(`Failed to start batch: ${getErrorMessage(error)}`);
@@ -5180,17 +5039,50 @@ function useStopBatch() {
     }
   });
 }
+function useDeleteBatch() {
+  const queryClient2 = useQueryClient();
+  const removeBatch = useBatchStore((state) => state.removeBatch);
+  return useMutation({
+    mutationFn: async (batchId) => {
+      const { deleteBatch: deleteBatch2 } = await __vitePreload(async () => {
+        const { deleteBatch: deleteBatch3 } = await Promise.resolve().then(() => batches);
+        return { deleteBatch: deleteBatch3 };
+      }, true ? void 0 : void 0);
+      return deleteBatch2(batchId);
+    },
+    onSuccess: (_, batchId) => {
+      removeBatch(batchId);
+      queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
+      toast.success("Batch deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete batch: ${getErrorMessage(error)}`);
+    }
+  });
+}
 function useStartSequence() {
   const queryClient2 = useQueryClient();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       batchId,
       request
-    }) => startSequence(batchId, request),
-    onSuccess: (_, variables) => {
+    }) => {
+      try {
+        return await startSequence(batchId, request);
+      } catch (error) {
+        if (isAlreadyRunningError(error)) {
+          return { batchId, status: "already_running", message: "Sequence already running" };
+        }
+        throw error;
+      }
+    },
+    onSuccess: (result, variables) => {
       queryClient2.invalidateQueries({ queryKey: queryKeys.batch(variables.batchId) });
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
-      toast.success("Sequence started successfully");
+      if ("status" in result && result.status === "already_running") ;
+      else {
+        toast.success("Sequence started successfully");
+      }
     },
     onError: (error) => {
       toast.error(`Failed to start sequence: ${getErrorMessage(error)}`);
@@ -5457,6 +5349,7 @@ function transformKeys(obj) {
   return obj;
 }
 function WebSocketProvider({ children, url = "/ws" }) {
+  const queryClient2 = useQueryClient();
   const socketRef = reactExports.useRef(null);
   const subscribedBatchIds = reactExports.useRef(/* @__PURE__ */ new Set());
   const reconnectTimeoutRef = reactExports.useRef(null);
@@ -5558,9 +5451,31 @@ function WebSocketProvider({ children, url = "/ws" }) {
           });
           break;
         }
+        case "subscribed":
+        case "unsubscribed":
+          break;
+        case "batch_created": {
+          queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
+          addNotification({
+            type: "info",
+            title: "Batch Created",
+            message: `New batch "${message.data.name}" has been created`
+          });
+          break;
+        }
+        case "batch_deleted": {
+          queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
+          addNotification({
+            type: "info",
+            title: "Batch Deleted",
+            message: `Batch has been deleted`,
+            batchId: message.batchId
+          });
+          break;
+        }
       }
     },
-    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification, queryClient2]
   );
   const connect = reactExports.useCallback(() => {
     var _a;
@@ -5756,6 +5671,66 @@ function Layout({ children }) {
       ]
     }
   );
+}
+const isIterable = (obj) => Symbol.iterator in obj;
+const hasIterableEntries = (value) => (
+  // HACK: avoid checking entries type
+  "entries" in value
+);
+const compareEntries = (valueA, valueB) => {
+  const mapA = valueA instanceof Map ? valueA : new Map(valueA.entries());
+  const mapB = valueB instanceof Map ? valueB : new Map(valueB.entries());
+  if (mapA.size !== mapB.size) {
+    return false;
+  }
+  for (const [key, value] of mapA) {
+    if (!mapB.has(key) || !Object.is(value, mapB.get(key))) {
+      return false;
+    }
+  }
+  return true;
+};
+const compareIterables = (valueA, valueB) => {
+  const iteratorA = valueA[Symbol.iterator]();
+  const iteratorB = valueB[Symbol.iterator]();
+  let nextA = iteratorA.next();
+  let nextB = iteratorB.next();
+  while (!nextA.done && !nextB.done) {
+    if (!Object.is(nextA.value, nextB.value)) {
+      return false;
+    }
+    nextA = iteratorA.next();
+    nextB = iteratorB.next();
+  }
+  return !!nextA.done && !!nextB.done;
+};
+function shallow(valueA, valueB) {
+  if (Object.is(valueA, valueB)) {
+    return true;
+  }
+  if (typeof valueA !== "object" || valueA === null || typeof valueB !== "object" || valueB === null) {
+    return false;
+  }
+  if (Object.getPrototypeOf(valueA) !== Object.getPrototypeOf(valueB)) {
+    return false;
+  }
+  if (isIterable(valueA) && isIterable(valueB)) {
+    if (hasIterableEntries(valueA) && hasIterableEntries(valueB)) {
+      return compareEntries(valueA, valueB);
+    }
+    return compareIterables(valueA, valueB);
+  }
+  return compareEntries(
+    { entries: () => Object.entries(valueA) },
+    { entries: () => Object.entries(valueB) }
+  );
+}
+function useShallow(selector) {
+  const prev = React.useRef(void 0);
+  return (state) => {
+    const next = selector(state);
+    return shallow(prev.current, next) ? prev.current : prev.current = next;
+  };
 }
 const variantStyles = {
   default: {
@@ -6215,30 +6190,23 @@ function getProgressVariant(status, lastRunPassed) {
   return "default";
 }
 function DashboardPage() {
-  const { data: batches, isLoading: batchesLoading, isError: batchesError, refetch: refetchBatches } = useBatchList();
+  const { data: batches2, isLoading: batchesLoading, isError: batchesError, refetch: refetchBatches } = useBatchList();
   const { data: health, isError: healthError, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
   const { data: systemInfo } = useSystemInfo();
   const { data: allStatistics } = useAllBatchStatistics();
   const { subscribe, unsubscribe } = useWebSocket();
   const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
-  const totalStats = useBatchStore(
-    useShallow((state) => {
-      const { batchStatistics, localBatchStats } = state;
-      const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
-      batchStatistics.forEach((s) => {
-        total.total += s.total;
-        total.pass += s.pass;
-        total.fail += s.fail;
-      });
-      localBatchStats.forEach((s) => {
-        total.total += s.total;
-        total.pass += s.pass;
-        total.fail += s.fail;
-      });
-      total.passRate = total.total > 0 ? total.pass / total.total : 0;
-      return total;
-    })
-  );
+  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  const totalStats = reactExports.useMemo(() => {
+    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    batchStatistics.forEach((s) => {
+      total.total += s.total;
+      total.pass += s.pass;
+      total.fail += s.fail;
+    });
+    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    return total;
+  }, [batchStatistics]);
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const setBackendStatus = useConnectionStore((state) => state.setBackendStatus);
   reactExports.useEffect(() => {
@@ -6254,26 +6222,22 @@ function DashboardPage() {
     }
   }, [allStatistics, setAllBatchStatistics]);
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const localBatchesMap = useBatchStore(useShallow((state) => state.localBatches));
-  const storeBatches = reactExports.useMemo(() => [
-    ...Array.from(batchesMap.values()),
-    ...Array.from(localBatchesMap.values())
-  ], [batchesMap, localBatchesMap]);
+  const storeBatches = reactExports.useMemo(() => Array.from(batchesMap.values()), [batchesMap]);
   const logs = useLogStore(useShallow((state) => state.logs.slice(-10)));
   reactExports.useEffect(() => {
-    if (batches && batches.length > 0) {
-      const batchIds = batches.map((b) => b.id);
+    if (batches2 && batches2.length > 0) {
+      const batchIds = batches2.map((b) => b.id);
       subscribe(batchIds);
       return () => unsubscribe(batchIds);
     }
-  }, [batches, subscribe, unsubscribe]);
-  const displayBatches = storeBatches.length > 0 ? storeBatches : batches ?? [];
+  }, [batches2, subscribe, unsubscribe]);
+  const displayBatches = storeBatches.length > 0 ? storeBatches : batches2 ?? [];
   const isStationServiceConnected = !healthError && !batchesError;
   const handleRetry = () => {
     refetchBatches();
     refetchHealth();
   };
-  if (batchesLoading && !batches) {
+  if (batchesLoading && !batches2) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingOverlay, { message: "Loading dashboard..." });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
@@ -6531,7 +6495,6 @@ function BatchCard({
 }) {
   const isRunning = batch.status === "running" || batch.status === "starting";
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
-  const isLocalBatch = batch.id.startsWith("local-batch-");
   const stats = statistics || { total: 0, pass: 0, fail: 0, passRate: 0 };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
@@ -6571,14 +6534,15 @@ function BatchCard({
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx(Square, { className: "w-4 h-4" })
               }
             ),
-            isLocalBatch && !isRunning && onDelete && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            !isRunning && onDelete && /* @__PURE__ */ jsxRuntimeExports.jsx(
               Button,
               {
-                variant: "danger",
+                variant: "ghost",
                 size: "sm",
                 onClick: () => onDelete(batch.id),
                 disabled: isLoading,
                 title: "Delete",
+                className: "text-red-500 hover:text-red-400 hover:bg-red-500/10",
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4" })
               }
             ),
@@ -6612,9 +6576,9 @@ function BatchCard({
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium truncate", style: { color: "var(--color-text-primary)" }, children: batch.currentStep }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-auto", style: { color: "var(--color-text-tertiary)" }, children: [
             "(",
-            batch.stepIndex + 1,
+            (batch.stepIndex ?? 0) + 1,
             "/",
-            batch.totalSteps,
+            batch.totalSteps ?? 0,
             ")"
           ] })
         ] }),
@@ -6694,19 +6658,12 @@ const Select = reactExports.forwardRef(
   }
 );
 Select.displayName = "Select";
-function BatchList({ batches, statistics, onStart, onStop, onDelete, onSelect, isLoading }) {
+function BatchList({ batches: batches2, statistics, onStart, onStop, onDelete, onSelect, isLoading }) {
   const { batchId: selectedBatchId } = useParams();
   const [statusFilter, setStatusFilter] = reactExports.useState("all");
   const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
-  const localBatchStats = useBatchStore(useShallow((state) => state.localBatchStats));
-  const combinedStoreStats = reactExports.useMemo(() => {
-    const combined = /* @__PURE__ */ new Map();
-    batchStatistics.forEach((stats, id) => combined.set(id, stats));
-    localBatchStats.forEach((stats, id) => combined.set(id, stats));
-    return combined;
-  }, [batchStatistics, localBatchStats]);
-  const batchStats = statistics || combinedStoreStats;
-  const filteredBatches = statusFilter === "all" ? batches : batches.filter((b) => b.status === statusFilter);
+  const batchStats = statistics || batchStatistics;
+  const filteredBatches = statusFilter === "all" ? batches2 : batches2.filter((b) => b.status === statusFilter);
   const statusOptions = [
     { value: "all", label: "All Status" },
     { value: "idle", label: "Idle" },
@@ -6907,7 +6864,7 @@ function CreateBatchWizard({
     }
   }, [currentStep, selectedSequence, sequenceDetail, stepOrder, quantity]);
   if (!isOpen) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-5xl max-h-[90vh] rounded-xl border flex flex-col overflow-hidden", style: { backgroundColor: "var(--color-bg-primary)", borderColor: "var(--color-border-default)" }, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-5xl rounded-xl border flex flex-col overflow-hidden", style: { height: "700px", minHeight: "700px", maxHeight: "700px", backgroundColor: "var(--color-bg-primary)", borderColor: "var(--color-border-default)" }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "var(--color-border-default)" }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold", style: { color: "var(--color-text-primary)" }, children: "Create Batch" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "sm", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-5 h-5" }) })
@@ -6937,7 +6894,7 @@ function CreateBatchWizard({
         }
       )
     ] }, step.key)) }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-y-auto p-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-h-0 overflow-y-auto p-6", children: [
       currentStep === "sequence" && /* @__PURE__ */ jsxRuntimeExports.jsx(
         SequenceSelectStep,
         {
@@ -7320,7 +7277,7 @@ function ReviewStep({
     ] })
   ] });
 }
-function BatchStatisticsPanel({ batches, statistics }) {
+function BatchStatisticsPanel({ batches: batches2, statistics }) {
   const totalStats = {
     total: 0,
     pass: 0,
@@ -7336,10 +7293,10 @@ function BatchStatisticsPanel({ batches, statistics }) {
     totalStats.passRate = totalStats.pass / totalStats.total;
   }
   const statusCounts = {
-    running: batches.filter((b) => b.status === "running" || b.status === "starting").length,
-    idle: batches.filter((b) => b.status === "idle").length,
-    completed: batches.filter((b) => b.status === "completed").length,
-    error: batches.filter((b) => b.status === "error").length
+    running: batches2.filter((b) => b.status === "running" || b.status === "starting").length,
+    idle: batches2.filter((b) => b.status === "idle").length,
+    completed: batches2.filter((b) => b.status === "completed").length,
+    error: batches2.filter((b) => b.status === "error").length
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7390,7 +7347,7 @@ function BatchStatisticsPanel({ batches, statistics }) {
         value: statusCounts.running,
         color: "text-brand-500",
         bgColor: "bg-brand-500/10",
-        subtitle: `${batches.length} total batches`
+        subtitle: `${batches2.length} total batches`
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
@@ -7438,67 +7395,47 @@ function StatusDot({
 }
 function BatchesPage() {
   const navigate = useNavigate();
-  const { data: batches, isLoading: batchesLoading } = useBatchList();
+  const { data: batches2, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
-  const { subscribe, unsubscribe } = useWebSocket();
+  const { subscribe, unsubscribe, isConnected } = useWebSocket();
+  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
+  const isServerConnected = isConnected && websocketStatus === "connected";
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const localBatches = useBatchStore(useShallow((state) => state.localBatches));
   const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
-  const localBatchStats = useBatchStore(useShallow((state) => state.localBatchStats));
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
-  const removeLocalBatch = useBatchStore((state) => state.removeLocalBatch);
-  const clearLocalBatchSteps = useBatchStore((state) => state.clearLocalBatchSteps);
   const storeBatches = reactExports.useMemo(() => {
-    const apiBatches = Array.from(batchesMap.values());
-    const localBatchArray = Array.from(localBatches.values());
-    return [...apiBatches, ...localBatchArray];
-  }, [batchesMap, localBatches]);
-  const combinedStatistics = reactExports.useMemo(() => {
-    const combined = /* @__PURE__ */ new Map();
-    batchStatistics.forEach((stats, id) => combined.set(id, stats));
-    localBatchStats.forEach((stats, id) => combined.set(id, stats));
-    return combined;
-  }, [batchStatistics, localBatchStats]);
+    return Array.from(batchesMap.values());
+  }, [batchesMap]);
   const startBatch2 = useStartBatch();
   const stopBatch2 = useStopBatch();
-  const startSequence2 = useStartSequence();
-  const stopSequence2 = useStopSequence();
+  const deleteBatch2 = useDeleteBatch();
   const createBatches2 = useCreateBatches();
   reactExports.useEffect(() => {
-    if (batches && batches.length > 0) {
-      const batchIds = batches.map((b) => b.id);
+    if (batches2 && batches2.length > 0) {
+      const batchIds = batches2.map((b) => b.id);
       subscribe(batchIds);
       return () => unsubscribe(batchIds);
     }
-  }, [batches, subscribe, unsubscribe]);
-  const displayBatches = storeBatches.length > 0 ? storeBatches : batches ?? [];
+  }, [batches2, subscribe, unsubscribe]);
+  const displayBatches = storeBatches.length > 0 ? storeBatches : batches2 ?? [];
   const handleSelectBatch = (id) => {
     navigate(getBatchDetailRoute(id));
   };
   const handleStartBatch = async (id) => {
-    if (id.startsWith("local-batch-")) {
-      await startSequence2.mutateAsync({ batchId: id, request: void 0 });
-    } else {
-      await startBatch2.mutateAsync(id);
-    }
+    await startBatch2.mutateAsync(id);
   };
   const handleStopBatch = async (id) => {
-    if (id.startsWith("local-batch-")) {
-      await stopSequence2.mutateAsync(id);
-    } else {
-      await stopBatch2.mutateAsync(id);
-    }
+    await stopBatch2.mutateAsync(id);
   };
   const handleCreateBatches = async (request) => {
     await createBatches2.mutateAsync(request);
     closeWizard();
   };
-  const handleDeleteBatch = (id) => {
-    if (id.startsWith("local-batch-") && window.confirm("Are you sure you want to delete this batch?")) {
-      clearLocalBatchSteps(id);
-      removeLocalBatch(id);
+  const handleDeleteBatch = async (id) => {
+    if (window.confirm("Are you sure you want to delete this batch?")) {
+      await deleteBatch2.mutateAsync(id);
     }
   };
   const getSequenceDetail = reactExports.useCallback(async (name) => {
@@ -7513,12 +7450,27 @@ function BatchesPage() {
         /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { className: "w-6 h-6 text-brand-500" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold", style: { color: "var(--color-text-primary)" }, children: "Batches" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { variant: "primary", onClick: openWizard, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "w-4 h-4 mr-2" }),
-        "Create Batch"
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+        !isServerConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/30", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(WifiOff, { className: "w-4 h-4 text-amber-500" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-amber-500", children: "Server disconnected" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          Button,
+          {
+            variant: "primary",
+            onClick: openWizard,
+            disabled: !isServerConnected,
+            title: !isServerConnected ? "Server connection required to create batches" : void 0,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "w-4 h-4 mr-2" }),
+              "Create Batch"
+            ]
+          }
+        )
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(BatchStatisticsPanel, { batches: displayBatches, statistics: combinedStatistics }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(BatchStatisticsPanel, { batches: displayBatches, statistics: batchStatistics }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       BatchList,
       {
@@ -7527,7 +7479,7 @@ function BatchesPage() {
         onStop: handleStopBatch,
         onDelete: handleDeleteBatch,
         onSelect: handleSelectBatch,
-        isLoading: startBatch2.isPending || stopBatch2.isPending || startSequence2.isPending || stopSequence2.isPending
+        isLoading: startBatch2.isPending || stopBatch2.isPending || deleteBatch2.isPending
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7549,19 +7501,13 @@ function isBatchDetail$1(batch) {
 function BatchDetailPage() {
   const { batchId } = useParams();
   const navigate = useNavigate();
-  const isLocalBatch = (batchId == null ? void 0 : batchId.startsWith("local-batch-")) ?? false;
   const { data: batch, isLoading } = useBatch(batchId ?? null);
   const { subscribe, unsubscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
-  const removeLocalBatch = useBatchStore((state) => state.removeLocalBatch);
-  const clearLocalBatchSteps = useBatchStore((state) => state.clearLocalBatchSteps);
-  const localBatchSteps = useBatchStore(
-    useShallow(
-      (state) => isLocalBatch && batchId ? state.localBatchSteps.get(batchId) || [] : []
-    )
-  );
+  const startBatch2 = useStartBatch();
   const startSequence2 = useStartSequence();
   const stopSequence2 = useStopSequence();
+  const stopBatch2 = useStopBatch();
   reactExports.useEffect(() => {
     if (batchId) {
       subscribe([batchId]);
@@ -7571,26 +7517,40 @@ function BatchDetailPage() {
   const statistics = reactExports.useMemo(() => {
     return batchId ? getBatchStats(batchId) : void 0;
   }, [batchId, getBatchStats]);
+  const steps = reactExports.useMemo(() => {
+    var _a;
+    if (!batch) return [];
+    if (isBatchDetail$1(batch) && ((_a = batch.execution) == null ? void 0 : _a.steps)) {
+      return batch.execution.steps;
+    }
+    return [];
+  }, [batch]);
   const handleBack = () => {
     navigate(ROUTES.BATCHES);
   };
   const handleStartSequence = async () => {
-    if (batchId) {
+    if (!batchId || !batch) {
+      console.error("[handleStartSequence] Missing batchId or batch");
+      return;
+    }
+    try {
+      console.log("[handleStartSequence] Starting sequence for batch:", batchId, "status:", batch.status);
+      if (batch.status === "idle") {
+        console.log("[handleStartSequence] Starting batch first...");
+        await startBatch2.mutateAsync(batchId);
+        console.log("[handleStartSequence] Batch started");
+      }
+      console.log("[handleStartSequence] Starting sequence...");
       await startSequence2.mutateAsync({ batchId, request: void 0 });
+      console.log("[handleStartSequence] Sequence started successfully");
+    } catch (error) {
+      console.error("[handleStartSequence] Error:", error);
     }
   };
   const handleStopSequence = async () => {
     if (batchId) {
       await stopSequence2.mutateAsync(batchId);
-    }
-  };
-  const handleDeleteBatch = () => {
-    if (batchId && isLocalBatch) {
-      if (window.confirm("Are you sure you want to delete this batch?")) {
-        clearLocalBatchSteps(batchId);
-        removeLocalBatch(batchId);
-        navigate(ROUTES.BATCHES);
-      }
+      await stopBatch2.mutateAsync(batchId);
     }
   };
   if (isLoading) {
@@ -7608,16 +7568,6 @@ function BatchDetailPage() {
   }
   const isRunning = batch.status === "running" || batch.status === "starting";
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
-  const steps = reactExports.useMemo(() => {
-    var _a;
-    if (isBatchDetail$1(batch) && ((_a = batch.execution) == null ? void 0 : _a.steps)) {
-      return batch.execution.steps;
-    }
-    if (isLocalBatch && localBatchSteps.length > 0) {
-      return localBatchSteps;
-    }
-    return [];
-  }, [batch, isLocalBatch, localBatchSteps]);
   const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
   const elapsedTime = isBatchDetail$1(batch) && batch.execution ? batch.execution.elapsed : batch.elapsed;
   const progress = isBatchDetail$1(batch) && batch.execution ? batch.execution.progress : batch.progress;
@@ -7657,7 +7607,7 @@ function BatchDetailPage() {
           {
             variant: "primary",
             onClick: handleStartSequence,
-            isLoading: startSequence2.isPending,
+            isLoading: startBatch2.isPending || startSequence2.isPending,
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
               "Start Sequence"
@@ -7669,22 +7619,10 @@ function BatchDetailPage() {
           {
             variant: "danger",
             onClick: handleStopSequence,
-            isLoading: stopSequence2.isPending,
+            isLoading: stopSequence2.isPending || stopBatch2.isPending,
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Square, { className: "w-4 h-4 mr-2" }),
               "Stop"
-            ]
-          }
-        ),
-        isLocalBatch && !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          Button,
-          {
-            variant: "ghost",
-            onClick: handleDeleteBatch,
-            className: "text-red-500 hover:text-red-400 hover:bg-red-500/10",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4 mr-2" }),
-              "Delete"
             ]
           }
         )
@@ -7719,7 +7657,7 @@ function BatchDetailPage() {
         /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Sequence Name", value: batch.sequenceName || "Not assigned" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Version", value: batch.sequenceVersion || "-" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Package", value: batch.sequencePackage || "-" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Total Steps", value: batch.totalSteps.toString() })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Total Steps", value: (batch.totalSteps ?? 0).toString() })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6", children: [
@@ -7800,7 +7738,7 @@ function BatchDetailPage() {
         /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5 text-brand-500" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Step Results" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(StepsTable, { steps, totalSteps: batch.totalSteps, stepNames: batch.stepNames })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(StepsTable, { steps, totalSteps: batch.totalSteps ?? 0, stepNames: batch.stepNames })
     ] })
   ] });
 }
@@ -7880,7 +7818,7 @@ function StepRow({ step }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4 font-medium", style: { color: "var(--color-text-primary)" }, children: step.name }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status: getStatusBadge(), size: "sm" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4", children: getResultBadge() }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4 font-mono", style: { color: "var(--color-text-secondary)" }, children: step.duration !== void 0 ? `${step.duration.toFixed(2)}s` : "-" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4 font-mono", style: { color: "var(--color-text-secondary)" }, children: step.duration != null ? `${step.duration.toFixed(2)}s` : "-" })
       ]
     }
   );
@@ -8699,7 +8637,7 @@ function isBatchDetail(data) {
   return data !== null && typeof data === "object" && "hardwareStatus" in data;
 }
 function ManualControlPage() {
-  const { data: batches, isLoading } = useBatchList();
+  const { data: batches2, isLoading } = useBatchList();
   const [selectedBatchId, setSelectedBatchId] = reactExports.useState("");
   const { data: batchDetail } = useBatch(selectedBatchId || null);
   const [selectedHardware, setSelectedHardware] = reactExports.useState("");
@@ -8753,7 +8691,7 @@ function ManualControlPage() {
       ]);
     }
   };
-  const batchOptions = (batches == null ? void 0 : batches.map((b) => ({
+  const batchOptions = (batches2 == null ? void 0 : batches2.map((b) => ({
     value: b.id,
     label: `${b.name} (${b.status})`
   }))) ?? [];
@@ -8932,7 +8870,7 @@ function HardwareStatusRow({ id, status, isSelected }) {
   );
 }
 function LogsPage() {
-  const { data: batches } = useBatchList();
+  const { data: batches2 } = useBatchList();
   const [batchFilter, setBatchFilter] = reactExports.useState("");
   const [levelFilter, setLevelFilter] = reactExports.useState("");
   const [searchFilter, setSearchFilter] = reactExports.useState("");
@@ -8965,7 +8903,7 @@ function LogsPage() {
   }, [realTimeLogs, autoScroll, showHistorical]);
   const batchOptions = [
     { value: "", label: "All Batches" },
-    ...(batches == null ? void 0 : batches.map((b) => ({ value: b.id, label: b.name }))) ?? []
+    ...(batches2 == null ? void 0 : batches2.map((b) => ({ value: b.id, label: b.name }))) ?? []
   ];
   const levelOptions = [
     { value: "", label: "All Levels" },

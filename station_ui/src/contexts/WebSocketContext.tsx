@@ -11,11 +11,13 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useBatchStore } from '../stores/batchStore';
 import { useLogStore } from '../stores/logStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { WEBSOCKET_CONFIG } from '../config';
+import { queryKeys } from '../api/queryClient';
 import type { ClientMessage, ServerMessage } from '../types';
 
 /**
@@ -83,6 +85,7 @@ function transformKeys<T>(obj: unknown): T {
 }
 
 export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderProps) {
+  const queryClient = useQueryClient();
   const socketRef = useRef<WebSocket | null>(null);
   const subscribedBatchIds = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -201,9 +204,32 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         case 'unsubscribed':
           // Acknowledgment received
           break;
+
+        case 'batch_created': {
+          // Invalidate batches query to refresh the list
+          queryClient.invalidateQueries({ queryKey: queryKeys.batches });
+          addNotification({
+            type: 'info',
+            title: 'Batch Created',
+            message: `New batch "${message.data.name}" has been created`,
+          });
+          break;
+        }
+
+        case 'batch_deleted': {
+          // Invalidate batches query to refresh the list
+          queryClient.invalidateQueries({ queryKey: queryKeys.batches });
+          addNotification({
+            type: 'info',
+            title: 'Batch Deleted',
+            message: `Batch has been deleted`,
+            batchId: message.batchId,
+          });
+          break;
+        }
       }
     },
-    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification, queryClient]
   );
 
   // Connect to WebSocket

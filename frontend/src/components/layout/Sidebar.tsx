@@ -30,6 +30,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   LogOut,
+  Server,
   type LucideIcon
 } from 'lucide-react';
 
@@ -85,6 +86,12 @@ const navSections: NavSection[] = [
           { path: '/serials/list', label: 'Serial List by LOT', icon: Package },
         ]
       },
+    ]
+  },
+  {
+    sectionLabel: 'MONITORING',
+    items: [
+      { path: '/stations', label: 'Station Monitor', icon: Server },
     ]
   },
   {

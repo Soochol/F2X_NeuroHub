@@ -262,9 +262,34 @@ class IPCClient:
         if not self._connected:
             raise IPCError("IPC Client not connected", "NOT_CONNECTED")
 
+        try:
+            serialized = response.serialize()
+        except TypeError as e:
+            # Debug: log the problematic data
+            import json
+            logger.error(f"Failed to serialize response: {e}")
+            logger.error(f"Response object: status={response.status!r}, request_id={response.request_id!r}, error={response.error!r}")
+            logger.error(f"Response data type: {type(response.data)}")
+            logger.error(f"Response data: {response.data}")
+            # Try to identify which field is problematic
+            if response.data:
+                for key, value in response.data.items():
+                    try:
+                        json.dumps(value)
+                        logger.error(f"  {key}: {type(value).__name__} = {value!r} (OK)")
+                    except TypeError as inner_e:
+                        logger.error(f"  {key}: {type(value).__name__} = {value!r} (FAIL: {inner_e})")
+            # Try serializing just status and request_id
+            try:
+                json.dumps({"status": response.status, "request_id": response.request_id})
+                logger.error("status + request_id: OK")
+            except TypeError as inner_e:
+                logger.error(f"status + request_id: FAIL: {inner_e}")
+            raise
+
         await self._dealer_socket.send_multipart([
             b"",
-            response.serialize().encode("utf-8"),
+            serialized.encode("utf-8"),
         ])
 
     async def _command_loop(self) -> None:
@@ -312,7 +337,8 @@ class IPCClient:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Command loop error: {e}")
+                import traceback
+                logger.error(f"Command loop error: {e}\n{traceback.format_exc()}")
                 await asyncio.sleep(0.1)
 
         logger.debug(f"Command loop stopped for {self._batch_id}")

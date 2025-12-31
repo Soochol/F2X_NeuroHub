@@ -10,6 +10,8 @@ export const POLLING_INTERVALS = {
   batches: 10_000, // 10 seconds
   /** Batch list polling interval (fallback mode when WebSocket is disconnected) */
   batchesFallback: 3_000, // 3 seconds - faster polling when WS is down
+  /** Batch detail polling interval (for real-time step updates) */
+  batchDetail: 1_000, // 1 second - fast polling for step progress
   /** Health status polling interval */
   health: 30_000, // 30 seconds
   /** System info cache time (not polling, just stale time) */

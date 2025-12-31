@@ -30,9 +30,10 @@ class SyncEngine:
     - Managing offline queue for failed syncs
     - Automatic retry with exponential backoff
     - Connection health monitoring
+    - Station auto-registration and heartbeat with backend
 
     Usage:
-        engine = SyncEngine(config=backend_config, database=db)
+        engine = SyncEngine(config=backend_config, database=db, station_config=cfg)
         await engine.start()
 
         # Queue data for sync
@@ -50,6 +51,10 @@ class SyncEngine:
         config: BackendConfig,
         database: Database,
         event_emitter: Optional[EventEmitter] = None,
+        station_name: Optional[str] = None,
+        station_description: Optional[str] = None,
+        server_host: str = "0.0.0.0",
+        server_port: int = 8080,
     ) -> None:
         """
         Initialize the SyncEngine.
@@ -58,22 +63,36 @@ class SyncEngine:
             config: Backend configuration
             database: Database instance for sync queue
             event_emitter: Optional event emitter
+            station_name: Station name for registration
+            station_description: Station description for registration
+            server_host: Station server host (for registration)
+            server_port: Station server port (for registration)
         """
         self._config = config
         self._database = database
         self._event_emitter = event_emitter or get_event_emitter()
         self._sync_repo: Optional[SyncRepository] = None
 
+        # Station info for auto-registration
+        self._station_id = config.station_id
+        self._station_name = station_name or config.station_id
+        self._station_description = station_description or ""
+        self._server_host = server_host
+        self._server_port = server_port
+        self._registered = False
+
         self._client: Optional[httpx.AsyncClient] = None
         self._running = False
         self._connected = False
         self._sync_task: Optional[asyncio.Task] = None
         self._health_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: Optional[asyncio.Task] = None
 
         # Sync settings
         self._sync_interval = config.sync_interval  # seconds
         self._max_retries = 5
         self._retry_backoff = 2.0  # exponential backoff multiplier
+        self._heartbeat_interval = 15  # seconds
 
     @property
     def is_running(self) -> bool:
@@ -94,7 +113,7 @@ class SyncEngine:
         """
         Start the sync engine.
 
-        Initializes HTTP client and starts background tasks.
+        Initializes HTTP client, registers with backend, and starts background tasks.
         """
         if self._running:
             logger.warning("SyncEngine already running")
@@ -120,9 +139,17 @@ class SyncEngine:
 
         self._running = True
 
+        # Check connection first
+        await self.check_connection()
+
+        # Register with backend if station_id is configured
+        if self._station_id and self._connected:
+            await self._register_station()
+
         # Start background tasks
         self._health_task = asyncio.create_task(self._health_check_loop())
         self._sync_task = asyncio.create_task(self._sync_loop())
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
         logger.info(f"SyncEngine started - Backend: {self._config.url}")
 
@@ -138,7 +165,7 @@ class SyncEngine:
         self._running = False
 
         # Cancel background tasks
-        for task in [self._sync_task, self._health_task]:
+        for task in [self._sync_task, self._health_task, self._heartbeat_task]:
             if task:
                 task.cancel()
                 try:
@@ -148,6 +175,7 @@ class SyncEngine:
 
         self._sync_task = None
         self._health_task = None
+        self._heartbeat_task = None
 
         # Close HTTP client
         if self._client:
@@ -416,6 +444,116 @@ class SyncEngine:
                 await asyncio.sleep(30)
 
         logger.debug("Health check loop stopped")
+
+    # ================================================================
+    # Station Registration and Heartbeat
+    # ================================================================
+
+    async def _register_station(self) -> bool:
+        """
+        Register this station with the backend.
+
+        Returns:
+            True if registration succeeded
+        """
+        if not self._client or not self._station_id:
+            return False
+
+        try:
+            # Determine station host for registration
+            # If server_host is 0.0.0.0, use localhost for registration
+            host = self._server_host
+            if host == "0.0.0.0":
+                host = "localhost"
+
+            payload = {
+                "station_id": self._station_id,
+                "station_name": self._station_name,
+                "host": host,
+                "port": self._server_port,
+                "description": self._station_description,
+            }
+
+            response = await self._client.post("/api/v1/stations/register", json=payload)
+
+            if response.status_code in (200, 201):
+                self._registered = True
+                logger.info(f"Station registered with backend: {self._station_id}")
+                return True
+            else:
+                logger.warning(
+                    f"Station registration failed: {response.status_code} - {response.text[:200]}"
+                )
+                return False
+
+        except httpx.RequestError as e:
+            logger.error(f"Station registration request error: {e}")
+            return False
+
+    async def _send_heartbeat(self) -> bool:
+        """
+        Send a heartbeat to the backend.
+
+        Returns:
+            True if heartbeat succeeded
+        """
+        if not self._client or not self._station_id or not self._registered:
+            return False
+
+        try:
+            # Collect health data to send with heartbeat
+            health_data = {
+                "status": "healthy",
+                "batches_running": 0,  # Will be updated by actual batch count
+                "backend_status": "connected" if self._connected else "disconnected",
+                "disk_usage": 0,  # Could be fetched from system
+            }
+
+            response = await self._client.post(
+                f"/api/v1/stations/{self._station_id}/heartbeat",
+                json={"health_data": health_data},
+            )
+
+            if response.status_code == 200:
+                return True
+            elif response.status_code == 404:
+                # Station not found, need to re-register
+                logger.warning("Station not found in backend, re-registering...")
+                self._registered = False
+                return await self._register_station()
+            else:
+                logger.debug(f"Heartbeat failed: {response.status_code}")
+                return False
+
+        except httpx.RequestError as e:
+            logger.debug(f"Heartbeat request error: {e}")
+            return False
+
+    async def _heartbeat_loop(self) -> None:
+        """Background task for sending periodic heartbeats."""
+        logger.debug("Heartbeat loop started")
+
+        while self._running:
+            try:
+                await asyncio.sleep(self._heartbeat_interval)
+
+                if not self._connected:
+                    continue
+
+                if not self._registered:
+                    # Try to register if not yet registered
+                    await self._register_station()
+                else:
+                    # Send heartbeat
+                    await self._send_heartbeat()
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Heartbeat loop error: {e}")
+                await asyncio.sleep(5)
+
+        logger.debug("Heartbeat loop stopped")
 
     # ================================================================
     # WIP Process Sync Methods

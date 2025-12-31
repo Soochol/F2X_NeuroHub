@@ -321,3 +321,33 @@ async def broadcast_error(
             },
         },
     )
+
+
+async def broadcast_batch_created(
+    batch_id: str, name: str, sequence_package: str = None
+) -> None:
+    """Broadcast batch created event to all connected clients."""
+    await manager.broadcast_all(
+        {
+            "type": "batch_created",
+            "batch_id": batch_id,
+            "data": {
+                "id": batch_id,
+                "name": name,
+                "sequence_package": sequence_package,
+            },
+        },
+    )
+
+
+async def broadcast_batch_deleted(batch_id: str) -> None:
+    """Broadcast batch deleted event to all connected clients."""
+    await manager.broadcast_all(
+        {
+            "type": "batch_deleted",
+            "batch_id": batch_id,
+            "data": {
+                "id": batch_id,
+            },
+        },
+    )

@@ -3,8 +3,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useShallow } from 'zustand/react/shallow';
+import { useEffect } from 'react';
 import { queryKeys } from '../api/queryClient';
+import type { ApiError } from '../api/client';
 import {
   getBatches,
   getBatch,
@@ -21,7 +22,6 @@ import {
 } from '../api/endpoints/batches';
 import { useBatchStore } from '../stores/batchStore';
 import { useConnectionStore } from '../stores/connectionStore';
-import { useEffect } from 'react';
 import { toast, getErrorMessage } from '../utils';
 import { POLLING_INTERVALS } from '../config';
 import type {
@@ -30,6 +30,16 @@ import type {
   CreateBatchRequest,
   UpdateBatchConfigRequest,
 } from '../types';
+
+/**
+ * Check if error is a 409 Conflict (already running).
+ */
+function isAlreadyRunningError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    return (error as ApiError).status === 409;
+  }
+  return false;
+}
 
 /**
  * Hook to fetch all batches.
@@ -62,50 +72,43 @@ export function useBatchList() {
 
 /**
  * Hook to fetch a specific batch.
- * For local batches (prefixed with 'local-batch-'), returns from store directly.
+ * Polls frequently to catch real-time step updates.
  */
 export function useBatch(batchId: string | null) {
-  // Check if it's a local batch
-  const isLocalBatch = batchId?.startsWith('local-batch-') ?? false;
-
-  // Subscribe to the specific local batch from the store (reactive with useShallow)
-  const localBatch = useBatchStore(
-    useShallow((state) => {
-      if (!isLocalBatch || !batchId) return undefined;
-      return state.localBatches.get(batchId);
-    })
-  );
-
-  const query = useQuery({
+  return useQuery({
     queryKey: queryKeys.batch(batchId ?? ''),
     queryFn: () => getBatch(batchId!),
-    enabled: !!batchId && !isLocalBatch,
+    enabled: !!batchId,
+    refetchInterval: POLLING_INTERVALS.batchDetail, // Poll every 1 second for step updates
   });
-
-  // For local batches, return the data from the store
-  if (isLocalBatch) {
-    return {
-      ...query,
-      data: localBatch,
-      isLoading: false,
-      isError: !localBatch,
-    };
-  }
-
-  return query;
 }
 
 /**
  * Hook to start a batch.
+ * Handles 409 Conflict (already running) gracefully.
  */
 export function useStartBatch() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (batchId: string) => startBatch(batchId),
-    onSuccess: () => {
+    mutationFn: async (batchId: string) => {
+      try {
+        return await startBatch(batchId);
+      } catch (error: unknown) {
+        // If already running (409), treat as success
+        if (isAlreadyRunningError(error)) {
+          return { batchId, status: 'already_running' as const, message: 'Batch already running' };
+        }
+        throw error;
+      }
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.batches });
-      toast.success('Batch started successfully');
+      if ('status' in result && result.status === 'already_running') {
+        // Silent - no toast for already running
+      } else {
+        toast.success('Batch started successfully');
+      }
     },
     onError: (error: unknown) => {
       toast.error(`Failed to start batch: ${getErrorMessage(error)}`);
@@ -132,23 +135,61 @@ export function useStopBatch() {
 }
 
 /**
+ * Hook to delete a batch.
+ */
+export function useDeleteBatch() {
+  const queryClient = useQueryClient();
+  const removeBatch = useBatchStore((state) => state.removeBatch);
+
+  return useMutation({
+    mutationFn: async (batchId: string) => {
+      const { deleteBatch } = await import('../api/endpoints/batches');
+      return deleteBatch(batchId);
+    },
+    onSuccess: (_, batchId) => {
+      removeBatch(batchId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches });
+      toast.success('Batch deleted successfully');
+    },
+    onError: (error: unknown) => {
+      toast.error(`Failed to delete batch: ${getErrorMessage(error)}`);
+    },
+  });
+}
+
+/**
  * Hook to start a sequence.
+ * Handles 409 Conflict (already running) gracefully.
  */
 export function useStartSequence() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       batchId,
       request,
     }: {
       batchId: string;
       request?: SequenceStartRequest;
-    }) => startSequence(batchId, request),
-    onSuccess: (_, variables) => {
+    }) => {
+      try {
+        return await startSequence(batchId, request);
+      } catch (error: unknown) {
+        // If already running (409), treat as success
+        if (isAlreadyRunningError(error)) {
+          return { batchId, status: 'already_running' as const, message: 'Sequence already running' };
+        }
+        throw error;
+      }
+    },
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.batch(variables.batchId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.batches });
-      toast.success('Sequence started successfully');
+      if ('status' in result && result.status === 'already_running') {
+        // Silent - no toast for already running
+      } else {
+        toast.success('Sequence started successfully');
+      }
     },
     onError: (error: unknown) => {
       toast.error(`Failed to start sequence: ${getErrorMessage(error)}`);

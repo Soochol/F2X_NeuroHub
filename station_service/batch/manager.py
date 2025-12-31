@@ -86,6 +86,52 @@ class BatchManager:
         """Get list of configured batch IDs."""
         return list(self._batch_configs.keys())
 
+    def get_batch_config(self, batch_id: str) -> Optional[BatchConfig]:
+        """Get configuration for a specific batch."""
+        return self._batch_configs.get(batch_id)
+
+    def add_batch(self, config: BatchConfig) -> None:
+        """
+        Add a new batch configuration at runtime.
+
+        Args:
+            config: Batch configuration to add
+
+        Raises:
+            BatchError: If batch ID already exists
+        """
+        if config.id in self._batch_configs:
+            raise BatchError(f"Batch '{config.id}' already exists")
+
+        self._batch_configs[config.id] = config
+        logger.info(f"Added batch configuration: {config.id}")
+
+    def remove_batch(self, batch_id: str) -> bool:
+        """
+        Remove a batch configuration at runtime.
+
+        Args:
+            batch_id: The batch ID to remove
+
+        Returns:
+            True if batch was removed
+
+        Raises:
+            BatchNotFoundError: If batch ID not found
+            BatchAlreadyRunningError: If batch is currently running
+        """
+        if batch_id not in self._batch_configs:
+            raise BatchNotFoundError(batch_id)
+
+        if batch_id in self._batches:
+            raise BatchAlreadyRunningError(
+                f"Cannot remove batch '{batch_id}' while it is running. Stop it first."
+            )
+
+        del self._batch_configs[batch_id]
+        logger.info(f"Removed batch configuration: {batch_id}")
+        return True
+
     @property
     def running_batch_ids(self) -> List[str]:
         """Get list of currently running batch IDs."""
