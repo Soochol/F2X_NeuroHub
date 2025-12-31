@@ -3,8 +3,8 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import { Activity, CheckCircle, Clock, AlertTriangle, WifiOff, ServerOff, RefreshCw } from 'lucide-react';
-import { useBatchList, useHealthStatus, useWebSocket, useSystemInfo } from '../hooks';
+import { Activity, CheckCircle, XCircle, WifiOff, ServerOff, RefreshCw } from 'lucide-react';
+import { useBatchList, useHealthStatus, useWebSocket, useSystemInfo, useAllBatchStatistics } from '../hooks';
 import { useLogStore } from '../stores/logStore';
 import { useBatchStore } from '../stores/batchStore';
 import { useConnectionStore } from '../stores/connectionStore';
@@ -14,13 +14,35 @@ import { LogEntryRow } from '../components/molecules/LogEntryRow';
 import { ProgressBar } from '../components/atoms/ProgressBar';
 import { StatusBadge } from '../components/atoms/StatusBadge';
 import { LoadingOverlay } from '../components/atoms/LoadingSpinner';
-import type { BatchStatus } from '../types';
+import { BatchOverviewCard } from '../components/molecules/BatchOverviewCard';
 
 export function DashboardPage() {
   const { data: batches, isLoading: batchesLoading, isError: batchesError, refetch: refetchBatches } = useBatchList();
   const { data: health, isError: healthError, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
   const { data: systemInfo } = useSystemInfo();
+  const { data: allStatistics } = useAllBatchStatistics();
   const { subscribe, unsubscribe } = useWebSocket();
+
+  // Get total stats from store (updated in real-time via WebSocket)
+  const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
+  const totalStats = useBatchStore(
+    useShallow((state) => {
+      const { batchStatistics, localBatchStats } = state;
+      const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+      batchStatistics.forEach((s) => {
+        total.total += s.total;
+        total.pass += s.pass;
+        total.fail += s.fail;
+      });
+      localBatchStats.forEach((s) => {
+        total.total += s.total;
+        total.pass += s.pass;
+        total.fail += s.fail;
+      });
+      total.passRate = total.total > 0 ? total.pass / total.total : 0;
+      return total;
+    })
+  );
 
   // Connection status from store
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
@@ -34,6 +56,13 @@ export function DashboardPage() {
       setBackendStatus('disconnected');
     }
   }, [health, healthError, setBackendStatus]);
+
+  // Sync API statistics to store for real-time updates
+  useEffect(() => {
+    if (allStatistics) {
+      setAllBatchStatistics(allStatistics);
+    }
+  }, [allStatistics, setAllBatchStatistics]);
 
   // Use useShallow to prevent re-renders when array contents haven't changed
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
@@ -56,13 +85,6 @@ export function DashboardPage() {
   // Use store batches if available (more up-to-date from WebSocket)
   const displayBatches = storeBatches.length > 0 ? storeBatches : batches ?? [];
 
-  // Calculate stats
-  const totalBatches = displayBatches.length;
-  const runningBatches = displayBatches.filter(
-    (b) => b.status === 'running' || b.status === 'starting'
-  ).length;
-  const completedToday = displayBatches.filter((b) => b.status === 'completed').length;
-  const errorBatches = displayBatches.filter((b) => b.status === 'error').length;
 
   // Determine if station service is connected (API reachable)
   const isStationServiceConnected = !healthError && !batchesError;
@@ -115,29 +137,23 @@ export function DashboardPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard
-          title="Total Batches"
-          value={totalBatches}
+          title="Total Runs"
+          value={totalStats.total}
           icon={<Activity className="w-5 h-5" />}
           variant="default"
         />
         <StatsCard
-          title="Running"
-          value={runningBatches}
-          icon={<Clock className="w-5 h-5" />}
-          variant="info"
-        />
-        <StatsCard
-          title="Completed"
-          value={completedToday}
+          title="Pass"
+          value={totalStats.pass}
           icon={<CheckCircle className="w-5 h-5" />}
           variant="success"
         />
         <StatsCard
-          title="Errors"
-          value={errorBatches}
-          icon={<AlertTriangle className="w-5 h-5" />}
+          title="Fail"
+          value={totalStats.fail}
+          icon={<XCircle className="w-5 h-5" />}
           variant="error"
         />
       </div>
@@ -254,14 +270,8 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Batch Overview */}
-      <div
-        className="p-4 rounded-lg border transition-colors"
-        style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-default)',
-        }}
-      >
+      {/* Batch Status Overview */}
+      <div>
         <h3
           className="text-lg font-semibold mb-4"
           style={{ color: 'var(--color-text-primary)' }}
@@ -269,19 +279,21 @@ export function DashboardPage() {
           Batch Status Overview
         </h3>
         {displayBatches.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
-            No batches configured
-          </p>
+          <div
+            className="p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
+              No batches configured
+            </p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayBatches.map((batch) => (
-              <BatchStatusRow
-                key={batch.id}
-                name={batch.name}
-                status={batch.status}
-                progress={batch.progress * 100}
-                step={batch.currentStep}
-              />
+              <BatchOverviewCard key={batch.id} batch={batch} />
             ))}
           </div>
         )}
@@ -316,53 +328,6 @@ export function DashboardPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-interface BatchStatusRowProps {
-  name: string;
-  status: BatchStatus;
-  progress: number;
-  step?: string;
-}
-
-function BatchStatusRow({ name, status, progress, step }: BatchStatusRowProps) {
-  const statusVariant = {
-    idle: 'default' as const,
-    starting: 'default' as const,
-    running: 'default' as const,
-    stopping: 'warning' as const,
-    completed: 'success' as const,
-    error: 'error' as const,
-  };
-
-  return (
-    <div className="flex items-center gap-4">
-      <span
-        className="w-24 text-sm font-medium truncate"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
-        {name}
-      </span>
-      <StatusBadge status={status} size="sm" />
-      <div className="flex-1">
-        <ProgressBar value={progress} variant={statusVariant[status]} size="sm" />
-      </div>
-      <span
-        className="w-12 text-xs text-right"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
-        {Math.round(progress)}%
-      </span>
-      {step && (
-        <span
-          className="w-24 text-xs truncate"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        >
-          {step}
-        </span>
-      )}
     </div>
   );
 }

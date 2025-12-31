@@ -19,7 +19,6 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  Loader2,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -386,7 +385,10 @@ function StepList({ steps }: { steps: StepSchema[] }) {
             {step.timeout}s
           </div>
           {step.cleanup && (
-            <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">
+            <span
+              className="text-xs px-2 py-0.5 rounded"
+              style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning-text)' }}
+            >
               cleanup
             </span>
           )}
@@ -525,10 +527,7 @@ function TestTabContent({ sequenceName, defaultParameters }: TestTabContentProps
         disabled={simulation.isPending}
       >
         {simulation.isPending ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Running...
-          </>
+          'Running...'
         ) : (
           <>
             <Play className="w-4 h-4 mr-2" />
@@ -654,7 +653,10 @@ function StepPreviewItem({ step, result }: StepPreviewItemProps) {
             {step.displayName}
           </span>
           {step.cleanup && (
-            <span className="text-xs px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">
+            <span
+              className="text-xs px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning-text)' }}
+            >
               cleanup
             </span>
           )}

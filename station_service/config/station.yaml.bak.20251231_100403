@@ -1,5 +1,5 @@
 station:
-  id: test_001
+  id: test_0012
   name: Test Station
   description: Test description
 server:

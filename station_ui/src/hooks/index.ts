@@ -3,7 +3,7 @@
  */
 
 // System hooks
-export { useSystemInfo, useHealthStatus } from './useSystem';
+export { useSystemInfo, useHealthStatus, useUpdateStationInfo } from './useSystem';
 
 // Batch hooks
 export {

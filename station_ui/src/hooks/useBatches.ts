@@ -253,12 +253,15 @@ export function useBatchStatistics(batchId: string | null) {
 
 /**
  * Hook to fetch all batch statistics.
+ * Returns empty object on error (endpoint may not exist).
  */
 export function useAllBatchStatistics() {
   return useQuery({
     queryKey: ['allBatchStatistics'],
     queryFn: getAllBatchStatistics,
     staleTime: 30 * 1000, // 30 seconds
+    retry: false, // Don't retry on 404
+    throwOnError: false, // Don't throw errors
   });
 }
 

@@ -2,9 +2,9 @@
  * System-related React Query hooks.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../api/queryClient';
-import { getSystemInfo, getHealthStatus } from '../api/endpoints/system';
+import { getSystemInfo, getHealthStatus, updateStationInfo, type UpdateStationInfoRequest } from '../api/endpoints/system';
 import { POLLING_INTERVALS } from '../config';
 
 /**
@@ -26,5 +26,20 @@ export function useHealthStatus() {
     queryKey: queryKeys.healthStatus,
     queryFn: getHealthStatus,
     refetchInterval: POLLING_INTERVALS.health,
+  });
+}
+
+/**
+ * Hook to update station information.
+ */
+export function useUpdateStationInfo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateStationInfoRequest) => updateStationInfo(data),
+    onSuccess: (data) => {
+      // Update the cache with the new data
+      queryClient.setQueryData(queryKeys.systemInfo, data);
+    },
   });
 }

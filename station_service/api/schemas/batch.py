@@ -224,3 +224,20 @@ class ManualControlResponse(BaseModel):
     hardware: str = Field(..., description="Hardware device ID")
     command: str = Field(..., description="Executed command")
     result: Dict[str, Any] = Field(..., description="Command result")
+
+
+class BatchStatistics(BaseModel):
+    """Statistics for a batch's execution history.
+
+    Attributes:
+        total: Total number of executions
+        pass_count: Number of passed executions
+        fail: Number of failed executions
+        pass_rate: Pass rate (0.0 to 1.0)
+    """
+    total: int = Field(default=0, description="Total number of executions", ge=0)
+    pass_count: int = Field(default=0, alias="pass", description="Number of passed executions", ge=0)
+    fail: int = Field(default=0, description="Number of failed executions", ge=0)
+    pass_rate: float = Field(default=0.0, alias="passRate", description="Pass rate (0.0 to 1.0)", ge=0.0, le=1.0)
+
+    model_config = {"populate_by_name": True}

@@ -3,7 +3,7 @@
  * Enhanced with statistics display for each batch.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { BatchCard } from '../../molecules/BatchCard';
 import { Select } from '../../atoms/Select';
@@ -25,9 +25,19 @@ export function BatchList({ batches, statistics, onStart, onStop, onDelete, onSe
   const { batchId: selectedBatchId } = useParams<{ batchId?: string }>();
   const [statusFilter, setStatusFilter] = useState<BatchStatus | 'all'>('all');
 
-  // Get statistics from store if not provided via props
-  const storeStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
-  const batchStats = statistics || storeStatistics;
+  // Get statistics from store if not provided via props (combine both API and local stats)
+  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  const localBatchStats = useBatchStore(useShallow((state) => state.localBatchStats));
+
+  // Combine API and local statistics when not provided via props
+  const combinedStoreStats = useMemo(() => {
+    const combined = new Map<string, BatchStatistics>();
+    batchStatistics.forEach((stats, id) => combined.set(id, stats));
+    localBatchStats.forEach((stats, id) => combined.set(id, stats));
+    return combined;
+  }, [batchStatistics, localBatchStats]);
+
+  const batchStats = statistics || combinedStoreStats;
 
   const filteredBatches =
     statusFilter === 'all' ? batches : batches.filter((b) => b.status === statusFilter);

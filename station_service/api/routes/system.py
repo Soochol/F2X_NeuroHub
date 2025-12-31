@@ -18,11 +18,13 @@ from pydantic import BaseModel, Field
 from station_service.api.dependencies import (
     get_batch_manager,
     get_config,
+    get_config_path,
     get_database,
     get_sync_engine,
 )
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
 from station_service.api.schemas.result import HealthStatus, SystemInfo
+from station_service.models.config import StationInfo
 from station_service.batch.manager import BatchManager
 from station_service.models.config import StationConfig
 from station_service.storage.database import Database
@@ -103,6 +105,104 @@ async def get_system_info(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get system info: {str(e)}",
+        )
+
+
+class UpdateStationInfoRequest(BaseModel):
+    """Request body for updating station information."""
+
+    id: str = Field(..., min_length=1, max_length=100, description="Station ID")
+    name: str = Field(..., min_length=1, max_length=200, description="Station name")
+    description: str = Field("", max_length=500, description="Station description")
+
+
+@router.put(
+    "/station-info",
+    response_model=ApiResponse[SystemInfo],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Update station information",
+    description="""
+    Update the station identification information.
+
+    Updates the following fields in the configuration:
+    - Station ID
+    - Station Name
+    - Description
+
+    The configuration file is updated atomically with a backup created.
+    Note: The service must be restarted for all changes to take full effect.
+    """,
+)
+async def update_station_info(
+    request: UpdateStationInfoRequest,
+    config: StationConfig = Depends(get_config),
+    sync_engine: SyncEngine = Depends(get_sync_engine),
+    config_path: str = Depends(get_config_path),
+) -> ApiResponse[SystemInfo]:
+    """
+    Update station information in the configuration file.
+
+    Args:
+        request: The new station information
+        config: Current station configuration
+        sync_engine: Sync engine for connection status
+        config_path: Path to the config file
+
+    Returns:
+        ApiResponse[SystemInfo]: Updated system information
+
+    Raises:
+        HTTPException: 400 if validation fails, 500 if update fails
+    """
+    from pathlib import Path
+    from station_service.core.config_writer import update_station_info as write_station_info
+
+    try:
+        # Create StationInfo from request
+        station_info = StationInfo(
+            id=request.id,
+            name=request.name,
+            description=request.description,
+        )
+
+        # Update the config file
+        updated_config = await write_station_info(Path(config_path), station_info)
+
+        # Update the in-memory config
+        config.station = updated_config.station
+
+        # Return updated system info
+        uptime_seconds = int(time.time() - _service_start_time)
+
+        system_info = SystemInfo(
+            station_id=updated_config.station.id,
+            station_name=updated_config.station.name,
+            description=updated_config.station.description,
+            version=SERVICE_VERSION,
+            uptime=uptime_seconds,
+            backend_connected=sync_engine.is_connected if sync_engine.is_running else False,
+        )
+
+        return ApiResponse(
+            success=True,
+            data=system_info,
+            message="Station information updated successfully",
+        )
+
+    except FileNotFoundError as e:
+        logger.error(f"Config file not found: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Configuration file not found",
+        )
+    except Exception as e:
+        logger.exception("Failed to update station info")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update station info: {str(e)}",
         )
 
 

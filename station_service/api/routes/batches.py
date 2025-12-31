@@ -6,7 +6,7 @@ batch process control, sequence execution, and manual hardware control.
 """
 
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
@@ -16,6 +16,7 @@ from station_service.api.schemas.batch import (
     BatchExecution,
     BatchSequenceInfo,
     BatchStartResponse,
+    BatchStatistics,
     BatchStopResponse,
     BatchSummary,
     ManualControlRequest,
@@ -90,6 +91,49 @@ async def list_batches(
 
     except Exception as e:
         logger.exception(f"Error listing batches: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/statistics",
+    response_model=ApiResponse[Dict[str, BatchStatistics]],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get all batch statistics",
+    description="""
+    Retrieve execution statistics for all batches.
+
+    Returns a dictionary mapping batch IDs to their statistics:
+    - Total number of executions
+    - Number of passed/failed executions
+    - Pass rate
+    """,
+)
+async def get_all_batch_statistics(
+    batch_manager: BatchManager = Depends(get_batch_manager),
+) -> ApiResponse[Dict[str, BatchStatistics]]:
+    """
+    Get execution statistics for all batches.
+    """
+    try:
+        stats = await batch_manager.get_all_batch_statistics()
+        result = {
+            batch_id: BatchStatistics(
+                total=s.get("total", 0),
+                pass_count=s.get("pass", 0),
+                fail=s.get("fail", 0),
+                pass_rate=s.get("passRate", 0.0),
+            )
+            for batch_id, s in stats.items()
+        }
+        return ApiResponse(success=True, data=result)
+
+    except Exception as e:
+        logger.exception(f"Error getting batch statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),

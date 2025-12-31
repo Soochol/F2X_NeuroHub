@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 
-from station_service.models.config import StationConfig
+from station_service.models.config import StationConfig, StationInfo
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +142,70 @@ async def list_batches_with_sequences(
         })
 
     return batches
+
+
+async def update_station_info(
+    config_path: Path,
+    station_info: StationInfo,
+) -> StationConfig:
+    """
+    Update station information (id, name, description) in the station.yaml config file.
+
+    Performs an atomic update with backup to ensure config integrity.
+
+    Args:
+        config_path: Path to the station.yaml file
+        station_info: New station information
+
+    Returns:
+        Updated StationConfig
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    # Read current config
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_data = yaml.safe_load(f)
+
+    # Update station info
+    previous_info = config_data.get("station", {})
+    config_data["station"] = {
+        "id": station_info.id,
+        "name": station_info.name,
+        "description": station_info.description,
+    }
+
+    # Create backup
+    backup_path = config_path.with_suffix(f".yaml.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    shutil.copy2(config_path, backup_path)
+    logger.info(f"Created config backup: {backup_path}")
+
+    # Write updated config atomically (write to temp, then rename)
+    temp_path = config_path.with_suffix(".yaml.tmp")
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            yaml.dump(config_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+        # Atomic replace
+        temp_path.replace(config_path)
+        logger.info(
+            f"Updated station info: {previous_info} -> {station_info.model_dump()}"
+        )
+
+    except Exception as e:
+        # Clean up temp file if it exists
+        if temp_path.exists():
+            temp_path.unlink()
+        raise e
+
+    # Clean up old backups
+    cleanup_old_backups(config_path)
+
+    # Return updated config
+    return StationConfig(**config_data)
 
 
 def cleanup_old_backups(

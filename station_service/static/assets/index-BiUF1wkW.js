@@ -1,9 +1,9 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { j as jsxRuntimeExports, Q as QueryClient, u as useQuery, a as useQueryClient, b as useMutation, c as QueryClientProvider } from "./query-BWJHGdpI.js";
-import { b as requireReactDom, a as reactExports, u as useLocation, N as NavLink, R as React, c as useParams, d as useNavigate, e as Routes, f as Route, B as BrowserRouter } from "./vendor-DqELnzaC.js";
-import { c as create } from "./state-C1wWwQIa.js";
+import { j as jsxRuntimeExports, Q as QueryClient, u as useQuery, a as useQueryClient, b as useMutation, c as QueryClientProvider } from "./query-nDuVABiU.js";
+import { b as requireReactDom, a as reactExports, u as useLocation, N as NavLink, R as React, c as useNavigate, d as useParams, e as Routes, f as Route, B as BrowserRouter } from "./vendor-Br0po5n5.js";
+import { c as create } from "./state-CkuP8Qb0.js";
 (function polyfill() {
   const relList = document.createElement("link").relList;
   if (relList && relList.supports && relList.supports("modulepreload")) {
@@ -192,6 +192,16 @@ const Bell = createLucideIcon("Bell", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const CheckCheck = createLucideIcon("CheckCheck", [
+  ["path", { d: "M18 6 7 17l-5-5", key: "116fxf" }],
+  ["path", { d: "m22 10-7.5 7.5L13 16", key: "ke71qq" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Check = createLucideIcon("Check", [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -257,6 +267,16 @@ const CircleCheckBig = createLucideIcon("CircleCheckBig", [
 const CircleCheck = createLucideIcon("CircleCheck", [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const CircleStop = createLucideIcon("CircleStop", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["rect", { x: "9", y: "9", width: "6", height: "6", rx: "1", key: "1ssd4o" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -442,6 +462,17 @@ const House = createLucideIcon("House", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Info = createLucideIcon("Info", [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M12 16v-4", key: "1dtifu" }],
+  ["path", { d: "M12 8h.01", key: "e9boi3" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Layers = createLucideIcon("Layers", [
   [
     "path",
@@ -568,6 +599,21 @@ const Pause = createLucideIcon("Pause", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Pen = createLucideIcon("Pen", [
+  [
+    "path",
+    {
+      d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+      key: "1a8usu"
+    }
+  ]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Play = createLucideIcon("Play", [
   ["polygon", { points: "6 3 20 12 6 21 6 3", key: "1oa8hb" }]
 ]);
@@ -592,6 +638,23 @@ const RefreshCw = createLucideIcon("RefreshCw", [
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Save = createLucideIcon("Save", [
+  [
+    "path",
+    {
+      d: "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+      key: "1c8476"
+    }
+  ],
+  ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
+  ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -1075,309 +1138,6 @@ function Sidebar({ isCollapsed, onToggle, stationId, stationName }) {
     }
   );
 }
-function createJSONStorage(getStorage, options) {
-  let storage;
-  try {
-    storage = getStorage();
-  } catch (e) {
-    return;
-  }
-  const persistStorage = {
-    getItem: (name) => {
-      var _a;
-      const parse = (str2) => {
-        if (str2 === null) {
-          return null;
-        }
-        return JSON.parse(str2, void 0);
-      };
-      const str = (_a = storage.getItem(name)) != null ? _a : null;
-      if (str instanceof Promise) {
-        return str.then(parse);
-      }
-      return parse(str);
-    },
-    setItem: (name, newValue) => storage.setItem(name, JSON.stringify(newValue, void 0)),
-    removeItem: (name) => storage.removeItem(name)
-  };
-  return persistStorage;
-}
-const toThenable = (fn) => (input) => {
-  try {
-    const result = fn(input);
-    if (result instanceof Promise) {
-      return result;
-    }
-    return {
-      then(onFulfilled) {
-        return toThenable(onFulfilled)(result);
-      },
-      catch(_onRejected) {
-        return this;
-      }
-    };
-  } catch (e) {
-    return {
-      then(_onFulfilled) {
-        return this;
-      },
-      catch(onRejected) {
-        return toThenable(onRejected)(e);
-      }
-    };
-  }
-};
-const persistImpl = (config, baseOptions) => (set, get, api) => {
-  let options = {
-    storage: createJSONStorage(() => localStorage),
-    partialize: (state) => state,
-    version: 0,
-    merge: (persistedState, currentState) => ({
-      ...currentState,
-      ...persistedState
-    }),
-    ...baseOptions
-  };
-  let hasHydrated = false;
-  const hydrationListeners = /* @__PURE__ */ new Set();
-  const finishHydrationListeners = /* @__PURE__ */ new Set();
-  let storage = options.storage;
-  if (!storage) {
-    return config(
-      (...args) => {
-        console.warn(
-          `[zustand persist middleware] Unable to update item '${options.name}', the given storage is currently unavailable.`
-        );
-        set(...args);
-      },
-      get,
-      api
-    );
-  }
-  const setItem = () => {
-    const state = options.partialize({ ...get() });
-    return storage.setItem(options.name, {
-      state,
-      version: options.version
-    });
-  };
-  const savedSetState = api.setState;
-  api.setState = (state, replace) => {
-    savedSetState(state, replace);
-    return setItem();
-  };
-  const configResult = config(
-    (...args) => {
-      set(...args);
-      return setItem();
-    },
-    get,
-    api
-  );
-  api.getInitialState = () => configResult;
-  let stateFromStorage;
-  const hydrate = () => {
-    var _a, _b;
-    if (!storage) return;
-    hasHydrated = false;
-    hydrationListeners.forEach((cb) => {
-      var _a2;
-      return cb((_a2 = get()) != null ? _a2 : configResult);
-    });
-    const postRehydrationCallback = ((_b = options.onRehydrateStorage) == null ? void 0 : _b.call(options, (_a = get()) != null ? _a : configResult)) || void 0;
-    return toThenable(storage.getItem.bind(storage))(options.name).then((deserializedStorageValue) => {
-      if (deserializedStorageValue) {
-        if (typeof deserializedStorageValue.version === "number" && deserializedStorageValue.version !== options.version) {
-          if (options.migrate) {
-            const migration = options.migrate(
-              deserializedStorageValue.state,
-              deserializedStorageValue.version
-            );
-            if (migration instanceof Promise) {
-              return migration.then((result) => [true, result]);
-            }
-            return [true, migration];
-          }
-          console.error(
-            `State loaded from storage couldn't be migrated since no migrate function was provided`
-          );
-        } else {
-          return [false, deserializedStorageValue.state];
-        }
-      }
-      return [false, void 0];
-    }).then((migrationResult) => {
-      var _a2;
-      const [migrated, migratedState] = migrationResult;
-      stateFromStorage = options.merge(
-        migratedState,
-        (_a2 = get()) != null ? _a2 : configResult
-      );
-      set(stateFromStorage, true);
-      if (migrated) {
-        return setItem();
-      }
-    }).then(() => {
-      postRehydrationCallback == null ? void 0 : postRehydrationCallback(stateFromStorage, void 0);
-      stateFromStorage = get();
-      hasHydrated = true;
-      finishHydrationListeners.forEach((cb) => cb(stateFromStorage));
-    }).catch((e) => {
-      postRehydrationCallback == null ? void 0 : postRehydrationCallback(void 0, e);
-    });
-  };
-  api.persist = {
-    setOptions: (newOptions) => {
-      options = {
-        ...options,
-        ...newOptions
-      };
-      if (newOptions.storage) {
-        storage = newOptions.storage;
-      }
-    },
-    clearStorage: () => {
-      storage == null ? void 0 : storage.removeItem(options.name);
-    },
-    getOptions: () => options,
-    rehydrate: () => hydrate(),
-    hasHydrated: () => hasHydrated,
-    onHydrate: (cb) => {
-      hydrationListeners.add(cb);
-      return () => {
-        hydrationListeners.delete(cb);
-      };
-    },
-    onFinishHydration: (cb) => {
-      finishHydrationListeners.add(cb);
-      return () => {
-        finishHydrationListeners.delete(cb);
-      };
-    }
-  };
-  if (!options.skipHydration) {
-    hydrate();
-  }
-  return stateFromStorage || configResult;
-};
-const persist = persistImpl;
-const useUIStore = create()(
-  persist(
-    (set) => ({
-      // Initial state
-      theme: "dark",
-      sidebarCollapsed: false,
-      // Actions
-      setTheme: (theme) => {
-        if (theme === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-        set({ theme });
-      },
-      toggleTheme: () => set((state) => {
-        const newTheme = state.theme === "dark" ? "light" : "dark";
-        if (newTheme === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-        return { theme: newTheme };
-      }),
-      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
-    }),
-    {
-      name: "station-ui-settings",
-      partialize: (state) => ({ theme: state.theme }),
-      onRehydrateStorage: () => (state) => {
-        if ((state == null ? void 0 : state.theme) === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-      }
-    }
-  )
-);
-const pageTitles = {
-  "/": "Dashboard",
-  "/ui": "Dashboard",
-  "/ui/": "Dashboard",
-  "/ui/batches": "Batches",
-  "/ui/sequences": "Sequences",
-  "/ui/manual": "Manual Control",
-  "/ui/logs": "Logs",
-  "/ui/settings": "Settings"
-};
-function Header() {
-  const location = useLocation();
-  const { theme, toggleTheme } = useUIStore();
-  const isDark = theme === "dark";
-  const pageTitle = pageTitles[location.pathname] || "Station UI";
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "header",
-    {
-      className: "flex items-center justify-between h-[60px] px-5 border-b transition-colors",
-      style: {
-        backgroundColor: "var(--color-bg-secondary)",
-        borderColor: "var(--color-border-default)"
-      },
-      children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "h1",
-          {
-            className: "text-lg font-semibold",
-            style: { color: "var(--color-text-primary)" },
-            children: pageTitle
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: toggleTheme,
-              className: "p-2 rounded-lg transition-colors",
-              style: {
-                color: "var(--color-text-secondary)"
-              },
-              onMouseEnter: (e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
-                e.currentTarget.style.color = "var(--color-text-primary)";
-              },
-              onMouseLeave: (e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
-              },
-              title: isDark ? "Switch to light mode" : "Switch to dark mode",
-              children: isDark ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" })
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              className: "p-2 rounded-lg transition-colors relative",
-              style: {
-                color: "var(--color-text-secondary)"
-              },
-              onMouseEnter: (e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
-                e.currentTarget.style.color = "var(--color-text-primary)";
-              },
-              onMouseLeave: (e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
-              },
-              title: "Notifications",
-              children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { className: "w-5 h-5" })
-            }
-          )
-        ] })
-      ]
-    }
-  );
-}
 const LOCAL_BATCHES_KEY = "station-ui-local-batches";
 const LOCAL_STATS_KEY = "station-ui-local-batch-stats";
 const LOCAL_STEPS_KEY = "station-ui-local-batch-steps";
@@ -1651,6 +1411,675 @@ const useBatchStore = create((set, get) => ({
     return total;
   }
 }));
+const useLogStore = create((set, get) => ({
+  // Initial state
+  logs: [],
+  maxLogs: 1e3,
+  filters: {},
+  autoScroll: true,
+  // Actions
+  addLog: (log) => set((state) => {
+    const newLogs = [...state.logs, log];
+    if (newLogs.length > state.maxLogs) {
+      return { logs: newLogs.slice(-state.maxLogs) };
+    }
+    return { logs: newLogs };
+  }),
+  addLogs: (logs) => set((state) => {
+    const newLogs = [...state.logs, ...logs];
+    if (newLogs.length > state.maxLogs) {
+      return { logs: newLogs.slice(-state.maxLogs) };
+    }
+    return { logs: newLogs };
+  }),
+  clearLogs: () => set({ logs: [] }),
+  setFilters: (filters) => set({ filters }),
+  setAutoScroll: (autoScroll) => set({ autoScroll }),
+  setMaxLogs: (maxLogs) => set({ maxLogs }),
+  // Selectors
+  getFilteredLogs: () => {
+    const { logs, filters } = get();
+    return logs.filter((log) => {
+      if (filters.batchId && log.batchId !== filters.batchId) {
+        return false;
+      }
+      if (filters.level && log.level !== filters.level) {
+        return false;
+      }
+      if (filters.search && !log.message.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }
+}));
+function createJSONStorage(getStorage, options) {
+  let storage;
+  try {
+    storage = getStorage();
+  } catch (e) {
+    return;
+  }
+  const persistStorage = {
+    getItem: (name) => {
+      var _a;
+      const parse = (str2) => {
+        if (str2 === null) {
+          return null;
+        }
+        return JSON.parse(str2, void 0);
+      };
+      const str = (_a = storage.getItem(name)) != null ? _a : null;
+      if (str instanceof Promise) {
+        return str.then(parse);
+      }
+      return parse(str);
+    },
+    setItem: (name, newValue) => storage.setItem(name, JSON.stringify(newValue, void 0)),
+    removeItem: (name) => storage.removeItem(name)
+  };
+  return persistStorage;
+}
+const toThenable = (fn) => (input) => {
+  try {
+    const result = fn(input);
+    if (result instanceof Promise) {
+      return result;
+    }
+    return {
+      then(onFulfilled) {
+        return toThenable(onFulfilled)(result);
+      },
+      catch(_onRejected) {
+        return this;
+      }
+    };
+  } catch (e) {
+    return {
+      then(_onFulfilled) {
+        return this;
+      },
+      catch(onRejected) {
+        return toThenable(onRejected)(e);
+      }
+    };
+  }
+};
+const persistImpl = (config, baseOptions) => (set, get, api) => {
+  let options = {
+    storage: createJSONStorage(() => localStorage),
+    partialize: (state) => state,
+    version: 0,
+    merge: (persistedState, currentState) => ({
+      ...currentState,
+      ...persistedState
+    }),
+    ...baseOptions
+  };
+  let hasHydrated = false;
+  const hydrationListeners = /* @__PURE__ */ new Set();
+  const finishHydrationListeners = /* @__PURE__ */ new Set();
+  let storage = options.storage;
+  if (!storage) {
+    return config(
+      (...args) => {
+        console.warn(
+          `[zustand persist middleware] Unable to update item '${options.name}', the given storage is currently unavailable.`
+        );
+        set(...args);
+      },
+      get,
+      api
+    );
+  }
+  const setItem = () => {
+    const state = options.partialize({ ...get() });
+    return storage.setItem(options.name, {
+      state,
+      version: options.version
+    });
+  };
+  const savedSetState = api.setState;
+  api.setState = (state, replace) => {
+    savedSetState(state, replace);
+    return setItem();
+  };
+  const configResult = config(
+    (...args) => {
+      set(...args);
+      return setItem();
+    },
+    get,
+    api
+  );
+  api.getInitialState = () => configResult;
+  let stateFromStorage;
+  const hydrate = () => {
+    var _a, _b;
+    if (!storage) return;
+    hasHydrated = false;
+    hydrationListeners.forEach((cb) => {
+      var _a2;
+      return cb((_a2 = get()) != null ? _a2 : configResult);
+    });
+    const postRehydrationCallback = ((_b = options.onRehydrateStorage) == null ? void 0 : _b.call(options, (_a = get()) != null ? _a : configResult)) || void 0;
+    return toThenable(storage.getItem.bind(storage))(options.name).then((deserializedStorageValue) => {
+      if (deserializedStorageValue) {
+        if (typeof deserializedStorageValue.version === "number" && deserializedStorageValue.version !== options.version) {
+          if (options.migrate) {
+            const migration = options.migrate(
+              deserializedStorageValue.state,
+              deserializedStorageValue.version
+            );
+            if (migration instanceof Promise) {
+              return migration.then((result) => [true, result]);
+            }
+            return [true, migration];
+          }
+          console.error(
+            `State loaded from storage couldn't be migrated since no migrate function was provided`
+          );
+        } else {
+          return [false, deserializedStorageValue.state];
+        }
+      }
+      return [false, void 0];
+    }).then((migrationResult) => {
+      var _a2;
+      const [migrated, migratedState] = migrationResult;
+      stateFromStorage = options.merge(
+        migratedState,
+        (_a2 = get()) != null ? _a2 : configResult
+      );
+      set(stateFromStorage, true);
+      if (migrated) {
+        return setItem();
+      }
+    }).then(() => {
+      postRehydrationCallback == null ? void 0 : postRehydrationCallback(stateFromStorage, void 0);
+      stateFromStorage = get();
+      hasHydrated = true;
+      finishHydrationListeners.forEach((cb) => cb(stateFromStorage));
+    }).catch((e) => {
+      postRehydrationCallback == null ? void 0 : postRehydrationCallback(void 0, e);
+    });
+  };
+  api.persist = {
+    setOptions: (newOptions) => {
+      options = {
+        ...options,
+        ...newOptions
+      };
+      if (newOptions.storage) {
+        storage = newOptions.storage;
+      }
+    },
+    clearStorage: () => {
+      storage == null ? void 0 : storage.removeItem(options.name);
+    },
+    getOptions: () => options,
+    rehydrate: () => hydrate(),
+    hasHydrated: () => hasHydrated,
+    onHydrate: (cb) => {
+      hydrationListeners.add(cb);
+      return () => {
+        hydrationListeners.delete(cb);
+      };
+    },
+    onFinishHydration: (cb) => {
+      finishHydrationListeners.add(cb);
+      return () => {
+        finishHydrationListeners.delete(cb);
+      };
+    }
+  };
+  if (!options.skipHydration) {
+    hydrate();
+  }
+  return stateFromStorage || configResult;
+};
+const persist = persistImpl;
+const useUIStore = create()(
+  persist(
+    (set) => ({
+      // Initial state
+      theme: "dark",
+      sidebarCollapsed: false,
+      // Actions
+      setTheme: (theme) => {
+        if (theme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+        set({ theme });
+      },
+      toggleTheme: () => set((state) => {
+        const newTheme = state.theme === "dark" ? "light" : "dark";
+        if (newTheme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+        return { theme: newTheme };
+      }),
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
+    }),
+    {
+      name: "station-ui-settings",
+      partialize: (state) => ({ theme: state.theme }),
+      onRehydrateStorage: () => (state) => {
+        if ((state == null ? void 0 : state.theme) === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+    }
+  )
+);
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+const useNotificationStore = create()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      notifications: [],
+      maxNotifications: 50,
+      isOpen: false,
+      // Actions
+      addNotification: (notification) => set((state) => {
+        const newNotification = {
+          ...notification,
+          id: generateId(),
+          timestamp: /* @__PURE__ */ new Date(),
+          read: false
+        };
+        const newNotifications = [newNotification, ...state.notifications];
+        if (newNotifications.length > state.maxNotifications) {
+          return { notifications: newNotifications.slice(0, state.maxNotifications) };
+        }
+        return { notifications: newNotifications };
+      }),
+      markAsRead: (id) => set((state) => ({
+        notifications: state.notifications.map(
+          (n) => n.id === id ? { ...n, read: true } : n
+        )
+      })),
+      markAllAsRead: () => set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, read: true }))
+      })),
+      removeNotification: (id) => set((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== id)
+      })),
+      clearAll: () => set({ notifications: [] }),
+      setIsOpen: (isOpen) => set({ isOpen }),
+      togglePanel: () => set((state) => ({ isOpen: !state.isOpen })),
+      // Selectors
+      getUnreadCount: () => {
+        const { notifications } = get();
+        return notifications.filter((n) => !n.read).length;
+      }
+    }),
+    {
+      name: "station-ui-notifications",
+      partialize: (state) => ({
+        notifications: state.notifications.map((n) => ({
+          ...n,
+          timestamp: n.timestamp.toISOString()
+        }))
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state == null ? void 0 : state.notifications) {
+          state.notifications = state.notifications.map((n) => ({
+            ...n,
+            timestamp: typeof n.timestamp === "string" ? new Date(n.timestamp) : n.timestamp
+          }));
+        }
+      }
+    }
+  )
+);
+const typeIcons = {
+  info: /* @__PURE__ */ jsxRuntimeExports.jsx(Info, { className: "w-4 h-4" }),
+  success: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-4 h-4" }),
+  warning: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-4 h-4" }),
+  error: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-4 h-4" })
+};
+const typeColors = {
+  info: "var(--color-accent-blue)",
+  success: "var(--color-status-success)",
+  warning: "var(--color-status-warning)",
+  error: "var(--color-status-error)"
+};
+function formatTimestamp(date) {
+  const now = /* @__PURE__ */ new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 6e4);
+  const hours = Math.floor(diff / 36e5);
+  const days = Math.floor(diff / 864e5);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
+function NotificationItem({ notification, onMarkAsRead, onRemove }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      className: "px-4 py-3 border-b transition-colors cursor-pointer",
+      style: {
+        backgroundColor: notification.read ? "transparent" : "var(--color-bg-tertiary)",
+        borderColor: "var(--color-border-default)"
+      },
+      onClick: () => !notification.read && onMarkAsRead(notification.id),
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "mt-0.5 flex-shrink-0",
+            style: { color: typeColors[notification.type] },
+            children: typeIcons[notification.type]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                className: "font-medium text-sm truncate",
+                style: { color: "var(--color-text-primary)" },
+                children: notification.title
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: (e) => {
+                  e.stopPropagation();
+                  onRemove(notification.id);
+                },
+                className: "p-1 rounded hover:bg-red-500/20 transition-colors flex-shrink-0",
+                style: { color: "var(--color-text-tertiary)" },
+                title: "Remove notification",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-3 h-3" })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "text-xs mt-1 line-clamp-2",
+              style: { color: "var(--color-text-secondary)" },
+              children: notification.message
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mt-1.5", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                className: "text-xs",
+                style: { color: "var(--color-text-tertiary)" },
+                children: formatTimestamp(notification.timestamp)
+              }
+            ),
+            !notification.read && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                className: "w-2 h-2 rounded-full",
+                style: { backgroundColor: "var(--color-accent-blue)" }
+              }
+            )
+          ] })
+        ] })
+      ] })
+    }
+  );
+}
+function NotificationPanel() {
+  const panelRef = reactExports.useRef(null);
+  const {
+    notifications,
+    isOpen,
+    setIsOpen,
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
+    clearAll,
+    getUnreadCount
+  } = useNotificationStore();
+  const unreadCount = getUnreadCount();
+  reactExports.useEffect(() => {
+    function handleClickOutside(event) {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        const target = event.target;
+        if (target.closest("[data-notification-trigger]")) {
+          return;
+        }
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen, setIsOpen]);
+  reactExports.useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, setIsOpen]);
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      ref: panelRef,
+      className: "absolute top-full right-0 mt-2 w-80 max-h-[480px] rounded-lg shadow-xl overflow-hidden z-50",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        border: "1px solid var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "px-4 py-3 border-b flex items-center justify-between",
+            style: { borderColor: "var(--color-border-default)" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "h3",
+                {
+                  className: "font-semibold text-sm",
+                  style: { color: "var(--color-text-primary)" },
+                  children: [
+                    "Notifications",
+                    unreadCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "span",
+                      {
+                        className: "ml-2 px-1.5 py-0.5 text-xs rounded-full",
+                        style: {
+                          backgroundColor: "var(--color-accent-blue)",
+                          color: "white"
+                        },
+                        children: unreadCount
+                      }
+                    )
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+                unreadCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: markAllAsRead,
+                    className: "p-1.5 rounded transition-colors",
+                    style: { color: "var(--color-text-secondary)" },
+                    onMouseEnter: (e) => {
+                      e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                      e.currentTarget.style.color = "var(--color-text-primary)";
+                    },
+                    onMouseLeave: (e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "var(--color-text-secondary)";
+                    },
+                    title: "Mark all as read",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(CheckCheck, { className: "w-4 h-4" })
+                  }
+                ),
+                notifications.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: clearAll,
+                    className: "p-1.5 rounded transition-colors",
+                    style: { color: "var(--color-text-secondary)" },
+                    onMouseEnter: (e) => {
+                      e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                      e.currentTarget.style.color = "var(--color-status-error)";
+                    },
+                    onMouseLeave: (e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "var(--color-text-secondary)";
+                    },
+                    title: "Clear all notifications",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4" })
+                  }
+                )
+              ] })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-[400px] overflow-y-auto", children: notifications.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "px-4 py-8 text-center",
+            style: { color: "var(--color-text-tertiary)" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Info, { className: "w-8 h-8 mx-auto mb-2 opacity-50" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", children: "No notifications" })
+            ]
+          }
+        ) : notifications.map((notification) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          NotificationItem,
+          {
+            notification,
+            onMarkAsRead: markAsRead,
+            onRemove: removeNotification
+          },
+          notification.id
+        )) })
+      ]
+    }
+  );
+}
+const pageTitles = {
+  "/": "Dashboard",
+  "/ui": "Dashboard",
+  "/ui/": "Dashboard",
+  "/ui/batches": "Batches",
+  "/ui/sequences": "Sequences",
+  "/ui/manual": "Manual Control",
+  "/ui/logs": "Logs",
+  "/ui/settings": "Settings"
+};
+function Header() {
+  const location = useLocation();
+  const { theme, toggleTheme } = useUIStore();
+  const { isOpen, togglePanel, getUnreadCount } = useNotificationStore();
+  const isDark = theme === "dark";
+  const unreadCount = getUnreadCount();
+  const pageTitle = pageTitles[location.pathname] || "Station UI";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "header",
+    {
+      className: "flex items-center justify-between h-[60px] px-5 border-b transition-colors",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "h1",
+          {
+            className: "text-lg font-semibold",
+            style: { color: "var(--color-text-primary)" },
+            children: pageTitle
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: toggleTheme,
+              className: "p-2 rounded-lg transition-colors",
+              style: {
+                color: "var(--color-text-secondary)"
+              },
+              onMouseEnter: (e) => {
+                e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                e.currentTarget.style.color = "var(--color-text-primary)";
+              },
+              onMouseLeave: (e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "var(--color-text-secondary)";
+              },
+              title: isDark ? "Switch to light mode" : "Switch to dark mode",
+              children: isDark ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                "data-notification-trigger": true,
+                onClick: togglePanel,
+                className: "p-2 rounded-lg transition-colors relative",
+                style: {
+                  color: isOpen ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                  backgroundColor: isOpen ? "var(--color-bg-tertiary)" : "transparent"
+                },
+                onMouseEnter: (e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                  e.currentTarget.style.color = "var(--color-text-primary)";
+                },
+                onMouseLeave: (e) => {
+                  if (!isOpen) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "var(--color-text-secondary)";
+                  }
+                },
+                title: "Notifications",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { className: "w-5 h-5" }),
+                  unreadCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "span",
+                    {
+                      className: "absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1",
+                      style: {
+                        backgroundColor: "var(--color-status-error)",
+                        color: "white"
+                      },
+                      children: unreadCount > 99 ? "99+" : unreadCount
+                    }
+                  )
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(NotificationPanel, {})
+          ] })
+        ] })
+      ]
+    }
+  );
+}
 function StatusBar() {
   const [currentTime, setCurrentTime] = reactExports.useState(/* @__PURE__ */ new Date());
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
@@ -4353,6 +4782,10 @@ async function getHealthStatus() {
   const response = await apiClient.get("/system/health");
   return extractData(response);
 }
+async function updateStationInfo(data) {
+  const response = await apiClient.put("/system/station-info", data);
+  return extractData(response);
+}
 function useSystemInfo() {
   return useQuery({
     queryKey: queryKeys.systemInfo,
@@ -4365,6 +4798,15 @@ function useHealthStatus() {
     queryKey: queryKeys.healthStatus,
     queryFn: getHealthStatus,
     refetchInterval: POLLING_INTERVALS.health
+  });
+}
+function useUpdateStationInfo() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => updateStationInfo(data),
+    onSuccess: (data) => {
+      queryClient2.setQueryData(queryKeys.systemInfo, data);
+    }
   });
 }
 const isIterable = (obj) => Symbol.iterator in obj;
@@ -4611,6 +5053,12 @@ function createBatchesLocally(request) {
     createdAt: timestamp
   };
 }
+async function getAllBatchStatistics() {
+  const response = await apiClient.get(
+    "/batches/statistics"
+  );
+  return extractData(response);
+}
 const _ToastManager = class _ToastManager {
   constructor() {
   }
@@ -4788,6 +5236,18 @@ function useCreateBatches() {
     onError: (error) => {
       toast.error(`Failed to create batches: ${getErrorMessage(error)}`);
     }
+  });
+}
+function useAllBatchStatistics() {
+  return useQuery({
+    queryKey: ["allBatchStatistics"],
+    queryFn: getAllBatchStatistics,
+    staleTime: 30 * 1e3,
+    // 30 seconds
+    retry: false,
+    // Don't retry on 404
+    throwOnError: false
+    // Don't throw errors
   });
 }
 async function getSequences() {
@@ -4968,48 +5428,6 @@ function useLogList(params) {
     enabled: params !== void 0
   });
 }
-const useLogStore = create((set, get) => ({
-  // Initial state
-  logs: [],
-  maxLogs: 1e3,
-  filters: {},
-  autoScroll: true,
-  // Actions
-  addLog: (log) => set((state) => {
-    const newLogs = [...state.logs, log];
-    if (newLogs.length > state.maxLogs) {
-      return { logs: newLogs.slice(-state.maxLogs) };
-    }
-    return { logs: newLogs };
-  }),
-  addLogs: (logs) => set((state) => {
-    const newLogs = [...state.logs, ...logs];
-    if (newLogs.length > state.maxLogs) {
-      return { logs: newLogs.slice(-state.maxLogs) };
-    }
-    return { logs: newLogs };
-  }),
-  clearLogs: () => set({ logs: [] }),
-  setFilters: (filters) => set({ filters }),
-  setAutoScroll: (autoScroll) => set({ autoScroll }),
-  setMaxLogs: (maxLogs) => set({ maxLogs }),
-  // Selectors
-  getFilteredLogs: () => {
-    const { logs, filters } = get();
-    return logs.filter((log) => {
-      if (filters.batchId && log.batchId !== filters.batchId) {
-        return false;
-      }
-      if (filters.level && log.level !== filters.level) {
-        return false;
-      }
-      if (filters.search && !log.message.toLowerCase().includes(filters.search.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
-  }
-}));
 const WebSocketContext = reactExports.createContext(null);
 function generateLogId() {
   return Date.now() * 1e3 + Math.floor(Math.random() * 1e3);
@@ -5049,7 +5467,10 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const incrementReconnectAttempts = useConnectionStore((s) => s.incrementReconnectAttempts);
   const updateBatchStatus = useBatchStore((s) => s.updateBatchStatus);
   const updateStepProgress = useBatchStore((s) => s.updateStepProgress);
+  const setLastRunResult = useBatchStore((s) => s.setLastRunResult);
+  const incrementBatchStats = useBatchStore((s) => s.incrementBatchStats);
   const addLog = useLogStore((s) => s.addLog);
+  const addNotification = useNotificationStore((s) => s.addNotification);
   const handleMessage = reactExports.useCallback(
     (message) => {
       switch (message.type) {
@@ -5082,16 +5503,32 @@ function WebSocketProvider({ children, url = "/ws" }) {
             message: `Step "${message.data.step}" ${message.data.pass ? "passed" : "failed"} (${message.data.duration.toFixed(2)}s)`,
             timestamp: /* @__PURE__ */ new Date()
           });
+          if (!message.data.pass) {
+            addNotification({
+              type: "warning",
+              title: "Step Failed",
+              message: `Step "${message.data.step}" failed in batch ${message.batchId.slice(0, 8)}...`,
+              batchId: message.batchId
+            });
+          }
           break;
         }
         case "sequence_complete": {
           updateBatchStatus(message.batchId, "completed");
+          setLastRunResult(message.batchId, message.data.overallPass);
+          incrementBatchStats(message.batchId, message.data.overallPass);
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
             level: message.data.overallPass ? "info" : "error",
             message: `Sequence ${message.data.overallPass ? "PASSED" : "FAILED"} (${message.data.duration.toFixed(2)}s)`,
             timestamp: /* @__PURE__ */ new Date()
+          });
+          addNotification({
+            type: message.data.overallPass ? "success" : "error",
+            title: message.data.overallPass ? "Sequence Passed" : "Sequence Failed",
+            message: `Batch ${message.batchId.slice(0, 8)}... completed ${message.data.overallPass ? "successfully" : "with errors"} in ${message.data.duration.toFixed(2)}s`,
+            batchId: message.batchId
           });
           break;
         }
@@ -5113,11 +5550,17 @@ function WebSocketProvider({ children, url = "/ws" }) {
             message: `[${message.data.code}] ${message.data.message}${message.data.step ? ` (step: ${message.data.step})` : ""}`,
             timestamp: new Date(message.data.timestamp)
           });
+          addNotification({
+            type: "error",
+            title: `Error: ${message.data.code}`,
+            message: message.data.message,
+            batchId: message.batchId
+          });
           break;
         }
       }
     },
-    [updateBatchStatus, updateStepProgress, addLog]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification]
   );
   const connect = reactExports.useCallback(() => {
     var _a;
@@ -5616,11 +6059,186 @@ function LoadingOverlay({ message = "Loading..." }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-zinc-400", children: message })
   ] });
 }
+function BatchOverviewCard({ batch }) {
+  const navigate = useNavigate();
+  const handleClick = () => {
+    navigate(`/batches/${batch.id}`);
+  };
+  const statusConfig2 = getStatusConfig(batch.status);
+  const progressPercent = Math.round(batch.progress * 100);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      onClick: handleClick,
+      className: "p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md hover:border-brand-400",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-2 mb-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "h4",
+            {
+              className: "text-sm font-semibold truncate flex-1",
+              style: { color: "var(--color-text-primary)" },
+              title: batch.name,
+              children: batch.name
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: "flex-shrink-0 p-1.5 rounded-full",
+              style: { backgroundColor: statusConfig2.bgColor },
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(statusConfig2.icon, { className: "w-4 h-4", style: { color: statusConfig2.iconColor } })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wide",
+            style: {
+              backgroundColor: statusConfig2.badgeBg,
+              color: statusConfig2.badgeText
+            },
+            children: batch.status
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-1.5", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: "Progress" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "span",
+              {
+                className: "text-sm font-semibold",
+                style: { color: "var(--color-text-primary)" },
+                children: [
+                  progressPercent,
+                  "%"
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            ProgressBar,
+            {
+              value: progressPercent,
+              variant: getProgressVariant(batch.status, batch.lastRunPassed),
+              size: "md"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "pt-3 border-t",
+            style: { borderColor: "var(--color-border-muted)" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: "Step" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "p",
+                {
+                  className: "text-sm font-medium truncate mt-0.5",
+                  style: { color: "var(--color-text-secondary)" },
+                  title: batch.currentStep || "No step",
+                  children: batch.currentStep || "-"
+                }
+              )
+            ]
+          }
+        )
+      ]
+    }
+  );
+}
+function getStatusConfig(status) {
+  switch (status) {
+    case "completed":
+      return {
+        icon: CircleCheckBig,
+        iconColor: "var(--color-success)",
+        bgColor: "var(--color-success-bg)",
+        badgeBg: "var(--color-success-bg)",
+        badgeText: "var(--color-success)"
+      };
+    case "error":
+      return {
+        icon: CircleX,
+        iconColor: "var(--color-error)",
+        bgColor: "var(--color-error-bg)",
+        badgeBg: "var(--color-error-bg)",
+        badgeText: "var(--color-error)"
+      };
+    case "running":
+      return {
+        icon: LoaderCircle,
+        iconColor: "var(--color-info)",
+        bgColor: "var(--color-info-bg)",
+        badgeBg: "var(--color-info-bg)",
+        badgeText: "var(--color-info)"
+      };
+    case "starting":
+      return {
+        icon: Clock,
+        iconColor: "var(--color-warning)",
+        bgColor: "var(--color-warning-bg)",
+        badgeBg: "var(--color-warning-bg)",
+        badgeText: "var(--color-warning)"
+      };
+    case "stopping":
+      return {
+        icon: CircleStop,
+        iconColor: "var(--color-warning)",
+        bgColor: "var(--color-warning-bg)",
+        badgeBg: "var(--color-warning-bg)",
+        badgeText: "var(--color-warning)"
+      };
+    case "idle":
+    default:
+      return {
+        icon: CircleAlert,
+        iconColor: "var(--color-text-tertiary)",
+        bgColor: "var(--color-bg-tertiary)",
+        badgeBg: "var(--color-bg-tertiary)",
+        badgeText: "var(--color-text-secondary)"
+      };
+  }
+}
+function getProgressVariant(status, lastRunPassed) {
+  if (status === "error") return "error";
+  if (status === "completed") {
+    return lastRunPassed === false ? "error" : "success";
+  }
+  if (status === "stopping") return "warning";
+  return "default";
+}
 function DashboardPage() {
   const { data: batches, isLoading: batchesLoading, isError: batchesError, refetch: refetchBatches } = useBatchList();
   const { data: health, isError: healthError, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
   const { data: systemInfo } = useSystemInfo();
+  const { data: allStatistics } = useAllBatchStatistics();
   const { subscribe, unsubscribe } = useWebSocket();
+  const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
+  const totalStats = useBatchStore(
+    useShallow((state) => {
+      const { batchStatistics, localBatchStats } = state;
+      const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+      batchStatistics.forEach((s) => {
+        total.total += s.total;
+        total.pass += s.pass;
+        total.fail += s.fail;
+      });
+      localBatchStats.forEach((s) => {
+        total.total += s.total;
+        total.pass += s.pass;
+        total.fail += s.fail;
+      });
+      total.passRate = total.total > 0 ? total.pass / total.total : 0;
+      return total;
+    })
+  );
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const setBackendStatus = useConnectionStore((state) => state.setBackendStatus);
   reactExports.useEffect(() => {
@@ -5630,6 +6248,11 @@ function DashboardPage() {
       setBackendStatus("disconnected");
     }
   }, [health, healthError, setBackendStatus]);
+  reactExports.useEffect(() => {
+    if (allStatistics) {
+      setAllBatchStatistics(allStatistics);
+    }
+  }, [allStatistics, setAllBatchStatistics]);
   const batchesMap = useBatchStore(useShallow((state) => state.batches));
   const localBatchesMap = useBatchStore(useShallow((state) => state.localBatches));
   const storeBatches = reactExports.useMemo(() => [
@@ -5645,12 +6268,6 @@ function DashboardPage() {
     }
   }, [batches, subscribe, unsubscribe]);
   const displayBatches = storeBatches.length > 0 ? storeBatches : batches ?? [];
-  const totalBatches = displayBatches.length;
-  const runningBatches = displayBatches.filter(
-    (b) => b.status === "running" || b.status === "starting"
-  ).length;
-  const completedToday = displayBatches.filter((b) => b.status === "completed").length;
-  const errorBatches = displayBatches.filter((b) => b.status === "error").length;
   const isStationServiceConnected = !healthError && !batchesError;
   const handleRetry = () => {
     refetchBatches();
@@ -5695,12 +6312,12 @@ function DashboardPage() {
         ]
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         StatsCard,
         {
-          title: "Total Batches",
-          value: totalBatches,
+          title: "Total Runs",
+          value: totalStats.total,
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Activity, { className: "w-5 h-5" }),
           variant: "default"
         }
@@ -5708,17 +6325,8 @@ function DashboardPage() {
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         StatsCard,
         {
-          title: "Running",
-          value: runningBatches,
-          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-5 h-5" }),
-          variant: "info"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        StatsCard,
-        {
-          title: "Completed",
-          value: completedToday,
+          title: "Pass",
+          value: totalStats.pass,
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5" }),
           variant: "success"
         }
@@ -5726,9 +6334,9 @@ function DashboardPage() {
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         StatsCard,
         {
-          title: "Errors",
-          value: errorBatches,
-          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-5 h-5" }),
+          title: "Fail",
+          value: totalStats.fail,
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-5 h-5" }),
           variant: "error"
         }
       )
@@ -5750,7 +6358,7 @@ function DashboardPage() {
               children: "System Health"
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 text-sm", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-4 text-sm", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Station Service" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1", children: healthLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: "Checking..." }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -5783,17 +6391,6 @@ function DashboardPage() {
                   }
                 )
               ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Batches Running" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "div",
-                {
-                  className: "mt-1 font-medium",
-                  style: { color: "var(--color-text-primary)" },
-                  children: isStationServiceConnected ? (health == null ? void 0 : health.batchesRunning) ?? runningBatches : "-"
-                }
-              )
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-4", style: { borderTop: "1px solid var(--color-border-muted)" }, children: [
@@ -5831,36 +6428,27 @@ function DashboardPage() {
         ]
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "div",
-      {
-        className: "p-4 rounded-lg border transition-colors",
-        style: {
-          backgroundColor: "var(--color-bg-secondary)",
-          borderColor: "var(--color-border-default)"
-        },
-        children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "h3",
-            {
-              className: "text-lg font-semibold mb-4",
-              style: { color: "var(--color-text-primary)" },
-              children: "Batch Status Overview"
-            }
-          ),
-          displayBatches.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No batches configured" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: displayBatches.map((batch) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            BatchStatusRow,
-            {
-              name: batch.name,
-              status: batch.status,
-              progress: batch.progress * 100,
-              step: batch.currentStep
-            },
-            batch.id
-          )) })
-        ]
-      }
-    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "h3",
+        {
+          className: "text-lg font-semibold mb-4",
+          style: { color: "var(--color-text-primary)" },
+          children: "Batch Status Overview"
+        }
+      ),
+      displayBatches.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          className: "p-4 rounded-lg border",
+          style: {
+            backgroundColor: "var(--color-bg-secondary)",
+            borderColor: "var(--color-border-default)"
+          },
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No batches configured" })
+        }
+      ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4", children: displayBatches.map((batch) => /* @__PURE__ */ jsxRuntimeExports.jsx(BatchOverviewCard, { batch }, batch.id)) })
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
@@ -5880,47 +6468,6 @@ function DashboardPage() {
           ),
           logs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No recent activity" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1 max-h-64 overflow-y-auto", children: logs.slice().reverse().map((log) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow, { log, showBatchId: true }, log.id)) })
         ]
-      }
-    )
-  ] });
-}
-function BatchStatusRow({ name, status, progress, step }) {
-  const statusVariant = {
-    idle: "default",
-    starting: "default",
-    running: "default",
-    stopping: "warning",
-    completed: "success",
-    error: "error"
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "span",
-      {
-        className: "w-24 text-sm font-medium truncate",
-        style: { color: "var(--color-text-primary)" },
-        children: name
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status, size: "sm" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ProgressBar, { value: progress, variant: statusVariant[status], size: "sm" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "span",
-      {
-        className: "w-12 text-xs text-right",
-        style: { color: "var(--color-text-secondary)" },
-        children: [
-          Math.round(progress),
-          "%"
-        ]
-      }
-    ),
-    step && /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "span",
-      {
-        className: "w-24 text-xs truncate",
-        style: { color: "var(--color-text-tertiary)" },
-        children: step
       }
     )
   ] });
@@ -6150,8 +6697,15 @@ Select.displayName = "Select";
 function BatchList({ batches, statistics, onStart, onStop, onDelete, onSelect, isLoading }) {
   const { batchId: selectedBatchId } = useParams();
   const [statusFilter, setStatusFilter] = reactExports.useState("all");
-  const storeStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
-  const batchStats = statistics || storeStatistics;
+  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  const localBatchStats = useBatchStore(useShallow((state) => state.localBatchStats));
+  const combinedStoreStats = reactExports.useMemo(() => {
+    const combined = /* @__PURE__ */ new Map();
+    batchStatistics.forEach((stats, id) => combined.set(id, stats));
+    localBatchStats.forEach((stats, id) => combined.set(id, stats));
+    return combined;
+  }, [batchStatistics, localBatchStats]);
+  const batchStats = statistics || combinedStoreStats;
   const filteredBatches = statusFilter === "all" ? batches : batches.filter((b) => b.status === statusFilter);
   const statusOptions = [
     { value: "all", label: "All Status" },
@@ -7901,7 +8455,14 @@ function StepList({ steps }) {
           step.timeout,
           "s"
         ] }),
-        step.cleanup && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded", children: "cleanup" })
+        step.cleanup && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: "text-xs px-2 py-0.5 rounded",
+            style: { backgroundColor: "var(--color-warning-bg)", color: "var(--color-warning-text)" },
+            children: "cleanup"
+          }
+        )
       ]
     },
     step.name
@@ -8025,10 +8586,7 @@ function TestTabContent({ sequenceName, defaultParameters }) {
         onClick: handleRun,
         isLoading: simulation.isPending,
         disabled: simulation.isPending,
-        children: simulation.isPending ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-2 animate-spin" }),
-          "Running..."
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        children: simulation.isPending ? "Running..." : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
           "Run ",
           mode === "preview" ? "Preview" : "Dry Run"
@@ -8113,7 +8671,14 @@ function StepPreviewItem({ step, result }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium truncate", style: { color: "var(--color-text-primary)" }, children: step.displayName }),
-        step.cleanup && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded", children: "cleanup" })
+        step.cleanup && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: "text-xs px-1.5 py-0.5 rounded",
+            style: { backgroundColor: "var(--color-warning-bg)", color: "var(--color-warning-text)" },
+            children: "cleanup"
+          }
+        )
       ] }),
       step.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs truncate", style: { color: "var(--color-text-tertiary)" }, children: step.description })
     ] }),
@@ -8535,13 +9100,82 @@ function LogsPage() {
 function SettingsPage() {
   const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
+  const updateStationInfo2 = useUpdateStationInfo();
+  const addNotification = useNotificationStore((state) => state.addNotification);
   const theme = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const lastHeartbeat = useConnectionStore((state) => state.lastHeartbeat);
+  const [isEditing, setIsEditing] = reactExports.useState(false);
+  const [editForm, setEditForm] = reactExports.useState({
+    id: "",
+    name: "",
+    description: ""
+  });
+  const stationId = systemInfo == null ? void 0 : systemInfo.stationId;
+  const stationName = systemInfo == null ? void 0 : systemInfo.stationName;
+  const stationDescription = systemInfo == null ? void 0 : systemInfo.description;
+  reactExports.useEffect(() => {
+    if (stationId && stationName && !isEditing) {
+      setEditForm({
+        id: stationId,
+        name: stationName,
+        description: stationDescription || ""
+      });
+    }
+  }, [stationId, stationName, stationDescription, isEditing]);
   const handleRefresh = () => {
     refetchInfo();
     refetchHealth();
+  };
+  const handleEditStart = () => {
+    if (systemInfo) {
+      setEditForm({
+        id: systemInfo.stationId,
+        name: systemInfo.stationName,
+        description: systemInfo.description || ""
+      });
+    }
+    setIsEditing(true);
+  };
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    if (systemInfo) {
+      setEditForm({
+        id: systemInfo.stationId,
+        name: systemInfo.stationName,
+        description: systemInfo.description || ""
+      });
+    }
+  };
+  const handleEditSave = async () => {
+    if (!editForm.id.trim() || !editForm.name.trim()) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "Station ID and Name are required"
+      });
+      return;
+    }
+    try {
+      await updateStationInfo2.mutateAsync({
+        id: editForm.id.trim(),
+        name: editForm.name.trim(),
+        description: editForm.description.trim()
+      });
+      setIsEditing(false);
+      addNotification({
+        type: "success",
+        title: "Success",
+        message: "Station information updated successfully"
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Update Failed",
+        message: error instanceof Error ? error.message : "Failed to update station information"
+      });
+    }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
@@ -8561,13 +9195,70 @@ function SettingsPage() {
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Server, { className: "w-5 h-5" }),
           title: "Station Information",
           isLoading: infoLoading,
-          children: systemInfo && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+          action: !isEditing ? /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "sm", onClick: handleEditStart, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pen, { className: "w-4 h-4" }) }) : null,
+          children: systemInfo && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: isEditing ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              EditableRow,
+              {
+                label: "Station ID",
+                value: editForm.id,
+                onChange: (value) => setEditForm((prev) => ({ ...prev, id: value })),
+                placeholder: "e.g., station_001"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              EditableRow,
+              {
+                label: "Station Name",
+                value: editForm.name,
+                onChange: (value) => setEditForm((prev) => ({ ...prev, name: value })),
+                placeholder: "e.g., Test Station 1"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              EditableRow,
+              {
+                label: "Description",
+                value: editForm.description,
+                onChange: (value) => setEditForm((prev) => ({ ...prev, description: value })),
+                placeholder: "e.g., PCB voltage testing station"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-end gap-2 pt-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                Button,
+                {
+                  variant: "ghost",
+                  size: "sm",
+                  onClick: handleEditCancel,
+                  disabled: updateStationInfo2.isPending,
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-4 h-4 mr-1" }),
+                    "Cancel"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                Button,
+                {
+                  variant: "primary",
+                  size: "sm",
+                  onClick: handleEditSave,
+                  disabled: updateStationInfo2.isPending,
+                  children: [
+                    updateStationInfo2.isPending ? /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-1 animate-spin" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-4 h-4 mr-1" }),
+                    "Save"
+                  ]
+                }
+              )
+            ] })
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Station ID", value: systemInfo.stationId }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Station Name", value: systemInfo.stationName }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Description", value: systemInfo.description || "-" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Version", value: systemInfo.version }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Uptime", value: formatUptime(systemInfo.uptime) })
-          ] })
+          ] }) })
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -8682,11 +9373,14 @@ function SettingsPage() {
     ] }) })
   ] });
 }
-function Section({ icon, title, children, isLoading }) {
+function Section({ icon, title, children, isLoading, action }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "flex items-center gap-2 text-lg font-semibold mb-4", style: { color: "var(--color-text-primary)" }, children: [
-      icon,
-      title
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "flex items-center gap-2 text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: [
+        icon,
+        title
+      ] }),
+      action
     ] }),
     isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, {}) }) : children
   ] });
@@ -8695,6 +9389,26 @@ function InfoRow({ label, value }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: label }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: value })
+  ] });
+}
+function EditableRow({ label, value, onChange, placeholder }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm whitespace-nowrap", style: { color: "var(--color-text-secondary)" }, children: label }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        type: "text",
+        value,
+        onChange: (e) => onChange(e.target.value),
+        placeholder,
+        className: "flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
+        style: {
+          backgroundColor: "var(--color-bg-primary)",
+          borderColor: "var(--color-border-default)",
+          color: "var(--color-text-primary)"
+        }
+      }
+    )
   ] });
 }
 function formatUptime(seconds) {

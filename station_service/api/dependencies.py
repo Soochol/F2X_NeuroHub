@@ -5,6 +5,8 @@ Provides FastAPI dependency functions for accessing shared resources
 like BatchManager, Database, and EventEmitter.
 """
 
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Request, status
@@ -148,3 +150,22 @@ def get_sequence_loader(request: Request) -> "SequenceLoader":
             detail="Sequence loader not initialized",
         )
     return sequence_loader
+
+
+def get_config_path() -> Path:
+    """
+    Get the path to the station config file.
+
+    Returns:
+        Path to station.yaml config file
+    """
+    config_path = os.environ.get("STATION_CONFIG", "config/station.yaml")
+    path = Path(config_path)
+
+    if not path.exists():
+        # Try relative to module
+        module_path = Path(__file__).parent.parent / config_path
+        if module_path.exists():
+            path = module_path
+
+    return path

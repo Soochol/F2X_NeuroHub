@@ -47,6 +47,13 @@
   --color-border-default: #27272a;
   --color-border-subtle: #1f1f23;
   --color-border-strong: #3f3f46;
+
+  /* Semantic background colors */
+  --color-warning-bg: rgba(245, 158, 11, 0.2);
+  --color-warning-text: #fbbf24;
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-info-bg: rgba(59, 130, 246, 0.15);
 }
 
 /* Light Theme */
@@ -65,6 +72,13 @@
   --color-border-default: #e4e4e7;
   --color-border-subtle: #f4f4f5;
   --color-border-strong: #d4d4d8;
+
+  /* Semantic background colors */
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-text: #b45309;
+  --color-error-bg: rgba(239, 68, 68, 0.1);
+  --color-success-bg: rgba(34, 197, 94, 0.1);
+  --color-info-bg: rgba(59, 130, 246, 0.1);
 }
 
 /* Base styles */

@@ -440,6 +440,44 @@ class BatchManager:
             },
         )
 
+    async def get_all_batch_statistics(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get execution statistics for all batches.
+
+        Returns:
+            Dictionary mapping batch IDs to their statistics.
+        """
+        statistics: Dict[str, Dict[str, Any]] = {}
+
+        for batch_id in self._batch_configs:
+            # Default statistics
+            stats = {
+                "total": 0,
+                "pass": 0,
+                "fail": 0,
+                "passRate": 0.0,
+            }
+
+            # Try to get stats from running worker
+            if batch_id in self._batches and self._ipc_server.is_worker_connected(batch_id):
+                try:
+                    response = await self._ipc_server.send_command(
+                        batch_id,
+                        CommandType.GET_STATUS,
+                        params={"include_statistics": True},
+                        timeout=2000,
+                    )
+                    if response.status == "ok" and response.data:
+                        worker_stats = response.data.get("statistics", {})
+                        if worker_stats:
+                            stats.update(worker_stats)
+                except Exception as e:
+                    logger.warning(f"Failed to get statistics for {batch_id}: {e}")
+
+            statistics[batch_id] = stats
+
+        return statistics
+
     async def get_hardware_status(self, batch_id: str) -> Dict[str, Any]:
         """
         Get hardware status for a batch.

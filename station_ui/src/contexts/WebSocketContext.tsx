@@ -14,6 +14,7 @@ import {
 import { useConnectionStore } from '../stores/connectionStore';
 import { useBatchStore } from '../stores/batchStore';
 import { useLogStore } from '../stores/logStore';
+import { useNotificationStore } from '../stores/notificationStore';
 import { WEBSOCKET_CONFIG } from '../config';
 import type { ClientMessage, ServerMessage } from '../types';
 
@@ -94,7 +95,10 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
   const incrementReconnectAttempts = useConnectionStore((s) => s.incrementReconnectAttempts);
   const updateBatchStatus = useBatchStore((s) => s.updateBatchStatus);
   const updateStepProgress = useBatchStore((s) => s.updateStepProgress);
+  const setLastRunResult = useBatchStore((s) => s.setLastRunResult);
+  const incrementBatchStats = useBatchStore((s) => s.incrementBatchStats);
   const addLog = useLogStore((s) => s.addLog);
+  const addNotification = useNotificationStore((s) => s.addNotification);
 
   // Handle incoming messages with type narrowing
   const handleMessage = useCallback(
@@ -131,17 +135,35 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
             message: `Step "${message.data.step}" ${message.data.pass ? 'passed' : 'failed'} (${message.data.duration.toFixed(2)}s)`,
             timestamp: new Date(),
           });
+          // Add notification for failed steps
+          if (!message.data.pass) {
+            addNotification({
+              type: 'warning',
+              title: 'Step Failed',
+              message: `Step "${message.data.step}" failed in batch ${message.batchId.slice(0, 8)}...`,
+              batchId: message.batchId,
+            });
+          }
           break;
         }
 
         case 'sequence_complete': {
           updateBatchStatus(message.batchId, 'completed');
+          setLastRunResult(message.batchId, message.data.overallPass);
+          incrementBatchStats(message.batchId, message.data.overallPass);
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
             level: message.data.overallPass ? 'info' : 'error',
             message: `Sequence ${message.data.overallPass ? 'PASSED' : 'FAILED'} (${message.data.duration.toFixed(2)}s)`,
             timestamp: new Date(),
+          });
+          // Add notification for sequence completion
+          addNotification({
+            type: message.data.overallPass ? 'success' : 'error',
+            title: message.data.overallPass ? 'Sequence Passed' : 'Sequence Failed',
+            message: `Batch ${message.batchId.slice(0, 8)}... completed ${message.data.overallPass ? 'successfully' : 'with errors'} in ${message.data.duration.toFixed(2)}s`,
+            batchId: message.batchId,
           });
           break;
         }
@@ -165,6 +187,13 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
             message: `[${message.data.code}] ${message.data.message}${message.data.step ? ` (step: ${message.data.step})` : ''}`,
             timestamp: new Date(message.data.timestamp),
           });
+          // Add notification for errors
+          addNotification({
+            type: 'error',
+            title: `Error: ${message.data.code}`,
+            message: message.data.message,
+            batchId: message.batchId,
+          });
           break;
         }
 
@@ -174,7 +203,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           break;
       }
     },
-    [updateBatchStatus, updateStepProgress, addLog]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification]
   );
 
   // Connect to WebSocket
