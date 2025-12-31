@@ -147,7 +147,9 @@ class IPCEvent:
         )
 
     @classmethod
-    def step_start(cls, batch_id: str, step_name: str, step_index: int, total_steps: int) -> "IPCEvent":
+    def step_start(
+        cls, batch_id: str, step_name: str, step_index: int, total_steps: int, execution_id: str = ""
+    ) -> "IPCEvent":
         """Create step start event."""
         return cls(
             type=EventType.STEP_START,
@@ -156,6 +158,7 @@ class IPCEvent:
                 "step": step_name,
                 "index": step_index,
                 "total": total_steps,
+                "execution_id": execution_id,
             },
         )
 
@@ -168,6 +171,7 @@ class IPCEvent:
         duration: float,
         passed: bool,
         result: Optional[Dict[str, Any]] = None,
+        execution_id: str = "",
     ) -> "IPCEvent":
         """Create step complete event."""
         return cls(
@@ -179,6 +183,7 @@ class IPCEvent:
                 "duration": duration,
                 "pass": passed,
                 "result": result or {},
+                "execution_id": execution_id,
             },
         )
 

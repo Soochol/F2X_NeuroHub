@@ -586,6 +586,7 @@ class BatchManager:
             "STEP_START": EventType.STEP_STARTED,
             "STEP_COMPLETE": EventType.STEP_COMPLETED,
             "SEQUENCE_COMPLETE": EventType.SEQUENCE_COMPLETED,
+            "STATUS_UPDATE": EventType.BATCH_STATUS_CHANGED,
             "LOG": EventType.LOG,
             "ERROR": EventType.ERROR,
         }

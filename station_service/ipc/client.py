@@ -354,10 +354,12 @@ class IPCClient:
         """Publish an error event."""
         await self.publish_event(IPCEvent.error(self._batch_id, code, message, step))
 
-    async def step_start(self, step_name: str, step_index: int, total_steps: int) -> None:
+    async def step_start(
+        self, step_name: str, step_index: int, total_steps: int, execution_id: str = ""
+    ) -> None:
         """Publish a step start event."""
         await self.publish_event(
-            IPCEvent.step_start(self._batch_id, step_name, step_index, total_steps)
+            IPCEvent.step_start(self._batch_id, step_name, step_index, total_steps, execution_id)
         )
 
     async def step_complete(
@@ -367,11 +369,12 @@ class IPCClient:
         duration: float,
         passed: bool,
         result: Optional[Dict[str, Any]] = None,
+        execution_id: str = "",
     ) -> None:
         """Publish a step complete event."""
         await self.publish_event(
             IPCEvent.step_complete(
-                self._batch_id, step_name, step_index, duration, passed, result
+                self._batch_id, step_name, step_index, duration, passed, result, execution_id
             )
         )
 

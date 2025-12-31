@@ -206,10 +206,15 @@ async def handle_client_message(
 
 
 async def broadcast_batch_status(
-    batch_id: str, status: str, current_step: str = None, step_index: int = 0, progress: float = 0.0
+    batch_id: str,
+    status: str,
+    current_step: str = None,
+    step_index: int = 0,
+    progress: float = 0.0,
+    execution_id: str = "",
 ) -> None:
     """Broadcast batch status update to ALL connected clients."""
-    logger.info(f"[WS Broadcast] batch_status: batch={batch_id[:8]}..., status={status}, step={current_step}")
+    logger.info(f"[WS Broadcast] batch_status: batch={batch_id[:8]}..., status={status}, step={current_step}, exec={execution_id}")
     # Broadcast to ALL connections - clients filter by batch_id
     await manager.broadcast_all(
         {
@@ -220,16 +225,17 @@ async def broadcast_batch_status(
                 "current_step": current_step,
                 "step_index": step_index,
                 "progress": progress,
+                "execution_id": execution_id,
             },
         },
     )
 
 
 async def broadcast_step_start(
-    batch_id: str, step: str, index: int, total: int
+    batch_id: str, step: str, index: int, total: int, execution_id: str = ""
 ) -> None:
     """Broadcast step start event to ALL connected clients."""
-    logger.info(f"[WS Broadcast] step_start: batch={batch_id[:8]}..., step={step}, index={index}/{total}")
+    logger.info(f"[WS Broadcast] step_start: batch={batch_id[:8]}..., step={step}, index={index}/{total}, exec={execution_id}")
     # Broadcast to ALL connections - clients filter by batch_id
     await manager.broadcast_all(
         {
@@ -239,6 +245,7 @@ async def broadcast_step_start(
                 "step": step,
                 "index": index,
                 "total": total,
+                "execution_id": execution_id,
             },
         },
     )
@@ -251,9 +258,10 @@ async def broadcast_step_complete(
     duration: float,
     pass_: bool,
     result: Dict[str, Any] = None,
+    execution_id: str = "",
 ) -> None:
     """Broadcast step complete event to ALL connected clients."""
-    logger.info(f"[WS Broadcast] step_complete: batch={batch_id[:8]}..., step={step}, pass={pass_}")
+    logger.info(f"[WS Broadcast] step_complete: batch={batch_id[:8]}..., step={step}, pass={pass_}, exec={execution_id}")
     # Broadcast to ALL connections - clients filter by batch_id
     await manager.broadcast_all(
         {
@@ -265,6 +273,7 @@ async def broadcast_step_complete(
                 "duration": duration,
                 "pass": pass_,
                 "result": result or {},
+                "execution_id": execution_id,
             },
         },
     )

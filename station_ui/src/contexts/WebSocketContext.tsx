@@ -112,29 +112,30 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
       console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : '');
       switch (message.type) {
         case 'batch_status': {
-          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}`);
-          updateBatchStatus(message.batchId, message.data.status);
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
           if (message.data.currentStep !== undefined) {
             updateStepProgress(
               message.batchId,
               message.data.currentStep,
               message.data.stepIndex,
-              message.data.progress
+              message.data.progress,
+              message.data.executionId
             );
           }
           break;
         }
 
         case 'step_start': {
-          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}`);
-          // Note: No guard here - step_start should always update status to running
-          // The ZeroMQ buffering race condition is now fixed with asyncio.sleep(0) in executor.py
-          updateBatchStatus(message.batchId, 'running');
+          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
+          // Note: executionId is passed for race condition detection in the store
+          updateBatchStatus(message.batchId, 'running', message.data.executionId);
           updateStepProgress(
             message.batchId,
             message.data.step,
             message.data.index,
-            message.data.index / message.data.total
+            message.data.index / message.data.total,
+            message.data.executionId
           );
           break;
         }

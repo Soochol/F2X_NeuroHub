@@ -51,13 +51,14 @@ interface BatchState {
   setBatches: (batches: Batch[]) => void;
   updateBatch: (batch: Batch) => void;
   removeBatch: (batchId: string) => void;
-  updateBatchStatus: (batchId: string, status: BatchStatus) => void;
+  updateBatchStatus: (batchId: string, status: BatchStatus, executionId?: string) => void;
   setLastRunResult: (batchId: string, passed: boolean) => void;
   updateStepProgress: (
     batchId: string,
     currentStep: string,
     stepIndex: number,
-    progress: number
+    progress: number,
+    executionId?: string
   ) => void;
   updateStepResult: (batchId: string, stepResult: StepResult) => void;
   selectBatch: (batchId: string | null) => void;
@@ -132,11 +133,11 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
     }),
 
-  updateBatchStatus: (batchId, status) =>
+  updateBatchStatus: (batchId, status, executionId?) =>
     set((state) => {
       const newBatches = new Map(state.batches);
       const batch = state.batches.get(batchId);
-      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exists=${!!batch}, currentStatus=${batch?.status}, storeSize=${state.batches.size}`);
+      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch?.status}`);
 
       // Note: No guard here - explicit status updates from server should always be trusted
       // Race condition guards are handled in WebSocketContext.tsx for specific message types
@@ -147,6 +148,10 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         if (status === 'completed') {
           updates.progress = 1.0;
         }
+        // Track execution ID for race condition detection
+        if (executionId) {
+          updates.executionId = executionId;
+        }
         newBatches.set(batchId, { ...batch, ...updates });
       } else {
         // Create minimal batch entry for WebSocket updates that arrive before API data
@@ -155,6 +160,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
           name: 'Loading...',
           status,
           progress: status === 'completed' ? 1.0 : 0,
+          executionId,
           sequencePackage: '',
           elapsed: 0,
           hardwareConfig: {},
@@ -187,13 +193,17 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
-  updateStepProgress: (batchId, currentStep, stepIndex, progress) =>
+  updateStepProgress: (batchId, currentStep, stepIndex, progress, executionId?) =>
     set((state) => {
       const newBatches = new Map(state.batches);
       const batch = state.batches.get(batchId);
-      console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exists=${!!batch}, currentStatus=${batch?.status}`);
+      console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch?.status}`);
 
-      // Note: Race condition guards are handled in WebSocketContext.tsx for specific message types
+      // Race condition guard: ignore updates from old executions
+      if (batch && executionId && batch.executionId && batch.executionId !== executionId) {
+        console.log(`[batchStore] IGNORED: executionId mismatch (batch=${batch.executionId}, event=${executionId})`);
+        return state;
+      }
 
       if (batch) {
         newBatches.set(batchId, {
@@ -201,6 +211,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
           currentStep,
           stepIndex,
           progress,
+          executionId: executionId || batch.executionId,
         });
       } else {
         // Create minimal batch entry for WebSocket updates that arrive before API data
@@ -211,6 +222,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
           currentStep,
           stepIndex,
           progress,
+          executionId,
           sequencePackage: '',
           elapsed: 0,
           hardwareConfig: {},

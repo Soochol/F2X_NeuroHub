@@ -46,6 +46,7 @@ export interface BatchStatusMessage {
     currentStep?: string;
     stepIndex: number;
     progress: number;
+    executionId?: string;
   };
 }
 
@@ -59,6 +60,7 @@ export interface StepStartMessage {
     step: string;
     index: number;
     total: number;
+    executionId?: string;
   };
 }
 
@@ -74,6 +76,7 @@ export interface StepCompleteMessage {
     duration: number;
     pass: boolean;
     result?: Record<string, unknown>;
+    executionId?: string;
   };
 }
 

@@ -1203,14 +1203,17 @@ const useBatchStore = create((set, get) => ({
     newStats.delete(batchId);
     return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
   }),
-  updateBatchStatus: (batchId, status) => set((state) => {
+  updateBatchStatus: (batchId, status, executionId) => set((state) => {
     const newBatches = new Map(state.batches);
     const batch = state.batches.get(batchId);
-    console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}, storeSize=${state.batches.size}`);
+    console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}`);
     if (batch) {
       const updates = { status };
       if (status === "completed") {
         updates.progress = 1;
+      }
+      if (executionId) {
+        updates.executionId = executionId;
       }
       newBatches.set(batchId, { ...batch, ...updates });
     } else {
@@ -1219,6 +1222,7 @@ const useBatchStore = create((set, get) => ({
         name: "Loading...",
         status,
         progress: status === "completed" ? 1 : 0,
+        executionId,
         sequencePackage: "",
         elapsed: 0,
         hardwareConfig: {},
@@ -1247,16 +1251,21 @@ const useBatchStore = create((set, get) => ({
     }
     return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
-  updateStepProgress: (batchId, currentStep, stepIndex, progress) => set((state) => {
+  updateStepProgress: (batchId, currentStep, stepIndex, progress, executionId) => set((state) => {
     const newBatches = new Map(state.batches);
     const batch = state.batches.get(batchId);
-    console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}`);
+    console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}`);
+    if (batch && executionId && batch.executionId && batch.executionId !== executionId) {
+      console.log(`[batchStore] IGNORED: executionId mismatch (batch=${batch.executionId}, event=${executionId})`);
+      return state;
+    }
     if (batch) {
       newBatches.set(batchId, {
         ...batch,
         currentStep,
         stepIndex,
-        progress
+        progress,
+        executionId: executionId || batch.executionId
       });
     } else {
       newBatches.set(batchId, {
@@ -1266,6 +1275,7 @@ const useBatchStore = create((set, get) => ({
         currentStep,
         stepIndex,
         progress,
+        executionId,
         sequencePackage: "",
         elapsed: 0,
         hardwareConfig: {},
@@ -5432,26 +5442,28 @@ function WebSocketProvider({ children, url = "/ws" }) {
       console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : "");
       switch (message.type) {
         case "batch_status": {
-          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}`);
-          updateBatchStatus(message.batchId, message.data.status);
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
           if (message.data.currentStep !== void 0) {
             updateStepProgress(
               message.batchId,
               message.data.currentStep,
               message.data.stepIndex,
-              message.data.progress
+              message.data.progress,
+              message.data.executionId
             );
           }
           break;
         }
         case "step_start": {
-          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}`);
-          updateBatchStatus(message.batchId, "running");
+          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
+          updateBatchStatus(message.batchId, "running", message.data.executionId);
           updateStepProgress(
             message.batchId,
             message.data.step,
             message.data.index,
-            message.data.index / message.data.total
+            message.data.index / message.data.total,
+            message.data.executionId
           );
           break;
         }

@@ -332,6 +332,16 @@ class BatchWorker:
         self._status = BatchStatus.RUNNING
         self._started_at = datetime.now()
 
+        # Publish batch status update immediately so frontend knows we're running
+        await self._ipc.status_update({
+            "status": self._status.value,
+            "execution_id": self._current_execution_id,
+            "current_step": None,
+            "step_index": 0,
+            "total_steps": self._total_steps,
+            "progress": 0.0,
+        })
+
         return IPCResponse.ok(command.request_id, {
             "execution_id": self._current_execution_id,
             "status": "started",
@@ -586,6 +596,7 @@ class BatchWorker:
             step_name=step_name,
             step_index=len(self._step_results) - 1,
             total_steps=self._total_steps,
+            execution_id=self._current_execution_id or "",
         ))
 
     def _on_step_complete(self, step_name: str, step_result: StepResult) -> None:
@@ -610,6 +621,7 @@ class BatchWorker:
             duration=step_result.duration or 0,
             passed=step_result.passed,
             result=step_result.to_dict(),
+            execution_id=self._current_execution_id or "",
         ))
 
     def _on_log(self, level: str, message: str) -> None:

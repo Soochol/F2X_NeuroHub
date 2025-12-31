@@ -122,6 +122,7 @@ async def setup_event_forwarding(emitter: EventEmitter) -> None:
                 current_step=event.data.get("current_step"),
                 step_index=event.data.get("step_index", 0),
                 progress=event.data.get("progress", 0.0),
+                execution_id=event.data.get("execution_id", ""),
             )
         elif event.type == EventType.STEP_STARTED:
             await broadcast_step_start(
@@ -129,6 +130,7 @@ async def setup_event_forwarding(emitter: EventEmitter) -> None:
                 step=event.data.get("step", ""),
                 index=event.data.get("index", 0),
                 total=event.data.get("total", 0),
+                execution_id=event.data.get("execution_id", ""),
             )
         elif event.type == EventType.STEP_COMPLETED:
             await broadcast_step_complete(
@@ -138,6 +140,7 @@ async def setup_event_forwarding(emitter: EventEmitter) -> None:
                 duration=event.data.get("duration", 0.0),
                 pass_=event.data.get("pass", False),
                 result=event.data.get("result"),
+                execution_id=event.data.get("execution_id", ""),
             )
         elif event.type == EventType.SEQUENCE_COMPLETED:
             await broadcast_sequence_complete(

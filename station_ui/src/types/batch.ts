@@ -91,6 +91,8 @@ export interface Batch {
   stepNames?: string[];
   /** Progress (0.0 to 1.0) */
   progress: number;
+  /** Current execution ID (for distinguishing between sequence runs) */
+  executionId?: string;
   /** Last run result (true = pass, false = fail, undefined = no run yet) */
   lastRunPassed?: boolean;
 
