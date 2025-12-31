@@ -130,6 +130,11 @@ class SequenceExecutor:
         self._current_step: Optional[str] = None
         self._step_results: Dict[str, StepResult] = {}
 
+        # Pre-extract steps to get count
+        self._steps = self._extract_steps()
+        self._regular_steps = [(m, meta) for m, meta in self._steps if not meta.cleanup]
+        self._cleanup_steps = [(m, meta) for m, meta in self._steps if meta.cleanup]
+
     async def run(self) -> ExecutionResult:
         """
         Execute the sequence.
@@ -158,10 +163,9 @@ class SequenceExecutor:
             steps=[],
         )
 
-        # Extract and sort steps
-        steps = self._extract_steps()
-        regular_steps = [(method, meta) for method, meta in steps if not meta.cleanup]
-        cleanup_steps = [(method, meta) for method, meta in steps if meta.cleanup]
+        # Use pre-extracted steps
+        regular_steps = self._regular_steps
+        cleanup_steps = self._cleanup_steps
 
         self._log("info", f"Starting sequence '{sequence_name}' v{sequence_version}")
         self._log("info", f"Found {len(regular_steps)} regular steps and {len(cleanup_steps)} cleanup steps")
@@ -488,3 +492,13 @@ class SequenceExecutor:
             StepResult if the step has been executed, None otherwise
         """
         return self._step_results.get(step_name)
+
+    @property
+    def total_steps(self) -> int:
+        """Get the total number of steps (regular + cleanup)."""
+        return len(self._regular_steps) + len(self._cleanup_steps)
+
+    @property
+    def regular_step_count(self) -> int:
+        """Get the number of regular (non-cleanup) steps."""
+        return len(self._regular_steps)

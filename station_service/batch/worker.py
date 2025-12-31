@@ -108,6 +108,11 @@ class BatchWorker:
         self._started_at: Optional[datetime] = None
         self._step_results: List[Dict[str, Any]] = []  # Track step results
 
+        # Last run state (preserved after completion)
+        self._last_run_passed: Optional[bool] = None
+        self._last_run_progress: float = 0.0
+        self._last_step_results: List[Dict[str, Any]] = []
+
         # Backend integration state
         self._backend_client: Optional[BackendClient] = None
         self._backend_online: bool = False
@@ -318,6 +323,9 @@ class BatchWorker:
             on_error=self._on_error,
         )
 
+        # Set total steps from executor for progress tracking
+        self._total_steps = self._executor.total_steps
+
         # Start execution task
         self._execution_task = asyncio.create_task(self._run_sequence())
 
@@ -352,17 +360,24 @@ class BatchWorker:
 
     async def _cmd_get_status(self, command: IPCCommand) -> IPCResponse:
         """Handle GET_STATUS command."""
+        # When idle, use last run state if available for progress display
+        is_idle = self._status == BatchStatus.IDLE
+        has_last_run = self._last_run_passed is not None
+
         status = {
             "status": self._status.value,
             "sequence_name": getattr(self._sequence_instance, "name", None),
             "sequence_version": getattr(self._sequence_instance, "version", None),
             "current_step": self._current_step,
-            "step_index": self._step_index,
-            "total_steps": self._total_steps,
-            "progress": self._progress,
+            "step_index": self._step_index if not is_idle else len(self._last_step_results),
+            "total_steps": self._total_steps if not is_idle else len(self._last_step_results),
+            # Use last run progress when idle (preserves 100% after completion)
+            "progress": self._last_run_progress if (is_idle and has_last_run) else self._progress,
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "execution_id": self._current_execution_id,
-            "steps": self._step_results,  # Include step results
+            # Use last run steps when idle
+            "steps": self._last_step_results if (is_idle and has_last_run) else self._step_results,
+            "last_run_passed": self._last_run_passed,
         }
         return IPCResponse.ok(command.request_id, status)
 
@@ -513,7 +528,27 @@ class BatchWorker:
 
         finally:
             self._status = BatchStatus.IDLE
+            self._save_last_run_state()
             self._reset_execution_state()
+
+    def _save_last_run_state(self) -> None:
+        """Save last run state before resetting (for UI display after completion)."""
+        # Preserve progress at 100% if we had steps
+        if self._total_steps > 0:
+            self._last_run_progress = 1.0  # Always 100% when completed
+        else:
+            self._last_run_progress = self._progress
+
+        # Preserve step results
+        self._last_step_results = self._step_results.copy()
+
+        # Determine pass/fail from step results
+        if self._step_results:
+            self._last_run_passed = all(
+                step.get("status") == "completed" for step in self._step_results
+            )
+        else:
+            self._last_run_passed = None
 
     def _reset_execution_state(self) -> None:
         """Reset execution state variables."""
@@ -524,6 +559,7 @@ class BatchWorker:
         self._started_at = None
         self._current_execution_id = None
         self._executor = None
+        self._step_results = []  # Clear current step results
 
         # Reset WIP context
         self._current_wip_id = None

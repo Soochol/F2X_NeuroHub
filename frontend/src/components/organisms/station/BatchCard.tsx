@@ -131,7 +131,7 @@ export const BatchCard = ({
         </div>
 
         <Progress
-          percent={batch.progress}
+          percent={batch.progress * 100}
           strokeColor={getProgressColor(batch.status, batch.lastRunPassed)}
           trailColor="var(--color-bg-tertiary)"
           showInfo={false}
@@ -139,7 +139,7 @@ export const BatchCard = ({
         />
 
         <div className={styles.progressFooter}>
-          <span className={styles.progressPercent}>{Math.round(batch.progress)}%</span>
+          <span className={styles.progressPercent}>{Math.round(batch.progress * 100)}%</span>
           {batch.elapsed > 0 && (
             <span className={styles.elapsed}>{formatDuration(batch.elapsed)}</span>
           )}

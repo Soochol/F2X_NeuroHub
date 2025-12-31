@@ -7,7 +7,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Spin, Button, Tabs, Empty, message, Badge, Select, Modal } from 'antd';
+import { Spin, Button, Tabs, Empty, Badge, Select } from 'antd';
 import {
   ArrowLeft,
   Server,
@@ -22,7 +22,6 @@ import {
   useRegisteredStation,
   useStationBatches,
   useStationBatchStatistics,
-  useStationBatchControl,
   useStationWebSocket,
 } from '@/hooks/useStationMonitor';
 import { BatchCard, HealthMetrics } from '@/components/organisms/station';
@@ -54,11 +53,6 @@ export const StationDetailPage = () => {
     useStationBatches(station?.host || '', station?.port || 0);
 
   const { data: statistics } = useStationBatchStatistics(
-    station?.host || '',
-    station?.port || 0
-  );
-
-  const { startBatch, stopBatch, startSequence, stopSequence, deleteBatch } = useStationBatchControl(
     station?.host || '',
     station?.port || 0
   );
@@ -120,65 +114,6 @@ export const StationDetailPage = () => {
       error: batches.filter((b) => b.status === 'error').length,
     };
   }, [batches]);
-
-  const handleStartBatch = async (batchId: string) => {
-    try {
-      await startBatch.mutateAsync(batchId);
-      message.success('Batch started');
-    } catch {
-      message.error('Failed to start batch');
-    }
-  };
-
-  const handleStopBatch = async (batchId: string) => {
-    try {
-      await stopBatch.mutateAsync(batchId);
-      message.success('Batch stopped');
-    } catch {
-      message.error('Failed to stop batch');
-    }
-  };
-
-  const handleStartSequence = async (batchId: string) => {
-    try {
-      await startSequence.mutateAsync({ batchId });
-      message.success('Sequence started');
-    } catch {
-      message.error('Failed to start sequence');
-    }
-  };
-
-  const handleStopSequence = async (batchId: string) => {
-    try {
-      await stopSequence.mutateAsync(batchId);
-      message.success('Sequence stopped');
-    } catch {
-      message.error('Failed to stop sequence');
-    }
-  };
-
-  const handleDeleteBatch = async (batchId: string, batchName: string) => {
-    Modal.confirm({
-      title: 'Delete Batch',
-      content: `Are you sure you want to delete the batch "${batchName}"? This action cannot be undone.`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await deleteBatch.mutateAsync(batchId);
-          message.success('Batch deleted');
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to delete batch';
-          if (errorMessage.includes('running')) {
-            message.error('Cannot delete a running batch. Stop it first.');
-          } else {
-            message.error(errorMessage);
-          }
-        }
-      },
-    });
-  };
 
   if (!station && !isStationLoading) {
     return (
@@ -323,28 +258,7 @@ export const StationDetailPage = () => {
                           key={batch.id}
                           batch={batch}
                           statistics={statistics?.[batch.id]}
-                          onStart={() => {
-                            if (batch.status === 'idle') {
-                              handleStartBatch(batch.id);
-                            } else {
-                              handleStartSequence(batch.id);
-                            }
-                          }}
-                          onStop={() => {
-                            if (batch.status === 'running') {
-                              handleStopSequence(batch.id);
-                            } else {
-                              handleStopBatch(batch.id);
-                            }
-                          }}
-                          onDelete={() => handleDeleteBatch(batch.id, batch.name)}
-                          isLoading={
-                            startBatch.isPending ||
-                            stopBatch.isPending ||
-                            startSequence.isPending ||
-                            stopSequence.isPending ||
-                            deleteBatch.isPending
-                          }
+                          // NOTE: All controls removed - manage batches from Station UI only
                         />
                       ))}
                     </div>
