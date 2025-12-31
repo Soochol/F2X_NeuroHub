@@ -96,23 +96,34 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       const newBatches = new Map<string, Batch>();
       for (const batch of batches) {
         const existing = state.batches.get(batch.id);
-        // Preserve real-time WebSocket updates for running/starting batches only
-        // (API polling data might be stale during active execution)
-        if (existing && (existing.status === 'running' || existing.status === 'starting')) {
-          // Preserve running/starting state from WebSocket
-          newBatches.set(batch.id, {
-            ...batch,
-            status: existing.status,
-            currentStep: existing.currentStep,
-            stepIndex: existing.stepIndex,
-            progress: existing.progress,
-            lastRunPassed: existing.lastRunPassed,
-          });
-        } else {
-          // For completed/idle/error states, trust the API data
-          // WebSocket will update if a new sequence starts
-          newBatches.set(batch.id, batch);
+
+        if (existing) {
+          // Never allow completed state to be reverted to running by stale API data
+          // This prevents the bug where navigating between pages causes status regression
+          if (existing.status === 'completed' && (batch.status === 'running' || batch.status === 'starting')) {
+            console.log(`[batchStore] setBatches: BLOCKED status regression ${existing.status} -> ${batch.status} for ${batch.id.slice(0, 8)}...`);
+            newBatches.set(batch.id, existing);
+            continue;
+          }
+
+          // Preserve real-time WebSocket updates for running/starting batches
+          // (API polling data might be stale during active execution)
+          if (existing.status === 'running' || existing.status === 'starting') {
+            newBatches.set(batch.id, {
+              ...batch,
+              status: existing.status,
+              currentStep: existing.currentStep,
+              stepIndex: existing.stepIndex,
+              progress: existing.progress,
+              lastRunPassed: existing.lastRunPassed,
+              executionId: existing.executionId,
+            });
+            continue;
+          }
         }
+
+        // Default: use API data for new batches or stable states (idle, completed, error)
+        newBatches.set(batch.id, batch);
       }
       return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),

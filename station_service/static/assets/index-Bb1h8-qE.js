@@ -1176,18 +1176,26 @@ const useBatchStore = create((set, get) => ({
     const newBatches = /* @__PURE__ */ new Map();
     for (const batch of batches2) {
       const existing = state.batches.get(batch.id);
-      if (existing && (existing.status === "running" || existing.status === "starting")) {
-        newBatches.set(batch.id, {
-          ...batch,
-          status: existing.status,
-          currentStep: existing.currentStep,
-          stepIndex: existing.stepIndex,
-          progress: existing.progress,
-          lastRunPassed: existing.lastRunPassed
-        });
-      } else {
-        newBatches.set(batch.id, batch);
+      if (existing) {
+        if (existing.status === "completed" && (batch.status === "running" || batch.status === "starting")) {
+          console.log(`[batchStore] setBatches: BLOCKED status regression ${existing.status} -> ${batch.status} for ${batch.id.slice(0, 8)}...`);
+          newBatches.set(batch.id, existing);
+          continue;
+        }
+        if (existing.status === "running" || existing.status === "starting") {
+          newBatches.set(batch.id, {
+            ...batch,
+            status: existing.status,
+            currentStep: existing.currentStep,
+            stepIndex: existing.stepIndex,
+            progress: existing.progress,
+            lastRunPassed: existing.lastRunPassed,
+            executionId: existing.executionId
+          });
+          continue;
+        }
       }
+      newBatches.set(batch.id, batch);
     }
     return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
