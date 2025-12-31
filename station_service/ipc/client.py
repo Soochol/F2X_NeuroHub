@@ -250,6 +250,7 @@ class IPCClient:
         if not self._connected:
             raise IPCError("IPC Client not connected", "NOT_CONNECTED")
 
+        logger.info(f"[IPC Client {self._batch_id}] Publishing event: {event.type.value}")
         await self._pub_socket.send_string(event.serialize())
 
     async def send_response(self, response: IPCResponse) -> None:

@@ -579,6 +579,8 @@ class BatchManager:
 
     async def _handle_ipc_event(self, event: IPCEvent) -> None:
         """Handle IPC events from workers."""
+        logger.info(f"[BatchManager] Received IPC event: {event.type.value} from batch {event.batch_id}")
+
         # Forward to event emitter for WebSocket broadcasting
         event_type_map = {
             "STEP_START": EventType.STEP_STARTED,
@@ -590,6 +592,7 @@ class BatchManager:
 
         mapped_type = event_type_map.get(event.type.value)
         if mapped_type:
+            logger.info(f"[BatchManager] Forwarding to EventEmitter: {mapped_type.value}")
             await self._event_emitter.emit(Event(
                 type=mapped_type,
                 batch_id=event.batch_id,

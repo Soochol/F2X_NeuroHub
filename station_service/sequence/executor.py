@@ -278,6 +278,9 @@ class SequenceExecutor:
             except Exception as e:
                 self._log("warning", f"on_step_start callback failed: {e}")
 
+        # Yield to event loop to allow IPC messages to be sent
+        await asyncio.sleep(0)
+
         started_at = datetime.now()
         step_result = StepResult(
             name=step_meta.name,
@@ -372,6 +375,10 @@ class SequenceExecutor:
                 self._on_step_complete(step_meta.name, step_result)
             except Exception as e:
                 self._log("warning", f"on_step_complete callback failed: {e}")
+
+        # Yield to event loop to allow IPC messages to be sent
+        # This ensures real-time updates reach clients during execution
+        await asyncio.sleep(0)
 
         self._current_step = None
         return step_result

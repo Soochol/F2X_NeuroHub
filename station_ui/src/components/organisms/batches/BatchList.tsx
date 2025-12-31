@@ -8,7 +8,6 @@ import { useParams } from 'react-router-dom';
 import { BatchCard } from '../../molecules/BatchCard';
 import { Select } from '../../atoms/Select';
 import { useBatchStore } from '../../../stores/batchStore';
-import { useShallow } from 'zustand/react/shallow';
 import type { Batch, BatchStatus, BatchStatistics } from '../../../types';
 
 export interface BatchListProps {
@@ -26,7 +25,8 @@ export function BatchList({ batches, statistics, onStart, onStop, onDelete, onSe
   const [statusFilter, setStatusFilter] = useState<BatchStatus | 'all'>('all');
 
   // Get statistics from store if not provided via props
-  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  // Note: Don't use useShallow with Map objects - shallow comparison doesn't work correctly
+  const batchStatistics = useBatchStore((state) => state.batchStatistics);
   const batchStats = statistics || batchStatistics;
 
   const filteredBatches =

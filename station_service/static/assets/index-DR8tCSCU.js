@@ -1167,50 +1167,112 @@ cleanupLegacyLocalBatches();
 const useBatchStore = create((set, get) => ({
   // Initial state
   batches: /* @__PURE__ */ new Map(),
+  batchesVersion: 0,
   selectedBatchId: null,
   batchStatistics: /* @__PURE__ */ new Map(),
   isWizardOpen: false,
   // Actions
-  setBatches: (batches2) => set({
-    batches: new Map(batches2.map((b) => [b.id, b]))
+  setBatches: (batches2) => set((state) => {
+    const newBatches = /* @__PURE__ */ new Map();
+    for (const batch of batches2) {
+      const existing = state.batches.get(batch.id);
+      if (existing && (existing.status === "running" || existing.status === "starting")) {
+        newBatches.set(batch.id, {
+          ...batch,
+          status: existing.status,
+          currentStep: existing.currentStep,
+          stepIndex: existing.stepIndex,
+          progress: existing.progress,
+          lastRunPassed: existing.lastRunPassed
+        });
+      } else {
+        newBatches.set(batch.id, batch);
+      }
+    }
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   updateBatch: (batch) => set((state) => {
     const newBatches = new Map(state.batches);
     newBatches.set(batch.id, batch);
-    return { batches: newBatches };
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   removeBatch: (batchId) => set((state) => {
     const newBatches = new Map(state.batches);
     newBatches.delete(batchId);
     const newStats = new Map(state.batchStatistics);
     newStats.delete(batchId);
-    return { batches: newBatches, batchStatistics: newStats };
+    return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
   }),
   updateBatchStatus: (batchId, status) => set((state) => {
-    const batch = state.batches.get(batchId);
-    if (!batch) return state;
     const newBatches = new Map(state.batches);
-    newBatches.set(batchId, { ...batch, status });
-    return { batches: newBatches };
+    const batch = state.batches.get(batchId);
+    console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}, storeSize=${state.batches.size}`);
+    if (batch) {
+      const updates = { status };
+      if (status === "completed") {
+        updates.progress = 1;
+      }
+      newBatches.set(batchId, { ...batch, ...updates });
+    } else {
+      newBatches.set(batchId, {
+        id: batchId,
+        name: "Loading...",
+        status,
+        progress: status === "completed" ? 1 : 0,
+        sequencePackage: "",
+        elapsed: 0,
+        hardwareConfig: {},
+        autoStart: false
+      });
+    }
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   setLastRunResult: (batchId, passed) => set((state) => {
-    const batch = state.batches.get(batchId);
-    if (!batch) return state;
     const newBatches = new Map(state.batches);
-    newBatches.set(batchId, { ...batch, lastRunPassed: passed });
-    return { batches: newBatches };
+    const batch = state.batches.get(batchId);
+    if (batch) {
+      newBatches.set(batchId, { ...batch, lastRunPassed: passed });
+    } else {
+      newBatches.set(batchId, {
+        id: batchId,
+        name: "Loading...",
+        status: "completed",
+        progress: 1,
+        lastRunPassed: passed,
+        sequencePackage: "",
+        elapsed: 0,
+        hardwareConfig: {},
+        autoStart: false
+      });
+    }
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   updateStepProgress: (batchId, currentStep, stepIndex, progress) => set((state) => {
-    const batch = state.batches.get(batchId);
-    if (!batch) return state;
     const newBatches = new Map(state.batches);
-    newBatches.set(batchId, {
-      ...batch,
-      currentStep,
-      stepIndex,
-      progress
-    });
-    return { batches: newBatches };
+    const batch = state.batches.get(batchId);
+    console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}`);
+    if (batch) {
+      newBatches.set(batchId, {
+        ...batch,
+        currentStep,
+        stepIndex,
+        progress
+      });
+    } else {
+      newBatches.set(batchId, {
+        id: batchId,
+        name: "Loading...",
+        status: "running",
+        currentStep,
+        stepIndex,
+        progress,
+        sequencePackage: "",
+        elapsed: 0,
+        hardwareConfig: {},
+        autoStart: false
+      });
+    }
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   updateStepResult: (batchId, stepResult) => set((state) => {
     const batch = state.batches.get(batchId);
@@ -1221,10 +1283,10 @@ const useBatchStore = create((set, get) => ({
       stepIndex: stepResult.order,
       progress: (batch.totalSteps ?? 0) > 0 ? stepResult.order / batch.totalSteps : 0
     });
-    return { batches: newBatches };
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   selectBatch: (batchId) => set({ selectedBatchId: batchId }),
-  clearBatches: () => set({ batches: /* @__PURE__ */ new Map() }),
+  clearBatches: () => set((state) => ({ batches: /* @__PURE__ */ new Map(), batchesVersion: state.batchesVersion + 1 })),
   // Statistics actions
   setBatchStatistics: (batchId, stats) => set((state) => {
     const newStats = new Map(state.batchStatistics);
@@ -5351,7 +5413,7 @@ function transformKeys(obj) {
 function WebSocketProvider({ children, url = "/ws" }) {
   const queryClient2 = useQueryClient();
   const socketRef = reactExports.useRef(null);
-  const subscribedBatchIds = reactExports.useRef(/* @__PURE__ */ new Set());
+  const subscriptionRefCount = reactExports.useRef(/* @__PURE__ */ new Map());
   const reconnectTimeoutRef = reactExports.useRef(null);
   const reconnectAttemptRef = reactExports.useRef(0);
   const setWebSocketStatus = useConnectionStore((s) => s.setWebSocketStatus);
@@ -5366,8 +5428,11 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const addNotification = useNotificationStore((s) => s.addNotification);
   const handleMessage = reactExports.useCallback(
     (message) => {
+      const batchIdForLog = "batchId" in message ? message.batchId.slice(0, 8) : null;
+      console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : "");
       switch (message.type) {
         case "batch_status": {
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}`);
           updateBatchStatus(message.batchId, message.data.status);
           if (message.data.currentStep !== void 0) {
             updateStepProgress(
@@ -5380,6 +5445,8 @@ function WebSocketProvider({ children, url = "/ws" }) {
           break;
         }
         case "step_start": {
+          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}`);
+          updateBatchStatus(message.batchId, "running");
           updateStepProgress(
             message.batchId,
             message.data.step,
@@ -5490,12 +5557,16 @@ function WebSocketProvider({ children, url = "/ws" }) {
       resetReconnectAttempts();
       reconnectAttemptRef.current = 0;
       updateHeartbeat();
-      if (subscribedBatchIds.current.size > 0) {
+      const subscribedBatchIds = Array.from(subscriptionRefCount.current.keys());
+      if (subscribedBatchIds.length > 0) {
+        console.log(`[WS] Re-subscribing on connect:`, subscribedBatchIds.map((id) => id.slice(0, 8)));
         const message = {
           type: "subscribe",
-          batchIds: Array.from(subscribedBatchIds.current)
+          batchIds: subscribedBatchIds
         };
         socket.send(JSON.stringify(message));
+      } else {
+        console.log(`[WS] Connected, no batches to re-subscribe`);
       }
     };
     socket.onmessage = (event) => {
@@ -5546,23 +5617,41 @@ function WebSocketProvider({ children, url = "/ws" }) {
     };
   }, [connect]);
   const subscribe = reactExports.useCallback((batchIds) => {
-    var _a;
-    batchIds.forEach((id) => subscribedBatchIds.current.add(id));
-    if (((_a = socketRef.current) == null ? void 0 : _a.readyState) === WebSocket.OPEN) {
+    var _a, _b, _c;
+    batchIds.forEach((id) => {
+      const currentCount = subscriptionRefCount.current.get(id) || 0;
+      subscriptionRefCount.current.set(id, currentCount + 1);
+      console.log(`[WS] subscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount + 1}`);
+    });
+    if (batchIds.length > 0 && ((_a = socketRef.current) == null ? void 0 : _a.readyState) === WebSocket.OPEN) {
+      console.log(`[WS] Sending subscribe for batches:`, batchIds.map((id) => id.slice(0, 8)));
       const message = {
         type: "subscribe",
         batchIds
       };
       socketRef.current.send(JSON.stringify(message));
+    } else if (((_b = socketRef.current) == null ? void 0 : _b.readyState) !== WebSocket.OPEN) {
+      console.warn(`[WS] WebSocket not open (state: ${(_c = socketRef.current) == null ? void 0 : _c.readyState}), subscribe queued for reconnect`);
     }
   }, []);
   const unsubscribe = reactExports.useCallback((batchIds) => {
     var _a;
-    batchIds.forEach((id) => subscribedBatchIds.current.delete(id));
-    if (((_a = socketRef.current) == null ? void 0 : _a.readyState) === WebSocket.OPEN) {
+    const actualUnsubscribes = [];
+    batchIds.forEach((id) => {
+      const currentCount = subscriptionRefCount.current.get(id) || 0;
+      console.log(`[WS] unsubscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount > 0 ? currentCount - 1 : 0}`);
+      if (currentCount > 1) {
+        subscriptionRefCount.current.set(id, currentCount - 1);
+      } else if (currentCount === 1) {
+        subscriptionRefCount.current.delete(id);
+        actualUnsubscribes.push(id);
+      }
+    });
+    if (actualUnsubscribes.length > 0 && ((_a = socketRef.current) == null ? void 0 : _a.readyState) === WebSocket.OPEN) {
+      console.log(`[WS] Sending unsubscribe for:`, actualUnsubscribes.map((id) => id.slice(0, 8)));
       const message = {
         type: "unsubscribe",
-        batchIds
+        batchIds: actualUnsubscribes
       };
       socketRef.current.send(JSON.stringify(message));
     }
@@ -6661,7 +6750,7 @@ Select.displayName = "Select";
 function BatchList({ batches: batches2, statistics, onStart, onStop, onDelete, onSelect, isLoading }) {
   const { batchId: selectedBatchId } = useParams();
   const [statusFilter, setStatusFilter] = reactExports.useState("all");
-  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  const batchStatistics = useBatchStore((state) => state.batchStatistics);
   const batchStats = statistics || batchStatistics;
   const filteredBatches = statusFilter === "all" ? batches2 : batches2.filter((b) => b.status === statusFilter);
   const statusOptions = [
@@ -7397,46 +7486,34 @@ function BatchesPage() {
   const navigate = useNavigate();
   const { data: batches2, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
-  const { subscribe, unsubscribe, isConnected } = useWebSocket();
+  const { subscribe, isConnected } = useWebSocket();
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const isServerConnected = isConnected && websocketStatus === "connected";
-  const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  const batchesMap = useBatchStore((state) => state.batches);
+  const batchesVersion = useBatchStore((state) => state.batchesVersion);
+  const batchStatistics = useBatchStore((state) => state.batchStatistics);
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
   const storeBatches = reactExports.useMemo(() => {
-    return Array.from(batchesMap.values());
-  }, [batchesMap]);
-  const startBatch2 = useStartBatch();
-  const stopBatch2 = useStopBatch();
-  const deleteBatch2 = useDeleteBatch();
+    const arr = Array.from(batchesMap.values());
+    console.log(`[BatchesPage] storeBatches recalc: version=${batchesVersion}, size=${arr.length}`, arr.map((b) => `${b.id.slice(0, 8)}:${b.status}`));
+    return arr;
+  }, [batchesMap, batchesVersion]);
   const createBatches2 = useCreateBatches();
   reactExports.useEffect(() => {
     if (batches2 && batches2.length > 0) {
       const batchIds = batches2.map((b) => b.id);
       subscribe(batchIds);
-      return () => unsubscribe(batchIds);
     }
-  }, [batches2, subscribe, unsubscribe]);
+  }, [batches2, subscribe]);
   const displayBatches = storeBatches.length > 0 ? storeBatches : batches2 ?? [];
   const handleSelectBatch = (id) => {
     navigate(getBatchDetailRoute(id));
   };
-  const handleStartBatch = async (id) => {
-    await startBatch2.mutateAsync(id);
-  };
-  const handleStopBatch = async (id) => {
-    await stopBatch2.mutateAsync(id);
-  };
   const handleCreateBatches = async (request) => {
     await createBatches2.mutateAsync(request);
     closeWizard();
-  };
-  const handleDeleteBatch = async (id) => {
-    if (window.confirm("Are you sure you want to delete this batch?")) {
-      await deleteBatch2.mutateAsync(id);
-    }
   };
   const getSequenceDetail = reactExports.useCallback(async (name) => {
     return getSequence(name);
@@ -7475,12 +7552,9 @@ function BatchesPage() {
       BatchList,
       {
         batches: displayBatches,
-        onStart: handleStartBatch,
-        onStop: handleStopBatch,
-        onDelete: handleDeleteBatch,
-        onSelect: handleSelectBatch,
-        isLoading: startBatch2.isPending || stopBatch2.isPending || deleteBatch2.isPending
-      }
+        onSelect: handleSelectBatch
+      },
+      `batch-list-${batchesVersion}`
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       CreateBatchWizard,
@@ -7502,18 +7576,19 @@ function BatchDetailPage() {
   const { batchId } = useParams();
   const navigate = useNavigate();
   const { data: batch, isLoading } = useBatch(batchId ?? null);
-  const { subscribe, unsubscribe } = useWebSocket();
+  const { subscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
   const startBatch2 = useStartBatch();
   const startSequence2 = useStartSequence();
   const stopSequence2 = useStopSequence();
   const stopBatch2 = useStopBatch();
+  const deleteBatch2 = useDeleteBatch();
   reactExports.useEffect(() => {
     if (batchId) {
+      console.log(`[BatchDetailPage] useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
       subscribe([batchId]);
-      return () => unsubscribe([batchId]);
     }
-  }, [batchId, subscribe, unsubscribe]);
+  }, [batchId, subscribe]);
   const statistics = reactExports.useMemo(() => {
     return batchId ? getBatchStats(batchId) : void 0;
   }, [batchId, getBatchStats]);
@@ -7551,6 +7626,12 @@ function BatchDetailPage() {
     if (batchId) {
       await stopSequence2.mutateAsync(batchId);
       await stopBatch2.mutateAsync(batchId);
+    }
+  };
+  const handleDeleteBatch = async () => {
+    if (batchId && window.confirm("Are you sure you want to delete this batch?")) {
+      await deleteBatch2.mutateAsync(batchId);
+      navigate(ROUTES.BATCHES);
     }
   };
   if (isLoading) {
@@ -7623,6 +7704,19 @@ function BatchDetailPage() {
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Square, { className: "w-4 h-4 mr-2" }),
               "Stop"
+            ]
+          }
+        ),
+        !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          Button,
+          {
+            variant: "ghost",
+            onClick: handleDeleteBatch,
+            isLoading: deleteBatch2.isPending,
+            className: "text-red-500 hover:text-red-400 hover:bg-red-500/10",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4 mr-2" }),
+              "Delete"
             ]
           }
         )

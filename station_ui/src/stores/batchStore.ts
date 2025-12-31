@@ -42,6 +42,7 @@ cleanupLegacyLocalBatches();
 interface BatchState {
   // State
   batches: Map<string, Batch>;
+  batchesVersion: number; // Version counter to trigger re-renders when batches change
   selectedBatchId: string | null;
   batchStatistics: Map<string, BatchStatistics>;
   isWizardOpen: boolean;
@@ -83,21 +84,43 @@ interface BatchState {
 export const useBatchStore = create<BatchState>((set, get) => ({
   // Initial state
   batches: new Map(),
+  batchesVersion: 0,
   selectedBatchId: null,
   batchStatistics: new Map(),
   isWizardOpen: false,
 
   // Actions
   setBatches: (batches) =>
-    set({
-      batches: new Map(batches.map((b) => [b.id, b])),
+    set((state) => {
+      const newBatches = new Map<string, Batch>();
+      for (const batch of batches) {
+        const existing = state.batches.get(batch.id);
+        // Preserve real-time WebSocket updates for running/starting batches only
+        // (API polling data might be stale during active execution)
+        if (existing && (existing.status === 'running' || existing.status === 'starting')) {
+          // Preserve running/starting state from WebSocket
+          newBatches.set(batch.id, {
+            ...batch,
+            status: existing.status,
+            currentStep: existing.currentStep,
+            stepIndex: existing.stepIndex,
+            progress: existing.progress,
+            lastRunPassed: existing.lastRunPassed,
+          });
+        } else {
+          // For completed/idle/error states, trust the API data
+          // WebSocket will update if a new sequence starts
+          newBatches.set(batch.id, batch);
+        }
+      }
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   updateBatch: (batch) =>
     set((state) => {
       const newBatches = new Map(state.batches);
       newBatches.set(batch.id, batch);
-      return { batches: newBatches };
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   removeBatch: (batchId) =>
@@ -106,42 +129,95 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       newBatches.delete(batchId);
       const newStats = new Map(state.batchStatistics);
       newStats.delete(batchId);
-      return { batches: newBatches, batchStatistics: newStats };
+      return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
     }),
 
   updateBatchStatus: (batchId, status) =>
     set((state) => {
-      const batch = state.batches.get(batchId);
-      if (!batch) return state;
-
       const newBatches = new Map(state.batches);
-      newBatches.set(batchId, { ...batch, status });
-      return { batches: newBatches };
+      const batch = state.batches.get(batchId);
+      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exists=${!!batch}, currentStatus=${batch?.status}, storeSize=${state.batches.size}`);
+
+      // Note: No guard here - explicit status updates from server should always be trusted
+      // Race condition guards are handled in WebSocketContext.tsx for specific message types
+
+      if (batch) {
+        // When transitioning to 'completed', also set progress to 100%
+        const updates: Partial<typeof batch> = { status };
+        if (status === 'completed') {
+          updates.progress = 1.0;
+        }
+        newBatches.set(batchId, { ...batch, ...updates });
+      } else {
+        // Create minimal batch entry for WebSocket updates that arrive before API data
+        newBatches.set(batchId, {
+          id: batchId,
+          name: 'Loading...',
+          status,
+          progress: status === 'completed' ? 1.0 : 0,
+          sequencePackage: '',
+          elapsed: 0,
+          hardwareConfig: {},
+          autoStart: false,
+        });
+      }
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   setLastRunResult: (batchId, passed) =>
     set((state) => {
-      const batch = state.batches.get(batchId);
-      if (!batch) return state;
-
       const newBatches = new Map(state.batches);
-      newBatches.set(batchId, { ...batch, lastRunPassed: passed });
-      return { batches: newBatches };
+      const batch = state.batches.get(batchId);
+      if (batch) {
+        newBatches.set(batchId, { ...batch, lastRunPassed: passed });
+      } else {
+        // Create minimal batch entry for WebSocket updates that arrive before API data
+        newBatches.set(batchId, {
+          id: batchId,
+          name: 'Loading...',
+          status: 'completed',
+          progress: 1,
+          lastRunPassed: passed,
+          sequencePackage: '',
+          elapsed: 0,
+          hardwareConfig: {},
+          autoStart: false,
+        });
+      }
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   updateStepProgress: (batchId, currentStep, stepIndex, progress) =>
     set((state) => {
-      const batch = state.batches.get(batchId);
-      if (!batch) return state;
-
       const newBatches = new Map(state.batches);
-      newBatches.set(batchId, {
-        ...batch,
-        currentStep,
-        stepIndex,
-        progress,
-      });
-      return { batches: newBatches };
+      const batch = state.batches.get(batchId);
+      console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exists=${!!batch}, currentStatus=${batch?.status}`);
+
+      // Note: Race condition guards are handled in WebSocketContext.tsx for specific message types
+
+      if (batch) {
+        newBatches.set(batchId, {
+          ...batch,
+          currentStep,
+          stepIndex,
+          progress,
+        });
+      } else {
+        // Create minimal batch entry for WebSocket updates that arrive before API data
+        newBatches.set(batchId, {
+          id: batchId,
+          name: 'Loading...',
+          status: 'running',
+          currentStep,
+          stepIndex,
+          progress,
+          sequencePackage: '',
+          elapsed: 0,
+          hardwareConfig: {},
+          autoStart: false,
+        });
+      }
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   updateStepResult: (batchId, stepResult) =>
@@ -155,12 +231,12 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         stepIndex: stepResult.order,
         progress: (batch.totalSteps ?? 0) > 0 ? stepResult.order / batch.totalSteps! : 0,
       });
-      return { batches: newBatches };
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
   selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
-  clearBatches: () => set({ batches: new Map() }),
+  clearBatches: () => set((state) => ({ batches: new Map(), batchesVersion: state.batchesVersion + 1 })),
 
   // Statistics actions
   setBatchStatistics: (batchId, stats) =>

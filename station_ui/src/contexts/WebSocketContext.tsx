@@ -87,7 +87,9 @@ function transformKeys<T>(obj: unknown): T {
 export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderProps) {
   const queryClient = useQueryClient();
   const socketRef = useRef<WebSocket | null>(null);
-  const subscribedBatchIds = useRef<Set<string>>(new Set());
+  // Use reference counting for subscriptions to handle overlapping subscriptions from different components
+  // This prevents issues when navigating between pages where cleanup runs after the new page's effect
+  const subscriptionRefCount = useRef<Map<string, number>>(new Map());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
 
@@ -106,8 +108,11 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
   // Handle incoming messages with type narrowing
   const handleMessage = useCallback(
     (message: ServerMessage) => {
+      const batchIdForLog = 'batchId' in message ? (message.batchId as string).slice(0, 8) : null;
+      console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : '');
       switch (message.type) {
         case 'batch_status': {
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}`);
           updateBatchStatus(message.batchId, message.data.status);
           if (message.data.currentStep !== undefined) {
             updateStepProgress(
@@ -121,6 +126,10 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
 
         case 'step_start': {
+          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}`);
+          // Note: No guard here - step_start should always update status to running
+          // The ZeroMQ buffering race condition is now fixed with asyncio.sleep(0) in executor.py
+          updateBatchStatus(message.batchId, 'running');
           updateStepProgress(
             message.batchId,
             message.data.step,
@@ -249,13 +258,17 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
       reconnectAttemptRef.current = 0;
       updateHeartbeat();
 
-      // Re-subscribe to previously subscribed batches
-      if (subscribedBatchIds.current.size > 0) {
+      // Re-subscribe to previously subscribed batches on reconnect
+      const subscribedBatchIds = Array.from(subscriptionRefCount.current.keys());
+      if (subscribedBatchIds.length > 0) {
+        console.log(`[WS] Re-subscribing on connect:`, subscribedBatchIds.map(id => id.slice(0, 8)));
         const message: ClientMessage = {
           type: 'subscribe',
-          batchIds: Array.from(subscribedBatchIds.current),
+          batchIds: subscribedBatchIds,
         };
         socket.send(JSON.stringify(message));
+      } else {
+        console.log(`[WS] Connected, no batches to re-subscribe`);
       }
     };
 
@@ -317,27 +330,55 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
     };
   }, [connect]);
 
-  // Subscribe to batch updates
+  // Subscribe to batch updates with reference counting
+  // This handles overlapping subscriptions from multiple components
   const subscribe = useCallback((batchIds: string[]) => {
-    batchIds.forEach((id) => subscribedBatchIds.current.add(id));
+    // Update refCount for tracking (used for unsubscribe logic)
+    batchIds.forEach((id) => {
+      const currentCount = subscriptionRefCount.current.get(id) || 0;
+      subscriptionRefCount.current.set(id, currentCount + 1);
+      console.log(`[WS] subscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount + 1}`);
+    });
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    // ALWAYS send subscribe message - server uses Set so duplicates are safe
+    // This fixes the bug where initial subscribe fails if WebSocket wasn't ready
+    if (batchIds.length > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
+      console.log(`[WS] Sending subscribe for batches:`, batchIds.map(id => id.slice(0, 8)));
       const message: ClientMessage = {
         type: 'subscribe',
         batchIds,
       };
       socketRef.current.send(JSON.stringify(message));
+    } else if (socketRef.current?.readyState !== WebSocket.OPEN) {
+      console.warn(`[WS] WebSocket not open (state: ${socketRef.current?.readyState}), subscribe queued for reconnect`);
     }
   }, []);
 
-  // Unsubscribe from batch updates
+  // Unsubscribe from batch updates with reference counting
+  // Only actually unsubscribes when all subscribers have unsubscribed
   const unsubscribe = useCallback((batchIds: string[]) => {
-    batchIds.forEach((id) => subscribedBatchIds.current.delete(id));
+    const actualUnsubscribes: string[] = [];
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    batchIds.forEach((id) => {
+      const currentCount = subscriptionRefCount.current.get(id) || 0;
+      console.log(`[WS] unsubscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount > 0 ? currentCount - 1 : 0}`);
+      if (currentCount > 1) {
+        // Other components still need this subscription
+        subscriptionRefCount.current.set(id, currentCount - 1);
+      } else if (currentCount === 1) {
+        // Last subscriber - actually unsubscribe
+        subscriptionRefCount.current.delete(id);
+        actualUnsubscribes.push(id);
+      }
+      // If currentCount is 0, do nothing (wasn't subscribed)
+    });
+
+    // Only send unsubscribe for batches that no longer have any subscribers
+    if (actualUnsubscribes.length > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
+      console.log(`[WS] Sending unsubscribe for:`, actualUnsubscribes.map(id => id.slice(0, 8)));
       const message: ClientMessage = {
         type: 'unsubscribe',
-        batchIds,
+        batchIds: actualUnsubscribes,
       };
       socketRef.current.send(JSON.stringify(message));
     }

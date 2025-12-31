@@ -18,8 +18,9 @@ import {
   Package,
   Layers,
   Timer,
+  Trash2,
 } from 'lucide-react';
-import { useBatch, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useWebSocket } from '../hooks';
+import { useBatch, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { Button } from '../components/atoms/Button';
 import { StatusBadge } from '../components/atoms/StatusBadge';
@@ -38,21 +39,27 @@ export function BatchDetailPage() {
   const navigate = useNavigate();
 
   const { data: batch, isLoading } = useBatch(batchId ?? null);
-  const { subscribe, unsubscribe } = useWebSocket();
+  const { subscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
 
   const startBatch = useStartBatch();
   const startSequence = useStartSequence();
   const stopSequence = useStopSequence();
   const stopBatch = useStopBatch();
+  const deleteBatch = useDeleteBatch();
 
   // Subscribe to real-time updates for this batch
+  // NOTE: We intentionally don't unsubscribe on cleanup because:
+  // 1. React's cleanup runs BEFORE new component's effect, causing a gap
+  // 2. BatchesPage will re-subscribe to all batches anyway
+  // 3. Subscriptions are idempotent and cleaned up on WebSocket disconnect
   useEffect(() => {
     if (batchId) {
+      console.log(`[BatchDetailPage] useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
       subscribe([batchId]);
-      return () => unsubscribe([batchId]);
+      // No cleanup - subscriptions persist across navigation
     }
-  }, [batchId, subscribe, unsubscribe]);
+  }, [batchId, subscribe]);
 
   const statistics = useMemo(() => {
     return batchId ? getBatchStats(batchId) : undefined;
@@ -105,6 +112,12 @@ export function BatchDetailPage() {
     }
   };
 
+  const handleDeleteBatch = async () => {
+    if (batchId && window.confirm('Are you sure you want to delete this batch?')) {
+      await deleteBatch.mutateAsync(batchId);
+      navigate(ROUTES.BATCHES);
+    }
+  };
 
   // Early returns for loading and not-found states
   if (isLoading) {
@@ -192,6 +205,17 @@ export function BatchDetailPage() {
             >
               <Square className="w-4 h-4 mr-2" />
               Stop
+            </Button>
+          )}
+          {!isRunning && (
+            <Button
+              variant="ghost"
+              onClick={handleDeleteBatch}
+              isLoading={deleteBatch.isPending}
+              className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
             </Button>
           )}
         </div>

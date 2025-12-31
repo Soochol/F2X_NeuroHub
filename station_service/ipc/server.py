@@ -342,7 +342,7 @@ class IPCServer:
 
     async def _event_loop(self) -> None:
         """Background task to receive and dispatch events."""
-        logger.debug("Event loop started")
+        logger.info("[IPC Server] Event loop started - waiting for worker events on SUB socket")
 
         while self._running:
             try:
@@ -355,7 +355,7 @@ class IPCServer:
                 message = await self._sub_socket.recv_string()
                 event = IPCEvent.deserialize(message)
 
-                logger.debug(f"Received event: {event.type.value} from {event.batch_id}")
+                logger.info(f"[IPC Server] Received event: {event.type.value} from {event.batch_id}")
 
                 # Dispatch to callbacks
                 for callback in self._event_callbacks:

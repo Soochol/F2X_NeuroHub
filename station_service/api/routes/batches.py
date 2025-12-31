@@ -622,7 +622,10 @@ async def create_batch(
     description="""
     Delete a batch configuration.
 
-    The batch must be stopped before deletion.
+    If the batch process is running but idle (no active sequence),
+    it will be stopped automatically before deletion.
+
+    If the batch has an active sequence running, deletion will be rejected.
     This removes the batch from runtime configuration only.
 
     Note: This does not modify the YAML config file.
@@ -634,8 +637,26 @@ async def delete_batch(
 ) -> ApiResponse[BatchDeleteResponse]:
     """
     Delete a batch configuration.
+
+    Automatically stops idle batch processes before deletion.
     """
     try:
+        # Check if batch process is running but in idle state (sequence completed)
+        if batch_id in batch_manager.running_batch_ids:
+            # Get the batch status to check if sequence is running
+            batch_status = await batch_manager.get_batch_status(batch_id)
+            execution_status = batch_status.get("status", "idle")
+
+            # Only allow auto-stop if the batch is idle (no active sequence)
+            if execution_status in ("idle", "completed", "error"):
+                logger.info(f"Auto-stopping idle batch '{batch_id}' before deletion")
+                await batch_manager.stop_batch(batch_id)
+            else:
+                # Sequence is actively running - cannot delete
+                raise BatchAlreadyRunningError(
+                    f"Cannot delete batch '{batch_id}' while sequence is running. Stop the sequence first."
+                )
+
         batch_manager.remove_batch(batch_id)
 
         # Broadcast batch deleted event via WebSocket

@@ -4,21 +4,17 @@
  * Detail view is now a separate page (/batches/:batchId).
  */
 
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, Plus, WifiOff } from 'lucide-react';
 import {
   useBatchList,
-  useStartBatch,
-  useStopBatch,
-  useDeleteBatch,
   useWebSocket,
   useSequenceList,
   useCreateBatches,
 } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { useConnectionStore } from '../stores/connectionStore';
-import { useShallow } from 'zustand/react/shallow';
 import { BatchList } from '../components/organisms/batches/BatchList';
 import { CreateBatchWizard } from '../components/organisms/batches/CreateBatchWizard';
 import { BatchStatisticsPanel } from '../components/organisms/batches/BatchStatisticsPanel';
@@ -33,37 +29,42 @@ export function BatchesPage() {
 
   const { data: batches, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
-  const { subscribe, unsubscribe, isConnected } = useWebSocket();
+  const { subscribe, isConnected } = useWebSocket();
 
   // Connection status for Create Batch button
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const isServerConnected = isConnected && websocketStatus === 'connected';
 
-  // Use useShallow to prevent re-renders when map contents haven't changed
-  const batchesMap = useBatchStore(useShallow((state) => state.batches));
-  const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
+  // Subscribe to both batches Map and version counter
+  // The version counter ensures re-renders when Map contents change
+  const batchesMap = useBatchStore((state) => state.batches);
+  const batchesVersion = useBatchStore((state) => state.batchesVersion);
+  const batchStatistics = useBatchStore((state) => state.batchStatistics);
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
 
-  // Get server batches only (no local batches)
+  // Convert Map to array - batchesVersion in deps ensures recalculation on updates
   const storeBatches = useMemo(() => {
-    return Array.from(batchesMap.values());
-  }, [batchesMap]);
+    const arr = Array.from(batchesMap.values());
+    console.log(`[BatchesPage] storeBatches recalc: version=${batchesVersion}, size=${arr.length}`, arr.map(b => `${b.id.slice(0,8)}:${b.status}`));
+    return arr;
+  }, [batchesMap, batchesVersion]);
 
-  const startBatch = useStartBatch();
-  const stopBatch = useStopBatch();
-  const deleteBatch = useDeleteBatch();
   const createBatches = useCreateBatches();
 
   // Subscribe to all batches for real-time updates
+  // NOTE: We intentionally don't unsubscribe on cleanup because:
+  // 1. React's cleanup runs BEFORE new component's effect, causing a gap where batches are unsubscribed
+  // 2. During navigation, this gap causes missed WebSocket messages
+  // 3. Subscriptions are idempotent and cleaned up on WebSocket disconnect
   useEffect(() => {
     if (batches && batches.length > 0) {
       const batchIds = batches.map((b) => b.id);
       subscribe(batchIds);
-      return () => unsubscribe(batchIds);
+      // No cleanup - subscriptions persist across navigation
     }
-  }, [batches, subscribe, unsubscribe]);
+  }, [batches, subscribe]);
 
   // Use store batches if available (more up-to-date from WebSocket)
   const displayBatches = storeBatches.length > 0 ? storeBatches : batches ?? [];
@@ -72,23 +73,9 @@ export function BatchesPage() {
     navigate(getBatchDetailRoute(id));
   };
 
-  const handleStartBatch = async (id: string) => {
-    await startBatch.mutateAsync(id);
-  };
-
-  const handleStopBatch = async (id: string) => {
-    await stopBatch.mutateAsync(id);
-  };
-
   const handleCreateBatches = async (request: CreateBatchRequest) => {
     await createBatches.mutateAsync(request);
     closeWizard();
-  };
-
-  const handleDeleteBatch = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this batch?')) {
-      await deleteBatch.mutateAsync(id);
-    }
   };
 
   const getSequenceDetail = useCallback(async (name: string): Promise<SequencePackage> => {
@@ -129,14 +116,12 @@ export function BatchesPage() {
       {/* Statistics Panel */}
       <BatchStatisticsPanel batches={displayBatches} statistics={batchStatistics} />
 
-      {/* Batch List */}
+      {/* Batch List - Click to view details, controls only in detail page */}
+      {/* key forces re-render when batch data changes */}
       <BatchList
+        key={`batch-list-${batchesVersion}`}
         batches={displayBatches}
-        onStart={handleStartBatch}
-        onStop={handleStopBatch}
-        onDelete={handleDeleteBatch}
         onSelect={handleSelectBatch}
-        isLoading={startBatch.isPending || stopBatch.isPending || deleteBatch.isPending}
       />
 
       {/* Create Batch Wizard Modal */}

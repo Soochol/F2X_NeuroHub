@@ -114,6 +114,7 @@ async def setup_event_forwarding(emitter: EventEmitter) -> None:
 
     async def forward_event(event: Event) -> None:
         """Forward events to WebSocket clients."""
+        logger.info(f"[EventForwarder] Received event: {event.type.value} for batch {event.batch_id}")
         if event.type == EventType.BATCH_STATUS_CHANGED:
             await broadcast_batch_status(
                 batch_id=event.batch_id,
