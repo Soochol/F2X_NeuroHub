@@ -147,7 +147,7 @@ async def setup_event_forwarding(emitter: EventEmitter) -> None:
                 batch_id=event.batch_id,
                 execution_id=event.data.get("execution_id", ""),
                 overall_pass=event.data.get("overall_pass", False),
-                duration=int(event.data.get("duration", 0)),
+                duration=float(event.data.get("duration", 0.0)),
                 steps=event.data.get("steps"),
             )
         elif event.type == EventType.LOG:
@@ -222,9 +222,12 @@ async def lifespan(app: FastAPI):
         await sync_engine.start()
         logger.info("SyncEngine started")
 
-        # Initialize SequenceLoader
-        sequence_loader = SequenceLoader(packages_dir="sequences")
-        logger.info("SequenceLoader initialized")
+        # Initialize SequenceLoader with absolute path
+        # Compute sequences directory relative to project root (parent of station_service)
+        project_root = Path(__file__).parent.parent
+        sequences_dir = project_root / "sequences"
+        sequence_loader = SequenceLoader(packages_dir=str(sequences_dir))
+        logger.info(f"SequenceLoader initialized with packages_dir: {sequences_dir}")
 
         # Store components in app state for route access
         app.state.config = config
@@ -322,11 +325,35 @@ def create_application() -> FastAPI:
     # NOTE: Static files mounted at /ui to avoid conflict with /api routes
     static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
-        app.mount("/ui", StaticFiles(directory=str(static_dir), html=True), name="static")
+        from fastapi.responses import RedirectResponse, FileResponse
+
+        # Serve static assets (js, css, images, etc.)
+        app.mount("/ui/assets", StaticFiles(directory=str(static_dir / "assets")), name="static-assets")
+
+        # Serve favicon
+        @app.get("/ui/favicon.svg", include_in_schema=False)
+        async def serve_favicon():
+            return FileResponse(static_dir / "favicon.svg")
+
+        # SPA fallback: serve index.html for all /ui/* routes
+        @app.get("/ui/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str):
+            """Serve index.html for SPA client-side routing."""
+            file_path = static_dir / full_path
+            # If it's a real file, serve it
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+            # Otherwise, serve index.html for client-side routing
+            return FileResponse(static_dir / "index.html")
+
+        @app.get("/ui", include_in_schema=False)
+        async def serve_ui_root():
+            """Serve index.html for /ui (without trailing slash)."""
+            return FileResponse(static_dir / "index.html")
+
         logger.info(f"Serving static files from: {static_dir}")
 
         # Add redirect from root to /ui
-        from fastapi.responses import RedirectResponse
         @app.get("/", include_in_schema=False)
         async def redirect_to_ui():
             return RedirectResponse(url="/ui/")

@@ -16,6 +16,7 @@ from station_service.api.routes import (
     batches_router,
     deploy_router,
     logs_router,
+    manual_router,
     results_router,
     sequences_router,
     sequence_upload_router,
@@ -52,13 +53,18 @@ def create_app(
     )
 
     # Register routers
+    # NOTE: sequence_upload_router MUST come before sequences_router
+    # because both use prefix "/api/sequences" and sequence_upload_router
+    # has more specific routes like /{name}/download that would otherwise
+    # be matched by sequences_router's /{sequence_name} pattern
     app.include_router(system_router)
     app.include_router(batches_router)
+    app.include_router(sequence_upload_router)  # Must come before sequences_router
     app.include_router(sequences_router)
-    app.include_router(sequence_upload_router)
     app.include_router(deploy_router)
     app.include_router(results_router)
     app.include_router(logs_router)
+    app.include_router(manual_router)
 
     return app
 
@@ -68,6 +74,7 @@ __all__ = [
     "batches_router",
     "deploy_router",
     "logs_router",
+    "manual_router",
     "results_router",
     "sequences_router",
     "sequence_upload_router",

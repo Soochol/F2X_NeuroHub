@@ -20,6 +20,8 @@ from station_service.ipc import IPCServer, IPCEvent, CommandType
 from station_service.models.batch import BatchStatus
 from station_service.models.config import BatchConfig, StationConfig
 from station_service.batch.process import BatchProcess
+from station_service.storage.database import Database
+from station_service.storage.repositories.execution_repository import ExecutionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -490,6 +492,9 @@ class BatchManager:
         """
         Get execution statistics for all batches.
 
+        Always reads from DB for reliable statistics.
+        Worker in-memory stats are not reliable (reset on startup).
+
         Returns:
             Dictionary mapping batch IDs to their statistics.
         """
@@ -504,25 +509,72 @@ class BatchManager:
                 "passRate": 0.0,
             }
 
-            # Try to get stats from running worker
-            if batch_id in self._batches and self._ipc_server.is_worker_connected(batch_id):
-                try:
-                    response = await self._ipc_server.send_command(
-                        batch_id,
-                        CommandType.GET_STATUS,
-                        params={"include_statistics": True},
-                        timeout=2000,
-                    )
-                    if response.status == "ok" and response.data:
-                        worker_stats = response.data.get("statistics", {})
-                        if worker_stats:
-                            stats.update(worker_stats)
-                except Exception as e:
-                    logger.warning(f"Failed to get statistics for {batch_id}: {e}")
+            # Always read from database for reliable statistics
+            # Worker in-memory stats reset on every startup, so they're not reliable
+            db_stats = await self._get_batch_statistics_from_db(batch_id)
+            if db_stats:
+                stats.update(db_stats)
 
             statistics[batch_id] = stats
 
         return statistics
+
+    async def _get_batch_statistics_from_db(self, batch_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get execution statistics from the batch's database file.
+
+        Args:
+            batch_id: The batch ID
+
+        Returns:
+            Statistics dictionary or None if not available
+        """
+        db_path = f"data/batch_{batch_id}.db"
+        db = None
+
+        try:
+            import os
+            if not os.path.exists(db_path):
+                return None
+
+            # Use Database.create() factory method
+            db = await Database.create(db_path=db_path)
+
+            # Query execution results for this batch
+            rows = await db.fetch_all(
+                """
+                SELECT overall_pass FROM execution_results
+                WHERE batch_id = ?
+                """,
+                (batch_id,),
+            )
+
+            if not rows:
+                return None
+
+            total = len(rows)
+            # SQLite stores boolean as INTEGER (1/0), so use truthy check
+            passed = sum(1 for r in rows if r.get("overall_pass"))
+            failed = total - passed
+            pass_rate = passed / total if total > 0 else 0.0
+
+            return {
+                "total": total,
+                "pass": passed,
+                "fail": failed,
+                "passRate": pass_rate,
+            }
+
+        except Exception as e:
+            logger.debug(f"Could not read statistics from DB for {batch_id}: {e}")
+            return None
+
+        finally:
+            if db:
+                try:
+                    await db.close()
+                except Exception:
+                    pass
 
     async def get_hardware_status(self, batch_id: str) -> Dict[str, Any]:
         """
@@ -599,6 +651,227 @@ class BatchManager:
                 batch_id=event.batch_id,
                 data=event.data,
             ))
+
+    async def get_driver_instance(self, batch_id: str, hardware_id: str) -> Any:
+        """
+        Get a driver instance from a running batch.
+
+        Args:
+            batch_id: The batch ID
+            hardware_id: The hardware device ID
+
+        Returns:
+            The driver instance if found, None otherwise
+
+        Raises:
+            BatchNotFoundError: If batch ID not in config
+            BatchNotRunningError: If batch is not running
+        """
+        if batch_id not in self._batch_configs:
+            raise BatchNotFoundError(batch_id)
+
+        if batch_id not in self._batches:
+            raise BatchNotRunningError(batch_id)
+
+        # Send command to worker to get driver info
+        try:
+            response = await self._ipc_server.send_command(
+                batch_id,
+                CommandType.GET_STATUS,
+                params={"include_drivers": True},
+                timeout=2000,
+            )
+            if response.status == "ok" and response.data:
+                drivers = response.data.get("drivers", {})
+                if hardware_id in drivers:
+                    # For introspection, we need to recreate driver instance
+                    # since we can't send the actual driver across processes
+                    driver_info = drivers[hardware_id]
+                    return self._create_driver_for_introspection(hardware_id, driver_info)
+        except Exception as e:
+            logger.warning(f"Failed to get driver instance for {batch_id}/{hardware_id}: {e}")
+
+        # Fallback: Try to create driver instance from config for introspection
+        config = self._batch_configs[batch_id]
+        if hardware_id in config.hardware:
+            return self._create_driver_for_introspection(hardware_id, config.hardware[hardware_id])
+
+        return None
+
+    def _create_driver_for_introspection(
+        self, hardware_id: str, hw_config: Dict[str, Any]
+    ) -> Any:
+        """
+        Create a driver instance for introspection purposes.
+
+        This creates a mock/real driver based on the hardware configuration
+        so we can introspect its methods.
+        """
+        # Try to import the driver from the sequence package
+        try:
+            # Get driver class info from config
+            driver_module = hw_config.get("driver", "")
+            driver_class_name = hw_config.get("class", "")
+
+            if driver_module and driver_class_name:
+                # Try common package locations
+                possible_paths = [
+                    f"sequences.{driver_module}.{driver_class_name}",
+                    f"sequences.pcb_voltage_test.drivers.{driver_module}.{driver_class_name}",
+                    f"sequences.sensor_inspection.drivers.{driver_module}.{driver_class_name}",
+                ]
+
+                for path in possible_paths:
+                    try:
+                        parts = path.rsplit(".", 1)
+                        if len(parts) == 2:
+                            module_name, class_name = parts
+                            import importlib
+                            module = importlib.import_module(module_name)
+                            driver_class = getattr(module, class_name, None)
+                            if driver_class:
+                                return driver_class(name=hardware_id, config=hw_config)
+                    except (ImportError, AttributeError):
+                        continue
+
+            # Fallback: Try to use MockMultimeter if hardware type suggests it
+            if "multimeter" in hardware_id.lower():
+                from sequences.pcb_voltage_test.drivers.mock_multimeter import MockMultimeter
+                return MockMultimeter(name=hardware_id, config=hw_config)
+
+            if "sensor" in hardware_id.lower():
+                from sequences.sensor_inspection.drivers.mock_sensor import MockSensorInterface
+                return MockSensorInterface(name=hardware_id, config=hw_config)
+
+        except Exception as e:
+            logger.warning(f"Could not create driver for introspection: {e}")
+
+        return None
+
+    async def get_manual_steps(self, batch_id: str) -> List[Dict[str, Any]]:
+        """
+        Get sequence steps for manual execution.
+
+        Args:
+            batch_id: The batch ID
+
+        Returns:
+            List of step information dictionaries
+        """
+        if batch_id not in self._batch_configs:
+            raise BatchNotFoundError(batch_id)
+
+        config = self._batch_configs[batch_id]
+
+        # Try to load sequence metadata
+        try:
+            from station_service.sequence.loader import SequenceLoader
+            from station_service.sequence.decorators import collect_steps
+
+            loader = SequenceLoader("sequences")
+            manifest = await loader.load_package(config.sequence_package)
+            package_path = loader.get_package_path(config.sequence_package)
+            sequence_class = await loader.load_sequence_class(manifest, package_path)
+
+            step_infos = collect_steps(sequence_class)
+
+            steps = []
+            for method_name, _, step_meta in step_infos:
+                step_name = step_meta.name or method_name
+                steps.append({
+                    "name": step_name,
+                    "displayName": step_name.replace("_", " ").title(),
+                    "order": step_meta.order,
+                    "timeout": step_meta.timeout,
+                    "cleanup": step_meta.cleanup,
+                    "status": "pending",
+                })
+
+            return steps
+
+        except Exception as e:
+            logger.warning(f"Could not load steps for {batch_id}: {e}")
+            return []
+
+    async def run_manual_step(
+        self,
+        batch_id: str,
+        step_name: str,
+        parameter_overrides: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a single step manually.
+
+        Args:
+            batch_id: The batch ID
+            step_name: The step name to execute
+            parameter_overrides: Optional parameter overrides
+
+        Returns:
+            Step execution result
+        """
+        if batch_id not in self._batches:
+            raise BatchNotRunningError(batch_id)
+
+        # Send command to run specific step
+        return await self.send_command(
+            batch_id,
+            CommandType.MANUAL_CONTROL,
+            params={
+                "hardware": "_sequence",
+                "command": "run_step",
+                "params": {
+                    "step_name": step_name,
+                    "parameters": parameter_overrides or {},
+                },
+            },
+        )
+
+    async def skip_manual_step(
+        self, batch_id: str, step_name: str
+    ) -> Dict[str, Any]:
+        """
+        Skip a step in manual mode.
+
+        Args:
+            batch_id: The batch ID
+            step_name: The step name to skip
+
+        Returns:
+            Skip result
+        """
+        if batch_id not in self._batches:
+            raise BatchNotRunningError(batch_id)
+
+        return await self.send_command(
+            batch_id,
+            CommandType.MANUAL_CONTROL,
+            params={
+                "hardware": "_sequence",
+                "command": "skip_step",
+                "params": {"step_name": step_name},
+            },
+        )
+
+    async def reset_manual_sequence(self, batch_id: str) -> None:
+        """
+        Reset manual sequence execution state.
+
+        Args:
+            batch_id: The batch ID
+        """
+        if batch_id not in self._batches:
+            raise BatchNotRunningError(batch_id)
+
+        await self.send_command(
+            batch_id,
+            CommandType.MANUAL_CONTROL,
+            params={
+                "hardware": "_sequence",
+                "command": "reset",
+                "params": {},
+            },
+        )
 
     async def _monitor_loop(self) -> None:
         """Background task to monitor batch processes."""

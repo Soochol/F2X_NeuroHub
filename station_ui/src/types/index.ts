@@ -97,3 +97,17 @@ export type {
 } from './api';
 
 export { API_ERROR_CODES } from './api';
+
+// Manual control types
+export type {
+  CommandParameter,
+  CommandInfo,
+  HardwareCommandsResponse,
+  HardwareDetailedStatus,
+  ManualStepConfig,
+  ManualStepInfo,
+  CommandPreset,
+  CreatePresetRequest,
+  ResultHistoryEntry,
+  ManualControlState,
+} from './manual';

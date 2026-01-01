@@ -39,6 +39,8 @@ export const queryKeys = {
   // Batches
   batches: ['batches'] as const,
   batch: (id: string) => ['batches', id] as const,
+  batchStatistics: (id: string) => ['batchStatistics', id] as const,
+  allBatchStatistics: ['batchStatistics'] as const,
 
   // Sequences
   sequences: ['sequences'] as const,

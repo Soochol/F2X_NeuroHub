@@ -38,6 +38,7 @@ router = APIRouter(prefix="/api/sequences", tags=["Sequences"])
 @router.get(
     "",
     response_model=ApiResponse[List[SequenceSummary]],
+    response_model_by_alias=True,
     responses={
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
     },
@@ -108,6 +109,7 @@ async def list_sequences(
 @router.get(
     "/{sequence_name}",
     response_model=ApiResponse[SequenceDetail],
+    response_model_by_alias=True,
     responses={
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
@@ -166,6 +168,8 @@ async def get_sequence(
                 id=hw_id,
                 display_name=hw_def.display_name,
                 driver=hw_def.driver,
+                class_name=hw_def.class_name,
+                description=hw_def.description or None,
                 config_schema=config_schema,
             ))
 
@@ -212,6 +216,7 @@ async def get_sequence(
             author=manifest.author or None,
             created_at=created_at,
             updated_at=updated_at,
+            path=str(package_path),
             hardware=hardware_list,
             parameters=parameters_list,
             steps=steps_list,
@@ -235,6 +240,7 @@ async def get_sequence(
 @router.put(
     "/{sequence_name}",
     response_model=ApiResponse[SequenceUpdateResponse],
+    response_model_by_alias=True,
     responses={
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorResponse},

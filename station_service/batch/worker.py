@@ -26,6 +26,7 @@ from station_service.models.config import BackendConfig, BatchConfig
 from station_service.sequence.executor import SequenceExecutor, ExecutionResult, StepResult
 from station_service.sequence.decorators import StepMeta
 from station_service.storage.database import Database
+from station_service.storage.repositories.execution_repository import ExecutionRepository
 from station_service.storage.repositories.sync_repository import SyncRepository
 from station_service.sync.backend_client import BackendClient
 from station_service.sync.models import (
@@ -122,9 +123,10 @@ class BatchWorker:
         self._current_operator_id: Optional[int] = None
         self._process_start_time: Optional[datetime] = None
 
-        # SQLite database and sync repository for persistent offline queue
+        # SQLite database and repositories for persistent data
         self._database: Optional[Database] = None
         self._sync_repo: Optional[SyncRepository] = None
+        self._execution_repo: Optional[ExecutionRepository] = None
 
     @property
     def batch_id(self) -> str:
@@ -515,6 +517,9 @@ class BatchWorker:
                 result=result.to_dict(),
             )
 
+            # Save execution result to database for persistent statistics
+            await self._save_execution_to_db(result)
+
             # Publish additional WIP status if available
             if self._current_wip_id:
                 await self._ipc.publish_event(
@@ -559,6 +564,47 @@ class BatchWorker:
             )
         else:
             self._last_run_passed = None
+
+    async def _save_execution_to_db(self, result: ExecutionResult) -> None:
+        """Save execution result to database for persistent statistics."""
+        if not self._execution_repo:
+            logger.debug("Execution repository not available, skipping DB save")
+            return
+
+        try:
+            # Get sequence info
+            sequence_name = result.sequence_name or "Unknown"
+            sequence_version = result.sequence_version or "1.0.0"
+
+            # Save execution result
+            await self._execution_repo.create_execution(
+                id=self._current_execution_id or str(uuid.uuid4())[:8],
+                batch_id=self._batch_id,
+                sequence_name=sequence_name,
+                sequence_version=sequence_version,
+                status="completed" if result.overall_pass is not None else "failed",
+                started_at=self._started_at or datetime.now(),
+                overall_pass=result.overall_pass,
+                completed_at=datetime.now(),
+                duration=int(result.duration or 0),
+            )
+
+            # Save step results
+            for idx, step in enumerate(result.steps):
+                await self._execution_repo.create_step_result(
+                    execution_id=self._current_execution_id or "",
+                    step_order=idx + 1,
+                    step_name=step.name,
+                    status="completed",
+                    pass_result=step.passed,
+                    duration=step.duration,
+                    result=step.result,
+                )
+
+            logger.info(f"Execution result saved to DB: {self._current_execution_id}")
+
+        except Exception as e:
+            logger.warning(f"Failed to save execution to DB: {e}")
 
     def _reset_execution_state(self) -> None:
         """Reset execution state variables."""
@@ -803,16 +849,20 @@ class BatchWorker:
     # ================================================================
 
     async def _init_database(self) -> None:
-        """Initialize SQLite database for persistent sync queue."""
+        """Initialize SQLite database for persistent data and sync queue."""
         try:
-            self._database = Database(db_path="data/station.db")
-            await self._database.connect()
+            # Use batch-specific database to avoid concurrent write conflicts
+            # Use Database.create() factory method which handles connection
+            self._database = await Database.create(db_path=f"data/batch_{self._batch_id}.db")
+            await self._database.init_db()
             self._sync_repo = SyncRepository(self._database)
-            logger.info("Database initialized for offline sync queue")
+            self._execution_repo = ExecutionRepository(self._database)
+            logger.info(f"Database initialized for batch {self._batch_id}: data/batch_{self._batch_id}.db")
         except Exception as e:
             logger.warning(f"Failed to initialize database: {e}")
             self._database = None
             self._sync_repo = None
+            self._execution_repo = None
 
     # ================================================================
     # Backend Integration Methods

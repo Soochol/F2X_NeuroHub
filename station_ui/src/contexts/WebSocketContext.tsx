@@ -90,6 +90,8 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
   // Use reference counting for subscriptions to handle overlapping subscriptions from different components
   // This prevents issues when navigating between pages where cleanup runs after the new page's effect
   const subscriptionRefCount = useRef<Map<string, number>>(new Map());
+  // Track batches that just subscribed - initial status push should bypass guards
+  const justSubscribedBatches = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
 
@@ -115,12 +117,18 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
       console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : '');
       switch (message.type) {
         case 'batch_status': {
-          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          // Check if this is an initial status push after subscription (should bypass guards)
+          const isInitialPush = justSubscribedBatches.current.has(message.batchId);
+          if (isInitialPush) {
+            justSubscribedBatches.current.delete(message.batchId);
+          }
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, initial=${isInitialPush}`);
           // Clear steps when starting a new execution (status changes to 'running' with new executionId)
           if (message.data.status === 'running' && message.data.progress === 0) {
             clearSteps(message.batchId);
           }
-          updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
+          // Use force=true for initial push to bypass guards (authoritative server state after subscribe)
+          updateBatchStatus(message.batchId, message.data.status, message.data.executionId, undefined, isInitialPush);
           if (message.data.currentStep !== undefined) {
             updateStepProgress(
               message.batchId,
@@ -180,7 +188,8 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
 
         case 'sequence_complete': {
-          updateBatchStatus(message.batchId, 'completed');
+          // Pass executionId and duration (as elapsed) to updateBatchStatus
+          updateBatchStatus(message.batchId, 'completed', message.data.executionId, message.data.duration);
           setLastRunResult(message.batchId, message.data.overallPass);
           incrementBatchStats(message.batchId, message.data.overallPass);
           addLog({
@@ -197,6 +206,9 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
             message: `Batch ${message.batchId.slice(0, 8)}... completed ${message.data.overallPass ? 'successfully' : 'with errors'} in ${message.data.duration.toFixed(2)}s`,
             batchId: message.batchId,
           });
+          // Invalidate statistics cache to refetch from API (DB now has updated stats)
+          queryClient.invalidateQueries({ queryKey: queryKeys.allBatchStatistics });
+          queryClient.invalidateQueries({ queryKey: queryKeys.batchStatistics(message.batchId) });
           break;
         }
 
@@ -229,7 +241,15 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           break;
         }
 
-        case 'subscribed':
+        case 'subscribed': {
+          // Record batch IDs that just subscribed - next batch_status for these should use force mode
+          const subscribedBatchIds = message.data?.batchIds || [];
+          for (const batchId of subscribedBatchIds) {
+            justSubscribedBatches.current.add(batchId);
+          }
+          console.log(`[WS] subscribed: ${subscribedBatchIds.length} batches marked for initial push`);
+          break;
+        }
         case 'unsubscribed':
           // Acknowledgment received
           break;

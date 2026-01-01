@@ -11,6 +11,7 @@ from station_service.api.routes.sequence_upload import router as sequence_upload
 from station_service.api.routes.deploy import router as deploy_router
 from station_service.api.routes.results import router as results_router
 from station_service.api.routes.logs import router as logs_router
+from station_service.api.routes.manual import router as manual_router
 
 __all__ = [
     "system_router",
@@ -20,4 +21,5 @@ __all__ = [
     "deploy_router",
     "results_router",
     "logs_router",
+    "manual_router",
 ]

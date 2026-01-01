@@ -149,6 +149,57 @@ async def get_all_batch_statistics(
 
 
 @router.get(
+    "/{batch_id}/statistics",
+    response_model=ApiResponse[BatchStatistics],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get batch statistics",
+    description="""
+    Retrieve execution statistics for a specific batch.
+
+    Returns statistics including:
+    - Total number of executions
+    - Number of passed/failed executions
+    - Pass rate
+    """,
+)
+async def get_batch_statistics(
+    batch_id: str = Path(..., description="Unique batch identifier"),
+    batch_manager: BatchManager = Depends(get_batch_manager),
+) -> ApiResponse[BatchStatistics]:
+    """
+    Get execution statistics for a specific batch.
+    """
+    try:
+        all_stats = await batch_manager.get_all_batch_statistics()
+        stats = all_stats.get(batch_id, {"total": 0, "pass": 0, "fail": 0, "passRate": 0.0})
+
+        return ApiResponse(
+            success=True,
+            data=BatchStatistics(
+                total=stats.get("total", 0),
+                pass_count=stats.get("pass", 0),
+                fail=stats.get("fail", 0),
+                passRate=stats.get("passRate", 0.0),
+            ),
+        )
+
+    except BatchNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Batch not found: {batch_id}",
+        )
+    except Exception as e:
+        logger.exception(f"Error getting batch statistics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@router.get(
     "/{batch_id}",
     response_model=ApiResponse[BatchDetail],
     responses={
@@ -236,9 +287,10 @@ async def get_batch(
             name=status_data.get("name", ""),
             status=status_data.get("status", "idle"),
             sequence=BatchSequenceInfo(
-                name=status_data.get("sequence_name", batch_config.sequence_package),
-                version=status_data.get("sequence_version", "1.0.0"),
-                package_path=batch_config.sequence_package,
+                # Use 'or' to handle None values (not just missing keys)
+                name=status_data.get("sequence_name") or batch_config.sequence_package or "",
+                version=status_data.get("sequence_version") or "1.0.0",
+                package_path=batch_config.sequence_package or "",
             ),
             parameters=status_data.get("parameters", {}),
             hardware=hardware_status,

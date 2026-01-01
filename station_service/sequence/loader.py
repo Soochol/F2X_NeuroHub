@@ -43,6 +43,8 @@ class SequenceLoader:
         self.packages_dir = Path(packages_dir)
         self._loaded_packages: Dict[str, SequenceManifest] = {}
         self._loaded_classes: Dict[str, Type] = {}
+        # Mapping from manifest name to folder path (for when they differ)
+        self._name_to_path: Dict[str, Path] = {}
 
     @property
     def packages_path(self) -> Path:
@@ -153,7 +155,11 @@ class SequenceLoader:
 
         # Cache the loaded manifest
         self._loaded_packages[package_name] = manifest
-        logger.info(f"Loaded package manifest: {package_name} v{manifest.version}")
+
+        # Store mapping from manifest name to folder path
+        # This allows delete/download to work even when folder name != manifest name
+        self._name_to_path[manifest.name] = package_path
+        logger.info(f"Loaded package manifest: {package_name} v{manifest.version} (name={manifest.name})")
 
         return manifest
 
@@ -440,17 +446,22 @@ class SequenceLoader:
         Get the filesystem path for a package.
 
         Args:
-            package_name: Name of the package.
+            package_name: Name of the package (can be folder name or manifest name).
 
         Returns:
             Path to the package directory.
         """
+        # First check if it's a manifest name that was mapped to a folder path
+        if package_name in self._name_to_path:
+            return self._name_to_path[package_name]
+        # Fall back to treating it as a folder name
         return self.packages_path / package_name
 
     def clear_cache(self) -> None:
         """Clear all cached manifests and classes."""
         self._loaded_packages.clear()
         self._loaded_classes.clear()
+        self._name_to_path.clear()
         logger.debug("Cleared sequence loader cache")
 
     async def reload_package(self, package_name: str) -> SequenceManifest:

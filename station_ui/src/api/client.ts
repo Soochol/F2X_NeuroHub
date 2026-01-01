@@ -17,11 +17,17 @@ function transformKeys<T>(obj: unknown): T {
     return obj as T;
   }
 
+  // Skip transformation for Blob, ArrayBuffer, and other binary types
+  if (obj instanceof Blob || obj instanceof ArrayBuffer || obj instanceof FormData) {
+    return obj as T;
+  }
+
   if (Array.isArray(obj)) {
     return obj.map((item) => transformKeys(item)) as T;
   }
 
-  if (typeof obj === 'object') {
+  // Only transform plain objects (not class instances)
+  if (typeof obj === 'object' && obj.constructor === Object) {
     const transformed: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       transformed[snakeToCamel(key)] = transformKeys(value);

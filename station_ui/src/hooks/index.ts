@@ -50,3 +50,18 @@ export { useWebSocket } from './useWebSocket';
 
 // Polling fallback hook
 export { usePollingFallback, useAdaptivePollingInterval } from './usePollingFallback';
+
+// Manual control hooks
+export {
+  useBatchHardware,
+  useHardwareCommands,
+  useManualSteps,
+  useExecuteCommand,
+  useRunManualStep,
+  useSkipManualStep,
+  useResetManualSequence,
+  usePresets,
+  useCreatePreset,
+  useDeletePreset,
+  manualQueryKeys,
+} from './useManualControl';

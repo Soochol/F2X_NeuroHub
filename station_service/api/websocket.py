@@ -169,7 +169,8 @@ async def handle_client_message(
     msg_type = message.get("type")
 
     if msg_type == "subscribe":
-        batch_ids = message.get("batch_ids", [])
+        # Accept both camelCase (from TypeScript client) and snake_case
+        batch_ids = message.get("batch_ids") or message.get("batchIds", [])
         if isinstance(batch_ids, list):
             await manager.subscribe(websocket, batch_ids)
             await websocket.send_json(
@@ -182,10 +183,12 @@ async def handle_client_message(
             # Push current batch status for each subscribed batch
             # This ensures the client gets the latest state immediately
             batch_manager = getattr(websocket.app.state, "batch_manager", None)
+            logger.info(f"[WS Subscribe] batch_manager available: {batch_manager is not None}")
             if batch_manager:
                 for batch_id in batch_ids:
                     try:
                         status = await batch_manager.get_batch_status(batch_id)
+                        logger.info(f"[WS Subscribe] Pushing initial status for {batch_id[:8]}...: status={status.get('status')}, step={status.get('current_step')}, exec={status.get('execution_id')}")
                         # Use camelCase for JSON keys to match TypeScript client
                         await websocket.send_json(
                             {
@@ -200,12 +203,12 @@ async def handle_client_message(
                                 },
                             }
                         )
-                        logger.debug(f"Pushed initial status for batch {batch_id[:8]}...: {status.get('status')}")
                     except Exception as e:
-                        logger.warning(f"Failed to push initial status for {batch_id}: {e}")
+                        logger.warning(f"[WS Subscribe] Failed to push initial status for {batch_id}: {e}")
 
     elif msg_type == "unsubscribe":
-        batch_ids = message.get("batch_ids", [])
+        # Accept both camelCase (from TypeScript client) and snake_case
+        batch_ids = message.get("batch_ids") or message.get("batchIds", [])
         if isinstance(batch_ids, list):
             await manager.unsubscribe(websocket, batch_ids)
             await websocket.send_json(
@@ -238,11 +241,12 @@ async def broadcast_batch_status(
     progress: float = 0.0,
     execution_id: str = "",
 ) -> None:
-    """Broadcast batch status update to ALL connected clients."""
+    """Broadcast batch status update to subscribers only."""
     logger.info(f"[WS Broadcast] batch_status: batch={batch_id[:8]}..., status={status}, step={current_step}, exec={execution_id}")
-    # Broadcast to ALL connections - clients filter by batch_id
+    # Broadcast only to subscribers of this batch (not all connections)
     # Note: Use camelCase for JSON keys to match TypeScript client expectations
-    await manager.broadcast_all(
+    await manager.broadcast(
+        batch_id,
         {
             "type": "batch_status",
             "batchId": batch_id,
@@ -260,18 +264,20 @@ async def broadcast_batch_status(
 async def broadcast_step_start(
     batch_id: str, step: str, index: int, total: int, execution_id: str = ""
 ) -> None:
-    """Broadcast step start event to ALL connected clients."""
+    """Broadcast step start event to subscribers only."""
     logger.info(f"[WS Broadcast] step_start: batch={batch_id[:8]}..., step={step}, index={index}/{total}, exec={execution_id}")
-    # Broadcast to ALL connections - clients filter by batch_id
-    await manager.broadcast_all(
+    # Broadcast only to subscribers of this batch
+    # Use camelCase for JSON keys to match TypeScript client expectations
+    await manager.broadcast(
+        batch_id,
         {
             "type": "step_start",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "step": step,
                 "index": index,
                 "total": total,
-                "execution_id": execution_id,
+                "executionId": execution_id,
             },
         },
     )
@@ -286,20 +292,22 @@ async def broadcast_step_complete(
     result: Dict[str, Any] = None,
     execution_id: str = "",
 ) -> None:
-    """Broadcast step complete event to ALL connected clients."""
+    """Broadcast step complete event to subscribers only."""
     logger.info(f"[WS Broadcast] step_complete: batch={batch_id[:8]}..., step={step}, pass={pass_}, exec={execution_id}")
-    # Broadcast to ALL connections - clients filter by batch_id
-    await manager.broadcast_all(
+    # Broadcast only to subscribers of this batch
+    # Use camelCase for JSON keys to match TypeScript client expectations
+    await manager.broadcast(
+        batch_id,
         {
             "type": "step_complete",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "step": step,
                 "index": index,
                 "duration": duration,
                 "pass": pass_,
                 "result": result or {},
-                "execution_id": execution_id,
+                "executionId": execution_id,
             },
         },
     )
@@ -309,19 +317,21 @@ async def broadcast_sequence_complete(
     batch_id: str,
     execution_id: str,
     overall_pass: bool,
-    duration: int,
+    duration: float,
     steps: List[Dict[str, Any]] = None,
 ) -> None:
-    """Broadcast sequence complete event to ALL connected clients."""
-    logger.info(f"[WS Broadcast] sequence_complete: batch={batch_id[:8]}..., pass={overall_pass}")
-    # Broadcast to ALL connections - clients filter by batch_id
-    await manager.broadcast_all(
+    """Broadcast sequence complete event to subscribers only."""
+    logger.info(f"[WS Broadcast] sequence_complete: batch={batch_id[:8]}..., pass={overall_pass}, duration={duration:.2f}s")
+    # Broadcast only to subscribers of this batch
+    # Use camelCase for JSON keys to match TypeScript client expectations
+    await manager.broadcast(
+        batch_id,
         {
             "type": "sequence_complete",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
-                "execution_id": execution_id,
-                "overall_pass": overall_pass,
+                "executionId": execution_id,
+                "overallPass": overall_pass,
                 "duration": duration,
                 "steps": steps or [],
             },
@@ -330,37 +340,43 @@ async def broadcast_sequence_complete(
 
 
 async def broadcast_log(
-    batch_id: str, level: str, message: str, timestamp: str
+    batch_id: str, level: str, message: str, timestamp: str, execution_id: str = ""
 ) -> None:
-    """Broadcast log event to ALL connected clients."""
-    # Broadcast to ALL connections - clients filter by batch_id
-    await manager.broadcast_all(
+    """Broadcast log event to subscribers only."""
+    # Broadcast only to subscribers of this batch
+    # Use camelCase for JSON keys to match TypeScript client expectations
+    await manager.broadcast(
+        batch_id,
         {
             "type": "log",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "level": level,
                 "message": message,
                 "timestamp": timestamp,
+                "executionId": execution_id,
             },
         },
     )
 
 
 async def broadcast_error(
-    batch_id: str, code: str, message: str, step: str = None, timestamp: str = None
+    batch_id: str, code: str, message: str, step: str = None, timestamp: str = None, execution_id: str = ""
 ) -> None:
-    """Broadcast error event to ALL connected clients."""
-    # Broadcast to ALL connections - clients filter by batch_id
-    await manager.broadcast_all(
+    """Broadcast error event to subscribers only."""
+    # Broadcast only to subscribers of this batch
+    # Use camelCase for JSON keys to match TypeScript client expectations
+    await manager.broadcast(
+        batch_id,
         {
             "type": "error",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "code": code,
                 "message": message,
                 "step": step,
                 "timestamp": timestamp,
+                "executionId": execution_id,
             },
         },
     )
@@ -369,26 +385,36 @@ async def broadcast_error(
 async def broadcast_batch_created(
     batch_id: str, name: str, sequence_package: str = None
 ) -> None:
-    """Broadcast batch created event to all connected clients."""
+    """Broadcast batch created event to all connected clients.
+
+    Note: Uses broadcast_all since this is a global event - all clients
+    should know about new batches regardless of subscription.
+    """
+    # Use camelCase for JSON keys to match TypeScript client expectations
     await manager.broadcast_all(
         {
             "type": "batch_created",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "id": batch_id,
                 "name": name,
-                "sequence_package": sequence_package,
+                "sequencePackage": sequence_package,
             },
         },
     )
 
 
 async def broadcast_batch_deleted(batch_id: str) -> None:
-    """Broadcast batch deleted event to all connected clients."""
+    """Broadcast batch deleted event to all connected clients.
+
+    Note: Uses broadcast_all since this is a global event - all clients
+    should know about deleted batches regardless of subscription.
+    """
+    # Use camelCase for JSON keys to match TypeScript client expectations
     await manager.broadcast_all(
         {
             "type": "batch_deleted",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "id": batch_id,
             },

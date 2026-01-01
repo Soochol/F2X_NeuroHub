@@ -51,7 +51,7 @@ interface BatchState {
   setBatches: (batches: Batch[]) => void;
   updateBatch: (batch: Batch) => void;
   removeBatch: (batchId: string) => void;
-  updateBatchStatus: (batchId: string, status: BatchStatus, executionId?: string) => void;
+  updateBatchStatus: (batchId: string, status: BatchStatus, executionId?: string, elapsed?: number, force?: boolean) => void;
   setLastRunResult: (batchId: string, passed: boolean) => void;
   updateStepProgress: (
     batchId: string,
@@ -110,9 +110,9 @@ export const useBatchStore = create<BatchState>((set, get) => ({
             continue;
           }
 
-          // Preserve real-time WebSocket updates for running/starting batches
-          // (API polling data might be stale during active execution)
-          if (existing.status === 'running' || existing.status === 'starting') {
+          // Preserve real-time WebSocket updates for running/starting/stopping batches
+          // (API polling data might be stale during active execution or transitions)
+          if (existing.status === 'running' || existing.status === 'starting' || existing.status === 'stopping') {
             newBatches.set(batch.id, {
               ...batch,
               status: existing.status,
@@ -148,14 +148,36 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
     }),
 
-  updateBatchStatus: (batchId, status, executionId?) =>
+  updateBatchStatus: (batchId, status, executionId?, elapsed?, force?) =>
     set((state) => {
       const newBatches = new Map(state.batches);
       const batch = state.batches.get(batchId);
-      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch?.status}`);
+      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, elapsed=${elapsed}, exists=${!!batch}, currentStatus=${batch?.status}, force=${!!force}`);
 
-      // Note: No guard here - explicit status updates from server should always be trusted
-      // Race condition guards are handled in WebSocketContext.tsx for specific message types
+      // Prevent status regression from stale messages
+      // Protect transitional states (starting, stopping) and completed state
+      // Exception: force=true bypasses guards for authoritative server updates (e.g., initial status push after subscribe)
+      if (batch && !force) {
+        const currentStatus = batch.status;
+
+        // Don't allow completed to be reverted (except to error)
+        if (currentStatus === 'completed' && status !== 'completed' && status !== 'error' && status !== 'starting') {
+          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status}`);
+          return state;
+        }
+
+        // Don't allow starting to be reverted to idle (optimistic update protection)
+        if (currentStatus === 'starting' && status === 'idle') {
+          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+          return state;
+        }
+
+        // Don't allow stopping to be reverted to running (optimistic update protection)
+        if (currentStatus === 'stopping' && status === 'running') {
+          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+          return state;
+        }
+      }
 
       if (batch) {
         // When transitioning to 'completed', also set progress to 100%
@@ -167,6 +189,10 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         if (executionId) {
           updates.executionId = executionId;
         }
+        // Update elapsed time when sequence completes
+        if (elapsed !== undefined) {
+          updates.elapsed = elapsed;
+        }
         newBatches.set(batchId, { ...batch, ...updates });
       } else {
         // Create minimal batch entry for WebSocket updates that arrive before API data
@@ -177,7 +203,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
           progress: status === 'completed' ? 1.0 : 0,
           executionId,
           sequencePackage: '',
-          elapsed: 0,
+          elapsed: elapsed ?? 0,
           hardwareConfig: {},
           autoStart: false,
         });
@@ -221,11 +247,17 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       }
 
       if (batch) {
+        // Prevent progress regression - step_complete calculates accurate progress from completed steps
+        // Stale batch_status messages may arrive with lower progress values
+        const newProgress = Math.max(batch.progress, progress);
+        if (progress < batch.progress) {
+          console.log(`[batchStore] updateStepProgress: BLOCKED progress regression ${batch.progress.toFixed(2)} -> ${progress.toFixed(2)} for ${batchId.slice(0, 8)}...`);
+        }
         newBatches.set(batchId, {
           ...batch,
           currentStep,
           stepIndex,
-          progress,
+          progress: newProgress,
           executionId: executionId || batch.executionId,
         });
       } else {

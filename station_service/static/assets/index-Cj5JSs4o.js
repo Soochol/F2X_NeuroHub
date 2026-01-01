@@ -370,6 +370,16 @@ const Eye = createLucideIcon("Eye", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const FastForward = createLucideIcon("FastForward", [
+  ["polygon", { points: "13 19 22 12 13 5 13 19", key: "587y9g" }],
+  ["polygon", { points: "2 19 11 12 2 5 2 19", key: "3pweh0" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const FileArchive = createLucideIcon("FileArchive", [
   ["path", { d: "M10 12v-1", key: "v7bkov" }],
   ["path", { d: "M10 18v-2", key: "1cjy8d" }],
@@ -402,6 +412,16 @@ const FileText = createLucideIcon("FileText", [
  */
 const Filter = createLucideIcon("Filter", [
   ["polygon", { points: "22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3", key: "1yg77f" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Gauge = createLucideIcon("Gauge", [
+  ["path", { d: "m12 14 4-4", key: "9kzdfg" }],
+  ["path", { d: "M3.34 19a10 10 0 1 1 17.32 0", key: "19p75a" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -507,6 +527,20 @@ const LayoutDashboard = createLucideIcon("LayoutDashboard", [
   ["rect", { width: "7", height: "5", x: "14", y: "3", rx: "1", key: "16une8" }],
   ["rect", { width: "7", height: "9", x: "14", y: "12", rx: "1", key: "1hutg5" }],
   ["rect", { width: "7", height: "5", x: "3", y: "16", rx: "1", key: "ldoo1y" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const ListOrdered = createLucideIcon("ListOrdered", [
+  ["path", { d: "M10 12h11", key: "6m4ad9" }],
+  ["path", { d: "M10 18h11", key: "11hvi2" }],
+  ["path", { d: "M10 6h11", key: "c7qv1k" }],
+  ["path", { d: "M4 10h2", key: "16xx2s" }],
+  ["path", { d: "M4 6h1v4", key: "cnovpq" }],
+  ["path", { d: "M6 18H4c0-1 2-2 2-3s-1-1.5-2-1", key: "m9a95d" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -645,6 +679,16 @@ const RefreshCw = createLucideIcon("RefreshCw", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const RotateCcw = createLucideIcon("RotateCcw", [
+  ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "1357e3" }],
+  ["path", { d: "M3 3v5h5", key: "1xhq8a" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Save = createLucideIcon("Save", [
   [
     "path",
@@ -735,6 +779,16 @@ const Settings = createLucideIcon("Settings", [
     }
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const SkipForward = createLucideIcon("SkipForward", [
+  ["polygon", { points: "5 4 15 12 5 20 5 4", key: "16p6eg" }],
+  ["line", { x1: "19", x2: "19", y1: "5", y2: "19", key: "futhcm" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -1182,7 +1236,7 @@ const useBatchStore = create((set, get) => ({
           newBatches.set(batch.id, existing);
           continue;
         }
-        if (existing.status === "running" || existing.status === "starting") {
+        if (existing.status === "running" || existing.status === "starting" || existing.status === "stopping") {
           newBatches.set(batch.id, {
             ...batch,
             status: existing.status,
@@ -1211,10 +1265,25 @@ const useBatchStore = create((set, get) => ({
     newStats.delete(batchId);
     return { batches: newBatches, batchStatistics: newStats, batchesVersion: state.batchesVersion + 1 };
   }),
-  updateBatchStatus: (batchId, status, executionId) => set((state) => {
+  updateBatchStatus: (batchId, status, executionId, elapsed, force) => set((state) => {
     const newBatches = new Map(state.batches);
     const batch = state.batches.get(batchId);
-    console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}`);
+    console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, elapsed=${elapsed}, exists=${!!batch}, currentStatus=${batch == null ? void 0 : batch.status}, force=${!!force}`);
+    if (batch && !force) {
+      const currentStatus = batch.status;
+      if (currentStatus === "completed" && status !== "completed" && status !== "error" && status !== "starting") {
+        console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status}`);
+        return state;
+      }
+      if (currentStatus === "starting" && status === "idle") {
+        console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+        return state;
+      }
+      if (currentStatus === "stopping" && status === "running") {
+        console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+        return state;
+      }
+    }
     if (batch) {
       const updates = { status };
       if (status === "completed") {
@@ -1222,6 +1291,9 @@ const useBatchStore = create((set, get) => ({
       }
       if (executionId) {
         updates.executionId = executionId;
+      }
+      if (elapsed !== void 0) {
+        updates.elapsed = elapsed;
       }
       newBatches.set(batchId, { ...batch, ...updates });
     } else {
@@ -1232,7 +1304,7 @@ const useBatchStore = create((set, get) => ({
         progress: status === "completed" ? 1 : 0,
         executionId,
         sequencePackage: "",
-        elapsed: 0,
+        elapsed: elapsed ?? 0,
         hardwareConfig: {},
         autoStart: false
       });
@@ -1268,11 +1340,15 @@ const useBatchStore = create((set, get) => ({
       return state;
     }
     if (batch) {
+      const newProgress = Math.max(batch.progress, progress);
+      if (progress < batch.progress) {
+        console.log(`[batchStore] updateStepProgress: BLOCKED progress regression ${batch.progress.toFixed(2)} -> ${progress.toFixed(2)} for ${batchId.slice(0, 8)}...`);
+      }
       newBatches.set(batchId, {
         ...batch,
         currentStep,
         stepIndex,
-        progress,
+        progress: newProgress,
         executionId: executionId || batch.executionId
       });
     } else {
@@ -1737,7 +1813,7 @@ const useUIStore = create()(
     }
   )
 );
-function generateId() {
+function generateId$1() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 const useNotificationStore = create()(
@@ -1751,7 +1827,7 @@ const useNotificationStore = create()(
       addNotification: (notification) => set((state) => {
         const newNotification = {
           ...notification,
-          id: generateId(),
+          id: generateId$1(),
           timestamp: /* @__PURE__ */ new Date(),
           read: false
         };
@@ -2270,6 +2346,8 @@ const queryKeys = {
   // Batches
   batches: ["batches"],
   batch: (id) => ["batches", id],
+  batchStatistics: (id) => ["batchStatistics", id],
+  allBatchStatistics: ["batchStatistics"],
   // Sequences
   sequences: ["sequences"],
   sequence: (name) => ["sequences", name],
@@ -4777,10 +4855,13 @@ function transformKeys$1(obj) {
   if (obj === null || obj === void 0) {
     return obj;
   }
+  if (obj instanceof Blob || obj instanceof ArrayBuffer || obj instanceof FormData) {
+    return obj;
+  }
   if (Array.isArray(obj)) {
     return obj.map((item) => transformKeys$1(item));
   }
-  if (typeof obj === "object") {
+  if (typeof obj === "object" && obj.constructor === Object) {
     const transformed = {};
     for (const [key, value] of Object.entries(obj)) {
       transformed[snakeToCamel$1(key)] = transformKeys$1(value);
@@ -5081,6 +5162,12 @@ async function createBatches(request) {
     createdAt: timestamp
   };
 }
+async function getBatchStatistics(batchId) {
+  const response = await apiClient.get(
+    `/batches/${batchId}/statistics`
+  );
+  return extractData(response);
+}
 async function getAllBatchStatistics() {
   const response = await apiClient.get(
     "/batches/statistics"
@@ -5093,6 +5180,7 @@ const batches = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   deleteBatch,
   getAllBatchStatistics,
   getBatch,
+  getBatchStatistics,
   getBatches,
   manualControl,
   startBatch,
@@ -5156,6 +5244,9 @@ function getErrorMessage(error) {
   }
   return "An unknown error occurred";
 }
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 function isAlreadyRunningError(error) {
   if (error && typeof error === "object" && "status" in error) {
     return error.status === 409;
@@ -5186,10 +5277,10 @@ function useBatch(batchId) {
     queryKey: queryKeys.batch(batchId ?? ""),
     queryFn: () => getBatch(batchId),
     enabled: !!batchId,
-    // Disable polling during active execution (WebSocket handles updates)
+    // Disable polling during active execution or transitions (WebSocket handles updates)
     // Resume polling when idle or completed for eventual consistency
     refetchInterval: () => {
-      if ((storeBatch == null ? void 0 : storeBatch.status) === "running" || (storeBatch == null ? void 0 : storeBatch.status) === "starting") {
+      if ((storeBatch == null ? void 0 : storeBatch.status) === "running" || (storeBatch == null ? void 0 : storeBatch.status) === "starting" || (storeBatch == null ? void 0 : storeBatch.status) === "stopping") {
         return false;
       }
       return POLLING_INTERVALS.batchDetail;
@@ -5214,7 +5305,9 @@ function useBatch(batchId) {
         executionId: storeBatch.executionId,
         lastRunPassed: storeBatch.lastRunPassed,
         // Include steps from store for real-time step updates
-        steps: storeBatch.steps
+        steps: storeBatch.steps,
+        // Include elapsed time from store (updated via WebSocket sequence_complete)
+        elapsed: storeBatch.elapsed
       };
     }
     return query.data ?? storeBatch;
@@ -5226,6 +5319,7 @@ function useBatch(batchId) {
 }
 function useStartBatch() {
   const queryClient2 = useQueryClient();
+  const updateBatchStatus = useBatchStore((state) => state.updateBatchStatus);
   return useMutation({
     mutationFn: async (batchId) => {
       try {
@@ -5237,6 +5331,14 @@ function useStartBatch() {
         throw error;
       }
     },
+    onMutate: async (batchId) => {
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batch(batchId) });
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batches });
+      const batch = useBatchStore.getState().batches.get(batchId);
+      const previousStatus = (batch == null ? void 0 : batch.status) ?? "idle";
+      updateBatchStatus(batchId, "starting");
+      return { batchId, previousStatus };
+    },
     onSuccess: (result) => {
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
       if ("status" in result && result.status === "already_running") ;
@@ -5244,20 +5346,36 @@ function useStartBatch() {
         toast.success("Batch started successfully");
       }
     },
-    onError: (error) => {
+    onError: (error, batchId, context) => {
+      if (context == null ? void 0 : context.previousStatus) {
+        updateBatchStatus(batchId, context.previousStatus);
+      }
       toast.error(`Failed to start batch: ${getErrorMessage(error)}`);
     }
   });
 }
 function useStopBatch() {
   const queryClient2 = useQueryClient();
+  const updateBatchStatus = useBatchStore((state) => state.updateBatchStatus);
   return useMutation({
     mutationFn: (batchId) => stopBatch(batchId),
-    onSuccess: () => {
+    onMutate: async (batchId) => {
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batch(batchId) });
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batches });
+      const batch = useBatchStore.getState().batches.get(batchId);
+      const previousStatus = (batch == null ? void 0 : batch.status) ?? "running";
+      updateBatchStatus(batchId, "stopping");
+      return { batchId, previousStatus };
+    },
+    onSuccess: (_, batchId) => {
+      updateBatchStatus(batchId, "idle");
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
       toast.success("Batch stopped successfully");
     },
-    onError: (error) => {
+    onError: (error, batchId, context) => {
+      if (context == null ? void 0 : context.previousStatus) {
+        updateBatchStatus(batchId, context.previousStatus);
+      }
       toast.error(`Failed to stop batch: ${getErrorMessage(error)}`);
     }
   });
@@ -5285,6 +5403,7 @@ function useDeleteBatch() {
 }
 function useStartSequence() {
   const queryClient2 = useQueryClient();
+  const updateBatchStatus = useBatchStore((state) => state.updateBatchStatus);
   return useMutation({
     mutationFn: async ({
       batchId,
@@ -5299,6 +5418,14 @@ function useStartSequence() {
         throw error;
       }
     },
+    onMutate: async ({ batchId }) => {
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batch(batchId) });
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batches });
+      const batch = useBatchStore.getState().batches.get(batchId);
+      const previousStatus = (batch == null ? void 0 : batch.status) ?? "idle";
+      updateBatchStatus(batchId, "starting");
+      return { batchId, previousStatus };
+    },
     onSuccess: (result, variables) => {
       queryClient2.invalidateQueries({ queryKey: queryKeys.batch(variables.batchId) });
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
@@ -5307,36 +5434,38 @@ function useStartSequence() {
         toast.success("Sequence started successfully");
       }
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      if (context == null ? void 0 : context.previousStatus) {
+        updateBatchStatus(variables.batchId, context.previousStatus);
+      }
       toast.error(`Failed to start sequence: ${getErrorMessage(error)}`);
     }
   });
 }
 function useStopSequence() {
   const queryClient2 = useQueryClient();
+  const updateBatchStatus = useBatchStore((state) => state.updateBatchStatus);
   return useMutation({
     mutationFn: (batchId) => stopSequence(batchId),
+    onMutate: async (batchId) => {
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batch(batchId) });
+      await queryClient2.cancelQueries({ queryKey: queryKeys.batches });
+      const batch = useBatchStore.getState().batches.get(batchId);
+      const previousStatus = (batch == null ? void 0 : batch.status) ?? "running";
+      updateBatchStatus(batchId, "stopping");
+      return { batchId, previousStatus };
+    },
     onSuccess: (_, batchId) => {
+      updateBatchStatus(batchId, "idle");
       queryClient2.invalidateQueries({ queryKey: queryKeys.batch(batchId) });
       queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
       toast.success("Sequence stopped successfully");
     },
-    onError: (error) => {
+    onError: (error, batchId, context) => {
+      if (context == null ? void 0 : context.previousStatus) {
+        updateBatchStatus(batchId, context.previousStatus);
+      }
       toast.error(`Failed to stop sequence: ${getErrorMessage(error)}`);
-    }
-  });
-}
-function useManualControl() {
-  return useMutation({
-    mutationFn: ({
-      batchId,
-      request
-    }) => manualControl(batchId, request),
-    onSuccess: () => {
-      toast.success("Command executed successfully");
-    },
-    onError: (error) => {
-      toast.error(`Command failed: ${getErrorMessage(error)}`);
     }
   });
 }
@@ -5353,12 +5482,21 @@ function useCreateBatches() {
     }
   });
 }
+function useBatchStatistics(batchId) {
+  return useQuery({
+    queryKey: queryKeys.batchStatistics(batchId ?? ""),
+    queryFn: () => getBatchStatistics(batchId),
+    enabled: !!batchId,
+    staleTime: 10 * 1e3
+    // 10 seconds - shorter for real-time updates
+  });
+}
 function useAllBatchStatistics() {
   return useQuery({
-    queryKey: ["allBatchStatistics"],
+    queryKey: queryKeys.allBatchStatistics,
     queryFn: getAllBatchStatistics,
-    staleTime: 30 * 1e3,
-    // 30 seconds
+    staleTime: 10 * 1e3,
+    // 10 seconds - shorter for real-time updates
     retry: false,
     // Don't retry on 404
     throwOnError: false
@@ -5575,6 +5713,7 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const queryClient2 = useQueryClient();
   const socketRef = reactExports.useRef(null);
   const subscriptionRefCount = reactExports.useRef(/* @__PURE__ */ new Map());
+  const justSubscribedBatches = reactExports.useRef(/* @__PURE__ */ new Set());
   const reconnectTimeoutRef = reactExports.useRef(null);
   const reconnectAttemptRef = reactExports.useRef(0);
   const setWebSocketStatus = useConnectionStore((s) => s.setWebSocketStatus);
@@ -5592,15 +5731,20 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const addNotification = useNotificationStore((s) => s.addNotification);
   const handleMessage = reactExports.useCallback(
     (message) => {
+      var _a;
       const batchIdForLog = "batchId" in message ? message.batchId.slice(0, 8) : null;
       console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : "");
       switch (message.type) {
         case "batch_status": {
-          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          const isInitialPush = justSubscribedBatches.current.has(message.batchId);
+          if (isInitialPush) {
+            justSubscribedBatches.current.delete(message.batchId);
+          }
+          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, initial=${isInitialPush}`);
           if (message.data.status === "running" && message.data.progress === 0) {
             clearSteps(message.batchId);
           }
-          updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
+          updateBatchStatus(message.batchId, message.data.status, message.data.executionId, void 0, isInitialPush);
           if (message.data.currentStep !== void 0) {
             updateStepProgress(
               message.batchId,
@@ -5653,7 +5797,7 @@ function WebSocketProvider({ children, url = "/ws" }) {
           break;
         }
         case "sequence_complete": {
-          updateBatchStatus(message.batchId, "completed");
+          updateBatchStatus(message.batchId, "completed", message.data.executionId, message.data.duration);
           setLastRunResult(message.batchId, message.data.overallPass);
           incrementBatchStats(message.batchId, message.data.overallPass);
           addLog({
@@ -5669,6 +5813,8 @@ function WebSocketProvider({ children, url = "/ws" }) {
             message: `Batch ${message.batchId.slice(0, 8)}... completed ${message.data.overallPass ? "successfully" : "with errors"} in ${message.data.duration.toFixed(2)}s`,
             batchId: message.batchId
           });
+          queryClient2.invalidateQueries({ queryKey: queryKeys.allBatchStatistics });
+          queryClient2.invalidateQueries({ queryKey: queryKeys.batchStatistics(message.batchId) });
           break;
         }
         case "log": {
@@ -5697,7 +5843,14 @@ function WebSocketProvider({ children, url = "/ws" }) {
           });
           break;
         }
-        case "subscribed":
+        case "subscribed": {
+          const subscribedBatchIds = ((_a = message.data) == null ? void 0 : _a.batchIds) || [];
+          for (const batchId of subscribedBatchIds) {
+            justSubscribedBatches.current.add(batchId);
+          }
+          console.log(`[WS] subscribed: ${subscribedBatchIds.length} batches marked for initial push`);
+          break;
+        }
         case "unsubscribed":
           break;
         case "batch_created": {
@@ -5897,6 +6050,330 @@ function usePollingFallback() {
     isActive: pollingFallbackActive,
     pollingInterval: pollingFallbackActive ? POLLING_INTERVALS.batchesFallback : POLLING_INTERVALS.batches
   };
+}
+async function getHardwareCommands(batchId, hardwareId) {
+  const response = await apiClient.get(
+    `/manual/batches/${batchId}/hardware/${hardwareId}/commands`
+  );
+  return extractData(response);
+}
+async function getManualSteps(batchId) {
+  const response = await apiClient.get(
+    `/manual/batches/${batchId}/sequence/steps`
+  );
+  return extractData(response);
+}
+async function runManualStep(batchId, stepName, parameters) {
+  const response = await apiClient.post(
+    `/manual/batches/${batchId}/sequence/steps/${stepName}/run`,
+    parameters ? { parameters } : void 0
+  );
+  return extractData(response);
+}
+async function skipManualStep(batchId, stepName) {
+  const response = await apiClient.post(
+    `/manual/batches/${batchId}/sequence/steps/${stepName}/skip`
+  );
+  return extractData(response);
+}
+async function resetManualSequence(batchId) {
+  await apiClient.post(`/manual/batches/${batchId}/sequence/reset`);
+}
+const MAX_HISTORY_SIZE = 50;
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+}
+const useManualControlStore = create((set) => ({
+  // Device selection
+  selectedBatchId: null,
+  selectedHardwareId: null,
+  // Command state
+  selectedCommand: null,
+  parameterValues: {},
+  // Results
+  resultHistory: [],
+  // Presets
+  presets: [],
+  // Manual sequence mode
+  manualSequenceMode: false,
+  sequenceSteps: [],
+  currentStepIndex: 0,
+  stepOverrides: {},
+  // Actions
+  selectDevice: (batchId, hardwareId) => {
+    set({
+      selectedBatchId: batchId,
+      selectedHardwareId: hardwareId,
+      selectedCommand: null,
+      parameterValues: {}
+    });
+  },
+  selectCommand: (command) => {
+    const parameterValues = {};
+    if (command) {
+      command.parameters.forEach((param) => {
+        if (param.default !== void 0) {
+          parameterValues[param.name] = param.default;
+        }
+      });
+    }
+    set({ selectedCommand: command, parameterValues });
+  },
+  setParameterValue: (name, value) => {
+    set((state) => ({
+      parameterValues: {
+        ...state.parameterValues,
+        [name]: value
+      }
+    }));
+  },
+  setParameterValues: (values) => {
+    set({ parameterValues: values });
+  },
+  addResultToHistory: (entry) => {
+    const newEntry = {
+      ...entry,
+      id: generateId(),
+      timestamp: /* @__PURE__ */ new Date()
+    };
+    set((state) => ({
+      resultHistory: [newEntry, ...state.resultHistory].slice(0, MAX_HISTORY_SIZE)
+    }));
+  },
+  clearHistory: () => {
+    set({ resultHistory: [] });
+  },
+  addPreset: (preset) => {
+    set((state) => ({
+      presets: [...state.presets, preset]
+    }));
+  },
+  removePreset: (presetId) => {
+    set((state) => ({
+      presets: state.presets.filter((p) => p.id !== presetId)
+    }));
+  },
+  // Manual sequence actions
+  setManualSequenceMode: (enabled) => {
+    set({ manualSequenceMode: enabled });
+  },
+  setSequenceSteps: (steps) => {
+    set({
+      sequenceSteps: steps,
+      currentStepIndex: 0,
+      stepOverrides: {}
+    });
+  },
+  updateStepStatus: (stepName, status, result, duration) => {
+    set((state) => ({
+      sequenceSteps: state.sequenceSteps.map(
+        (step) => step.name === stepName ? { ...step, status, result, duration } : step
+      )
+    }));
+  },
+  setCurrentStepIndex: (index) => {
+    set({ currentStepIndex: index });
+  },
+  setStepOverride: (stepName, overrides) => {
+    set((state) => ({
+      stepOverrides: {
+        ...state.stepOverrides,
+        [stepName]: overrides
+      }
+    }));
+  },
+  resetSequence: () => {
+    set((state) => ({
+      sequenceSteps: state.sequenceSteps.map((step) => ({
+        ...step,
+        status: "pending",
+        result: void 0,
+        duration: void 0
+      })),
+      currentStepIndex: 0
+    }));
+  }
+}));
+const selectGroupedCommands = (commands) => {
+  const grouped = {
+    measurement: [],
+    control: [],
+    configuration: [],
+    diagnostic: []
+  };
+  commands.forEach((cmd) => {
+    const category = cmd.category;
+    if (grouped[category]) {
+      grouped[category].push(cmd);
+    }
+  });
+  return grouped;
+};
+const manualQueryKeys = {
+  hardware: (batchId) => ["manual", "hardware", batchId],
+  commands: (batchId, hardwareId) => ["manual", "commands", batchId, hardwareId],
+  steps: (batchId) => ["manual", "steps", batchId],
+  presets: () => ["manual", "presets"]
+};
+function useHardwareCommands(batchId, hardwareId) {
+  return useQuery({
+    queryKey: manualQueryKeys.commands(batchId ?? "", hardwareId ?? ""),
+    queryFn: () => getHardwareCommands(batchId, hardwareId),
+    enabled: !!batchId && !!hardwareId,
+    staleTime: 60 * 1e3
+    // 1 minute - commands don't change often
+  });
+}
+function useManualSteps(batchId) {
+  const setSequenceSteps = useManualControlStore(
+    (state) => state.setSequenceSteps
+  );
+  const query = useQuery({
+    queryKey: manualQueryKeys.steps(batchId ?? ""),
+    queryFn: () => getManualSteps(batchId),
+    enabled: !!batchId,
+    staleTime: 30 * 1e3
+    // 30 seconds
+  });
+  if (query.data) {
+    setSequenceSteps(query.data);
+  }
+  return query;
+}
+function useExecuteCommand() {
+  const addResultToHistory = useManualControlStore(
+    (state) => state.addResultToHistory
+  );
+  return useMutation({
+    mutationFn: async ({
+      batchId,
+      request,
+      command
+    }) => {
+      const startTime = Date.now();
+      const response = await manualControl(batchId, request);
+      const duration = Date.now() - startTime;
+      return { response, duration, command };
+    },
+    onSuccess: ({ response, duration, command }, { request }) => {
+      addResultToHistory({
+        hardware: request.hardware,
+        command: request.command,
+        params: request.params ?? {},
+        result: response.result,
+        success: true,
+        duration,
+        unit: command == null ? void 0 : command.returnUnit
+      });
+      toast.success("Command executed successfully");
+    },
+    onError: (error, { request }) => {
+      addResultToHistory({
+        hardware: request.hardware,
+        command: request.command,
+        params: request.params ?? {},
+        result: { error: getErrorMessage(error) },
+        success: false,
+        duration: 0
+      });
+      toast.error(`Command failed: ${getErrorMessage(error)}`);
+    }
+  });
+}
+function useRunManualStep() {
+  const queryClient2 = useQueryClient();
+  const updateStepStatus = useManualControlStore(
+    (state) => state.updateStepStatus
+  );
+  const setCurrentStepIndex = useManualControlStore(
+    (state) => state.setCurrentStepIndex
+  );
+  const sequenceSteps = useManualControlStore((state) => state.sequenceSteps);
+  return useMutation({
+    mutationFn: async ({
+      batchId,
+      stepName,
+      parameters
+    }) => {
+      updateStepStatus(stepName, "running");
+      const startTime = Date.now();
+      const result = await runManualStep(batchId, stepName, parameters);
+      const duration = (Date.now() - startTime) / 1e3;
+      return { result, duration };
+    },
+    onSuccess: ({ result, duration }, { batchId, stepName }) => {
+      const passed = result.passed !== false;
+      updateStepStatus(
+        stepName,
+        passed ? "completed" : "failed",
+        result,
+        duration
+      );
+      if (passed) {
+        const currentIndex = sequenceSteps.findIndex(
+          (s) => s.name === stepName
+        );
+        if (currentIndex >= 0 && currentIndex < sequenceSteps.length - 1) {
+          setCurrentStepIndex(currentIndex + 1);
+        }
+      }
+      queryClient2.invalidateQueries({
+        queryKey: manualQueryKeys.steps(batchId)
+      });
+      toast.success(`Step "${stepName}" completed`);
+    },
+    onError: (error, { stepName }) => {
+      updateStepStatus(stepName, "failed");
+      toast.error(`Step failed: ${getErrorMessage(error)}`);
+    }
+  });
+}
+function useSkipManualStep() {
+  const queryClient2 = useQueryClient();
+  const updateStepStatus = useManualControlStore(
+    (state) => state.updateStepStatus
+  );
+  const setCurrentStepIndex = useManualControlStore(
+    (state) => state.setCurrentStepIndex
+  );
+  const sequenceSteps = useManualControlStore((state) => state.sequenceSteps);
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      stepName
+    }) => skipManualStep(batchId, stepName),
+    onSuccess: (_, { batchId, stepName }) => {
+      updateStepStatus(stepName, "skipped");
+      const currentIndex = sequenceSteps.findIndex((s) => s.name === stepName);
+      if (currentIndex >= 0 && currentIndex < sequenceSteps.length - 1) {
+        setCurrentStepIndex(currentIndex + 1);
+      }
+      queryClient2.invalidateQueries({
+        queryKey: manualQueryKeys.steps(batchId)
+      });
+      toast.info(`Step "${stepName}" skipped`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to skip step: ${getErrorMessage(error)}`);
+    }
+  });
+}
+function useResetManualSequence() {
+  const queryClient2 = useQueryClient();
+  const resetSequence = useManualControlStore((state) => state.resetSequence);
+  return useMutation({
+    mutationFn: (batchId) => resetManualSequence(batchId),
+    onSuccess: (_, batchId) => {
+      resetSequence();
+      queryClient2.invalidateQueries({
+        queryKey: manualQueryKeys.steps(batchId)
+      });
+      toast.success("Sequence reset");
+    },
+    onError: (error) => {
+      toast.error(`Failed to reset sequence: ${getErrorMessage(error)}`);
+    }
+  });
 }
 function Layout({ children }) {
   const { data: systemInfo, isLoading } = useSystemInfo();
@@ -7755,8 +8232,10 @@ function BatchDetailPage() {
   const { batchId } = useParams();
   const navigate = useNavigate();
   const { data: batch, isLoading } = useBatch(batchId ?? null);
+  const { data: apiStatistics } = useBatchStatistics(batchId ?? null);
   const { subscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
+  const setBatchStatistics = useBatchStore((state) => state.setBatchStatistics);
   const startBatch2 = useStartBatch();
   const startSequence2 = useStartSequence();
   const stopSequence2 = useStopSequence();
@@ -7768,9 +8247,15 @@ function BatchDetailPage() {
       subscribe([batchId]);
     }
   }, [batchId, subscribe]);
-  const statistics = reactExports.useMemo(() => {
+  reactExports.useEffect(() => {
+    if (batchId && apiStatistics) {
+      setBatchStatistics(batchId, apiStatistics);
+    }
+  }, [batchId, apiStatistics, setBatchStatistics]);
+  const storeStatistics = reactExports.useMemo(() => {
     return batchId ? getBatchStats(batchId) : void 0;
   }, [batchId, getBatchStats]);
+  const statistics = storeStatistics ?? apiStatistics;
   const steps = reactExports.useMemo(() => {
     var _a;
     if (!batch) return [];
@@ -7829,10 +8314,10 @@ function BatchDetailPage() {
       ] })
     ] });
   }
-  const isRunning = batch.status === "running" || batch.status === "starting";
+  const isRunning = batch.status === "running" || batch.status === "starting" || batch.status === "stopping";
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
   const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
-  const elapsedTime = isBatchDetail$1(batch) && batch.execution ? batch.execution.elapsed : batch.elapsed;
+  const elapsedTime = batch.elapsed > 0 ? batch.elapsed : isBatchDetail$1(batch) && batch.execution ? batch.execution.elapsed : 0;
   const progress = batch.progress ?? (isBatchDetail$1(batch) && batch.execution ? batch.execution.progress : 0);
   const getFinalVerdict = () => {
     if (batch.status === "running" || batch.status === "starting") {
@@ -7991,7 +8476,7 @@ function BatchDetailPage() {
             {
               icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } }),
               label: "Total Elapsed",
-              value: `${elapsedTime.toFixed(1)}s`
+              value: `${elapsedTime.toFixed(2)}s`
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -8912,238 +9397,857 @@ function StepPreviewItem({ step, result }) {
 function isBatchDetail(data) {
   return data !== null && typeof data === "object" && "hardwareStatus" in data;
 }
+const CATEGORY_ICONS = {
+  measurement: Gauge,
+  control: Zap,
+  configuration: Settings,
+  diagnostic: Search
+};
+const CATEGORY_LABELS = {
+  measurement: "Measurement",
+  control: "Control",
+  configuration: "Configuration",
+  diagnostic: "Diagnostic"
+};
 function ManualControlPage() {
   const { data: batches2, isLoading } = useBatchList();
-  const [selectedBatchId, setSelectedBatchId] = reactExports.useState("");
-  const { data: batchDetail } = useBatch(selectedBatchId || null);
-  const [selectedHardware, setSelectedHardware] = reactExports.useState("");
-  const [command, setCommand] = reactExports.useState("");
-  const [params, setParams] = reactExports.useState("{}");
-  const [commandHistory, setCommandHistory] = reactExports.useState([]);
-  const [lastResult, setLastResult] = reactExports.useState(null);
-  const manualControl2 = useManualControl();
+  const [activeTab, setActiveTab] = reactExports.useState("commands");
+  const selectedBatchId = useManualControlStore((s) => s.selectedBatchId);
+  const selectedHardwareId = useManualControlStore((s) => s.selectedHardwareId);
+  const selectDevice = useManualControlStore((s) => s.selectDevice);
+  const selectedCommand = useManualControlStore((s) => s.selectedCommand);
+  const selectCommand = useManualControlStore((s) => s.selectCommand);
+  const parameterValues = useManualControlStore((s) => s.parameterValues);
+  const setParameterValue = useManualControlStore((s) => s.setParameterValue);
+  const resultHistory = useManualControlStore((s) => s.resultHistory);
+  const { data: batchDetail } = useBatch(selectedBatchId);
+  const { data: commandsData, isLoading: loadingCommands } = useHardwareCommands(
+    selectedBatchId,
+    selectedHardwareId
+  );
+  const executeCommand = useExecuteCommand();
+  const groupedCommands = reactExports.useMemo(() => {
+    if (!(commandsData == null ? void 0 : commandsData.commands)) return {};
+    return selectGroupedCommands(commandsData.commands);
+  }, [commandsData]);
+  const batchOptions = reactExports.useMemo(() => {
+    return (batches2 == null ? void 0 : batches2.filter((b) => b.status === "idle").map((b) => ({
+      value: b.id,
+      label: `${b.name} - ${b.sequenceName ?? "No sequence"}`
+    }))) ?? [];
+  }, [batches2]);
+  const hardwareOptions = reactExports.useMemo(() => {
+    if (!isBatchDetail(batchDetail) || !batchDetail.hardwareStatus) return [];
+    return Object.entries(batchDetail.hardwareStatus).map(([id, status]) => ({
+      value: id,
+      label: `${id} (${status.driver})`
+    }));
+  }, [batchDetail]);
   const handleExecute = async () => {
-    if (!selectedBatchId || !selectedHardware || !command) return;
-    try {
-      const parsedParams = JSON.parse(params);
-      const request = {
-        hardware: selectedHardware,
-        command,
-        params: parsedParams
-      };
-      const result = await manualControl2.mutateAsync({
-        batchId: selectedBatchId,
-        request
-      });
-      setLastResult(result);
-      setCommandHistory((prev) => [
-        {
-          id: Date.now(),
-          batchId: selectedBatchId,
-          hardware: selectedHardware,
-          command,
-          params: parsedParams,
-          result: result.result,
-          timestamp: /* @__PURE__ */ new Date(),
-          success: true
-        },
-        ...prev.slice(0, 19)
-        // Keep last 20 commands
-      ]);
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      setCommandHistory((prev) => [
-        {
-          id: Date.now(),
-          batchId: selectedBatchId,
-          hardware: selectedHardware,
-          command,
-          params: JSON.parse(params),
-          result: { error: errorMessage },
-          timestamp: /* @__PURE__ */ new Date(),
-          success: false
-        },
-        ...prev.slice(0, 19)
-      ]);
-    }
+    if (!selectedBatchId || !selectedHardwareId || !selectedCommand) return;
+    await executeCommand.mutateAsync({
+      batchId: selectedBatchId,
+      request: {
+        hardware: selectedHardwareId,
+        command: selectedCommand.name,
+        params: parameterValues
+      },
+      command: selectedCommand
+    });
   };
-  const batchOptions = (batches2 == null ? void 0 : batches2.map((b) => ({
-    value: b.id,
-    label: `${b.name} (${b.status})`
-  }))) ?? [];
-  const hardwareOptions = isBatchDetail(batchDetail) && batchDetail.hardwareStatus ? Object.entries(batchDetail.hardwareStatus).map(([id, status]) => ({
-    value: id,
-    label: `${id} (${status.status})`
-  })) : [];
   if (isLoading) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingOverlay, { message: "Loading batches..." });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Wrench, { className: "w-6 h-6 text-brand-500" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold", style: { color: "var(--color-text-primary)" }, children: "Manual Control" })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Wrench, { className: "w-6 h-6 text-brand-500" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "h2",
+          {
+            className: "text-2xl font-bold",
+            style: { color: "var(--color-text-primary)" },
+            children: "Manual Control"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 p-1 rounded-lg", style: { backgroundColor: "var(--color-bg-tertiary)" }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => setActiveTab("commands"),
+            className: cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all",
+              activeTab === "commands" ? "bg-brand-500 text-white" : "hover:bg-brand-500/20"
+            ),
+            style: activeTab !== "commands" ? { color: "var(--color-text-secondary)" } : {},
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Cpu, { className: "w-4 h-4 inline mr-2" }),
+              "Hardware Commands"
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => setActiveTab("sequence"),
+            className: cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all",
+              activeTab === "sequence" ? "bg-brand-500 text-white" : "hover:bg-brand-500/20"
+            ),
+            style: activeTab !== "sequence" ? { color: "var(--color-text-secondary)" } : {},
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(ListOrdered, { className: "w-4 h-4 inline mr-2" }),
+              "Manual Sequence"
+            ]
+          }
+        )
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-5 h-5 text-yellow-500" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-5 h-5 text-yellow-500 flex-shrink-0" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-yellow-400 text-sm", children: "Manual control mode. Use with caution - direct hardware access can affect system state." })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border space-y-4", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-semibold flex items-center gap-2", style: { color: "var(--color-text-primary)" }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Send, { className: "w-5 h-5" }),
-            "Command Executor"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-4 rounded-lg border flex flex-wrap gap-4 items-end",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-[200px]", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             Select,
             {
-              label: "Batch",
+              label: "Test Station (Batch)",
               options: batchOptions,
-              value: selectedBatchId,
+              value: selectedBatchId ?? "",
               onChange: (e) => {
-                setSelectedBatchId(e.target.value);
-                setSelectedHardware("");
+                selectDevice(e.target.value || null, null);
+                selectCommand(null);
               },
-              placeholder: "Select a batch"
+              placeholder: "Select idle batch..."
             }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-[200px]", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             Select,
             {
               label: "Hardware Device",
               options: hardwareOptions,
-              value: selectedHardware,
-              onChange: (e) => setSelectedHardware(e.target.value),
-              placeholder: "Select hardware",
+              value: selectedHardwareId ?? "",
+              onChange: (e) => {
+                selectDevice(selectedBatchId, e.target.value || null);
+                selectCommand(null);
+              },
+              placeholder: "Select hardware...",
               disabled: !selectedBatchId
             }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            Input,
-            {
-              label: "Command",
-              value: command,
-              onChange: (e) => setCommand(e.target.value),
-              placeholder: "e.g., move, read, write",
-              disabled: !selectedHardware
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm font-medium mb-1.5", style: { color: "var(--color-text-secondary)" }, children: "Parameters (JSON)" }),
+          ) }),
+          commandsData && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "textarea",
+              StatusBadge,
               {
-                className: "w-full px-3 py-2 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent",
-                style: { backgroundColor: "var(--color-bg-tertiary)", borderColor: "var(--color-border-default)", color: "var(--color-text-primary)" },
-                rows: 4,
-                value: params,
-                onChange: (e) => setParams(e.target.value),
-                placeholder: '{"key": "value"}',
-                disabled: !selectedHardware
+                status: commandsData.connected ? "connected" : "disconnected",
+                size: "sm"
               }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            Button,
-            {
-              variant: "primary",
-              className: "w-full",
-              onClick: handleExecute,
-              isLoading: manualControl2.isPending,
-              disabled: !selectedBatchId || !selectedHardware || !command,
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Send, { className: "w-4 h-4 mr-2" }),
-                "Execute Command"
-              ]
-            }
-          )
-        ] }),
-        isBatchDetail(batchDetail) && batchDetail.hardwareStatus && Object.keys(batchDetail.hardwareStatus).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-semibold flex items-center gap-2 mb-4", style: { color: "var(--color-text-primary)" }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Cpu, { className: "w-5 h-5" }),
-            "Hardware Status"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: Object.entries(batchDetail.hardwareStatus).map(([id, status]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-            HardwareStatusRow,
-            {
-              id,
-              status,
-              isSelected: selectedHardware === id
-            },
-            id
-          )) })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
-        lastResult && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-semibold mb-3", style: { color: "var(--color-text-primary)" }, children: "Last Result" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-3 rounded font-mono text-sm overflow-x-auto", style: { backgroundColor: "var(--color-bg-tertiary)", color: "var(--color-text-secondary)" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("pre", { children: JSON.stringify(lastResult.result, null, 2) }) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-semibold flex items-center gap-2 mb-4", style: { color: "var(--color-text-primary)" }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(History, { className: "w-5 h-5" }),
-            "Command History"
-          ] }),
-          commandHistory.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No commands executed yet" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2 max-h-96 overflow-y-auto", children: commandHistory.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "div",
-            {
-              className: "p-3 rounded-lg text-sm",
-              style: { backgroundColor: item.success ? "var(--color-bg-tertiary)" : "rgba(239, 68, 68, 0.1)" },
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", style: { color: "var(--color-text-primary)" }, children: [
-                      item.hardware,
-                      ".",
-                      item.command
-                    ] }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      StatusBadge,
-                      {
-                        status: item.success ? "pass" : "fail",
-                        size: "sm"
-                      }
-                    )
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: item.timestamp.toLocaleTimeString() })
-                ] }),
-                Object.keys(item.params).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 text-xs font-mono", style: { color: "var(--color-text-secondary)" }, children: [
-                  "Params: ",
-                  JSON.stringify(item.params)
-                ] })
-              ]
-            },
-            item.id
-          )) })
-        ] })
-      ] })
-    ] })
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: commandsData.driver })
+          ] })
+        ]
+      }
+    ),
+    activeTab === "commands" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CommandsTab,
+      {
+        groupedCommands,
+        selectedCommand,
+        selectCommand,
+        parameterValues,
+        setParameterValue,
+        resultHistory,
+        onExecute: handleExecute,
+        isExecuting: executeCommand.isPending,
+        isDisabled: !selectedBatchId || !selectedHardwareId,
+        loadingCommands
+      }
+    ) : /* @__PURE__ */ jsxRuntimeExports.jsx(SequenceTab, { batchId: selectedBatchId })
   ] });
 }
-function HardwareStatusRow({ id, status, isSelected }) {
+function CommandsTab({
+  groupedCommands,
+  selectedCommand,
+  selectCommand,
+  parameterValues,
+  setParameterValue,
+  resultHistory,
+  onExecute,
+  isExecuting,
+  isDisabled,
+  loadingCommands
+}) {
+  var _a, _b;
+  const [activeCategory, setActiveCategory] = reactExports.useState("measurement");
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-4 rounded-lg border space-y-4",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "h3",
+            {
+              className: "text-lg font-semibold",
+              style: { color: "var(--color-text-primary)" },
+              children: "Commands"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1", children: Object.entries(CATEGORY_LABELS).map(([key, label]) => {
+            var _a2;
+            const Icon2 = CATEGORY_ICONS[key];
+            const count = ((_a2 = groupedCommands[key]) == null ? void 0 : _a2.length) ?? 0;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => setActiveCategory(key),
+                className: cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  activeCategory === key ? "bg-brand-500 text-white" : "hover:bg-brand-500/20"
+                ),
+                style: activeCategory !== key ? { color: "var(--color-text-secondary)" } : {},
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { className: "w-3.5 h-3.5" }),
+                  label,
+                  count > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "span",
+                    {
+                      className: cn(
+                        "px-1.5 py-0.5 rounded text-xs",
+                        activeCategory === key ? "bg-white/20" : "bg-gray-600/50"
+                      ),
+                      children: count
+                    }
+                  )
+                ]
+              },
+              key
+            );
+          }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1 max-h-64 overflow-y-auto", children: loadingCommands ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "text-sm py-4 text-center",
+              style: { color: "var(--color-text-tertiary)" },
+              children: "Loading commands..."
+            }
+          ) : (((_a = groupedCommands[activeCategory]) == null ? void 0 : _a.length) ?? 0) === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "text-sm py-4 text-center",
+              style: { color: "var(--color-text-tertiary)" },
+              children: isDisabled ? "Select a batch and hardware device" : "No commands available"
+            }
+          ) : (_b = groupedCommands[activeCategory]) == null ? void 0 : _b.map((cmd) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: () => selectCommand(cmd),
+              className: cn(
+                "w-full text-left px-3 py-2 rounded-md transition-all",
+                (selectedCommand == null ? void 0 : selectedCommand.name) === cmd.name ? "bg-brand-500/20 border border-brand-500/50" : "hover:bg-brand-500/10"
+              ),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    className: "font-medium text-sm",
+                    style: { color: "var(--color-text-primary)" },
+                    children: cmd.displayName
+                  }
+                ),
+                cmd.description && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    className: "text-xs mt-0.5 line-clamp-1",
+                    style: { color: "var(--color-text-tertiary)" },
+                    children: cmd.description
+                  }
+                )
+              ]
+            },
+            cmd.name
+          )) })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-4 rounded-lg border space-y-4",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "h3",
+            {
+              className: "text-lg font-semibold",
+              style: { color: "var(--color-text-primary)" },
+              children: (selectedCommand == null ? void 0 : selectedCommand.displayName) ?? "Parameters"
+            }
+          ),
+          selectedCommand ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            selectedCommand.description && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "p",
+              {
+                className: "text-sm",
+                style: { color: "var(--color-text-tertiary)" },
+                children: selectedCommand.description
+              }
+            ),
+            selectedCommand.parameters.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: selectedCommand.parameters.map((param) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              ParameterInput,
+              {
+                parameter: param,
+                value: parameterValues[param.name],
+                onChange: (v) => setParameterValue(param.name, v)
+              },
+              param.name
+            )) }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "p",
+              {
+                className: "text-sm italic",
+                style: { color: "var(--color-text-tertiary)" },
+                children: "No parameters required"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              Button,
+              {
+                variant: "primary",
+                className: "w-full mt-4",
+                onClick: onExecute,
+                isLoading: isExecuting,
+                disabled: isDisabled,
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Send, { className: "w-4 h-4 mr-2" }),
+                  "Execute ",
+                  selectedCommand.displayName
+                ]
+              }
+            ),
+            selectedCommand.returnUnit && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "p",
+              {
+                className: "text-xs text-center",
+                style: { color: "var(--color-text-tertiary)" },
+                children: [
+                  "Returns: ",
+                  selectedCommand.returnType,
+                  " (",
+                  selectedCommand.returnUnit,
+                  ")"
+                ]
+              }
+            )
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "text-sm py-8 text-center",
+              style: { color: "var(--color-text-tertiary)" },
+              children: "Select a command to configure parameters"
+            }
+          )
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-4 rounded-lg border space-y-4",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "h3",
+            {
+              className: "text-lg font-semibold flex items-center gap-2",
+              style: { color: "var(--color-text-primary)" },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(History, { className: "w-5 h-5" }),
+                "Results"
+              ]
+            }
+          ),
+          resultHistory[0] && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              className: cn(
+                "p-3 rounded-lg border",
+                resultHistory[0].success ? "border-green-500/30 bg-green-500/10" : "border-red-500/30 bg-red-500/10"
+              ),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "span",
+                    {
+                      className: "text-sm font-medium",
+                      style: { color: "var(--color-text-secondary)" },
+                      children: [
+                        resultHistory[0].hardware,
+                        ".",
+                        resultHistory[0].command
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    StatusBadge,
+                    {
+                      status: resultHistory[0].success ? "pass" : "fail",
+                      size: "sm"
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "div",
+                  {
+                    className: "text-2xl font-bold",
+                    style: { color: "var(--color-text-primary)" },
+                    children: [
+                      formatResult(resultHistory[0].result),
+                      resultHistory[0].unit && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm ml-1", children: resultHistory[0].unit })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "div",
+                  {
+                    className: "text-xs mt-1",
+                    style: { color: "var(--color-text-tertiary)" },
+                    children: [
+                      resultHistory[0].duration,
+                      "ms"
+                    ]
+                  }
+                )
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1 max-h-64 overflow-y-auto", children: resultHistory.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "text-sm text-center py-4",
+              style: { color: "var(--color-text-tertiary)" },
+              children: "No commands executed yet"
+            }
+          ) : resultHistory.slice(1).map((entry) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              className: "flex items-center justify-between p-2 rounded-md text-sm",
+              style: { backgroundColor: "var(--color-bg-tertiary)" },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                  entry.success ? /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-4 h-4 text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-4 h-4 text-red-500" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: entry.command })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "span",
+                  {
+                    className: "text-xs",
+                    style: { color: "var(--color-text-tertiary)" },
+                    children: entry.timestamp.toLocaleTimeString()
+                  }
+                )
+              ]
+            },
+            entry.id
+          )) })
+        ]
+      }
+    )
+  ] });
+}
+function SequenceTab({ batchId }) {
+  const { data: steps, isLoading } = useManualSteps(batchId);
+  const sequenceSteps = useManualControlStore((s) => s.sequenceSteps);
+  const currentStepIndex = useManualControlStore((s) => s.currentStepIndex);
+  const stepOverrides = useManualControlStore((s) => s.stepOverrides);
+  const setStepOverride = useManualControlStore((s) => s.setStepOverride);
+  const runStep = useRunManualStep();
+  const skipStep = useSkipManualStep();
+  const resetSequence = useResetManualSequence();
+  const handleRunStep = (stepName) => {
+    if (!batchId) return;
+    runStep.mutate({
+      batchId,
+      stepName,
+      parameters: stepOverrides[stepName]
+    });
+  };
+  const handleSkipStep = (stepName) => {
+    if (!batchId) return;
+    skipStep.mutate({ batchId, stepName });
+  };
+  const handleReset = () => {
+    if (!batchId) return;
+    resetSequence.mutate(batchId);
+  };
+  if (!batchId) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "p-8 text-center rounded-lg border",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            ListOrdered,
+            {
+              className: "w-12 h-12 mx-auto mb-4",
+              style: { color: "var(--color-text-tertiary)" }
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { color: "var(--color-text-tertiary)" }, children: "Select a batch to view sequence steps" })
+        ]
+      }
+    );
+  }
+  if (isLoading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingOverlay, { message: "Loading sequence steps..." });
+  }
+  const displaySteps = sequenceSteps.length > 0 ? sequenceSteps : steps ?? [];
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
-      className: "flex items-center justify-between p-2 rounded",
+      className: "p-4 rounded-lg border",
       style: {
-        backgroundColor: isSelected ? "rgba(var(--color-brand-rgb), 0.1)" : "var(--color-bg-tertiary)",
-        border: isSelected ? "1px solid rgba(var(--color-brand-rgb), 0.3)" : "none"
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
       },
       children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: id }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2 text-xs", style: { color: "var(--color-text-tertiary)" }, children: status.driver })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "h3",
+            {
+              className: "text-lg font-semibold flex items-center gap-2",
+              style: { color: "var(--color-text-primary)" },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(ListOrdered, { className: "w-5 h-5" }),
+                "Manual Sequence Execution"
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { variant: "ghost", size: "sm", onClick: handleReset, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "w-4 h-4 mr-1" }),
+            "Reset"
+          ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          StatusBadge,
+        displaySteps.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "p",
           {
-            status: status.status === "connected" ? "connected" : "disconnected",
-            size: "sm"
+            className: "text-sm text-center py-8",
+            style: { color: "var(--color-text-tertiary)" },
+            children: "No sequence steps available"
+          }
+        ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: displaySteps.map((step, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          StepCard,
+          {
+            step,
+            index,
+            isCurrent: index === currentStepIndex,
+            overrides: stepOverrides[step.name],
+            onRun: () => handleRunStep(step.name),
+            onSkip: () => handleSkipStep(step.name),
+            onUpdateOverrides: (overrides) => setStepOverride(step.name, overrides),
+            isRunning: runStep.isPending
+          },
+          step.name
+        )) }),
+        displaySteps.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 mt-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            Button,
+            {
+              className: "flex-1",
+              onClick: () => {
+                const nextPending = displaySteps.find(
+                  (s) => s.status === "pending"
+                );
+                if (nextPending) {
+                  handleRunStep(nextPending.name);
+                }
+              },
+              disabled: !displaySteps.some((s) => s.status === "pending") || runStep.isPending,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-1" }),
+                "Run Next Step"
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            Button,
+            {
+              variant: "secondary",
+              disabled: true,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(FastForward, { className: "w-4 h-4 mr-1" }),
+                "Run All Remaining"
+              ]
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+function StepCard({
+  step,
+  index,
+  isCurrent,
+  overrides: _overrides,
+  onRun,
+  onSkip,
+  onUpdateOverrides: _onUpdateOverrides,
+  isRunning
+}) {
+  var _a, _b;
+  const [isExpanded, setIsExpanded] = reactExports.useState(false);
+  const statusColors = {
+    pending: "border-gray-500/30",
+    running: "border-blue-500 bg-blue-500/10",
+    completed: "border-green-500 bg-green-500/10",
+    failed: "border-red-500 bg-red-500/10",
+    skipped: "border-gray-500 bg-gray-500/10"
+  };
+  const StatusIcon = {
+    pending: Clock,
+    running: Play,
+    completed: CircleCheckBig,
+    failed: CircleX,
+    skipped: SkipForward
+  }[step.status];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: cn(
+        "p-3 rounded-lg border transition-all",
+        statusColors[step.status],
+        isCurrent && "ring-2 ring-brand-500"
+      ),
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              StatusIcon,
+              {
+                className: cn(
+                  "w-5 h-5",
+                  step.status === "running" && "animate-pulse",
+                  step.status === "completed" && "text-green-500",
+                  step.status === "failed" && "text-red-500",
+                  step.status === "skipped" && "text-gray-500"
+                ),
+                style: step.status === "pending" || step.status === "running" ? { color: "var(--color-text-secondary)" } : {}
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "span",
+                {
+                  className: "font-medium",
+                  style: { color: "var(--color-text-primary)" },
+                  children: [
+                    index + 1,
+                    ". ",
+                    step.displayName
+                  ]
+                }
+              ),
+              step.duration !== void 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "span",
+                {
+                  className: "ml-2 text-xs",
+                  style: { color: "var(--color-text-tertiary)" },
+                  children: [
+                    step.duration.toFixed(1),
+                    "s"
+                  ]
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            step.status === "pending" && isCurrent && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", onClick: onRun, isLoading: isRunning, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-3 h-3" }) }),
+              ((_a = step.manual) == null ? void 0 : _a.skippable) && /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "sm", variant: "ghost", onClick: onSkip, children: "Skip" })
+            ] }),
+            step.status === "failed" && /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { size: "sm", variant: "secondary", onClick: onRun, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "w-3 h-3 mr-1" }),
+              "Retry"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                size: "sm",
+                variant: "ghost",
+                onClick: () => setIsExpanded(!isExpanded),
+                children: isExpanded ? /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronUp, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, {})
+              }
+            )
+          ] })
+        ] }),
+        isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "mt-3 pt-3 border-t",
+            style: { borderColor: "var(--color-border-default)" },
+            children: [
+              ((_b = step.manual) == null ? void 0 : _b.prompt) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "p",
+                {
+                  className: "text-sm mb-2 italic",
+                  style: { color: "var(--color-text-tertiary)" },
+                  children: step.manual.prompt
+                }
+              ),
+              step.result && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "h4",
+                  {
+                    className: "text-sm font-medium mb-1",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Result"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "pre",
+                  {
+                    className: "text-xs p-2 rounded overflow-auto max-h-32",
+                    style: {
+                      backgroundColor: "var(--color-bg-tertiary)",
+                      color: "var(--color-text-secondary)"
+                    },
+                    children: JSON.stringify(step.result, null, 2)
+                  }
+                )
+              ] })
+            ]
           }
         )
       ]
     }
   );
+}
+function ParameterInput({ parameter, value, onChange }) {
+  var _a;
+  switch (parameter.type) {
+    case "number":
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "label",
+          {
+            className: "block text-sm font-medium mb-1",
+            style: { color: "var(--color-text-secondary)" },
+            children: [
+              parameter.displayName,
+              parameter.unit && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-xs", children: [
+                "(",
+                parameter.unit,
+                ")"
+              ] })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "number",
+            value: value ?? parameter.default ?? "",
+            onChange: (e) => onChange(parseFloat(e.target.value) || 0),
+            min: parameter.min,
+            max: parameter.max,
+            step: "any",
+            className: "w-full px-3 py-2 rounded-lg text-sm",
+            style: {
+              backgroundColor: "var(--color-bg-tertiary)",
+              borderColor: "var(--color-border-default)",
+              color: "var(--color-text-primary)"
+            }
+          }
+        ),
+        (parameter.min !== void 0 || parameter.max !== void 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "p",
+          {
+            className: "text-xs mt-1",
+            style: { color: "var(--color-text-tertiary)" },
+            children: [
+              "Range: ",
+              parameter.min ?? "-∞",
+              " to ",
+              parameter.max ?? "∞"
+            ]
+          }
+        )
+      ] });
+    case "boolean":
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "checkbox",
+            checked: value ?? parameter.default ?? false,
+            onChange: (e) => onChange(e.target.checked),
+            className: "w-4 h-4 rounded"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: parameter.displayName })
+      ] });
+    case "select":
+      return /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Select,
+        {
+          label: parameter.displayName,
+          value: String(value ?? parameter.default ?? ""),
+          onChange: (e) => onChange(e.target.value),
+          options: ((_a = parameter.options) == null ? void 0 : _a.map((opt) => ({
+            value: String(opt.value),
+            label: opt.label
+          }))) ?? []
+        }
+      );
+    default:
+      return /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Input,
+        {
+          label: parameter.displayName,
+          value: String(value ?? parameter.default ?? ""),
+          onChange: (e) => onChange(e.target.value),
+          placeholder: parameter.description
+        }
+      );
+  }
+}
+function formatResult(result) {
+  if (typeof result === "number") {
+    return result.toFixed(4);
+  }
+  if (typeof result === "boolean") {
+    return result ? "TRUE" : "FALSE";
+  }
+  if (typeof result === "string") {
+    return result;
+  }
+  if (result === null || result === void 0) {
+    return "-";
+  }
+  return JSON.stringify(result);
 }
 function LogsPage() {
   const { data: batches2 } = useBatchList();

@@ -7,7 +7,13 @@ This module defines request and response schemas for sequence package operations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+def to_camel(string: str) -> str:
+    """Convert snake_case to camelCase."""
+    components = string.split('_')
+    return components[0] + ''.join(word.capitalize() for word in components[1:])
 
 
 # ============================================================================
@@ -23,6 +29,11 @@ class HardwareConfigSchema(BaseModel):
         required: Whether the field is required
         default: Default value if not specified
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     type: str = Field(..., description="Data type")
     required: Optional[bool] = Field(False, description="Whether the field is required")
     default: Optional[Any] = Field(None, description="Default value")
@@ -34,12 +45,21 @@ class HardwareDefinition(BaseModel):
     Attributes:
         id: Hardware device identifier
         display_name: Human-readable display name
-        driver: Driver class name
+        driver: Driver module name
+        class_name: Driver class name
+        description: Hardware description
         config_schema: Configuration schema for this hardware
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     id: str = Field(..., description="Hardware device identifier")
     display_name: str = Field(..., description="Human-readable display name")
-    driver: str = Field(..., description="Driver class name")
+    driver: str = Field(..., description="Driver module name")
+    class_name: str = Field(..., description="Driver class name")
+    description: Optional[str] = Field(None, description="Hardware description")
     config_schema: Dict[str, HardwareConfigSchema] = Field(
         default_factory=dict,
         description="Configuration schema"
@@ -59,6 +79,11 @@ class ParameterDefinition(BaseModel):
         unit: Unit of measurement
         options: Available options (for enum types)
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     name: str = Field(..., description="Parameter name")
     display_name: str = Field(..., description="Human-readable display name")
     type: str = Field(..., description="Data type (string, integer, float, boolean)")
@@ -82,6 +107,11 @@ class StepDefinition(BaseModel):
         cleanup: Whether this is a cleanup step (always runs)
         condition: Condition expression for conditional execution
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     order: int = Field(..., description="Step execution order (1-based)", ge=1)
     name: str = Field(..., description="Step name")
     display_name: str = Field(..., description="Human-readable display name")
@@ -108,6 +138,11 @@ class SequenceSummary(BaseModel):
         path: Path to the sequence package
         updated_at: Last update timestamp
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="Sequence version")
     display_name: str = Field(..., description="Human-readable display name")
@@ -127,10 +162,16 @@ class SequenceDetail(BaseModel):
         author: Author or team name
         created_at: Creation date
         updated_at: Last update date
+        path: Package path
         hardware: List of hardware definitions
         parameters: List of parameter definitions
         steps: List of step definitions
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="Sequence version")
     display_name: str = Field(..., description="Human-readable display name")
@@ -138,6 +179,7 @@ class SequenceDetail(BaseModel):
     author: Optional[str] = Field(None, description="Author or team name")
     created_at: Optional[str] = Field(None, description="Creation date")
     updated_at: Optional[str] = Field(None, description="Last update date")
+    path: Optional[str] = Field(None, description="Package path")
     hardware: List[HardwareDefinition] = Field(default_factory=list, description="Hardware definitions")
     parameters: List[ParameterDefinition] = Field(default_factory=list, description="Parameter definitions")
     steps: List[StepDefinition] = Field(default_factory=list, description="Step definitions")
@@ -197,6 +239,11 @@ class SequenceUpdateResponse(BaseModel):
         version: New version after update
         updated_at: Update timestamp
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="New version after update")
     updated_at: datetime = Field(..., description="Update timestamp")

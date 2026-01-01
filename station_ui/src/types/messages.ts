@@ -104,6 +104,8 @@ export interface LogMessage {
     level: LogLevel;
     message: string;
     timestamp: Date;
+    /** Execution ID for correlating logs to specific runs */
+    executionId?: string;
   };
 }
 
@@ -118,6 +120,8 @@ export interface ErrorMessage {
     message: string;
     step?: string;
     timestamp: Date;
+    /** Execution ID for correlating errors to specific runs */
+    executionId?: string;
   };
 }
 

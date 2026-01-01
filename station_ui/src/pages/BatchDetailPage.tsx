@@ -20,8 +20,9 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
-import { useBatch, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket } from '../hooks';
+import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
+import type { BatchStatistics } from '../types';
 import { Button } from '../components/atoms/Button';
 import { StatusBadge } from '../components/atoms/StatusBadge';
 import { ProgressBar } from '../components/atoms/ProgressBar';
@@ -39,8 +40,10 @@ export function BatchDetailPage() {
   const navigate = useNavigate();
 
   const { data: batch, isLoading } = useBatch(batchId ?? null);
+  const { data: apiStatistics } = useBatchStatistics(batchId ?? null);
   const { subscribe } = useWebSocket();
   const getBatchStats = useBatchStore((state) => state.getBatchStats);
+  const setBatchStatistics = useBatchStore((state) => state.setBatchStatistics);
 
   const startBatch = useStartBatch();
   const startSequence = useStartSequence();
@@ -61,9 +64,20 @@ export function BatchDetailPage() {
     }
   }, [batchId, subscribe]);
 
-  const statistics = useMemo(() => {
+  // Sync API statistics to store (for persistence across page refreshes)
+  useEffect(() => {
+    if (batchId && apiStatistics) {
+      setBatchStatistics(batchId, apiStatistics);
+    }
+  }, [batchId, apiStatistics, setBatchStatistics]);
+
+  // Get statistics from store (includes real-time updates from WebSocket)
+  const storeStatistics = useMemo(() => {
     return batchId ? getBatchStats(batchId) : undefined;
   }, [batchId, getBatchStats]);
+
+  // Merge: prefer store (has real-time updates) but fall back to API
+  const statistics: BatchStatistics | undefined = storeStatistics ?? apiStatistics;
 
   // Get steps from store (real-time updates) or API (batch.execution.steps)
   // IMPORTANT: This useMemo must be before any early returns to comply with Rules of Hooks
@@ -144,14 +158,18 @@ export function BatchDetailPage() {
   }
 
   // Computed values that depend on batch being defined
-  const isRunning = batch.status === 'running' || batch.status === 'starting';
+  // Include 'stopping' in isRunning so stop button remains visible during stop transition
+  const isRunning = batch.status === 'running' || batch.status === 'starting' || batch.status === 'stopping';
+  // Disable start during transitions (starting/stopping) for better UX
   const canStart = batch.status === 'idle' || batch.status === 'completed' || batch.status === 'error';
 
   // Calculate total elapsed time from steps
   const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
-  const elapsedTime = isBatchDetail(batch) && batch.execution
-    ? batch.execution.elapsed
-    : batch.elapsed;
+  // Prefer batch.elapsed (from store, updated via WebSocket) over batch.execution.elapsed (from API)
+  // Store's elapsed is updated in real-time when sequence_complete is received
+  const elapsedTime = batch.elapsed > 0
+    ? batch.elapsed
+    : (isBatchDetail(batch) && batch.execution ? batch.execution.elapsed : 0);
 
   // Calculate progress - prefer batch.progress which is merged from store for real-time updates
   // batch.execution.progress is only updated via API polling, which is slower
@@ -304,7 +322,7 @@ export function BatchDetailPage() {
             <StatCard
               icon={<Clock className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
               label="Total Elapsed"
-              value={`${elapsedTime.toFixed(1)}s`}
+              value={`${elapsedTime.toFixed(2)}s`}
             />
             <StatCard
               icon={<Timer className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
