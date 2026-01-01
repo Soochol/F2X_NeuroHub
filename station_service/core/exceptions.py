@@ -124,6 +124,63 @@ class BatchProcessError(BatchError):
         self.exit_code = exit_code
 
 
+class BatchAlreadyExistsError(BatchError):
+    """Exception raised when trying to create a batch that already exists."""
+
+    def __init__(self, batch_id: str) -> None:
+        """
+        Initialize exception.
+
+        Args:
+            batch_id: The ID of the batch that already exists
+        """
+        super().__init__(
+            message=f"Batch '{batch_id}' already exists",
+            code="BATCH_ALREADY_EXISTS",
+            details={"batch_id": batch_id},
+        )
+        self.batch_id = batch_id
+
+
+class BatchPersistenceError(BatchError):
+    """Exception raised when batch configuration persistence fails."""
+
+    def __init__(self, batch_id: str, reason: str) -> None:
+        """
+        Initialize exception.
+
+        Args:
+            batch_id: The ID of the batch
+            reason: Persistence failure reason
+        """
+        super().__init__(
+            message=f"Failed to persist batch '{batch_id}': {reason}",
+            code="BATCH_PERSISTENCE_ERROR",
+            details={"batch_id": batch_id, "reason": reason},
+        )
+        self.batch_id = batch_id
+        self.reason = reason
+
+
+class BatchValidationError(BatchError):
+    """Exception raised when batch configuration validation fails."""
+
+    def __init__(self, message: str, batch_id: Optional[str] = None) -> None:
+        """
+        Initialize exception.
+
+        Args:
+            message: Validation error message
+            batch_id: The ID of the batch (if available)
+        """
+        super().__init__(
+            message=message,
+            code="BATCH_VALIDATION_ERROR",
+            details={"batch_id": batch_id} if batch_id else {},
+        )
+        self.batch_id = batch_id
+
+
 # ============================================================
 # Sequence Exceptions
 # ============================================================

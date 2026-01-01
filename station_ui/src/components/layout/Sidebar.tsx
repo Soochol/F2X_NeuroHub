@@ -52,6 +52,7 @@ const navSections: NavSection[] = [
     sectionLabel: 'SYSTEM',
     items: [
       { path: ROUTES.LOGS, label: 'Logs', icon: FileText },
+      { path: ROUTES.MONITOR, label: 'Monitor', icon: Activity },
       { path: ROUTES.SETTINGS, label: 'Settings', icon: Settings },
     ],
   },

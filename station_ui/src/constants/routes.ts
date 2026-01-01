@@ -10,6 +10,7 @@ export const ROUTES = {
   SEQUENCE_DETAIL: '/sequences/:sequenceName',
   MANUAL: '/manual',
   LOGS: '/logs',
+  MONITOR: '/monitor',
   SETTINGS: '/settings',
 } as const;
 
@@ -36,6 +37,7 @@ export const NAV_ITEMS = [
   { path: ROUTES.SEQUENCES, label: 'Sequences', iconName: 'GitBranch' },
   { path: ROUTES.MANUAL, label: 'Manual', iconName: 'Wrench' },
   { path: ROUTES.LOGS, label: 'Logs', iconName: 'FileText' },
+  { path: ROUTES.MONITOR, label: 'Monitor', iconName: 'Activity' },
   { path: ROUTES.SETTINGS, label: 'Settings', iconName: 'Settings' },
 ] as const;
 

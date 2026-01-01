@@ -307,3 +307,41 @@ class BatchDeleteResponse(BaseModel):
     """
     batch_id: str = Field(..., description="Batch identifier")
     status: str = Field(..., description="Deletion status")
+
+
+class BatchUpdateRequest(BaseModel):
+    """Request body for updating a batch configuration.
+
+    All fields are optional - only provided fields will be updated.
+
+    Attributes:
+        name: New display name for the batch
+        sequence_package: New sequence package path
+        hardware: Updated hardware configuration
+        auto_start: Whether to auto-start on station startup
+        process_id: Associated process ID (1-8) for WIP tracking
+    """
+    name: Optional[str] = Field(None, description="Display name of the batch", min_length=1)
+    sequence_package: Optional[str] = Field(None, description="Sequence package path", min_length=1)
+    hardware: Optional[Dict[str, Dict[str, Any]]] = Field(
+        None,
+        description="Hardware configuration (device_id -> config)"
+    )
+    auto_start: Optional[bool] = Field(None, description="Auto-start on station startup")
+    process_id: Optional[int] = Field(
+        None,
+        description="Associated process ID (1-8) for WIP tracking",
+        ge=1,
+        le=8
+    )
+
+
+class BatchUpdateResponse(BaseModel):
+    """Response for batch update.
+
+    Attributes:
+        batch_id: ID of the updated batch
+        status: Update status ('updated')
+    """
+    batch_id: str = Field(..., description="Batch identifier")
+    status: str = Field(default="updated", description="Update status")

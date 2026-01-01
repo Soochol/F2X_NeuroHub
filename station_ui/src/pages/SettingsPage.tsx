@@ -1,28 +1,40 @@
 /**
- * Settings page - System configuration and status.
+ * Settings page - System configuration.
  */
 
 import { useState, useEffect } from 'react';
-import { Settings, Server, Monitor, Database, Moon, Sun, RefreshCw, Edit2, Save, X, Loader2 } from 'lucide-react';
-import { useSystemInfo, useHealthStatus, useUpdateStationInfo } from '../hooks';
+import {
+  Settings,
+  Server,
+  Moon,
+  Sun,
+  RefreshCw,
+  Edit2,
+  Save,
+  X,
+  Loader2,
+  Play,
+  Pause,
+  Cloud,
+  ScanBarcode,
+} from 'lucide-react';
+import { useSystemInfo, useHealthStatus, useUpdateStationInfo, useWorkflowConfig, useUpdateWorkflowConfig } from '../hooks';
 import { useUIStore } from '../stores/uiStore';
-import { useConnectionStore } from '../stores/connectionStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { Button } from '../components/atoms/Button';
-import { StatusBadge } from '../components/atoms/StatusBadge';
-import { ProgressBar } from '../components/atoms/ProgressBar';
 import { LoadingSpinner } from '../components/atoms/LoadingSpinner';
+import { StatusBadge } from '../components/atoms/StatusBadge';
 
 export function SettingsPage() {
   const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
+  const { data: workflowConfig, isLoading: workflowLoading, refetch: refetchWorkflow } = useWorkflowConfig();
   const updateStationInfo = useUpdateStationInfo();
+  const updateWorkflow = useUpdateWorkflowConfig();
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   const theme = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
-  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
-  const lastHeartbeat = useConnectionStore((state) => state.lastHeartbeat);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -50,6 +62,7 @@ export function SettingsPage() {
   const handleRefresh = () => {
     refetchInfo();
     refetchHealth();
+    refetchWorkflow();
   };
 
   const handleEditStart = () => {
@@ -105,12 +118,77 @@ export function SettingsPage() {
     }
   };
 
+  const handleWorkflowToggle = async () => {
+    if (!workflowConfig) return;
+
+    const newEnabled = !workflowConfig.enabled;
+    try {
+      await updateWorkflow.mutateAsync({ enabled: newEnabled });
+      addNotification({
+        type: 'success',
+        title: newEnabled ? 'Process Workflow Enabled' : 'Process Workflow Disabled',
+        message: newEnabled
+          ? 'WIP process start/complete is now enabled.'
+          : 'WIP process start/complete is now disabled.',
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: error instanceof Error ? error.message : 'Failed to update workflow configuration',
+      });
+    }
+  };
+
+  const handleWipInputModeChange = async (mode: 'popup' | 'barcode') => {
+    try {
+      await updateWorkflow.mutateAsync({ input_mode: mode });
+      addNotification({
+        type: 'success',
+        title: 'WIP Input Mode Changed',
+        message: mode === 'popup'
+          ? 'WIP ID will be entered manually via popup.'
+          : 'WIP ID will be read from barcode scanner.',
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: error instanceof Error ? error.message : 'Failed to update workflow configuration',
+      });
+    }
+  };
+
+  const handleAutoSequenceStartToggle = async () => {
+    if (!workflowConfig) return;
+
+    const newValue = !workflowConfig.auto_sequence_start;
+    try {
+      await updateWorkflow.mutateAsync({ auto_sequence_start: newValue });
+      addNotification({
+        type: 'success',
+        title: newValue ? 'Auto-start Enabled' : 'Auto-start Disabled',
+        message: newValue
+          ? 'Sequence will start automatically after WIP scan.'
+          : 'Sequence must be started manually after WIP scan.',
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: error instanceof Error ? error.message : 'Failed to update workflow configuration',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Settings className="w-6 h-6 text-brand-500" />
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Settings</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            Settings
+          </h2>
         </div>
         <Button variant="ghost" size="sm" onClick={handleRefresh}>
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -118,7 +196,7 @@ export function SettingsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full">
         {/* Station Info */}
         <Section
           icon={<Server className="w-5 h-5" />}
@@ -184,105 +262,229 @@ export function SettingsPage() {
                   <InfoRow label="Station ID" value={systemInfo.stationId} />
                   <InfoRow label="Station Name" value={systemInfo.stationName} />
                   <InfoRow label="Description" value={systemInfo.description || '-'} />
-                  <InfoRow label="Version" value={systemInfo.version} />
-                  <InfoRow label="Uptime" value={formatUptime(systemInfo.uptime)} />
                 </>
               )}
             </div>
           )}
         </Section>
 
-        {/* Connection Status */}
+        {/* Workflow Settings (Process Start/Complete) */}
         <Section
-          icon={<Monitor className="w-5 h-5" />}
-          title="Connection Status"
-          isLoading={healthLoading}
+          icon={
+            workflowConfig?.enabled ? (
+              <Play className="w-5 h-5" />
+            ) : (
+              <Pause className="w-5 h-5" />
+            )
+          }
+          title="Process Workflow"
+          isLoading={workflowLoading}
         >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span style={{ color: 'var(--color-text-secondary)' }}>WebSocket</span>
-              <StatusBadge
-                status={websocketStatus === 'connected' ? 'connected' : 'disconnected'}
-                size="sm"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <span style={{ color: 'var(--color-text-secondary)' }}>Backend</span>
-              <StatusBadge
-                status={
-                  health?.backendStatus === 'connected' ? 'connected' : 'disconnected'
-                }
-                size="sm"
-              />
-            </div>
-            {lastHeartbeat && (
-              <div className="flex items-center justify-between text-sm">
-                <span style={{ color: 'var(--color-text-tertiary)' }}>Last Heartbeat</span>
-                <span style={{ color: 'var(--color-text-secondary)' }}>
-                  {lastHeartbeat.toLocaleTimeString()}
-                </span>
-              </div>
-            )}
-          </div>
-        </Section>
-
-        {/* System Health */}
-        <Section
-          icon={<Database className="w-5 h-5" />}
-          title="System Health"
-          isLoading={healthLoading}
-        >
-          {health && (
+          {workflowConfig && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span style={{ color: 'var(--color-text-secondary)' }}>Overall Status</span>
-                <StatusBadge
-                  status={health.status === 'healthy' ? 'connected' : 'disconnected'}
-                  size="sm"
+                <div>
+                  <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                    WIP Process Start/Complete
+                  </span>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+                    Sync with backend MES for process tracking
+                  </p>
+                </div>
+                <ToggleSwitch
+                  enabled={workflowConfig.enabled}
+                  onToggle={handleWorkflowToggle}
+                  disabled={updateWorkflow.isPending}
                 />
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Batches Running</span>
-                  <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{health.batchesRunning}</span>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Disk Usage</span>
-                  <span style={{ color: 'var(--color-text-primary)' }}>{health.diskUsage.toFixed(1)}%</span>
-                </div>
-                <ProgressBar
-                  value={health.diskUsage}
-                  variant={
-                    health.diskUsage > 90
-                      ? 'error'
-                      : health.diskUsage > 70
-                        ? 'warning'
-                        : 'default'
-                  }
-                  size="sm"
-                />
+              {workflowConfig.enabled && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                        WIP Input Mode
+                      </span>
+                      <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+                        How to provide WIP ID for process tracking
+                      </p>
+                    </div>
+                    <select
+                      value={workflowConfig.input_mode}
+                      onChange={(e) => handleWipInputModeChange(e.target.value as 'popup' | 'barcode')}
+                      disabled={updateWorkflow.isPending}
+                      className="px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-pointer disabled:opacity-50"
+                      style={{
+                        backgroundColor: 'var(--color-bg-primary)',
+                        borderColor: 'var(--color-border-default)',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      <option value="popup">Manual Input (Popup)</option>
+                      <option value="barcode">Barcode Scanner</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                        Auto-start Sequence
+                      </span>
+                      <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+                        Start sequence automatically after WIP scan
+                      </p>
+                    </div>
+                    <ToggleSwitch
+                      enabled={workflowConfig.auto_sequence_start}
+                      onToggle={handleAutoSequenceStartToggle}
+                      disabled={updateWorkflow.isPending}
+                    />
+                  </div>
+                </>
+              )}
+              <div
+                className="text-xs p-2 rounded"
+                style={{
+                  backgroundColor: workflowConfig.enabled
+                    ? 'rgba(62, 207, 142, 0.1)'
+                    : 'var(--color-bg-tertiary)',
+                  color: workflowConfig.enabled
+                    ? 'var(--color-brand-500)'
+                    : 'var(--color-text-tertiary)',
+                }}
+              >
+                {workflowConfig.enabled
+                  ? 'Enabled: Automatically calls process start/complete API during sequence execution.'
+                  : 'Disabled: Runs sequence only without process tracking.'}
               </div>
             </div>
           )}
         </Section>
 
+        {/* Barcode Scanner Settings - only show when input_mode is barcode */}
+        {workflowConfig?.enabled && workflowConfig?.input_mode === 'barcode' && (
+          <Section
+            icon={<ScanBarcode className="w-5 h-5" />}
+            title="Barcode Scanner"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Type</span>
+                <select
+                  value="serial"
+                  disabled
+                  className="px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60"
+                  style={{
+                    backgroundColor: 'var(--color-bg-primary)',
+                    borderColor: 'var(--color-border-default)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <option value="serial">Serial (COM Port)</option>
+                  <option value="usb_hid">USB HID</option>
+                  <option value="keyboard_wedge">Keyboard Wedge</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Port</span>
+                <input
+                  type="text"
+                  value="COM3"
+                  disabled
+                  placeholder="e.g., COM3 or /dev/ttyUSB0"
+                  className="px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60"
+                  style={{
+                    backgroundColor: 'var(--color-bg-primary)',
+                    borderColor: 'var(--color-border-default)',
+                    color: 'var(--color-text-primary)',
+                    width: '140px',
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Baudrate</span>
+                <select
+                  value="9600"
+                  disabled
+                  className="px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60"
+                  style={{
+                    backgroundColor: 'var(--color-bg-primary)',
+                    borderColor: 'var(--color-border-default)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <option value="9600">9600</option>
+                  <option value="19200">19200</option>
+                  <option value="38400">38400</option>
+                  <option value="115200">115200</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Status</span>
+                <StatusBadge status="disconnected" size="sm" />
+              </div>
+              <div
+                className="text-xs p-2 rounded"
+                style={{
+                  backgroundColor: 'var(--color-bg-tertiary)',
+                  color: 'var(--color-text-tertiary)',
+                }}
+              >
+                Barcode scanner configuration is per-batch. Configure in batch settings for full functionality (Phase 2).
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* Connection Settings */}
+        <Section
+          icon={<Cloud className="w-5 h-5" />}
+          title="Backend Connection"
+          isLoading={healthLoading}
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span style={{ color: 'var(--color-text-secondary)' }}>Status</span>
+              <StatusBadge
+                status={health?.backendStatus === 'connected' ? 'connected' : 'disconnected'}
+                size="sm"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span style={{ color: 'var(--color-text-secondary)' }}>Backend URL</span>
+              <span
+                className="text-sm font-mono"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                {getBackendUrl()}
+              </span>
+            </div>
+            <div
+              className="text-xs p-2 rounded"
+              style={{
+                backgroundColor: 'var(--color-bg-tertiary)',
+                color: 'var(--color-text-tertiary)',
+              }}
+            >
+              Backend URL is configured in station.yaml
+            </div>
+          </div>
+        </Section>
+
         {/* Appearance */}
-        <Section icon={theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />} title="Appearance">
+        <Section
+          icon={theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          title="Appearance"
+        >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>Theme</span>
+                <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                  Theme
+                </span>
                 <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                   Switch between dark and light mode
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={toggleTheme}
-              >
+              <Button variant="secondary" size="sm" onClick={toggleTheme}>
                 {theme === 'dark' ? (
                   <>
                     <Sun className="w-4 h-4 mr-2" />
@@ -300,18 +502,26 @@ export function SettingsPage() {
         </Section>
       </div>
 
-      {/* System Info Footer */}
-      <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
-        <div className="flex items-center justify-between text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
-          <span>Station Service v{systemInfo?.version ?? '...'}</span>
-          <span>
-            WebSocket: {websocketStatus} | Backend:{' '}
-            {health?.backendStatus ?? 'unknown'}
-          </span>
+      {/* Footer */}
+      <div
+        className="p-4 rounded-lg border max-w-2xl mx-auto w-full"
+        style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          borderColor: 'var(--color-border-default)',
+        }}
+      >
+        <div className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
+          Station Service v{systemInfo?.version ?? '...'}
         </div>
       </div>
     </div>
   );
+}
+
+// Helper to get backend URL from current location (API is on same origin)
+function getBackendUrl(): string {
+  // The station_ui is served from station_service, so backend is same origin
+  return window.location.origin;
 }
 
 interface SectionProps {
@@ -324,9 +534,18 @@ interface SectionProps {
 
 function Section({ icon, title, children, isLoading, action }: SectionProps) {
   return (
-    <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
+    <div
+      className="p-4 rounded-lg border"
+      style={{
+        backgroundColor: 'var(--color-bg-secondary)',
+        borderColor: 'var(--color-border-default)',
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="flex items-center gap-2 text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <h3
+          className="flex items-center gap-2 text-lg font-semibold"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
           {icon}
           {title}
         </h3>
@@ -347,7 +566,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
       <span style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
+      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -362,7 +583,10 @@ interface EditableRowProps {
 function EditableRow({ label, value, onChange, placeholder }: EditableRowProps) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label className="text-sm whitespace-nowrap" style={{ color: 'var(--color-text-secondary)' }}>
+      <label
+        className="text-sm whitespace-nowrap"
+        style={{ color: 'var(--color-text-secondary)' }}
+      >
         {label}
       </label>
       <input
@@ -381,16 +605,28 @@ function EditableRow({ label, value, onChange, placeholder }: EditableRowProps) 
   );
 }
 
-function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+interface ToggleSwitchProps {
+  enabled: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}
 
-  if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
-  }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
+function ToggleSwitch({ enabled, onToggle, disabled }: ToggleSwitchProps) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled}
+      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        backgroundColor: enabled ? 'var(--color-brand-500)' : 'var(--color-bg-tertiary)',
+      }}
+    >
+      <span
+        className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+        style={{
+          transform: enabled ? 'translateX(24px)' : 'translateX(4px)',
+        }}
+      />
+    </button>
+  );
 }

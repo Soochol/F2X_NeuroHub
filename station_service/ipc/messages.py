@@ -33,6 +33,8 @@ class EventType(str, Enum):
     ERROR = "ERROR"
     STATUS_UPDATE = "STATUS_UPDATE"
     PONG = "PONG"
+    BARCODE_SCANNED = "BARCODE_SCANNED"
+    WIP_PROCESS_COMPLETE = "WIP_PROCESS_COMPLETE"
 
 
 @dataclass
@@ -240,4 +242,39 @@ class IPCEvent:
             type=EventType.STATUS_UPDATE,
             batch_id=batch_id,
             data=status,
+        )
+
+    @classmethod
+    def barcode_scanned(cls, batch_id: str, barcode: str, scanner_id: str = "") -> "IPCEvent":
+        """Create barcode scanned event."""
+        return cls(
+            type=EventType.BARCODE_SCANNED,
+            batch_id=batch_id,
+            data={
+                "barcode": barcode,
+                "scanner_id": scanner_id,
+            },
+        )
+
+    @classmethod
+    def wip_process_complete(
+        cls,
+        batch_id: str,
+        wip_id: str,
+        process_id: int,
+        result: str,
+        wip_status: Optional[str] = None,
+        can_convert: bool = False,
+    ) -> "IPCEvent":
+        """Create WIP process complete event."""
+        return cls(
+            type=EventType.WIP_PROCESS_COMPLETE,
+            batch_id=batch_id,
+            data={
+                "wip_id": wip_id,
+                "process_id": process_id,
+                "result": result,
+                "wip_status": wip_status,
+                "can_convert": can_convert,
+            },
         )

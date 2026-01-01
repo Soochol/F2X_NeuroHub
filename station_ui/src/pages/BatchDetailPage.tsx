@@ -2,9 +2,10 @@
  * Batch Detail Page - Full page view for batch details.
  * Shows sequence metadata, steps with timing, pass/fail status,
  * total elapsed time, final result, and progress bar during testing.
+ * Includes a debug panel for viewing logs and step data.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -16,17 +17,19 @@ import {
   AlertCircle,
   Loader2,
   Package,
-  Layers,
-  Timer,
   Trash2,
 } from 'lucide-react';
-import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket } from '../hooks';
+import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket, useWorkflowConfig } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
+import { useDebugPanelStore } from '../stores/debugPanelStore';
 import type { BatchStatistics } from '../types';
 import { Button } from '../components/atoms/Button';
 import { StatusBadge } from '../components/atoms/StatusBadge';
 import { ProgressBar } from '../components/atoms/ProgressBar';
 import { LoadingOverlay } from '../components/atoms/LoadingSpinner';
+import { SplitLayout } from '../components/layout';
+import { DebugLogPanel } from '../components/organisms/debug';
+import { WipInputModal } from '../components/molecules';
 import { ROUTES } from '../constants';
 import type { Batch, BatchDetail, StepResult } from '../types';
 
@@ -50,6 +53,15 @@ export function BatchDetailPage() {
   const stopSequence = useStopSequence();
   const stopBatch = useStopBatch();
   const deleteBatch = useDeleteBatch();
+
+  // Debug panel state - must be called before any early returns
+  const { isCollapsed, panelWidth, setPanelWidth, toggleCollapsed, setSelectedStep } = useDebugPanelStore();
+
+  // Workflow configuration
+  const { data: workflowConfig } = useWorkflowConfig();
+
+  // WIP input modal state
+  const [showWipModal, setShowWipModal] = useState(false);
 
   // Subscribe to real-time updates for this batch
   // NOTE: We intentionally don't unsubscribe on cleanup because:
@@ -99,29 +111,56 @@ export function BatchDetailPage() {
     navigate(ROUTES.BATCHES);
   };
 
+  // Handle clicking "Start Sequence" button
   const handleStartSequence = async () => {
     if (!batchId || !batch) {
       console.error('[handleStartSequence] Missing batchId or batch');
       return;
     }
 
+    // If workflow is enabled, show WIP input modal first
+    if (workflowConfig?.enabled) {
+      setShowWipModal(true);
+      return;
+    }
+
+    // Otherwise, start sequence directly
+    await doStartSequence();
+  };
+
+  // Actually start the sequence (with optional WIP ID)
+  const doStartSequence = async (wipId?: string) => {
+    if (!batchId || !batch) {
+      console.error('[doStartSequence] Missing batchId or batch');
+      return;
+    }
+
     try {
-      console.log('[handleStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status);
+      console.log('[doStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status, 'wipId:', wipId || '(none)');
 
       // If batch is idle, start batch first then start sequence
       if (batch.status === 'idle') {
-        console.log('[handleStartSequence] Starting batch first...');
+        console.log('[doStartSequence] Starting batch first...');
         await startBatch.mutateAsync(batchId);
-        console.log('[handleStartSequence] Batch started');
+        console.log('[doStartSequence] Batch started');
       }
 
+      // Prepare request with WIP ID if provided
+      const request = wipId ? { parameters: { wip_id: wipId } } : undefined;
+
       // Then start sequence
-      console.log('[handleStartSequence] Starting sequence...');
-      await startSequence.mutateAsync({ batchId, request: undefined });
-      console.log('[handleStartSequence] Sequence started successfully');
+      console.log('[doStartSequence] Starting sequence...');
+      await startSequence.mutateAsync({ batchId, request });
+      console.log('[doStartSequence] Sequence started successfully');
     } catch (error) {
-      console.error('[handleStartSequence] Error:', error);
+      console.error('[doStartSequence] Error:', error);
     }
+  };
+
+  // Handle WIP input modal submit
+  const handleWipSubmit = async (wipId: string) => {
+    setShowWipModal(false);
+    await doStartSequence(wipId || undefined);
   };
 
   const handleStopSequence = async () => {
@@ -163,8 +202,6 @@ export function BatchDetailPage() {
   // Disable start during transitions (starting/stopping) for better UX
   const canStart = batch.status === 'idle' || batch.status === 'completed' || batch.status === 'error';
 
-  // Calculate total elapsed time from steps
-  const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
   // Prefer batch.elapsed (from store, updated via WebSocket) over batch.execution.elapsed (from API)
   // Store's elapsed is updated in real-time when sequence_complete is received
   const elapsedTime = batch.elapsed > 0
@@ -197,7 +234,20 @@ export function BatchDetailPage() {
 
   const verdict = getFinalVerdict();
 
+  // Handle step row click to filter logs
+  const handleStepRowClick = (stepName: string) => {
+    setSelectedStep(stepName);
+  };
+
   return (
+    <SplitLayout
+      panel={<DebugLogPanel batchId={batchId || ''} steps={steps} />}
+      panelWidth={panelWidth}
+      isCollapsed={isCollapsed}
+      onResize={setPanelWidth}
+      onToggle={toggleCollapsed}
+      panelTitle="Debug Panel"
+    >
     <div className="min-h-full p-6 space-y-6" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
       {/* Header with Back Button */}
       <div className="flex items-center justify-between">
@@ -210,6 +260,35 @@ export function BatchDetailPage() {
             <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>ID: {batch.id}</p>
           </div>
           <StatusBadge status={batch.status} />
+          {/* Inline Statistics */}
+          <div className="hidden md:flex items-center gap-4 ml-4 pl-4 border-l" style={{ borderColor: 'var(--color-border-default)' }}>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span style={{ color: 'var(--color-text-tertiary)' }}>Runs:</span>
+              <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{statistics?.total ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+              <span className="font-medium text-green-500">{statistics?.pass ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <XCircle className="w-3.5 h-3.5 text-red-500" />
+              <span className="font-medium text-red-500">{statistics?.fail ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span style={{ color: 'var(--color-text-tertiary)' }}>Rate:</span>
+              <span className="font-medium text-brand-500">{((statistics?.passRate ?? 0) * 100).toFixed(0)}%</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <Clock className="w-3.5 h-3.5" style={{ color: 'var(--color-text-tertiary)' }} />
+              <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{elapsedTime.toFixed(2)}s</span>
+            </div>
+            {verdict && (
+              <div className={`flex items-center gap-1 font-bold ${verdict.color}`}>
+                {verdict.icon}
+                <span className="text-sm">{verdict.text}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {canStart && (
@@ -277,67 +356,6 @@ export function BatchDetailPage() {
         </div>
       </div>
 
-      {/* Statistics & Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Execution Statistics */}
-        <div className="rounded-lg p-6 border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Layers className="w-5 h-5 text-brand-500" />
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Execution Statistics</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <StatCard
-              icon={<CheckCircle className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
-              label="Total Runs"
-              value={statistics?.total ?? 0}
-            />
-            <StatCard
-              icon={<CheckCircle className="w-5 h-5 text-green-500" />}
-              label="Pass"
-              value={statistics?.pass ?? 0}
-              color="#4ade80"
-            />
-            <StatCard
-              icon={<XCircle className="w-5 h-5 text-red-500" />}
-              label="Fail"
-              value={statistics?.fail ?? 0}
-              color="#f87171"
-            />
-            <StatCard
-              icon={<AlertCircle className="w-5 h-5 text-brand-500" />}
-              label="Pass Rate"
-              value={`${((statistics?.passRate ?? 0) * 100).toFixed(1)}%`}
-              color="var(--color-brand-500)"
-            />
-          </div>
-        </div>
-
-        {/* Timing & Verdict */}
-        <div className="rounded-lg p-6 border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Timer className="w-5 h-5 text-brand-500" />
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Timing & Result</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <StatCard
-              icon={<Clock className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
-              label="Total Elapsed"
-              value={`${elapsedTime.toFixed(2)}s`}
-            />
-            <StatCard
-              icon={<Timer className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
-              label="Steps Time"
-              value={`${totalStepsTime.toFixed(2)}s`}
-            />
-          </div>
-          {verdict && (
-            <div className="mt-4 p-4 rounded-lg flex items-center justify-center gap-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-              <span className={verdict.color}>{verdict.icon}</span>
-              <span className={`text-2xl font-bold ${verdict.color}`}>{verdict.text}</span>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Steps Table */}
       <div className="rounded-lg p-6 border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
@@ -345,9 +363,19 @@ export function BatchDetailPage() {
           <CheckCircle className="w-5 h-5 text-brand-500" />
           <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Step Results</h2>
         </div>
-        <StepsTable steps={steps} totalSteps={batch.totalSteps ?? 0} stepNames={batch.stepNames} />
+        <StepsTable steps={steps} totalSteps={batch.totalSteps ?? 0} stepNames={batch.stepNames} onStepClick={handleStepRowClick} />
       </div>
     </div>
+
+      {/* WIP Input Modal */}
+      <WipInputModal
+        isOpen={showWipModal}
+        onClose={() => setShowWipModal(false)}
+        onSubmit={handleWipSubmit}
+        isLoading={startBatch.isPending || startSequence.isPending}
+        batchName={batch.name}
+      />
+    </SplitLayout>
   );
 }
 
@@ -362,29 +390,7 @@ function MetaCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  color?: string;
-}) {
-  return (
-    <div className="p-3 rounded-lg flex items-center gap-3" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-      {icon}
-      <div>
-        <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
-        <p className="text-lg font-semibold" style={{ color: color || 'var(--color-text-primary)' }}>{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function StepsTable({ steps, totalSteps, stepNames }: { steps: StepResult[]; totalSteps: number; stepNames?: string[] }) {
+function StepsTable({ steps, totalSteps, stepNames, onStepClick }: { steps: StepResult[]; totalSteps: number; stepNames?: string[]; onStepClick?: (stepName: string) => void }) {
   // Generate display steps - either from actual steps or placeholders
   const displaySteps: StepResult[] =
     steps.length > 0
@@ -420,7 +426,7 @@ function StepsTable({ steps, totalSteps, stepNames }: { steps: StepResult[]; tot
         </thead>
         <tbody>
           {displaySteps.map((step) => (
-            <StepRow key={`${step.order}-${step.name}`} step={step} />
+            <StepRow key={`${step.order}-${step.name}`} step={step} onClick={onStepClick ? () => onStepClick(step.name) : undefined} />
           ))}
         </tbody>
       </table>
@@ -428,7 +434,7 @@ function StepsTable({ steps, totalSteps, stepNames }: { steps: StepResult[]; tot
   );
 }
 
-function StepRow({ step }: { step: StepResult }) {
+function StepRow({ step, onClick }: { step: StepResult; onClick?: () => void }) {
   const getStatusBadge = () => {
     if (step.status === 'completed') return 'completed';
     if (step.status === 'running') return 'running';
@@ -456,7 +462,8 @@ function StepRow({ step }: { step: StepResult }) {
 
   return (
     <tr
-      className="border-b transition-colors"
+      onClick={onClick}
+      className={`border-b transition-colors ${onClick ? 'cursor-pointer hover:bg-zinc-800/50' : ''}`}
       style={{
         borderColor: 'var(--color-border-subtle)',
         backgroundColor: step.status === 'running'

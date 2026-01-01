@@ -22,7 +22,7 @@ from station_service.core.exceptions import (
 from station_service.ipc import IPCClient, IPCResponse
 from station_service.ipc.messages import CommandType, IPCCommand, IPCEvent
 from station_service.models.batch import BatchStatus
-from station_service.models.config import BackendConfig, BatchConfig
+from station_service.models.config import BackendConfig, BatchConfig, WorkflowConfig
 from station_service.sequence.executor import SequenceExecutor, ExecutionResult, StepResult
 from station_service.sequence.decorators import StepMeta
 from station_service.storage.database import Database
@@ -65,6 +65,7 @@ class BatchWorker:
         ipc_router_address: str,
         ipc_sub_address: str,
         backend_config: Optional[BackendConfig] = None,
+        workflow_config: Optional[WorkflowConfig] = None,
     ) -> None:
         """
         Initialize the BatchWorker.
@@ -75,10 +76,12 @@ class BatchWorker:
             ipc_router_address: IPC router address for commands
             ipc_sub_address: IPC sub address for events
             backend_config: Optional backend configuration for API calls
+            workflow_config: Optional workflow configuration for 착공/완공
         """
         self._batch_id = batch_id
         self._config = config
         self._backend_config = backend_config
+        self._workflow_config = workflow_config or WorkflowConfig()
 
         # IPC client
         self._ipc = IPCClient(
@@ -128,6 +131,10 @@ class BatchWorker:
         self._sync_repo: Optional[SyncRepository] = None
         self._execution_repo: Optional[ExecutionRepository] = None
 
+        # Barcode scanner
+        self._barcode_scanner: Optional[Any] = None
+        self._pending_barcode: Optional[str] = None  # Scanned but not yet processed
+
     @property
     def batch_id(self) -> str:
         """Get the batch ID."""
@@ -162,6 +169,9 @@ class BatchWorker:
 
             # Initialize drivers
             await self._initialize_drivers()
+
+            # Initialize barcode scanner if configured
+            await self._init_barcode_scanner()
 
             self._status = BatchStatus.IDLE
             logger.info(f"BatchWorker {self._batch_id} ready")
@@ -522,15 +532,12 @@ class BatchWorker:
 
             # Publish additional WIP status if available
             if self._current_wip_id:
-                await self._ipc.publish_event(
-                    "WIP_PROCESS_COMPLETE",
-                    {
-                        "wip_id": self._current_wip_id,
-                        "process_id": self._current_process_id,
-                        "result": self._determine_process_result(result) if result else "FAIL",
-                        "wip_status": wip_status,
-                        "can_convert": can_convert,
-                    },
+                await self._ipc.wip_process_complete(
+                    wip_id=self._current_wip_id,
+                    process_id=self._current_process_id or 0,
+                    result=self._determine_process_result(result) if result else "FAIL",
+                    wip_status=wip_status,
+                    can_convert=can_convert,
                 )
 
         except asyncio.CancelledError:
@@ -822,6 +829,9 @@ class BatchWorker:
 
         self._drivers.clear()
 
+        # Disconnect barcode scanner
+        await self._cleanup_barcode_scanner()
+
         # Disconnect Backend client
         if self._backend_client:
             try:
@@ -863,6 +873,151 @@ class BatchWorker:
             self._database = None
             self._sync_repo = None
             self._execution_repo = None
+
+    # ================================================================
+    # Barcode Scanner Methods
+    # ================================================================
+
+    async def _init_barcode_scanner(self) -> None:
+        """Initialize barcode scanner if configured for barcode input mode."""
+        # Check if workflow is enabled and using barcode input
+        if not self._workflow_config.enabled:
+            logger.debug("Workflow disabled, skipping barcode scanner init")
+            return
+
+        if self._workflow_config.input_mode != "barcode":
+            logger.debug("Workflow input mode is not barcode, skipping scanner init")
+            return
+
+        # Check for batch-specific barcode scanner config
+        scanner_config = self._config.barcode_scanner
+        if not scanner_config:
+            logger.info("No barcode scanner configured for this batch")
+            return
+
+        try:
+            # Dynamically import the driver
+            from station_service.drivers.barcode_scanner import (
+                SerialBarcodeScannerDriver,
+                MockBarcodeScannerDriver,
+            )
+
+            driver_name = scanner_config.driver
+            driver_config = scanner_config.config
+
+            # Select driver based on type
+            if scanner_config.type == "serial":
+                if driver_name == "MockBarcodeScannerDriver":
+                    self._barcode_scanner = MockBarcodeScannerDriver(
+                        name=f"{self._batch_id}_scanner",
+                        config=driver_config,
+                    )
+                else:
+                    self._barcode_scanner = SerialBarcodeScannerDriver(
+                        name=f"{self._batch_id}_scanner",
+                        config=driver_config,
+                    )
+            else:
+                # For other types, use mock for now
+                logger.warning(f"Scanner type '{scanner_config.type}' not fully implemented, using mock")
+                self._barcode_scanner = MockBarcodeScannerDriver(
+                    name=f"{self._batch_id}_scanner",
+                    config=driver_config,
+                )
+
+            # Connect and start listening
+            await self._barcode_scanner.connect()
+            self._barcode_scanner.on_scan(self._on_barcode_scanned)
+            await self._barcode_scanner.start_listening()
+
+            logger.info(f"Barcode scanner initialized for batch {self._batch_id}")
+
+        except ImportError as e:
+            logger.warning(f"Barcode scanner driver not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to initialize barcode scanner: {e}")
+            self._barcode_scanner = None
+
+    async def _on_barcode_scanned(self, barcode: str) -> None:
+        """
+        Handle barcode scan event.
+
+        If auto_sequence_start is enabled, automatically starts the sequence
+        with the scanned WIP ID.
+
+        Args:
+            barcode: The scanned barcode (WIP ID)
+        """
+        logger.info(f"Barcode scanned: {barcode}")
+
+        # Publish barcode scanned event
+        await self._ipc.barcode_scanned(barcode)
+
+        # Check if we should auto-start sequence
+        if not self._workflow_config.auto_sequence_start:
+            # Just store the barcode for manual start
+            self._pending_barcode = barcode
+            logger.info(f"Barcode stored for manual start: {barcode}")
+            return
+
+        # Check if sequence is already running
+        if self._status == BatchStatus.RUNNING:
+            logger.warning(f"Sequence already running, ignoring barcode: {barcode}")
+            await self._ipc.log(
+                "warning",
+                f"Sequence already running, barcode ignored: {barcode}",
+            )
+            return
+
+        # Auto-start sequence with the scanned WIP ID
+        logger.info(f"Auto-starting sequence with WIP ID: {barcode}")
+
+        # Create a synthetic START_SEQUENCE command
+        from station_service.ipc.messages import IPCCommand, CommandType
+
+        command = IPCCommand(
+            type=CommandType.START_SEQUENCE,
+            batch_id=self._batch_id,
+            params={
+                "parameters": {
+                    "wip_id": barcode,
+                    "process_id": self._config.process_id,
+                    # Note: operator_id should come from logged-in session
+                    # For now, we skip if require_operator_login is true and no operator
+                    "operator_id": self._current_operator_id,
+                },
+            },
+        )
+
+        # Check if operator login is required but not provided
+        if self._workflow_config.require_operator_login and not self._current_operator_id:
+            logger.warning("Operator login required but no operator logged in")
+            await self._ipc.log(
+                "warning",
+                f"Cannot auto-start: operator login required. Barcode stored: {barcode}",
+            )
+            self._pending_barcode = barcode
+            return
+
+        # Start the sequence
+        response = await self._cmd_start_sequence(command)
+
+        if response.status != "ok":
+            logger.error(f"Failed to auto-start sequence: {response.error}")
+            await self._ipc.error(
+                "AUTO_START_FAILED",
+                response.error or "Unknown error",
+            )
+
+    async def _cleanup_barcode_scanner(self) -> None:
+        """Clean up barcode scanner resources."""
+        if self._barcode_scanner:
+            try:
+                await self._barcode_scanner.stop_listening()
+                await self._barcode_scanner.disconnect()
+            except Exception as e:
+                logger.warning(f"Error cleaning up barcode scanner: {e}")
+            self._barcode_scanner = None
 
     # ================================================================
     # Backend Integration Methods

@@ -35,6 +35,8 @@ export const queryKeys = {
   // System
   systemInfo: ['system', 'info'] as const,
   healthStatus: ['system', 'health'] as const,
+  workflowConfig: ['system', 'workflow'] as const,
+  operatorSession: ['system', 'operator'] as const,
 
   // Batches
   batches: ['batches'] as const,

@@ -378,3 +378,97 @@ class TestHealthCheck:
             assert result is False
 
         await backend_client.disconnect()
+
+
+class TestLogin:
+    """Tests for login functionality."""
+
+    @pytest.mark.asyncio
+    async def test_login_success(self, backend_client):
+        """Test successful operator login."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access_token": "jwt_token_12345",
+            "token_type": "bearer",
+            "user": {
+                "id": 123,
+                "username": "test_operator",
+                "name": "Test Operator",
+                "role": "OPERATOR",
+            },
+        }
+
+        with patch.object(
+            httpx.AsyncClient, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_post.return_value = mock_response
+
+            await backend_client.connect()
+            result = await backend_client.login(
+                username="test_operator",
+                password="password123",
+            )
+
+            assert result["access_token"] == "jwt_token_12345"
+            assert result["user"]["id"] == 123
+            assert result["user"]["username"] == "test_operator"
+            mock_post.assert_called_once()
+
+        await backend_client.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_login_invalid_credentials(self, backend_client):
+        """Test login with invalid credentials."""
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_response.json.return_value = {
+            "error": "AUTH_FAILED",
+            "message": "Invalid username or password",
+        }
+
+        with patch.object(
+            httpx.AsyncClient, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_post.return_value = mock_response
+
+            await backend_client.connect()
+
+            with pytest.raises(BackendError) as exc_info:
+                await backend_client.login(
+                    username="wrong_user",
+                    password="wrong_pass",
+                )
+
+            # Check the error message contains the expected text
+            assert "Invalid username or password" in str(exc_info.value)
+
+        await backend_client.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_login_connection_error(self, backend_client):
+        """Test login when connection fails."""
+        with patch.object(
+            httpx.AsyncClient, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_post.side_effect = httpx.RequestError("Connection refused")
+
+            await backend_client.connect()
+
+            with pytest.raises(BackendConnectionError):
+                await backend_client.login(
+                    username="test",
+                    password="password",
+                )
+
+        await backend_client.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_login_client_not_connected(self, backend_client):
+        """Test login when client is not connected."""
+        # Don't call connect()
+        with pytest.raises(BackendConnectionError):
+            await backend_client.login(
+                username="test",
+                password="password",
+            )

@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 
-from station_service.models.config import StationConfig, StationInfo
+from station_service.models.config import StationConfig, StationInfo, WorkflowConfig
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +239,68 @@ def cleanup_old_backups(
         logger.info(f"Cleaned up {deleted} old config backup(s)")
 
     return deleted
+
+
+async def update_workflow_config(
+    config_path: Path,
+    workflow_config: WorkflowConfig,
+) -> StationConfig:
+    """
+    Update workflow configuration in the station.yaml config file.
+
+    Performs an atomic update with backup to ensure config integrity.
+
+    Args:
+        config_path: Path to the station.yaml file
+        workflow_config: New workflow configuration
+
+    Returns:
+        Updated StationConfig
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    # Read current config
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_data = yaml.safe_load(f)
+
+    # Update workflow config
+    previous_workflow = config_data.get("workflow", {})
+    config_data["workflow"] = {
+        "enabled": workflow_config.enabled,
+        "input_mode": workflow_config.input_mode,
+        "auto_sequence_start": workflow_config.auto_sequence_start,
+        "require_operator_login": workflow_config.require_operator_login,
+    }
+
+    # Create backup
+    backup_path = config_path.with_suffix(f".yaml.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    shutil.copy2(config_path, backup_path)
+    logger.info(f"Created config backup: {backup_path}")
+
+    # Write updated config atomically (write to temp, then rename)
+    temp_path = config_path.with_suffix(".yaml.tmp")
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            yaml.dump(config_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+        # Atomic replace
+        temp_path.replace(config_path)
+        logger.info(
+            f"Updated workflow config: {previous_workflow} -> {workflow_config.model_dump()}"
+        )
+
+    except Exception as e:
+        # Clean up temp file if it exists
+        if temp_path.exists():
+            temp_path.unlink()
+        raise e
+
+    # Clean up old backups
+    cleanup_old_backups(config_path)
+
+    # Return updated config
+    return StationConfig(**config_data)

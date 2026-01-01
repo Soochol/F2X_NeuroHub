@@ -38,6 +38,7 @@ from station_service.ipc.server import IPCServer
 from station_service.models.config import StationConfig
 from station_service.sequence.loader import SequenceLoader
 from station_service.storage.database import Database, get_database, close_database
+from station_service.sync.backend_client import BackendClient
 from station_service.sync.engine import SyncEngine
 
 # Configure logging
@@ -57,6 +58,7 @@ database: Optional[Database] = None
 ipc_server: Optional[IPCServer] = None
 batch_manager: Optional[BatchManager] = None
 sync_engine: Optional[SyncEngine] = None
+backend_client: Optional[BackendClient] = None
 event_emitter: Optional[EventEmitter] = None
 sequence_loader: Optional[SequenceLoader] = None
 
@@ -176,7 +178,7 @@ async def lifespan(app: FastAPI):
 
     Handles startup and shutdown of all components.
     """
-    global config, database, ipc_server, batch_manager, sync_engine, event_emitter, sequence_loader
+    global config, database, ipc_server, batch_manager, sync_engine, backend_client, event_emitter, sequence_loader
 
     logger.info("Station Service starting...")
 
@@ -222,6 +224,11 @@ async def lifespan(app: FastAPI):
         await sync_engine.start()
         logger.info("SyncEngine started")
 
+        # Initialize BackendClient for operator authentication
+        backend_client = BackendClient(config=config.backend)
+        await backend_client.connect()
+        logger.info("BackendClient initialized")
+
         # Initialize SequenceLoader with absolute path
         # Compute sequences directory relative to project root (parent of station_service)
         project_root = Path(__file__).parent.parent
@@ -234,6 +241,7 @@ async def lifespan(app: FastAPI):
         app.state.database = database
         app.state.batch_manager = batch_manager
         app.state.sync_engine = sync_engine
+        app.state.backend_client = backend_client
         app.state.event_emitter = event_emitter
         app.state.sequence_loader = sequence_loader
 
@@ -248,6 +256,10 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Station Service shutting down...")
+
+        if backend_client:
+            await backend_client.disconnect()
+            logger.info("BackendClient disconnected")
 
         if sync_engine:
             await sync_engine.stop()

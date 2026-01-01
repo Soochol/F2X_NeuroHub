@@ -320,3 +320,330 @@ class TestHelperFunctions:
         usage = system._get_disk_usage()
         assert isinstance(usage, float)
         assert 0.0 <= usage <= 100.0
+
+
+# ============================================================================
+# Operator Session Tests
+# ============================================================================
+
+
+class TestGetOperatorSession:
+    """Tests for GET /api/system/operator endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_logged_out_state(self, station_config):
+        """Test that operator session returns logged out state by default."""
+        # Clear session before test
+        system.clear_operator_session()
+
+        result = await system.get_operator(config=station_config)
+
+        assert result.success is True
+        assert result.data.logged_in is False
+        assert result.data.operator is None
+        assert result.data.logged_in_at is None
+
+    @pytest.mark.asyncio
+    async def test_returns_logged_in_state(self, station_config):
+        """Test that operator session returns logged in state."""
+        # Set up a logged in session
+        system.set_operator_session(
+            operator={
+                "id": 123,
+                "username": "test_operator",
+                "name": "Test Operator",
+                "role": "OPERATOR",
+            },
+            access_token="test_token_12345",
+        )
+
+        result = await system.get_operator(config=station_config)
+
+        assert result.success is True
+        assert result.data.logged_in is True
+        assert result.data.operator is not None
+        assert result.data.operator.id == 123
+        assert result.data.operator.username == "test_operator"
+        assert result.data.operator.name == "Test Operator"
+        assert result.data.operator.role == "OPERATOR"
+        assert result.data.logged_in_at is not None
+        # Access token should not be exposed
+        assert result.data.access_token is None
+
+        # Clean up
+        system.clear_operator_session()
+
+
+class TestOperatorLogin:
+    """Tests for POST /api/system/operator-login endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_successful_login(self, station_config):
+        """Test successful operator login."""
+        # Clear any existing session
+        system.clear_operator_session()
+
+        mock_backend_client = AsyncMock()
+        mock_backend_client.is_connected = True
+        mock_backend_client.login = AsyncMock(return_value={
+            "access_token": "jwt_token_12345",
+            "user": {
+                "id": 456,
+                "username": "admin",
+                "name": "Admin User",
+                "role": "ADMIN",
+            },
+        })
+
+        request = system.OperatorLoginRequest(
+            username="admin",
+            password="password123",
+        )
+
+        result = await system.operator_login(
+            request=request,
+            config=station_config,
+            backend_client=mock_backend_client,
+        )
+
+        assert result.success is True
+        assert result.data.logged_in is True
+        assert result.data.operator is not None
+        assert result.data.operator.id == 456
+        assert result.data.operator.username == "admin"
+        assert result.data.operator.name == "Admin User"
+        assert result.data.operator.role == "ADMIN"
+        mock_backend_client.login.assert_called_once_with(
+            username="admin",
+            password="password123",
+        )
+
+        # Verify session was stored
+        session = system.get_operator_session()
+        assert session["logged_in"] is True
+        assert session["access_token"] == "jwt_token_12345"
+
+        # Clean up
+        system.clear_operator_session()
+
+    @pytest.mark.asyncio
+    async def test_login_client_not_connected(self, station_config):
+        """Test login connects client if not connected."""
+        system.clear_operator_session()
+
+        mock_backend_client = AsyncMock()
+        mock_backend_client.is_connected = False
+        mock_backend_client.connect = AsyncMock()
+        mock_backend_client.login = AsyncMock(return_value={
+            "access_token": "jwt_token_12345",
+            "user": {"id": 1, "username": "test", "name": "Test", "role": "OPERATOR"},
+        })
+
+        request = system.OperatorLoginRequest(
+            username="test",
+            password="password",
+        )
+
+        result = await system.operator_login(
+            request=request,
+            config=station_config,
+            backend_client=mock_backend_client,
+        )
+
+        assert result.success is True
+        mock_backend_client.connect.assert_called_once()
+
+        # Clean up
+        system.clear_operator_session()
+
+    @pytest.mark.asyncio
+    async def test_login_authentication_failed(self, station_config):
+        """Test login with invalid credentials raises 401."""
+        from fastapi import HTTPException
+        from station_service.core.exceptions import BackendError
+
+        system.clear_operator_session()
+
+        mock_backend_client = AsyncMock()
+        mock_backend_client.is_connected = True
+        mock_backend_client.login = AsyncMock(
+            side_effect=BackendError("AUTH_FAILED", "Invalid credentials")
+        )
+
+        request = system.OperatorLoginRequest(
+            username="wrong_user",
+            password="wrong_password",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await system.operator_login(
+                request=request,
+                config=station_config,
+                backend_client=mock_backend_client,
+            )
+
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_login_backend_connection_error(self, station_config):
+        """Test login when backend connection fails."""
+        from fastapi import HTTPException
+        from station_service.core.exceptions import BackendConnectionError
+
+        system.clear_operator_session()
+
+        mock_backend_client = AsyncMock()
+        mock_backend_client.is_connected = True
+        mock_backend_client.login = AsyncMock(
+            side_effect=BackendConnectionError("http://test-backend:8000", "Connection refused")
+        )
+
+        request = system.OperatorLoginRequest(
+            username="test",
+            password="password",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await system.operator_login(
+                request=request,
+                config=station_config,
+                backend_client=mock_backend_client,
+            )
+
+        assert exc_info.value.status_code == 503
+
+    @pytest.mark.asyncio
+    async def test_login_no_backend_configured(self):
+        """Test login when backend URL is not configured."""
+        from fastapi import HTTPException
+        from station_service.models.config import (
+            BackendConfig,
+            LoggingConfig,
+            ServerConfig,
+            StationConfig,
+            StationInfo,
+        )
+
+        system.clear_operator_session()
+
+        # Create config with empty backend URL
+        config = StationConfig(
+            station=StationInfo(id="test", name="Test", description=""),
+            server=ServerConfig(host="127.0.0.1", port=8080),
+            backend=BackendConfig(url=""),  # Empty URL
+            batches=[],
+            logging=LoggingConfig(),
+        )
+
+        mock_backend_client = AsyncMock()
+
+        request = system.OperatorLoginRequest(
+            username="test",
+            password="password",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await system.operator_login(
+                request=request,
+                config=config,
+                backend_client=mock_backend_client,
+            )
+
+        assert exc_info.value.status_code == 503
+        assert "Backend not configured" in str(exc_info.value.detail)
+
+
+class TestOperatorLogout:
+    """Tests for POST /api/system/operator-logout endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_successful_logout(self):
+        """Test successful operator logout."""
+        # Set up a logged in session first
+        system.set_operator_session(
+            operator={
+                "id": 789,
+                "username": "test_user",
+                "name": "Test User",
+                "role": "OPERATOR",
+            },
+            access_token="test_token",
+        )
+
+        # Verify logged in
+        assert system.get_operator_session()["logged_in"] is True
+
+        result = await system.operator_logout()
+
+        assert result.success is True
+        assert result.data.logged_in is False
+        assert result.data.operator is None
+        assert result.data.logged_in_at is None
+
+        # Verify session was cleared
+        session = system.get_operator_session()
+        assert session["logged_in"] is False
+        assert session["access_token"] is None
+
+    @pytest.mark.asyncio
+    async def test_logout_when_not_logged_in(self):
+        """Test logout when already logged out."""
+        # Ensure logged out
+        system.clear_operator_session()
+
+        result = await system.operator_logout()
+
+        # Should succeed without error
+        assert result.success is True
+        assert result.data.logged_in is False
+
+
+class TestOperatorSessionHelpers:
+    """Tests for operator session helper functions."""
+
+    def test_set_operator_session(self):
+        """Test setting operator session."""
+        system.set_operator_session(
+            operator={"id": 1, "username": "test", "name": "Test", "role": "OPERATOR"},
+            access_token="token123",
+        )
+
+        session = system.get_operator_session()
+        assert session["logged_in"] is True
+        assert session["operator"]["id"] == 1
+        assert session["access_token"] == "token123"
+        assert session["logged_in_at"] is not None
+
+        # Clean up
+        system.clear_operator_session()
+
+    def test_clear_operator_session(self):
+        """Test clearing operator session."""
+        # Set up session
+        system.set_operator_session(
+            operator={"id": 1, "username": "test", "name": "Test", "role": "OPERATOR"},
+            access_token="token123",
+        )
+
+        # Clear
+        system.clear_operator_session()
+
+        session = system.get_operator_session()
+        assert session["logged_in"] is False
+        assert session["operator"] is None
+        assert session["access_token"] is None
+        assert session["logged_in_at"] is None
+
+    def test_set_operator_session_with_none(self):
+        """Test setting session with None clears it."""
+        # Set up session
+        system.set_operator_session(
+            operator={"id": 1, "username": "test", "name": "Test", "role": "OPERATOR"},
+            access_token="token123",
+        )
+
+        # Set to None
+        system.set_operator_session(None, None)
+
+        session = system.get_operator_session()
+        assert session["logged_in"] is False

@@ -49,11 +49,17 @@
       "Bash(cat:*)",
       "Bash(sudo -S docker compose:*)",
       "Bash(chmod:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(sudo -S usermod:*)"
     ],
     "deny": [],
     "ask": []
   },
+  "enabledMcpjsonServers": [
+    "embedded-debugger",
+    "docker-mcp",
+    "chrome-devtools"
+  ],
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -66,5 +72,6 @@
         ]
       }
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

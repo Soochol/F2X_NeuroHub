@@ -427,3 +427,96 @@ class BackendClient:
                 code="BACKEND_ERROR",
                 status_code=response.status_code,
             )
+
+    # ================================================================
+    # Authentication (Operator Login)
+    # ================================================================
+
+    async def login(
+        self,
+        username: str,
+        password: str,
+    ) -> Dict[str, Any]:
+        """
+        Login to Backend and get operator credentials.
+
+        Args:
+            username: Operator username
+            password: Operator password
+
+        Returns:
+            Login response with access_token and user info
+
+        Raises:
+            BackendError: If login fails
+        """
+        if not self._client:
+            raise BackendConnectionError(self._config.url, "Client not connected")
+
+        url = "/api/v1/auth/login/json"
+        payload = {
+            "username": username,
+            "password": password,
+        }
+
+        try:
+            response = await self._client.post(url, json=payload)
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"Operator logged in: {username}")
+                return data
+
+            # Handle error response
+            try:
+                error_data = response.json()
+                error_message = error_data.get("message", "Login failed")
+            except (ValueError, KeyError):
+                error_message = f"Login failed: HTTP {response.status_code}"
+
+            raise BackendError(
+                message=error_message,
+                code="LOGIN_FAILED",
+                status_code=response.status_code,
+            )
+
+        except httpx.RequestError as e:
+            raise BackendConnectionError(self._config.url, str(e))
+
+    async def get_current_user(
+        self,
+        access_token: str,
+    ) -> Dict[str, Any]:
+        """
+        Get current user info using access token.
+
+        Args:
+            access_token: JWT access token
+
+        Returns:
+            User info dict
+
+        Raises:
+            BackendError: If request fails or token is invalid
+        """
+        if not self._client:
+            raise BackendConnectionError(self._config.url, "Client not connected")
+
+        url = "/api/v1/auth/me"
+
+        try:
+            # Use token for this request
+            headers = {"Authorization": f"Bearer {access_token}"}
+            response = await self._client.get(url, headers=headers)
+
+            if response.status_code == 200:
+                return response.json()
+
+            raise BackendError(
+                message="Invalid or expired token",
+                code="INVALID_TOKEN",
+                status_code=response.status_code,
+            )
+
+        except httpx.RequestError as e:
+            raise BackendConnectionError(self._config.url, str(e))

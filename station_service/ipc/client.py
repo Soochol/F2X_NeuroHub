@@ -395,3 +395,22 @@ class IPCClient:
     async def status_update(self, status: Dict[str, Any]) -> None:
         """Publish a status update event."""
         await self.publish_event(IPCEvent.status_update(self._batch_id, status))
+
+    async def barcode_scanned(self, barcode: str, scanner_id: str = "") -> None:
+        """Publish a barcode scanned event."""
+        await self.publish_event(IPCEvent.barcode_scanned(self._batch_id, barcode, scanner_id))
+
+    async def wip_process_complete(
+        self,
+        wip_id: str,
+        process_id: int,
+        result: str,
+        wip_status: Optional[str] = None,
+        can_convert: bool = False,
+    ) -> None:
+        """Publish a WIP process complete event."""
+        await self.publish_event(
+            IPCEvent.wip_process_complete(
+                self._batch_id, wip_id, process_id, result, wip_status, can_convert
+            )
+        )

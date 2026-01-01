@@ -156,6 +156,16 @@ const Activity = createLucideIcon("Activity", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const ArrowDown = createLucideIcon("ArrowDown", [
+  ["path", { d: "M12 5v14", key: "s699le" }],
+  ["path", { d: "m19 12-7 7-7-7", key: "1idqje" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const ArrowLeft = createLucideIcon("ArrowLeft", [
   ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
   ["path", { d: "M19 12H5", key: "x3x0zl" }]
@@ -176,6 +186,19 @@ const ArrowRight = createLucideIcon("ArrowRight", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Barcode = createLucideIcon("Barcode", [
+  ["path", { d: "M3 5v14", key: "1nt18q" }],
+  ["path", { d: "M8 5v14", key: "1ybrkv" }],
+  ["path", { d: "M12 5v14", key: "s699le" }],
+  ["path", { d: "M17 5v14", key: "ycjyhj" }],
+  ["path", { d: "M21 5v14", key: "nzette" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Bell = createLucideIcon("Bell", [
   ["path", { d: "M10.268 21a2 2 0 0 0 3.464 0", key: "vwvbt9" }],
   [
@@ -185,6 +208,31 @@ const Bell = createLucideIcon("Bell", [
       key: "11g9vi"
     }
   ]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Bug = createLucideIcon("Bug", [
+  ["path", { d: "m8 2 1.88 1.88", key: "fmnt4t" }],
+  ["path", { d: "M14.12 3.88 16 2", key: "qol33r" }],
+  ["path", { d: "M9 7.13v-1a3.003 3.003 0 1 1 6 0v1", key: "d7y7pr" }],
+  [
+    "path",
+    {
+      d: "M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6",
+      key: "xs1cw7"
+    }
+  ],
+  ["path", { d: "M12 20v-9", key: "1qisl0" }],
+  ["path", { d: "M6.53 9C4.6 8.8 3 7.1 3 5", key: "32zzws" }],
+  ["path", { d: "M6 13H2", key: "82j7cp" }],
+  ["path", { d: "M3 21c0-2.1 1.7-3.9 3.8-4", key: "4p0ekp" }],
+  ["path", { d: "M20.97 5c0 2.1-1.6 3.8-3.5 4", key: "18gb23" }],
+  ["path", { d: "M22 13h-4", key: "1jl80f" }],
+  ["path", { d: "M17.2 17c2.1.1 3.8 1.9 3.8 4", key: "k3fwyw" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -307,6 +355,25 @@ const Circle = createLucideIcon("Circle", [
 const Clock = createLucideIcon("Clock", [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["polyline", { points: "12 6 12 12 16 14", key: "68esgv" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Cloud = createLucideIcon("Cloud", [
+  ["path", { d: "M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z", key: "p7xjir" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Copy = createLucideIcon("Copy", [
+  ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
+  ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -557,18 +624,29 @@ const LoaderCircle = createLucideIcon("LoaderCircle", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Minus = createLucideIcon("Minus", [["path", { d: "M5 12h14", key: "1ays0h" }]]);
+const LogIn = createLucideIcon("LogIn", [
+  ["path", { d: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4", key: "u53s6r" }],
+  ["polyline", { points: "10 17 15 12 10 7", key: "1ail0h" }],
+  ["line", { x1: "15", x2: "3", y1: "12", y2: "12", key: "v6grx8" }]
+]);
 /**
  * @license lucide-react v0.468.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Monitor = createLucideIcon("Monitor", [
-  ["rect", { width: "20", height: "14", x: "2", y: "3", rx: "2", key: "48i651" }],
-  ["line", { x1: "8", x2: "16", y1: "21", y2: "21", key: "1svkeh" }],
-  ["line", { x1: "12", x2: "12", y1: "17", y2: "21", key: "vw1qmm" }]
+const LogOut = createLucideIcon("LogOut", [
+  ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }],
+  ["polyline", { points: "16 17 21 12 16 7", key: "1gabdz" }],
+  ["line", { x1: "21", x2: "9", y1: "12", y2: "12", key: "1uyos4" }]
 ]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Minus = createLucideIcon("Minus", [["path", { d: "M5 12h14", key: "1ays0h" }]]);
 /**
  * @license lucide-react v0.468.0 - ISC
  *
@@ -616,6 +694,28 @@ const PanelLeftClose = createLucideIcon("PanelLeftClose", [
 const PanelLeft = createLucideIcon("PanelLeft", [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M9 3v18", key: "fh3hqa" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const PanelRightClose = createLucideIcon("PanelRightClose", [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
+  ["path", { d: "M15 3v18", key: "14nvp0" }],
+  ["path", { d: "m8 9 3 3-3 3", key: "12hl5m" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const PanelRightOpen = createLucideIcon("PanelRightOpen", [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
+  ["path", { d: "M15 3v18", key: "14nvp0" }],
+  ["path", { d: "m10 15-3-3 3-3", key: "1pgupc" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -699,6 +799,21 @@ const Save = createLucideIcon("Save", [
   ],
   ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
   ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const ScanBarcode = createLucideIcon("ScanBarcode", [
+  ["path", { d: "M3 7V5a2 2 0 0 1 2-2h2", key: "aa7l1z" }],
+  ["path", { d: "M17 3h2a2 2 0 0 1 2 2v2", key: "4qcy5o" }],
+  ["path", { d: "M21 17v2a2 2 0 0 1-2 2h-2", key: "6vwrx8" }],
+  ["path", { d: "M7 21H5a2 2 0 0 1-2-2v-2", key: "ioqczr" }],
+  ["path", { d: "M8 7v10", key: "23sfjj" }],
+  ["path", { d: "M12 7v10", key: "jspqdw" }],
+  ["path", { d: "M17 7v10", key: "578dap" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -822,17 +937,6 @@ const Sun = createLucideIcon("Sun", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Timer = createLucideIcon("Timer", [
-  ["line", { x1: "10", x2: "14", y1: "2", y2: "2", key: "14vaq8" }],
-  ["line", { x1: "12", x2: "15", y1: "14", y2: "11", key: "17fdiu" }],
-  ["circle", { cx: "12", cy: "14", r: "8", key: "1e1u0o" }]
-]);
-/**
- * @license lucide-react v0.468.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
 const Trash2 = createLucideIcon("Trash2", [
   ["path", { d: "M3 6h18", key: "d0wm0j" }],
   ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
@@ -877,6 +981,16 @@ const Upload = createLucideIcon("Upload", [
   ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
   ["polyline", { points: "17 8 12 3 7 8", key: "t8dd8p" }],
   ["line", { x1: "12", x2: "12", y1: "3", y2: "15", key: "widbto" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const User = createLucideIcon("User", [
+  ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
+  ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
 ]);
 /**
  * @license lucide-react v0.468.0 - ISC
@@ -953,6 +1067,7 @@ const ROUTES = {
   SEQUENCE_DETAIL: "/sequences/:sequenceName",
   MANUAL: "/manual",
   LOGS: "/logs",
+  MONITOR: "/monitor",
   SETTINGS: "/settings"
 };
 function getBatchDetailRoute(batchId) {
@@ -995,6 +1110,7 @@ const navSections = [
     sectionLabel: "SYSTEM",
     items: [
       { path: ROUTES.LOGS, label: "Logs", icon: FileText },
+      { path: ROUTES.MONITOR, label: "Monitor", icon: Activity },
       { path: ROUTES.SETTINGS, label: "Settings", icon: Settings }
     ]
   }
@@ -1927,7 +2043,7 @@ const typeColors = {
   warning: "var(--color-status-warning)",
   error: "var(--color-status-error)"
 };
-function formatTimestamp(date) {
+function formatTimestamp$1(date) {
   const now = /* @__PURE__ */ new Date();
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 6e4);
@@ -1996,7 +2112,7 @@ function NotificationItem({ notification, onMarkAsRead, onRemove }) {
               {
                 className: "text-xs",
                 style: { color: "var(--color-text-tertiary)" },
-                children: formatTimestamp(notification.timestamp)
+                children: formatTimestamp$1(notification.timestamp)
               }
             ),
             !notification.read && /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -2153,181 +2269,6 @@ function NotificationPanel() {
     }
   );
 }
-const pageTitles = {
-  "/": "Dashboard",
-  "/ui": "Dashboard",
-  "/ui/": "Dashboard",
-  "/ui/batches": "Batches",
-  "/ui/sequences": "Sequences",
-  "/ui/manual": "Manual Control",
-  "/ui/logs": "Logs",
-  "/ui/settings": "Settings"
-};
-function Header() {
-  const location = useLocation();
-  const { theme, toggleTheme } = useUIStore();
-  const { isOpen, togglePanel, getUnreadCount } = useNotificationStore();
-  const isDark = theme === "dark";
-  const unreadCount = getUnreadCount();
-  const pageTitle = pageTitles[location.pathname] || "Station UI";
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "header",
-    {
-      className: "flex items-center justify-between h-[60px] px-5 border-b transition-colors",
-      style: {
-        backgroundColor: "var(--color-bg-secondary)",
-        borderColor: "var(--color-border-default)"
-      },
-      children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "h1",
-          {
-            className: "text-lg font-semibold",
-            style: { color: "var(--color-text-primary)" },
-            children: pageTitle
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: toggleTheme,
-              className: "p-2 rounded-lg transition-colors",
-              style: {
-                color: "var(--color-text-secondary)"
-              },
-              onMouseEnter: (e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
-                e.currentTarget.style.color = "var(--color-text-primary)";
-              },
-              onMouseLeave: (e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
-              },
-              title: isDark ? "Switch to light mode" : "Switch to dark mode",
-              children: isDark ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" })
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "button",
-              {
-                "data-notification-trigger": true,
-                onClick: togglePanel,
-                className: "p-2 rounded-lg transition-colors relative",
-                style: {
-                  color: isOpen ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                  backgroundColor: isOpen ? "var(--color-bg-tertiary)" : "transparent"
-                },
-                onMouseEnter: (e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
-                  e.currentTarget.style.color = "var(--color-text-primary)";
-                },
-                onMouseLeave: (e) => {
-                  if (!isOpen) {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "var(--color-text-secondary)";
-                  }
-                },
-                title: "Notifications",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { className: "w-5 h-5" }),
-                  unreadCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "span",
-                    {
-                      className: "absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1",
-                      style: {
-                        backgroundColor: "var(--color-status-error)",
-                        color: "white"
-                      },
-                      children: unreadCount > 99 ? "99+" : unreadCount
-                    }
-                  )
-                ]
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(NotificationPanel, {})
-          ] })
-        ] })
-      ]
-    }
-  );
-}
-function StatusBar() {
-  const [currentTime, setCurrentTime] = reactExports.useState(/* @__PURE__ */ new Date());
-  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
-  const backendStatus = useConnectionStore((state) => state.backendStatus);
-  const batches2 = useBatchStore((state) => state.batches);
-  const runningBatches = Array.from(batches2.values()).filter(
-    (b) => b.status === "running" || b.status === "starting"
-  ).length;
-  reactExports.useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(/* @__PURE__ */ new Date()), 1e3);
-    return () => clearInterval(timer);
-  }, []);
-  const formatTime = (date) => {
-    return date.toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    });
-  };
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "connected":
-        return "fill-green-500 text-green-500";
-      case "connecting":
-        return "fill-yellow-500 text-yellow-500 animate-pulse";
-      case "error":
-        return "fill-red-500 text-red-500";
-      default:
-        return "fill-zinc-500 text-zinc-500";
-    }
-  };
-  const isConnected = websocketStatus === "connected";
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "footer",
-    {
-      className: "flex items-center justify-between px-4 py-2 text-sm transition-colors",
-      style: {
-        backgroundColor: "var(--color-bg-secondary)",
-        borderTop: "1px solid var(--color-border-default)"
-      },
-      children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-            isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsx(Wifi, { className: "w-4 h-4", style: { color: "var(--color-success)" } }) : /* @__PURE__ */ jsxRuntimeExports.jsx(WifiOff, { className: "w-4 h-4", style: { color: "var(--color-text-disabled)" } }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "WS" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Circle, { className: `w-2.5 h-2.5 ${getStatusColor(websocketStatus)}` })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Backend" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Circle, { className: `w-2.5 h-2.5 ${getStatusColor(backendStatus)}` })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "var(--color-text-secondary)" }, children: [
-            "Batches:",
-            " ",
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "span",
-              {
-                className: runningBatches > 0 ? "font-medium" : "",
-                style: {
-                  color: runningBatches > 0 ? "var(--color-brand-400)" : "var(--color-text-primary)"
-                },
-                children: [
-                  runningBatches,
-                  " running"
-                ]
-              }
-            )
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono", style: { color: "var(--color-text-secondary)" }, children: formatTime(currentTime) })
-      ]
-    }
-  );
-}
 const POLLING_INTERVALS = {
   /** Batch list polling interval (normal mode) */
   batches: 1e4,
@@ -2382,6 +2323,8 @@ const queryKeys = {
   // System
   systemInfo: ["system", "info"],
   healthStatus: ["system", "health"],
+  workflowConfig: ["system", "workflow"],
+  operatorSession: ["system", "operator"],
   // Batches
   batches: ["batches"],
   batch: (id) => ["batches", id],
@@ -4976,6 +4919,26 @@ async function updateStationInfo(data) {
   const response = await apiClient.put("/system/station-info", data);
   return extractData(response);
 }
+async function getWorkflowConfig() {
+  const response = await apiClient.get("/system/workflow");
+  return extractData(response);
+}
+async function updateWorkflowConfig(data) {
+  const response = await apiClient.put("/system/workflow", data);
+  return extractData(response);
+}
+async function getOperatorSession() {
+  const response = await apiClient.get("/system/operator");
+  return extractData(response);
+}
+async function operatorLogin(data) {
+  const response = await apiClient.post("/system/operator-login", data);
+  return extractData(response);
+}
+async function operatorLogout() {
+  const response = await apiClient.post("/system/operator-logout");
+  return extractData(response);
+}
 function useSystemInfo() {
   return useQuery({
     queryKey: queryKeys.systemInfo,
@@ -4996,6 +4959,49 @@ function useUpdateStationInfo() {
     mutationFn: (data) => updateStationInfo(data),
     onSuccess: (data) => {
       queryClient2.setQueryData(queryKeys.systemInfo, data);
+    }
+  });
+}
+function useWorkflowConfig() {
+  return useQuery({
+    queryKey: queryKeys.workflowConfig,
+    queryFn: getWorkflowConfig
+  });
+}
+function useUpdateWorkflowConfig() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => updateWorkflowConfig(data),
+    onSuccess: (data) => {
+      queryClient2.setQueryData(queryKeys.workflowConfig, data);
+    }
+  });
+}
+function useOperatorSession() {
+  return useQuery({
+    queryKey: queryKeys.operatorSession,
+    queryFn: getOperatorSession,
+    // Refetch on window focus to stay in sync
+    refetchOnWindowFocus: true,
+    // Don't retry on 401 (not logged in is not an error)
+    retry: false
+  });
+}
+function useOperatorLogin() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => operatorLogin(data),
+    onSuccess: (data) => {
+      queryClient2.setQueryData(queryKeys.operatorSession, data);
+    }
+  });
+}
+function useOperatorLogout() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: () => operatorLogout(),
+    onSuccess: (data) => {
+      queryClient2.setQueryData(queryKeys.operatorSession, data);
     }
   });
 }
@@ -6405,6 +6411,284 @@ function useResetManualSequence() {
     }
   });
 }
+const pageTitles = {
+  "/": "Dashboard",
+  "/ui": "Dashboard",
+  "/ui/": "Dashboard",
+  "/ui/batches": "Batches",
+  "/ui/sequences": "Sequences",
+  "/ui/manual": "Manual Control",
+  "/ui/logs": "Logs",
+  "/ui/settings": "Settings"
+};
+function Header() {
+  var _a, _b, _c, _d, _e;
+  const location = useLocation();
+  const { theme, toggleTheme } = useUIStore();
+  const { isOpen, togglePanel, getUnreadCount } = useNotificationStore();
+  const isDark = theme === "dark";
+  const unreadCount = getUnreadCount();
+  const { data: operatorSession } = useOperatorSession();
+  const logoutMutation = useOperatorLogout();
+  const [userMenuOpen, setUserMenuOpen] = reactExports.useState(false);
+  const userMenuRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    function handleClickOutside(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    setUserMenuOpen(false);
+  };
+  const pageTitle = pageTitles[location.pathname] || "Station UI";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "header",
+    {
+      className: "flex items-center justify-between h-[60px] px-5 border-b transition-colors",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "h1",
+          {
+            className: "text-lg font-semibold",
+            style: { color: "var(--color-text-primary)" },
+            children: pageTitle
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+          (operatorSession == null ? void 0 : operatorSession.loggedIn) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", ref: userMenuRef, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => setUserMenuOpen(!userMenuOpen),
+                className: "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                style: {
+                  color: userMenuOpen ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                  backgroundColor: userMenuOpen ? "var(--color-bg-tertiary)" : "transparent"
+                },
+                onMouseEnter: (e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                  e.currentTarget.style.color = "var(--color-text-primary)";
+                },
+                onMouseLeave: (e) => {
+                  if (!userMenuOpen) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "var(--color-text-secondary)";
+                  }
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(User, { className: "w-5 h-5" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", children: ((_a = operatorSession.operator) == null ? void 0 : _a.name) || ((_b = operatorSession.operator) == null ? void 0 : _b.username) })
+                ]
+              }
+            ),
+            userMenuOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: "absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-50 py-1",
+                style: {
+                  backgroundColor: "var(--color-bg-secondary)",
+                  borderColor: "var(--color-border-default)"
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      className: "px-4 py-2 border-b",
+                      style: { borderColor: "var(--color-border-default)" },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                          "p",
+                          {
+                            className: "text-sm font-medium",
+                            style: { color: "var(--color-text-primary)" },
+                            children: ((_c = operatorSession.operator) == null ? void 0 : _c.name) || ((_d = operatorSession.operator) == null ? void 0 : _d.username)
+                          }
+                        ),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                          "p",
+                          {
+                            className: "text-xs",
+                            style: { color: "var(--color-text-tertiary)" },
+                            children: (_e = operatorSession.operator) == null ? void 0 : _e.role
+                          }
+                        )
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "button",
+                    {
+                      onClick: handleLogout,
+                      disabled: logoutMutation.isPending,
+                      className: "w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors",
+                      style: { color: "var(--color-text-secondary)" },
+                      onMouseEnter: (e) => {
+                        e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                        e.currentTarget.style.color = "var(--color-status-error)";
+                      },
+                      onMouseLeave: (e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "var(--color-text-secondary)";
+                      },
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(LogOut, { className: "w-4 h-4" }),
+                        logoutMutation.isPending ? "Logging out..." : "Logout"
+                      ]
+                    }
+                  )
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: toggleTheme,
+              className: "p-2 rounded-lg transition-colors",
+              style: {
+                color: "var(--color-text-secondary)"
+              },
+              onMouseEnter: (e) => {
+                e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                e.currentTarget.style.color = "var(--color-text-primary)";
+              },
+              onMouseLeave: (e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "var(--color-text-secondary)";
+              },
+              title: isDark ? "Switch to light mode" : "Switch to dark mode",
+              children: isDark ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                "data-notification-trigger": true,
+                onClick: togglePanel,
+                className: "p-2 rounded-lg transition-colors relative",
+                style: {
+                  color: isOpen ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                  backgroundColor: isOpen ? "var(--color-bg-tertiary)" : "transparent"
+                },
+                onMouseEnter: (e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                  e.currentTarget.style.color = "var(--color-text-primary)";
+                },
+                onMouseLeave: (e) => {
+                  if (!isOpen) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "var(--color-text-secondary)";
+                  }
+                },
+                title: "Notifications",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { className: "w-5 h-5" }),
+                  unreadCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "span",
+                    {
+                      className: "absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1",
+                      style: {
+                        backgroundColor: "var(--color-status-error)",
+                        color: "white"
+                      },
+                      children: unreadCount > 99 ? "99+" : unreadCount
+                    }
+                  )
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(NotificationPanel, {})
+          ] })
+        ] })
+      ]
+    }
+  );
+}
+function StatusBar() {
+  const [currentTime, setCurrentTime] = reactExports.useState(/* @__PURE__ */ new Date());
+  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
+  const backendStatus = useConnectionStore((state) => state.backendStatus);
+  const batches2 = useBatchStore((state) => state.batches);
+  const runningBatches = Array.from(batches2.values()).filter(
+    (b) => b.status === "running" || b.status === "starting"
+  ).length;
+  reactExports.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(/* @__PURE__ */ new Date()), 1e3);
+    return () => clearInterval(timer);
+  }, []);
+  const formatTime = (date) => {
+    return date.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+  };
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "connected":
+        return "fill-green-500 text-green-500";
+      case "connecting":
+        return "fill-yellow-500 text-yellow-500 animate-pulse";
+      case "error":
+        return "fill-red-500 text-red-500";
+      default:
+        return "fill-zinc-500 text-zinc-500";
+    }
+  };
+  const isConnected = websocketStatus === "connected";
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "footer",
+    {
+      className: "flex items-center justify-between px-4 py-2 text-sm transition-colors",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderTop: "1px solid var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsx(Wifi, { className: "w-4 h-4", style: { color: "var(--color-success)" } }) : /* @__PURE__ */ jsxRuntimeExports.jsx(WifiOff, { className: "w-4 h-4", style: { color: "var(--color-text-disabled)" } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "WS" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Circle, { className: `w-2.5 h-2.5 ${getStatusColor(websocketStatus)}` })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Backend" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Circle, { className: `w-2.5 h-2.5 ${getStatusColor(backendStatus)}` })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "var(--color-text-secondary)" }, children: [
+            "Batches:",
+            " ",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "span",
+              {
+                className: runningBatches > 0 ? "font-medium" : "",
+                style: {
+                  color: runningBatches > 0 ? "var(--color-brand-400)" : "var(--color-text-primary)"
+                },
+                children: [
+                  runningBatches,
+                  " running"
+                ]
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono", style: { color: "var(--color-text-secondary)" }, children: formatTime(currentTime) })
+      ]
+    }
+  );
+}
 function Layout({ children }) {
   const { data: systemInfo, isLoading } = useSystemInfo();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = reactExports.useState(() => {
@@ -6598,7 +6882,7 @@ const levelStyles = {
     badgeText: "#f87171"
   }
 };
-function LogEntryRow({ log, showBatchId = true }) {
+function LogEntryRow$1({ log, showBatchId = true }) {
   const formatTime = (date) => {
     return new Date(date).toLocaleTimeString("en-US", {
       hour12: false,
@@ -6652,7 +6936,7 @@ const variantColors = {
   warning: "#f59e0b",
   error: "#ef4444"
 };
-const sizeClasses$1 = {
+const sizeClasses$2 = {
   sm: "h-1",
   md: "h-2",
   lg: "h-3"
@@ -6670,7 +6954,7 @@ function ProgressBar({
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       "div",
       {
-        className: `w-full rounded-full overflow-hidden ${sizeClasses$1[size]}`,
+        className: `w-full rounded-full overflow-hidden ${sizeClasses$2[size]}`,
         style: { backgroundColor: "var(--color-border-default)" },
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(
           "div",
@@ -6767,7 +7051,7 @@ const statusConfig = {
     dot: "#f87171"
   }
 };
-const sizeClasses = {
+const sizeClasses$1 = {
   sm: "px-2 py-0.5 text-xs",
   md: "px-2.5 py-1 text-xs"
 };
@@ -6780,7 +7064,7 @@ function StatusBadge({ status, size = "md", className = "" }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "span",
     {
-      className: `inline-flex items-center gap-1.5 rounded-full font-medium ${sizeClasses[size]} ${className}`,
+      className: `inline-flex items-center gap-1.5 rounded-full font-medium ${sizeClasses$1[size]} ${className}`,
       style: { backgroundColor: config.bg, color: config.text },
       children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7205,7 +7489,7 @@ function DashboardPage() {
               children: "Recent Activity"
             }
           ),
-          logs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No recent activity" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1 max-h-64 overflow-y-auto", children: logs.slice().reverse().map((log) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow, { log, showBatchId: true }, log.id)) })
+          logs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No recent activity" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1 max-h-64 overflow-y-auto", children: logs.slice().reverse().map((log) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow$1, { log, showBatchId: true }, log.id)) })
         ]
       }
     )
@@ -8075,7 +8359,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(
-      StatCard$1,
+      StatCard,
       {
         icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { className: "w-5 h-5" }),
         label: "Total Executions",
@@ -8085,7 +8369,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
-      StatCard$1,
+      StatCard,
       {
         icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5" }),
         label: "Passed",
@@ -8095,7 +8379,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
-      StatCard$1,
+      StatCard,
       {
         icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-5 h-5" }),
         label: "Failed",
@@ -8105,7 +8389,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
-      StatCard$1,
+      StatCard,
       {
         icon: /* @__PURE__ */ jsxRuntimeExports.jsx(TrendingUp, { className: "w-5 h-5" }),
         label: "Pass Rate",
@@ -8115,7 +8399,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
-      StatCard$1,
+      StatCard,
       {
         icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Activity, { className: "w-5 h-5" }),
         label: "Running",
@@ -8139,7 +8423,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
     ] })
   ] });
 }
-function StatCard$1({
+function StatCard({
   icon,
   label,
   value,
@@ -8263,6 +8547,893 @@ function BatchesPage() {
     )
   ] });
 }
+const MIN_PANEL_WIDTH = 280;
+const MAX_PANEL_WIDTH = 600;
+const DEFAULT_PANEL_WIDTH = 380;
+const useDebugPanelStore = create()(
+  persist(
+    (set) => ({
+      // Initial state
+      isCollapsed: false,
+      panelWidth: DEFAULT_PANEL_WIDTH,
+      activeTab: "logs",
+      selectedStep: null,
+      logLevel: null,
+      searchQuery: "",
+      autoScroll: true,
+      // Actions
+      toggleCollapsed: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
+      setCollapsed: (isCollapsed) => set({ isCollapsed }),
+      setPanelWidth: (width) => set({ panelWidth: Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, width)) }),
+      setActiveTab: (activeTab) => set({ activeTab }),
+      setSelectedStep: (selectedStep) => set({ selectedStep }),
+      setLogLevel: (logLevel) => set({ logLevel }),
+      setSearchQuery: (searchQuery) => set({ searchQuery }),
+      setAutoScroll: (autoScroll) => set({ autoScroll }),
+      clearFilters: () => set({
+        selectedStep: null,
+        logLevel: null,
+        searchQuery: ""
+      })
+    }),
+    {
+      name: "debug-panel-state",
+      partialize: (state) => ({
+        // Only persist these fields
+        isCollapsed: state.isCollapsed,
+        panelWidth: state.panelWidth,
+        activeTab: state.activeTab,
+        autoScroll: state.autoScroll
+      })
+    }
+  )
+);
+function SplitLayout({
+  children,
+  panel,
+  panelWidth,
+  isCollapsed,
+  onResize,
+  onToggle,
+  minWidth = 280,
+  maxWidth = 600,
+  panelTitle = "Debug Panel"
+}) {
+  const [isResizing, setIsResizing] = reactExports.useState(false);
+  const containerRef = reactExports.useRef(null);
+  const startXRef = reactExports.useRef(0);
+  const startWidthRef = reactExports.useRef(0);
+  const handleMouseDown = reactExports.useCallback(
+    (e) => {
+      e.preventDefault();
+      setIsResizing(true);
+      startXRef.current = e.clientX;
+      startWidthRef.current = panelWidth;
+    },
+    [panelWidth]
+  );
+  const handleMouseMove = reactExports.useCallback(
+    (e) => {
+      if (!isResizing) return;
+      const delta = startXRef.current - e.clientX;
+      const newWidth = Math.min(maxWidth, Math.max(minWidth, startWidthRef.current + delta));
+      onResize(newWidth);
+    },
+    [isResizing, minWidth, maxWidth, onResize]
+  );
+  const handleMouseUp = reactExports.useCallback(() => {
+    setIsResizing(false);
+  }, []);
+  reactExports.useEffect(() => {
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: containerRef, className: "flex h-full w-full overflow-hidden", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "flex-1 overflow-auto transition-all duration-200",
+        style: {
+          marginRight: isCollapsed ? 0 : panelWidth
+        },
+        children
+      }
+    ),
+    isCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        onClick: onToggle,
+        className: "fixed right-0 top-1/2 -translate-y-1/2 z-40 p-2 rounded-l-lg border-l border-t border-b transition-colors hover:bg-zinc-700",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        title: "Open debug panel",
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightOpen, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } })
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: `fixed right-0 top-[60px] h-[calc(100vh-60px)] flex flex-col border-l transition-transform duration-200 z-30 ${isCollapsed ? "translate-x-full" : "translate-x-0"}`,
+        style: {
+          width: panelWidth,
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              onMouseDown: handleMouseDown,
+              className: `absolute left-0 top-0 h-full w-1 cursor-col-resize transition-colors ${isResizing ? "bg-brand-500" : "hover:bg-brand-500/50"}`,
+              style: { transform: "translateX(-50%)" }
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              className: "flex items-center justify-between px-3 py-2 border-b shrink-0",
+              style: { borderColor: "var(--color-border-default)" },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: onToggle,
+                    className: "p-1 rounded hover:bg-zinc-700 transition-colors",
+                    title: "Close panel",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightClose, { className: "w-4 h-4", style: { color: "var(--color-text-secondary)" } })
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: panelTitle }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-6" }),
+                " "
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-hidden", children: panel })
+        ]
+      }
+    )
+  ] });
+}
+const levelOptions = [
+  { value: "", label: "All Levels" },
+  { value: "debug", label: "Debug" },
+  { value: "info", label: "Info" },
+  { value: "warning", label: "Warning" },
+  { value: "error", label: "Error" }
+];
+function LogFilters({ stepNames }) {
+  const { selectedStep, logLevel, searchQuery, setSelectedStep, setLogLevel, setSearchQuery, clearFilters } = useDebugPanelStore();
+  const stepOptions = [
+    { value: "", label: "All Steps" },
+    ...stepNames.map((name) => ({ value: name, label: name }))
+  ];
+  const hasActiveFilters = selectedStep || logLevel || searchQuery;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "flex flex-col gap-2 px-3 py-2 border-b",
+      style: { borderColor: "var(--color-border-default)" },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Select,
+            {
+              value: selectedStep || "",
+              onChange: (e) => setSelectedStep(e.target.value || null),
+              className: "flex-1 text-xs",
+              placeholder: "All Steps",
+              options: stepOptions
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Select,
+            {
+              value: logLevel || "",
+              onChange: (e) => setLogLevel(e.target.value || null),
+              className: "flex-1 text-xs",
+              placeholder: "All Levels",
+              options: levelOptions
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Search,
+            {
+              className: "absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5",
+              style: { color: "var(--color-text-tertiary)" }
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Input,
+            {
+              type: "text",
+              value: searchQuery,
+              onChange: (e) => setSearchQuery(e.target.value),
+              placeholder: "Search logs...",
+              className: "pl-7 pr-7 text-xs w-full"
+            }
+          ),
+          hasActiveFilters && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: clearFilters,
+              className: "absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-zinc-700",
+              title: "Clear filters",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-3.5 h-3.5", style: { color: "var(--color-text-tertiary)" } })
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+const levelConfig = {
+  debug: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Bug, { className: "w-3 h-3" }),
+    bgClass: "bg-zinc-500/10",
+    textClass: "text-zinc-400",
+    borderClass: "border-l-zinc-500",
+    label: "DBG"
+  },
+  info: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Info, { className: "w-3 h-3" }),
+    bgClass: "bg-blue-500/10",
+    textClass: "text-blue-400",
+    borderClass: "border-l-blue-500",
+    label: "INF"
+  },
+  warning: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-3 h-3" }),
+    bgClass: "bg-yellow-500/10",
+    textClass: "text-yellow-400",
+    borderClass: "border-l-yellow-500",
+    label: "WRN"
+  },
+  error: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-3 h-3" }),
+    bgClass: "bg-red-500/10",
+    textClass: "text-red-400",
+    borderClass: "border-l-red-500",
+    label: "ERR"
+  }
+};
+function formatTimestamp(date) {
+  return date.toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+function LogEntryRow({ log, onClick }) {
+  const config = levelConfig[log.level];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      onClick,
+      className: `flex items-start gap-1.5 px-2 py-1 text-xs font-mono ${config.bgClass} border-l-2 ${config.borderClass} cursor-pointer hover:bg-zinc-800/50`,
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-zinc-500 flex-shrink-0 text-[10px]", children: formatTimestamp(log.timestamp) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `flex items-center gap-0.5 flex-shrink-0 ${config.textClass}`, children: [
+          config.icon,
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px]", children: config.label })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `flex-1 break-all text-[11px] leading-relaxed ${config.textClass}`, children: log.message })
+      ]
+    }
+  );
+}
+function LogEntryList({ batchId }) {
+  const logs = useLogStore((s) => s.logs);
+  const { selectedStep, logLevel, searchQuery, autoScroll, setAutoScroll } = useDebugPanelStore();
+  const containerRef = reactExports.useRef(null);
+  const prevLogsLengthRef = reactExports.useRef(logs.length);
+  const filteredLogs = reactExports.useMemo(() => {
+    return logs.filter((log) => {
+      if (log.batchId !== batchId) return false;
+      if (logLevel && log.level !== logLevel) return false;
+      if (searchQuery && !log.message.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (selectedStep && !log.message.toLowerCase().includes(selectedStep.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [logs, batchId, selectedStep, logLevel, searchQuery]);
+  reactExports.useEffect(() => {
+    if (autoScroll && containerRef.current && logs.length > prevLogsLengthRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+    prevLogsLengthRef.current = logs.length;
+  }, [logs.length, autoScroll]);
+  const handleScroll = reactExports.useCallback(() => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    if (isAtBottom !== autoScroll) {
+      setAutoScroll(isAtBottom);
+    }
+  }, [autoScroll, setAutoScroll]);
+  const scrollToBottom = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      setAutoScroll(true);
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex flex-col h-full", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-center justify-between px-2 py-1 text-[10px] border-b",
+        style: {
+          color: "var(--color-text-tertiary)",
+          borderColor: "var(--color-border-subtle)",
+          backgroundColor: "var(--color-bg-tertiary)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            filteredLogs.length,
+            " entries"
+          ] }),
+          !autoScroll && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-yellow-500", children: "Scroll paused" })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        ref: containerRef,
+        onScroll: handleScroll,
+        className: "flex-1 overflow-y-auto",
+        style: { backgroundColor: "var(--color-bg-tertiary)" },
+        children: filteredLogs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-8", style: { color: "var(--color-text-tertiary)" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "w-6 h-6 mb-2 opacity-50" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs", children: "No log entries" }),
+          (selectedStep || logLevel || searchQuery) && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[10px] mt-1", children: "Try adjusting filters" })
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "divide-y", style: { borderColor: "var(--color-border-subtle)" }, children: filteredLogs.map((log) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow, { log }, log.id)) })
+      }
+    ),
+    !autoScroll && filteredLogs.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute bottom-2 right-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { variant: "secondary", size: "sm", onClick: scrollToBottom, className: "shadow-lg text-xs px-2 py-1", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowDown, { className: "w-3 h-3 mr-1" }),
+      "Latest"
+    ] }) })
+  ] });
+}
+function StepRow$1({ step, isSelected, isExpanded, onToggle, onClick }) {
+  const [copied, setCopied] = reactExports.useState(false);
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    if (step.result) {
+      await navigator.clipboard.writeText(JSON.stringify(step.result, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2e3);
+    }
+  };
+  const hasData = step.result && Object.keys(step.result).length > 0;
+  const hasError = !!step.error;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: `border-b transition-colors ${isSelected ? "bg-brand-500/10" : ""}`,
+      style: { borderColor: "var(--color-border-subtle)" },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            onClick: () => {
+              onClick();
+              if (hasData || hasError) onToggle();
+            },
+            className: `flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-zinc-800/50 ${hasData || hasError ? "" : "opacity-60"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-4 h-4 flex items-center justify-center", children: (hasData || hasError) && (isExpanded ? /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { className: "w-3.5 h-3.5", style: { color: "var(--color-text-tertiary)" } }) : /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronRight, { className: "w-3.5 h-3.5", style: { color: "var(--color-text-tertiary)" } })) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "span",
+                {
+                  className: "w-5 text-center text-xs font-mono",
+                  style: { color: "var(--color-text-tertiary)" },
+                  children: step.order
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex-1 text-xs font-medium truncate", style: { color: "var(--color-text-primary)" }, children: step.name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                step.duration != null && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "span",
+                  {
+                    className: "flex items-center gap-0.5 text-[10px] font-mono",
+                    style: { color: "var(--color-text-tertiary)" },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-3 h-3" }),
+                      step.duration.toFixed(2),
+                      "s"
+                    ]
+                  }
+                ),
+                step.status === "completed" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: step.pass ? "text-green-500" : "text-red-500", children: step.pass ? /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-3.5 h-3.5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5" }) }),
+                step.status === "running" && /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status: "running", size: "sm" }),
+                step.status === "failed" && /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5 text-red-500" }),
+                hasData && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { title: "Has data", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Database, { className: "w-3 h-3", style: { color: "var(--color-text-tertiary)" } }) })
+              ] })
+            ]
+          }
+        ),
+        isExpanded && (hasData || hasError) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-2 py-2 ml-6", style: { backgroundColor: "var(--color-bg-tertiary)" }, children: [
+          hasError && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-2 p-2 rounded bg-red-500/10 border border-red-500/30", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs text-red-400 mb-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-3 h-3" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "Error" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-red-300 font-mono break-all", children: step.error })
+          ] }),
+          hasData && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-medium", style: { color: "var(--color-text-tertiary)" }, children: "Measurements" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: handleCopy,
+                  className: "p-1 rounded hover:bg-zinc-700 transition-colors",
+                  title: "Copy JSON",
+                  children: copied ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3 h-3 text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { className: "w-3 h-3", style: { color: "var(--color-text-tertiary)" } })
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-0.5", children: Object.entries(step.result || {}).map(([key, value]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-2 text-[11px] font-mono", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-brand-400 flex-shrink-0", children: [
+                key,
+                ":"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-zinc-300 break-all", children: formatValue(value) })
+            ] }, key)) })
+          ] })
+        ] })
+      ]
+    }
+  );
+}
+function formatValue(value) {
+  if (value === null) return "null";
+  if (value === void 0) return "undefined";
+  if (typeof value === "object") {
+    return JSON.stringify(value, null, 2);
+  }
+  if (typeof value === "number") {
+    if (Number.isInteger(value)) return value.toString();
+    return value.toFixed(4);
+  }
+  return String(value);
+}
+function StepDataViewer({ steps }) {
+  const { selectedStep, setSelectedStep } = useDebugPanelStore();
+  const [expandedSteps, setExpandedSteps] = reactExports.useState(/* @__PURE__ */ new Set());
+  const toggleExpanded = (stepName) => {
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepName)) {
+        next.delete(stepName);
+      } else {
+        next.add(stepName);
+      }
+      return next;
+    });
+  };
+  if (steps.length === 0) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex flex-col items-center justify-center py-8",
+        style: { color: "var(--color-text-tertiary)" },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Database, { className: "w-6 h-6 mb-2 opacity-50" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs", children: "No step data available" })
+        ]
+      }
+    );
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-col h-full overflow-y-auto", children: steps.map((step) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+    StepRow$1,
+    {
+      step,
+      isSelected: selectedStep === step.name,
+      isExpanded: expandedSteps.has(step.name),
+      onToggle: () => toggleExpanded(step.name),
+      onClick: () => setSelectedStep(selectedStep === step.name ? null : step.name)
+    },
+    `${step.order}-${step.name}`
+  )) });
+}
+function TabButton$1({ label, icon, isActive, onClick }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "button",
+    {
+      onClick,
+      className: `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${isActive ? "bg-zinc-800 text-zinc-100 border-b-2 border-brand-500" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`,
+      children: [
+        icon,
+        label
+      ]
+    }
+  );
+}
+function DebugLogPanel({ batchId, steps }) {
+  const { activeTab, setActiveTab, selectedStep, logLevel, searchQuery } = useDebugPanelStore();
+  const logs = useLogStore((s) => s.logs);
+  const clearLogs = useLogStore((s) => s.clearLogs);
+  const stepNames = reactExports.useMemo(() => {
+    return steps.map((s) => s.name);
+  }, [steps]);
+  const filteredLogs = reactExports.useMemo(() => {
+    return logs.filter((log) => {
+      if (log.batchId !== batchId) return false;
+      if (logLevel && log.level !== logLevel) return false;
+      if (searchQuery && !log.message.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (selectedStep && !log.message.toLowerCase().includes(selectedStep.toLowerCase())) return false;
+      return true;
+    });
+  }, [logs, batchId, logLevel, searchQuery, selectedStep]);
+  const handleExportLogs = () => {
+    const content = filteredLogs.map((log) => {
+      const time = log.timestamp.toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      return `${time} [${log.level.toUpperCase()}] ${log.message}`;
+    }).join("\n");
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `debug-log-${batchId}-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/:/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const handleExportData = () => {
+    const data = steps.map((step) => ({
+      order: step.order,
+      name: step.name,
+      status: step.status,
+      pass: step.pass,
+      duration: step.duration,
+      result: step.result,
+      error: step.error
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `step-data-${batchId}-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-center justify-between px-2 py-1 border-b",
+        style: {
+          backgroundColor: "var(--color-bg-tertiary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              TabButton$1,
+              {
+                tab: "logs",
+                label: "Logs",
+                icon: /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "w-3.5 h-3.5" }),
+                isActive: activeTab === "logs",
+                onClick: () => setActiveTab("logs")
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              TabButton$1,
+              {
+                tab: "data",
+                label: "Data",
+                icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Database, { className: "w-3.5 h-3.5" }),
+                isActive: activeTab === "data",
+                onClick: () => setActiveTab("data")
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                variant: "ghost",
+                size: "sm",
+                onClick: activeTab === "logs" ? handleExportLogs : handleExportData,
+                disabled: activeTab === "logs" ? filteredLogs.length === 0 : steps.length === 0,
+                title: "Export",
+                className: "p-1",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Download, { className: "w-3.5 h-3.5" })
+              }
+            ),
+            activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                variant: "ghost",
+                size: "sm",
+                onClick: clearLogs,
+                disabled: logs.length === 0,
+                title: "Clear logs",
+                className: "p-1",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-3.5 h-3.5" })
+              }
+            )
+          ] })
+        ]
+      }
+    ),
+    activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(LogFilters, { stepNames }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-hidden", children: activeTab === "logs" ? /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryList, { batchId }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StepDataViewer, { steps }) })
+  ] });
+}
+const sizeClasses = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg"
+};
+function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = "md",
+  showCloseButton = true
+}) {
+  const modalRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+  function handleBackdropClick(event) {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  }
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "fixed inset-0 z-50 flex items-center justify-center p-4",
+      onClick: handleBackdropClick,
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "absolute inset-0 bg-black/60 backdrop-blur-sm",
+            "aria-hidden": "true"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            ref: modalRef,
+            className: `relative w-full ${sizeClasses[size]} rounded-xl border shadow-2xl`,
+            style: {
+              backgroundColor: "var(--color-bg-secondary)",
+              borderColor: "var(--color-border-default)"
+            },
+            role: "dialog",
+            "aria-modal": "true",
+            "aria-labelledby": "modal-title",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  className: "flex items-center justify-between px-6 py-4 border-b",
+                  style: { borderColor: "var(--color-border-default)" },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "h2",
+                      {
+                        id: "modal-title",
+                        className: "text-lg font-semibold",
+                        style: { color: "var(--color-text-primary)" },
+                        children: title
+                      }
+                    ),
+                    showCloseButton && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        onClick: onClose,
+                        className: "p-1 rounded-lg transition-colors",
+                        style: { color: "var(--color-text-tertiary)" },
+                        onMouseEnter: (e) => {
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                          e.currentTarget.style.color = "var(--color-text-primary)";
+                        },
+                        onMouseLeave: (e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "var(--color-text-tertiary)";
+                        },
+                        "aria-label": "Close modal",
+                        children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-5 h-5" })
+                      }
+                    )
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4", children })
+            ]
+          }
+        )
+      ]
+    }
+  );
+}
+function WipInputModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading = false,
+  batchName
+}) {
+  const [wipId, setWipId] = reactExports.useState("");
+  const [error, setError] = reactExports.useState(null);
+  const inputRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+  reactExports.useEffect(() => {
+    if (!isOpen) {
+      setWipId("");
+      setError(null);
+    }
+  }, [isOpen]);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError(null);
+    const trimmedWipId = wipId.trim();
+    if (!trimmedWipId) {
+      setError("WIP ID is required");
+      return;
+    }
+    onSubmit(trimmedWipId);
+  };
+  const handleSkip = () => {
+    onSubmit("");
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    Modal,
+    {
+      isOpen,
+      onClose,
+      title: "Enter WIP ID",
+      size: "sm",
+      showCloseButton: !isLoading,
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "p",
+          {
+            className: "text-sm",
+            style: { color: "var(--color-text-secondary)" },
+            children: [
+              batchName && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "block mb-1", children: [
+                "Starting sequence: ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { style: { color: "var(--color-text-primary)" }, children: batchName })
+              ] }),
+              "Scan or enter the WIP barcode to start the process."
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Barcode,
+              {
+                className: "absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5",
+                style: { color: "var(--color-text-tertiary)" }
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                ref: inputRef,
+                type: "text",
+                value: wipId,
+                onChange: (e) => setWipId(e.target.value),
+                placeholder: "Enter or scan WIP ID",
+                disabled: isLoading,
+                className: "w-full pl-11 pr-4 py-3 text-sm rounded-lg border outline-none transition-colors disabled:opacity-50",
+                style: {
+                  backgroundColor: "var(--color-bg-primary)",
+                  borderColor: error ? "var(--color-status-error)" : "var(--color-border-default)",
+                  color: "var(--color-text-primary)"
+                },
+                onFocus: (e) => {
+                  e.currentTarget.style.borderColor = "var(--color-brand-500)";
+                },
+                onBlur: (e) => {
+                  e.currentTarget.style.borderColor = error ? "var(--color-status-error)" : "var(--color-border-default)";
+                }
+              }
+            )
+          ] }),
+          error && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "p",
+            {
+              className: "mt-1 text-xs",
+              style: { color: "var(--color-status-error)" },
+              children: error
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 pt-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              type: "button",
+              variant: "secondary",
+              size: "md",
+              onClick: handleSkip,
+              disabled: isLoading,
+              className: "flex-1",
+              children: "Skip"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              type: "submit",
+              variant: "primary",
+              size: "md",
+              disabled: isLoading,
+              className: "flex-1",
+              children: isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-2 animate-spin" }),
+                "Starting..."
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
+                "Start"
+              ] })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "p",
+          {
+            className: "text-xs text-center",
+            style: { color: "var(--color-text-tertiary)" },
+            children: "Skip to run without backend WIP tracking"
+          }
+        )
+      ] })
+    }
+  );
+}
 function isBatchDetail$1(batch) {
   return "parameters" in batch && "hardwareStatus" in batch;
 }
@@ -8279,6 +9450,9 @@ function BatchDetailPage() {
   const stopSequence2 = useStopSequence();
   const stopBatch2 = useStopBatch();
   const deleteBatch2 = useDeleteBatch();
+  const { isCollapsed, panelWidth, setPanelWidth, toggleCollapsed, setSelectedStep } = useDebugPanelStore();
+  const { data: workflowConfig } = useWorkflowConfig();
+  const [showWipModal, setShowWipModal] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (batchId) {
       console.log(`[BatchDetailPage] useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
@@ -8313,19 +9487,35 @@ function BatchDetailPage() {
       console.error("[handleStartSequence] Missing batchId or batch");
       return;
     }
-    try {
-      console.log("[handleStartSequence] Starting sequence for batch:", batchId, "status:", batch.status);
-      if (batch.status === "idle") {
-        console.log("[handleStartSequence] Starting batch first...");
-        await startBatch2.mutateAsync(batchId);
-        console.log("[handleStartSequence] Batch started");
-      }
-      console.log("[handleStartSequence] Starting sequence...");
-      await startSequence2.mutateAsync({ batchId, request: void 0 });
-      console.log("[handleStartSequence] Sequence started successfully");
-    } catch (error) {
-      console.error("[handleStartSequence] Error:", error);
+    if (workflowConfig == null ? void 0 : workflowConfig.enabled) {
+      setShowWipModal(true);
+      return;
     }
+    await doStartSequence();
+  };
+  const doStartSequence = async (wipId) => {
+    if (!batchId || !batch) {
+      console.error("[doStartSequence] Missing batchId or batch");
+      return;
+    }
+    try {
+      console.log("[doStartSequence] Starting sequence for batch:", batchId, "status:", batch.status, "wipId:", wipId || "(none)");
+      if (batch.status === "idle") {
+        console.log("[doStartSequence] Starting batch first...");
+        await startBatch2.mutateAsync(batchId);
+        console.log("[doStartSequence] Batch started");
+      }
+      const request = wipId ? { parameters: { wip_id: wipId } } : void 0;
+      console.log("[doStartSequence] Starting sequence...");
+      await startSequence2.mutateAsync({ batchId, request });
+      console.log("[doStartSequence] Sequence started successfully");
+    } catch (error) {
+      console.error("[doStartSequence] Error:", error);
+    }
+  };
+  const handleWipSubmit = async (wipId) => {
+    setShowWipModal(false);
+    await doStartSequence(wipId || void 0);
   };
   const handleStopSequence = async () => {
     if (batchId) {
@@ -8354,7 +9544,6 @@ function BatchDetailPage() {
   }
   const isRunning = batch.status === "running" || batch.status === "starting" || batch.status === "stopping";
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
-  const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
   const elapsedTime = batch.elapsed > 0 ? batch.elapsed : isBatchDetail$1(batch) && batch.execution ? batch.execution.elapsed : 0;
   const progress = batch.progress ?? (isBatchDetail$1(batch) && batch.execution ? batch.execution.progress : 0);
   const getFinalVerdict = () => {
@@ -8374,172 +9563,157 @@ function BatchDetailPage() {
     return null;
   };
   const verdict = getFinalVerdict();
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-full p-6 space-y-6", style: { backgroundColor: "var(--color-bg-primary)" }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "sm", onClick: handleBack, children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "w-5 h-5" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-2xl font-bold", style: { color: "var(--color-text-primary)" }, children: batch.name }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: [
-            "ID: ",
-            batch.id
+  const handleStepRowClick = (stepName) => {
+    setSelectedStep(stepName);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    SplitLayout,
+    {
+      panel: /* @__PURE__ */ jsxRuntimeExports.jsx(DebugLogPanel, { batchId: batchId || "", steps }),
+      panelWidth,
+      isCollapsed,
+      onResize: setPanelWidth,
+      onToggle: toggleCollapsed,
+      panelTitle: "Debug Panel",
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-full p-6 space-y-6", style: { backgroundColor: "var(--color-bg-primary)" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "sm", onClick: handleBack, children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "w-5 h-5" }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-2xl font-bold", style: { color: "var(--color-text-primary)" }, children: batch.name }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: [
+                  "ID: ",
+                  batch.id
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status: batch.status }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden md:flex items-center gap-4 ml-4 pl-4 border-l", style: { borderColor: "var(--color-border-default)" }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-tertiary)" }, children: "Runs:" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: (statistics == null ? void 0 : statistics.total) ?? 0 })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-3.5 h-3.5 text-green-500" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-green-500", children: (statistics == null ? void 0 : statistics.pass) ?? 0 })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5 text-red-500" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-red-500", children: (statistics == null ? void 0 : statistics.fail) ?? 0 })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-tertiary)" }, children: "Rate:" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-medium text-brand-500", children: [
+                    (((statistics == null ? void 0 : statistics.passRate) ?? 0) * 100).toFixed(0),
+                    "%"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-3.5 h-3.5", style: { color: "var(--color-text-tertiary)" } }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", style: { color: "var(--color-text-secondary)" }, children: [
+                    elapsedTime.toFixed(2),
+                    "s"
+                  ] })
+                ] }),
+                verdict && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-1 font-bold ${verdict.color}`, children: [
+                  verdict.icon,
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: verdict.text })
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+              canStart && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                Button,
+                {
+                  variant: "primary",
+                  onClick: handleStartSequence,
+                  isLoading: startBatch2.isPending || startSequence2.isPending,
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
+                    "Start Sequence"
+                  ]
+                }
+              ),
+              isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                Button,
+                {
+                  variant: "danger",
+                  onClick: handleStopSequence,
+                  isLoading: stopSequence2.isPending || stopBatch2.isPending,
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Square, { className: "w-4 h-4 mr-2" }),
+                    "Stop"
+                  ]
+                }
+              ),
+              !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                Button,
+                {
+                  variant: "ghost",
+                  onClick: handleDeleteBatch,
+                  isLoading: deleteBatch2.isPending,
+                  className: "text-red-500 hover:text-red-400 hover:bg-red-500/10",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4 mr-2" }),
+                    "Delete"
+                  ]
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-4 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", style: { color: "var(--color-text-secondary)" }, children: "Test Progress" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: [
+                Math.round(progress * 100),
+                "%"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              ProgressBar,
+              {
+                value: progress * 100,
+                variant: batch.status === "completed" ? steps.every((s) => s.pass) ? "success" : "error" : "default"
+              }
+            ),
+            batch.currentStep && isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-sm text-brand-400", children: [
+              "Current Step: ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: batch.currentStep })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Package, { className: "w-5 h-5 text-brand-500" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Sequence Information" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Sequence Name", value: batch.sequenceName || "Not assigned" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Version", value: batch.sequenceVersion || "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Package", value: batch.sequencePackage || "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Total Steps", value: (batch.totalSteps ?? 0).toString() })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5 text-brand-500" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Step Results" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(StepsTable, { steps, totalSteps: batch.totalSteps ?? 0, stepNames: batch.stepNames, onStepClick: handleStepRowClick })
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status: batch.status })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-        canStart && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          Button,
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          WipInputModal,
           {
-            variant: "primary",
-            onClick: handleStartSequence,
+            isOpen: showWipModal,
+            onClose: () => setShowWipModal(false),
+            onSubmit: handleWipSubmit,
             isLoading: startBatch2.isPending || startSequence2.isPending,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
-              "Start Sequence"
-            ]
-          }
-        ),
-        isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          Button,
-          {
-            variant: "danger",
-            onClick: handleStopSequence,
-            isLoading: stopSequence2.isPending || stopBatch2.isPending,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Square, { className: "w-4 h-4 mr-2" }),
-              "Stop"
-            ]
-          }
-        ),
-        !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          Button,
-          {
-            variant: "ghost",
-            onClick: handleDeleteBatch,
-            isLoading: deleteBatch2.isPending,
-            className: "text-red-500 hover:text-red-400 hover:bg-red-500/10",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { className: "w-4 h-4 mr-2" }),
-              "Delete"
-            ]
+            batchName: batch.name
           }
         )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-4 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", style: { color: "var(--color-text-secondary)" }, children: "Test Progress" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: [
-          Math.round(progress * 100),
-          "%"
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        ProgressBar,
-        {
-          value: progress * 100,
-          variant: batch.status === "completed" ? steps.every((s) => s.pass) ? "success" : "error" : "default"
-        }
-      ),
-      batch.currentStep && isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-sm text-brand-400", children: [
-        "Current Step: ",
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: batch.currentStep })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Package, { className: "w-5 h-5 text-brand-500" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Sequence Information" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Sequence Name", value: batch.sequenceName || "Not assigned" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Version", value: batch.sequenceVersion || "-" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Package", value: batch.sequencePackage || "-" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaCard, { label: "Total Steps", value: (batch.totalSteps ?? 0).toString() })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { className: "w-5 h-5 text-brand-500" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Execution Statistics" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } }),
-              label: "Total Runs",
-              value: (statistics == null ? void 0 : statistics.total) ?? 0
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5 text-green-500" }),
-              label: "Pass",
-              value: (statistics == null ? void 0 : statistics.pass) ?? 0,
-              color: "#4ade80"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-5 h-5 text-red-500" }),
-              label: "Fail",
-              value: (statistics == null ? void 0 : statistics.fail) ?? 0,
-              color: "#f87171"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-5 h-5 text-brand-500" }),
-              label: "Pass Rate",
-              value: `${(((statistics == null ? void 0 : statistics.passRate) ?? 0) * 100).toFixed(1)}%`,
-              color: "var(--color-brand-500)"
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Timer, { className: "w-5 h-5 text-brand-500" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Timing & Result" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } }),
-              label: "Total Elapsed",
-              value: `${elapsedTime.toFixed(2)}s`
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            StatCard,
-            {
-              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Timer, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } }),
-              label: "Steps Time",
-              value: `${totalStepsTime.toFixed(2)}s`
-            }
-          )
-        ] }),
-        verdict && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 p-4 rounded-lg flex items-center justify-center gap-3", style: { backgroundColor: "var(--color-bg-tertiary)" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: verdict.color, children: verdict.icon }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-2xl font-bold ${verdict.color}`, children: verdict.text })
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-lg p-6 border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5 text-brand-500" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: "Step Results" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(StepsTable, { steps, totalSteps: batch.totalSteps ?? 0, stepNames: batch.stepNames })
-    ] })
-  ] });
+      ]
+    }
+  );
 }
 function MetaCard({ label, value }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3 rounded-lg", style: { backgroundColor: "var(--color-bg-tertiary)" }, children: [
@@ -8547,21 +9721,7 @@ function MetaCard({ label, value }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium truncate", style: { color: "var(--color-text-primary)" }, children: value })
   ] });
 }
-function StatCard({
-  icon,
-  label,
-  value,
-  color
-}) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3 rounded-lg flex items-center gap-3", style: { backgroundColor: "var(--color-bg-tertiary)" }, children: [
-    icon,
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: label }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-lg font-semibold", style: { color: color || "var(--color-text-primary)" }, children: value })
-    ] })
-  ] });
-}
-function StepsTable({ steps, totalSteps, stepNames }) {
+function StepsTable({ steps, totalSteps, stepNames, onStepClick }) {
   const displaySteps = steps.length > 0 ? steps.map((step, i) => ({
     ...step,
     // Use stepNames as fallback if step.name is generic
@@ -8585,10 +9745,10 @@ function StepsTable({ steps, totalSteps, stepNames }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4 w-20", children: "Result" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4 w-28", children: "Duration" })
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: displaySteps.map((step) => /* @__PURE__ */ jsxRuntimeExports.jsx(StepRow, { step }, `${step.order}-${step.name}`)) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: displaySteps.map((step) => /* @__PURE__ */ jsxRuntimeExports.jsx(StepRow, { step, onClick: onStepClick ? () => onStepClick(step.name) : void 0 }, `${step.order}-${step.name}`)) })
   ] }) });
 }
-function StepRow({ step }) {
+function StepRow({ step, onClick }) {
   const getStatusBadge = () => {
     if (step.status === "completed") return "completed";
     if (step.status === "running") return "running";
@@ -8607,7 +9767,8 @@ function StepRow({ step }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "tr",
     {
-      className: "border-b transition-colors",
+      onClick,
+      className: `border-b transition-colors ${onClick ? "cursor-pointer hover:bg-zinc-800/50" : ""}`,
       style: {
         borderColor: "var(--color-border-subtle)",
         backgroundColor: step.status === "running" ? "rgba(var(--color-brand-rgb), 0.1)" : step.status === "failed" ? "rgba(239, 68, 68, 0.1)" : step.pass === false && step.status === "completed" ? "rgba(239, 68, 68, 0.05)" : "transparent"
@@ -10323,7 +11484,7 @@ function LogsPage() {
     { value: "", label: "All Batches" },
     ...(batches2 == null ? void 0 : batches2.map((b) => ({ value: b.id, label: b.name }))) ?? []
   ];
-  const levelOptions = [
+  const levelOptions2 = [
     { value: "", label: "All Levels" },
     { value: "debug", label: "Debug" },
     { value: "info", label: "Info" },
@@ -10389,7 +11550,7 @@ function LogsPage() {
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Select,
           {
-            options: levelOptions,
+            options: levelOptions2,
             value: levelFilter,
             onChange: (e) => setLevelFilter(e.target.value)
           }
@@ -10428,7 +11589,7 @@ function LogsPage() {
         {
           ref: logContainerRef,
           className: "h-[500px] overflow-y-auto font-mono text-sm",
-          children: historicalLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, { size: "lg" }) }) : displayLogs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-full", style: { color: "var(--color-text-tertiary)" }, children: showHistorical ? "No logs found" : "No logs yet. Waiting for activity..." }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-2", children: displayLogs.map((log, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow, { log, showBatchId: true }, log.id ?? index)) })
+          children: historicalLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, { size: "lg" }) }) : displayLogs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-full", style: { color: "var(--color-text-tertiary)" }, children: showHistorical ? "No logs found" : "No logs yet. Waiting for activity..." }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-2", children: displayLogs.map((log, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryRow$1, { log, showBatchId: true }, log.id ?? index)) })
         }
       )
     ] }),
@@ -10456,12 +11617,12 @@ function LogsPage() {
 function SettingsPage() {
   const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
+  const { data: workflowConfig, isLoading: workflowLoading, refetch: refetchWorkflow } = useWorkflowConfig();
   const updateStationInfo2 = useUpdateStationInfo();
+  const updateWorkflow = useUpdateWorkflowConfig();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const theme = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
-  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
-  const lastHeartbeat = useConnectionStore((state) => state.lastHeartbeat);
   const [isEditing, setIsEditing] = reactExports.useState(false);
   const [editForm, setEditForm] = reactExports.useState({
     id: "",
@@ -10483,6 +11644,7 @@ function SettingsPage() {
   const handleRefresh = () => {
     refetchInfo();
     refetchHealth();
+    refetchWorkflow();
   };
   const handleEditStart = () => {
     if (systemInfo) {
@@ -10533,6 +11695,58 @@ function SettingsPage() {
       });
     }
   };
+  const handleWorkflowToggle = async () => {
+    if (!workflowConfig) return;
+    const newEnabled = !workflowConfig.enabled;
+    try {
+      await updateWorkflow.mutateAsync({ enabled: newEnabled });
+      addNotification({
+        type: "success",
+        title: newEnabled ? "Process Workflow Enabled" : "Process Workflow Disabled",
+        message: newEnabled ? "WIP process start/complete is now enabled." : "WIP process start/complete is now disabled."
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Update Failed",
+        message: error instanceof Error ? error.message : "Failed to update workflow configuration"
+      });
+    }
+  };
+  const handleWipInputModeChange = async (mode) => {
+    try {
+      await updateWorkflow.mutateAsync({ input_mode: mode });
+      addNotification({
+        type: "success",
+        title: "WIP Input Mode Changed",
+        message: mode === "popup" ? "WIP ID will be entered manually via popup." : "WIP ID will be read from barcode scanner."
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Update Failed",
+        message: error instanceof Error ? error.message : "Failed to update workflow configuration"
+      });
+    }
+  };
+  const handleAutoSequenceStartToggle = async () => {
+    if (!workflowConfig) return;
+    const newValue = !workflowConfig.auto_sequence_start;
+    try {
+      await updateWorkflow.mutateAsync({ auto_sequence_start: newValue });
+      addNotification({
+        type: "success",
+        title: newValue ? "Auto-start Enabled" : "Auto-start Disabled",
+        message: newValue ? "Sequence will start automatically after WIP scan." : "Sequence must be started manually after WIP scan."
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Update Failed",
+        message: error instanceof Error ? error.message : "Failed to update workflow configuration"
+      });
+    }
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
@@ -10544,9 +11758,9 @@ function SettingsPage() {
         "Refresh"
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-6 max-w-2xl mx-auto w-full", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Section,
+        Section$1,
         {
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Server, { className: "w-5 h-5" }),
           title: "Station Information",
@@ -10609,18 +11823,379 @@ function SettingsPage() {
               )
             ] })
           ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Station ID", value: systemInfo.stationId }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Station Name", value: systemInfo.stationName }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Description", value: systemInfo.description || "-" })
+          ] }) })
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section$1,
+        {
+          icon: (workflowConfig == null ? void 0 : workflowConfig.enabled) ? /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Pause, { className: "w-5 h-5" }),
+          title: "Process Workflow",
+          isLoading: workflowLoading,
+          children: workflowConfig && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: "WIP Process Start/Complete" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-tertiary)" }, children: "Sync with backend MES for process tracking" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                ToggleSwitch,
+                {
+                  enabled: workflowConfig.enabled,
+                  onToggle: handleWorkflowToggle,
+                  disabled: updateWorkflow.isPending
+                }
+              )
+            ] }),
+            workflowConfig.enabled && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: "WIP Input Mode" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-tertiary)" }, children: "How to provide WIP ID for process tracking" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "select",
+                  {
+                    value: workflowConfig.input_mode,
+                    onChange: (e) => handleWipInputModeChange(e.target.value),
+                    disabled: updateWorkflow.isPending,
+                    className: "px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-pointer disabled:opacity-50",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    },
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "popup", children: "Manual Input (Popup)" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "barcode", children: "Barcode Scanner" })
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: "Auto-start Sequence" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-tertiary)" }, children: "Start sequence automatically after WIP scan" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  ToggleSwitch,
+                  {
+                    enabled: workflowConfig.auto_sequence_start,
+                    onToggle: handleAutoSequenceStartToggle,
+                    disabled: updateWorkflow.isPending
+                  }
+                )
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "text-xs p-2 rounded",
+                style: {
+                  backgroundColor: workflowConfig.enabled ? "rgba(62, 207, 142, 0.1)" : "var(--color-bg-tertiary)",
+                  color: workflowConfig.enabled ? "var(--color-brand-500)" : "var(--color-text-tertiary)"
+                },
+                children: workflowConfig.enabled ? "Enabled: Automatically calls process start/complete API during sequence execution." : "Disabled: Runs sequence only without process tracking."
+              }
+            )
+          ] })
+        }
+      ),
+      (workflowConfig == null ? void 0 : workflowConfig.enabled) && (workflowConfig == null ? void 0 : workflowConfig.input_mode) === "barcode" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section$1,
+        {
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(ScanBarcode, { className: "w-5 h-5" }),
+          title: "Barcode Scanner",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Type" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "select",
+                {
+                  value: "serial",
+                  disabled: true,
+                  className: "px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60",
+                  style: {
+                    backgroundColor: "var(--color-bg-primary)",
+                    borderColor: "var(--color-border-default)",
+                    color: "var(--color-text-primary)"
+                  },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "serial", children: "Serial (COM Port)" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "usb_hid", children: "USB HID" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "keyboard_wedge", children: "Keyboard Wedge" })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Port" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "text",
+                  value: "COM3",
+                  disabled: true,
+                  placeholder: "e.g., COM3 or /dev/ttyUSB0",
+                  className: "px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60",
+                  style: {
+                    backgroundColor: "var(--color-bg-primary)",
+                    borderColor: "var(--color-border-default)",
+                    color: "var(--color-text-primary)",
+                    width: "140px"
+                  }
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Baudrate" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "select",
+                {
+                  value: "9600",
+                  disabled: true,
+                  className: "px-3 py-1.5 text-sm rounded border outline-none transition-colors cursor-not-allowed opacity-60",
+                  style: {
+                    backgroundColor: "var(--color-bg-primary)",
+                    borderColor: "var(--color-border-default)",
+                    color: "var(--color-text-primary)"
+                  },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "9600", children: "9600" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "19200", children: "19200" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "38400", children: "38400" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "115200", children: "115200" })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Status" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge, { status: "disconnected", size: "sm" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "text-xs p-2 rounded",
+                style: {
+                  backgroundColor: "var(--color-bg-tertiary)",
+                  color: "var(--color-text-tertiary)"
+                },
+                children: "Barcode scanner configuration is per-batch. Configure in batch settings for full functionality (Phase 2)."
+              }
+            )
+          ] })
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section$1,
+        {
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Cloud, { className: "w-5 h-5" }),
+          title: "Backend Connection",
+          isLoading: healthLoading,
+          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Status" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                StatusBadge,
+                {
+                  status: (health == null ? void 0 : health.backendStatus) === "connected" ? "connected" : "disconnected",
+                  size: "sm"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Backend URL" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "span",
+                {
+                  className: "text-sm font-mono",
+                  style: { color: "var(--color-text-primary)" },
+                  children: getBackendUrl()
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "text-xs p-2 rounded",
+                style: {
+                  backgroundColor: "var(--color-bg-tertiary)",
+                  color: "var(--color-text-tertiary)"
+                },
+                children: "Backend URL is configured in station.yaml"
+              }
+            )
+          ] })
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section$1,
+        {
+          icon: theme === "dark" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }),
+          title: "Appearance",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: "Theme" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-tertiary)" }, children: "Switch between dark and light mode" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "secondary", size: "sm", onClick: toggleTheme, children: theme === "dark" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-4 h-4 mr-2" }),
+              "Light"
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-4 h-4 mr-2" }),
+              "Dark"
+            ] }) })
+          ] }) })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "p-4 rounded-lg border max-w-2xl mx-auto w-full",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: [
+          "Station Service v",
+          (systemInfo == null ? void 0 : systemInfo.version) ?? "..."
+        ] })
+      }
+    )
+  ] });
+}
+function getBackendUrl() {
+  return window.location.origin;
+}
+function Section$1({ icon, title, children, isLoading, action }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "p-4 rounded-lg border",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "h3",
+            {
+              className: "flex items-center gap-2 text-lg font-semibold",
+              style: { color: "var(--color-text-primary)" },
+              children: [
+                icon,
+                title
+              ]
+            }
+          ),
+          action
+        ] }),
+        isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, {}) }) : children
+      ]
+    }
+  );
+}
+function InfoRow$1({ label, value }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: label }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: value })
+  ] });
+}
+function EditableRow({ label, value, onChange, placeholder }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "label",
+      {
+        className: "text-sm whitespace-nowrap",
+        style: { color: "var(--color-text-secondary)" },
+        children: label
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        type: "text",
+        value,
+        onChange: (e) => onChange(e.target.value),
+        placeholder,
+        className: "flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
+        style: {
+          backgroundColor: "var(--color-bg-primary)",
+          borderColor: "var(--color-border-default)",
+          color: "var(--color-text-primary)"
+        }
+      }
+    )
+  ] });
+}
+function ToggleSwitch({ enabled, onToggle, disabled }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "button",
+    {
+      onClick: onToggle,
+      disabled,
+      className: "relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+      style: {
+        backgroundColor: enabled ? "var(--color-brand-500)" : "var(--color-bg-tertiary)"
+      },
+      children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "span",
+        {
+          className: "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+          style: {
+            transform: enabled ? "translateX(24px)" : "translateX(4px)"
+          }
+        }
+      )
+    }
+  );
+}
+function MonitorPage() {
+  const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
+  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
+  const websocketStatus = useConnectionStore((state) => state.websocketStatus);
+  const lastHeartbeat = useConnectionStore((state) => state.lastHeartbeat);
+  const handleRefresh = () => {
+    refetchInfo();
+    refetchHealth();
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Activity, { className: "w-6 h-6 text-brand-500" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold", style: { color: "var(--color-text-primary)" }, children: "Monitor" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { variant: "ghost", size: "sm", onClick: handleRefresh, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { className: "w-4 h-4 mr-2" }),
+        "Refresh"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-6 max-w-2xl mx-auto w-full", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section,
+        {
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Server, { className: "w-5 h-5" }),
+          title: "Station Overview",
+          isLoading: infoLoading,
+          children: systemInfo && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Station ID", value: systemInfo.stationId }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Station Name", value: systemInfo.stationName }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Description", value: systemInfo.description || "-" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Version", value: systemInfo.version }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow, { label: "Uptime", value: formatUptime(systemInfo.uptime) })
-          ] }) })
+          ] })
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         Section,
         {
-          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Monitor, { className: "w-5 h-5" }),
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Wifi, { className: "w-5 h-5" }),
           title: "Connection Status",
           isLoading: healthLoading,
           children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
@@ -10692,79 +12267,89 @@ function SettingsPage() {
           ] })
         }
       ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Section, { icon: theme === "dark" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-5 h-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-5 h-5" }), title: "Appearance", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: "Theme" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-tertiary)" }, children: "Switch between dark and light mode" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          Button,
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Section,
+        {
+          icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Cloud, { className: "w-5 h-5" }),
+          title: "Sync Status",
+          isLoading: healthLoading,
+          children: health && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Backend Connection" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                StatusBadge,
+                {
+                  status: health.backendStatus === "connected" ? "connected" : "disconnected",
+                  size: "sm"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "Sync queue and statistics will be displayed here when available." })
+          ] })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "p-4 rounded-lg border max-w-2xl mx-auto w-full",
+        style: {
+          backgroundColor: "var(--color-bg-secondary)",
+          borderColor: "var(--color-border-default)"
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
           {
-            variant: "secondary",
-            size: "sm",
-            onClick: toggleTheme,
-            children: theme === "dark" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { className: "w-4 h-4 mr-2" }),
-              "Light"
-            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { className: "w-4 h-4 mr-2" }),
-              "Dark"
-            ] })
+            className: "flex items-center justify-between text-sm",
+            style: { color: "var(--color-text-tertiary)" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                "Station Service v",
+                (systemInfo == null ? void 0 : systemInfo.version) ?? "..."
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                "WebSocket: ",
+                websocketStatus,
+                " | Backend: ",
+                (health == null ? void 0 : health.backendStatus) ?? "unknown"
+              ] })
+            ]
           }
         )
-      ] }) }) })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-sm", style: { color: "var(--color-text-tertiary)" }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-        "Station Service v",
-        (systemInfo == null ? void 0 : systemInfo.version) ?? "..."
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-        "WebSocket: ",
-        websocketStatus,
-        " | Backend:",
-        " ",
-        (health == null ? void 0 : health.backendStatus) ?? "unknown"
-      ] })
-    ] }) })
+      }
+    )
   ] });
 }
-function Section({ icon, title, children, isLoading, action }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "flex items-center gap-2 text-lg font-semibold", style: { color: "var(--color-text-primary)" }, children: [
-        icon,
-        title
-      ] }),
-      action
-    ] }),
-    isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, {}) }) : children
-  ] });
+function Section({ icon, title, children, isLoading }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "p-4 rounded-lg border",
+      style: {
+        backgroundColor: "var(--color-bg-secondary)",
+        borderColor: "var(--color-border-default)"
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-between mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "h3",
+          {
+            className: "flex items-center gap-2 text-lg font-semibold",
+            style: { color: "var(--color-text-primary)" },
+            children: [
+              icon,
+              title
+            ]
+          }
+        ) }),
+        isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, {}) }) : children
+      ]
+    }
+  );
 }
 function InfoRow({ label, value }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: label }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: value })
-  ] });
-}
-function EditableRow({ label, value, onChange, placeholder }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm whitespace-nowrap", style: { color: "var(--color-text-secondary)" }, children: label }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "input",
-      {
-        type: "text",
-        value,
-        onChange: (e) => onChange(e.target.value),
-        placeholder,
-        className: "flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
-        style: {
-          backgroundColor: "var(--color-bg-primary)",
-          borderColor: "var(--color-border-default)",
-          color: "var(--color-text-primary)"
-        }
-      }
-    )
   ] });
 }
 function formatUptime(seconds) {
@@ -10779,13 +12364,203 @@ function formatUptime(seconds) {
   }
   return `${minutes}m`;
 }
+function LoginPage({ onLoginSuccess }) {
+  const [username, setUsername] = reactExports.useState("");
+  const [password, setPassword] = reactExports.useState("");
+  const [error, setError] = reactExports.useState(null);
+  const operatorLogin2 = useOperatorLogin();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (!username.trim() || !password.trim()) {
+      setError("Username and password are required");
+      return;
+    }
+    try {
+      await operatorLogin2.mutateAsync({
+        username: username.trim(),
+        password
+      });
+      onLoginSuccess();
+    } catch (err) {
+      console.error("Login error:", err);
+      if (err && typeof err === "object") {
+        const errorObj = err;
+        if (errorObj.message) {
+          setError(String(errorObj.message));
+        } else if (errorObj.detail) {
+          setError(String(errorObj.detail));
+        } else {
+          setError("Login failed. Please try again.");
+        }
+      } else if (err instanceof Error) {
+        setError(err.message || "Login failed");
+      } else {
+        setError("Login failed. Please try again.");
+      }
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      className: "min-h-screen flex items-center justify-center p-4",
+      style: { backgroundColor: "var(--color-bg-primary)" },
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "w-full max-w-md p-8 rounded-xl border",
+          style: {
+            backgroundColor: "var(--color-bg-secondary)",
+            borderColor: "var(--color-border-default)"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center mb-8", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  className: "w-16 h-16 rounded-2xl flex items-center justify-center mb-4",
+                  style: { backgroundColor: "var(--color-brand-500)" },
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Activity, { className: "w-8 h-8 text-white" })
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "h1",
+                {
+                  className: "text-2xl font-bold",
+                  style: { color: "var(--color-text-primary)" },
+                  children: "Station UI"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "p",
+                {
+                  className: "text-sm mt-1",
+                  style: { color: "var(--color-text-tertiary)" },
+                  children: "Sign in to continue"
+                }
+              )
+            ] }),
+            error && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: "flex items-center gap-2 p-3 rounded-lg mb-4",
+                style: {
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  color: "var(--color-status-error)"
+                },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-4 h-4 flex-shrink-0" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: error })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "label",
+                  {
+                    className: "block text-sm font-medium mb-2",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Username"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "text",
+                    value: username,
+                    onChange: (e) => setUsername(e.target.value),
+                    placeholder: "Enter your username",
+                    autoFocus: true,
+                    disabled: operatorLogin2.isPending,
+                    className: "w-full px-4 py-3 text-sm rounded-lg border outline-none transition-colors disabled:opacity-50",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "label",
+                  {
+                    className: "block text-sm font-medium mb-2",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Password"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "password",
+                    value: password,
+                    onChange: (e) => setPassword(e.target.value),
+                    placeholder: "Enter your password",
+                    disabled: operatorLogin2.isPending,
+                    className: "w-full px-4 py-3 text-sm rounded-lg border outline-none transition-colors disabled:opacity-50",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                Button,
+                {
+                  type: "submit",
+                  variant: "primary",
+                  size: "lg",
+                  disabled: operatorLogin2.isPending,
+                  className: "w-full mt-6",
+                  children: operatorLogin2.isPending ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-2 animate-spin" }),
+                    "Signing in..."
+                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(LogIn, { className: "w-4 h-4 mr-2" }),
+                    "Sign In"
+                  ] })
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "p",
+              {
+                className: "text-xs text-center mt-6",
+                style: { color: "var(--color-text-tertiary)" },
+                children: "Use your MES account credentials"
+              }
+            )
+          ]
+        }
+      )
+    }
+  );
+}
 function AppContent() {
   usePollingFallback();
+  const { data: operatorSession, isLoading: sessionLoading, refetch: refetchSession } = useOperatorSession();
   const theme = useUIStore((state) => state.theme);
   reactExports.useEffect(() => {
     document.documentElement.classList.remove("dark", "light");
     document.documentElement.classList.add(theme);
   }, [theme]);
+  if (sessionLoading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "min-h-screen flex items-center justify-center",
+        style: { backgroundColor: "var(--color-bg-primary)" },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, { size: "lg" })
+      }
+    );
+  }
+  if (!(operatorSession == null ? void 0 : operatorSession.loggedIn)) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(LoginPage, { onLoginSuccess: () => refetchSession() });
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.DASHBOARD, element: /* @__PURE__ */ jsxRuntimeExports.jsx(DashboardPage, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.BATCHES, element: /* @__PURE__ */ jsxRuntimeExports.jsx(BatchesPage, {}) }),
@@ -10794,6 +12569,7 @@ function AppContent() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.SEQUENCE_DETAIL, element: /* @__PURE__ */ jsxRuntimeExports.jsx(SequencesPage, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.MANUAL, element: /* @__PURE__ */ jsxRuntimeExports.jsx(ManualControlPage, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.LOGS, element: /* @__PURE__ */ jsxRuntimeExports.jsx(LogsPage, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.MONITOR, element: /* @__PURE__ */ jsxRuntimeExports.jsx(MonitorPage, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: ROUTES.SETTINGS, element: /* @__PURE__ */ jsxRuntimeExports.jsx(SettingsPage, {}) })
   ] }) });
 }

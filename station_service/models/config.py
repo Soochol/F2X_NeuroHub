@@ -2,7 +2,7 @@
 Configuration model definitions.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -83,6 +83,51 @@ class SimulationConfig(BaseModel):
     )
 
 
+class WorkflowConfig(BaseModel):
+    """Station-level workflow configuration for 착공/완공."""
+
+    enabled: bool = Field(True, description="Enable WIP process start/complete workflow")
+    input_mode: Literal["popup", "barcode"] = Field(
+        "popup", description="WIP ID input mode: popup for manual entry, barcode for scanner"
+    )
+    auto_sequence_start: bool = Field(
+        True, description="Automatically start sequence after barcode scan"
+    )
+    require_operator_login: bool = Field(
+        True, description="Require backend login before workflow operations"
+    )
+
+
+class BatchWorkflowConfig(BaseModel):
+    """Batch-level workflow configuration (overrides station-level)."""
+
+    enabled: Optional[bool] = Field(
+        None, description="Override station workflow.enabled (null = inherit)"
+    )
+    input_mode: Optional[Literal["popup", "barcode"]] = Field(
+        None, description="Override station workflow.input_mode (null = inherit)"
+    )
+
+
+class BarcodeScannerConfig(BaseModel):
+    """Barcode scanner configuration for a batch."""
+
+    type: Literal["serial", "usb_hid", "keyboard_wedge"] = Field(
+        "serial", description="Scanner connection type"
+    )
+    driver: str = Field(
+        "SerialBarcodeScanner", description="Driver class name"
+    )
+    config: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "port": "COM3",
+            "baudrate": 9600,
+            "terminator": "\r\n",
+        },
+        description="Driver-specific configuration",
+    )
+
+
 class BatchConfig(BaseModel):
     """Batch configuration from station.yaml."""
 
@@ -93,6 +138,13 @@ class BatchConfig(BaseModel):
     auto_start: bool = False
     process_id: Optional[int] = Field(
         None, description="Associated process ID (1-8) for WIP tracking"
+    )
+    workflow: BatchWorkflowConfig = Field(
+        default_factory=BatchWorkflowConfig,
+        description="Batch-level workflow overrides",
+    )
+    barcode_scanner: Optional[BarcodeScannerConfig] = Field(
+        None, description="Batch-specific barcode scanner configuration"
     )
 
 
@@ -109,6 +161,10 @@ class StationConfig(BaseModel):
     """Complete station configuration (station.yaml)."""
 
     station: StationInfo
+    workflow: WorkflowConfig = Field(
+        default_factory=WorkflowConfig,
+        description="Station-level workflow configuration",
+    )
     server: ServerConfig = ServerConfig()
     backend: BackendConfig = BackendConfig()
     batches: List[BatchConfig] = []

@@ -5,6 +5,14 @@
 // System hooks
 export { useSystemInfo, useHealthStatus, useUpdateStationInfo } from './useSystem';
 
+// Workflow hooks
+export { useWorkflowConfig, useUpdateWorkflowConfig } from './useWorkflow';
+export type { WorkflowConfig, UpdateWorkflowRequest } from './useWorkflow';
+
+// Operator hooks
+export { useOperatorSession, useOperatorLogin, useOperatorLogout } from './useOperator';
+export type { OperatorSession, OperatorLoginRequest } from './useOperator';
+
 // Batch hooks
 export {
   useBatchList,

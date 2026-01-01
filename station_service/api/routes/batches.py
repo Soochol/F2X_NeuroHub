@@ -10,7 +10,13 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from station_service.api.dependencies import get_batch_manager, get_config, get_sequence_loader
+from station_service.api.dependencies import (
+    get_batch_config_service,
+    get_batch_manager,
+    get_config,
+    get_sequence_loader,
+)
+from station_service.api.routes.system import get_operator_session
 from station_service.api.schemas.batch import (
     BatchCreateRequest,
     BatchCreateResponse,
@@ -22,6 +28,8 @@ from station_service.api.schemas.batch import (
     BatchStatistics,
     BatchStopResponse,
     BatchSummary,
+    BatchUpdateRequest,
+    BatchUpdateResponse,
     ManualControlRequest,
     ManualControlResponse,
     SequenceStartRequest,
@@ -30,17 +38,21 @@ from station_service.api.schemas.batch import (
     StepResult,
 )
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
+from station_service.api.websocket import broadcast_batch_created, broadcast_batch_deleted
 from station_service.batch.manager import BatchManager
+from station_service.core.batch_config_service import BatchConfigService
 from station_service.core.exceptions import (
+    BatchAlreadyExistsError,
     BatchAlreadyRunningError,
     BatchError,
     BatchNotFoundError,
     BatchNotRunningError,
+    BatchPersistenceError,
+    BatchValidationError,
 )
 from station_service.models.config import BatchConfig, StationConfig
-from station_service.api.websocket import broadcast_batch_created, broadcast_batch_deleted
-from station_service.sequence.loader import SequenceLoader
 from station_service.sequence.decorators import collect_steps
+from station_service.sequence.loader import SequenceLoader
 
 logger = logging.getLogger(__name__)
 
@@ -452,12 +464,32 @@ async def start_sequence(
     batch_id: str = Path(..., description="Unique batch identifier"),
     request: Optional[SequenceStartRequest] = None,
     batch_manager: BatchManager = Depends(get_batch_manager),
+    config: StationConfig = Depends(get_config),
 ) -> ApiResponse[SequenceStartResponse]:
     """
     Start sequence execution on a batch.
     """
     try:
         parameters = request.parameters if request else {}
+
+        # Check operator login if required
+        workflow = config.workflow
+        if workflow.enabled and workflow.require_operator_login:
+            operator_session = get_operator_session()
+            if not operator_session["logged_in"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Operator login required. Please login via Settings page.",
+                )
+            # Add operator_id to parameters for backend integration
+            if operator_session["operator"]:
+                parameters["operator_id"] = operator_session["operator"]["id"]
+
+        # Add process_id from batch config for backend integration
+        batch_config = batch_manager.get_batch_config(batch_id)
+        if batch_config and batch_config.process_id:
+            parameters["process_id"] = batch_config.process_id
+
         execution_id = await batch_manager.start_sequence(batch_id, parameters)
 
         return ApiResponse(
@@ -599,25 +631,24 @@ async def manual_control(
     "",
     response_model=ApiResponse[BatchCreateResponse],
     responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_409_CONFLICT: {"model": ErrorResponse},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
     },
     summary="Create a new batch",
     description="""
-    Create a new batch configuration at runtime.
+    Create a new batch configuration.
 
-    This adds a new batch to the station without modifying the YAML config.
+    The batch is persisted to station.yaml and will survive server restarts.
     The batch can be started immediately after creation.
-
-    Note: Runtime batches are not persisted and will be lost on station restart.
     """,
 )
 async def create_batch(
     request: BatchCreateRequest,
-    batch_manager: BatchManager = Depends(get_batch_manager),
+    config_service: BatchConfigService = Depends(get_batch_config_service),
 ) -> ApiResponse[BatchCreateResponse]:
     """
-    Create a new batch configuration.
+    Create a new batch configuration with YAML persistence.
     """
     try:
         # Create BatchConfig from request
@@ -630,8 +661,8 @@ async def create_batch(
             process_id=request.process_id,
         )
 
-        # Add to manager
-        batch_manager.add_batch(batch_config)
+        # Create via service (persists to YAML + memory)
+        await config_service.create_batch(batch_config)
 
         # Broadcast batch created event via WebSocket
         await broadcast_batch_created(
@@ -649,9 +680,20 @@ async def create_batch(
             ),
         )
 
-    except BatchError as e:
+    except BatchAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+    except BatchValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except BatchPersistenceError as e:
+        logger.exception(f"Error persisting batch: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
     except Exception as e:
@@ -666,6 +708,7 @@ async def create_batch(
     "/{batch_id}",
     response_model=ApiResponse[BatchDeleteResponse],
     responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
         status.HTTP_409_CONFLICT: {"model": ErrorResponse},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
@@ -678,17 +721,16 @@ async def create_batch(
     it will be stopped automatically before deletion.
 
     If the batch has an active sequence running, deletion will be rejected.
-    This removes the batch from runtime configuration only.
-
-    Note: This does not modify the YAML config file.
+    The batch is removed from both memory and station.yaml.
     """,
 )
 async def delete_batch(
     batch_id: str = Path(..., description="Unique batch identifier"),
     batch_manager: BatchManager = Depends(get_batch_manager),
+    config_service: BatchConfigService = Depends(get_batch_config_service),
 ) -> ApiResponse[BatchDeleteResponse]:
     """
-    Delete a batch configuration.
+    Delete a batch configuration with YAML persistence.
 
     Automatically stops idle batch processes before deletion.
     """
@@ -705,11 +747,10 @@ async def delete_batch(
                 await batch_manager.stop_batch(batch_id)
             else:
                 # Sequence is actively running - cannot delete
-                raise BatchAlreadyRunningError(
-                    f"Cannot delete batch '{batch_id}' while sequence is running. Stop the sequence first."
-                )
+                raise BatchAlreadyRunningError(batch_id)
 
-        batch_manager.remove_batch(batch_id)
+        # Delete via service (removes from YAML + memory)
+        await config_service.delete_batch(batch_id)
 
         # Broadcast batch deleted event via WebSocket
         await broadcast_batch_deleted(batch_id)
@@ -730,10 +771,89 @@ async def delete_batch(
     except BatchAlreadyRunningError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot delete batch '{batch_id}' while sequence is running. Stop the sequence first.",
+        )
+    except BatchValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except BatchPersistenceError as e:
+        logger.exception(f"Error persisting batch deletion: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
     except Exception as e:
         logger.exception(f"Error deleting batch {batch_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@router.put(
+    "/{batch_id}",
+    response_model=ApiResponse[BatchUpdateResponse],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Update a batch",
+    description="""
+    Update a batch configuration.
+
+    Only provided fields are updated. The batch ID cannot be changed.
+    Running batches cannot be updated - stop the sequence first.
+    Changes are persisted to station.yaml.
+    """,
+)
+async def update_batch(
+    batch_id: str = Path(..., description="Unique batch identifier"),
+    request: BatchUpdateRequest = None,
+    config_service: BatchConfigService = Depends(get_batch_config_service),
+) -> ApiResponse[BatchUpdateResponse]:
+    """
+    Update a batch configuration with YAML persistence.
+    """
+    try:
+        # Get updates from request (exclude None values)
+        updates = request.model_dump(exclude_unset=True) if request else {}
+
+        if not updates:
+            raise BatchValidationError("No updates provided")
+
+        # Update via service (persists to YAML + memory)
+        await config_service.update_batch(batch_id, updates)
+
+        return ApiResponse(
+            success=True,
+            data=BatchUpdateResponse(
+                batch_id=batch_id,
+                status="updated",
+            ),
+        )
+
+    except BatchNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Batch '{batch_id}' not found",
+        )
+    except BatchValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except BatchPersistenceError as e:
+        logger.exception(f"Error persisting batch update: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception(f"Error updating batch {batch_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),

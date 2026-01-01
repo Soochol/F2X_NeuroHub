@@ -2,6 +2,11 @@ station:
   id: test_001
   name: Test Station
   description: Test description
+workflow:
+  enabled: true
+  input_mode: popup
+  auto_sequence_start: true
+  require_operator_login: true
 server:
   host: 0.0.0.0
   port: 8080
@@ -11,34 +16,11 @@ backend:
   sync_interval: 30
   station_id: test_001
 batches:
-- id: sensor_inspection
-  name: Sensor Inspection
+- id: batch-1767278049170-z1lg4fj-0
+  name: sensor_inspection
   sequence_package: sensor_inspection
+  auto_start: false
   process_id: 3
-  auto_start: false
-  hardware:
-    sensor_interface:
-      type: mock_sensor
-      driver: MockSensorInterface
-      config:
-        port: COM1
-- id: voltage_test
-  name: PCB Voltage Test
-  sequence_package: pcb_voltage_test
-  process_id: 6
-  auto_start: false
-  hardware:
-    multimeter:
-      type: mock_multimeter
-      driver: MockMultimeter
-      config:
-        address: GPIB0::1::INSTR
-- id: manual_test
-  name: Manual Test Station
-  sequence_package: manual_test_v2
-  process_id: 7
-  auto_start: false
-  # Hardware is auto-loaded from manifest
 logging:
   level: INFO
   file: data/logs/station.log
