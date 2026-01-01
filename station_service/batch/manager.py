@@ -762,47 +762,81 @@ class BatchManager:
         # Fallback: Try to create driver instance from config for introspection
         config = self._batch_configs[batch_id]
         if hardware_id in config.hardware:
-            return self._create_driver_for_introspection(hardware_id, config.hardware[hardware_id])
+            # Resolve sequence folder name from sequence_package (manifest name)
+            folder_name = None
+            if config.sequence_package:
+                try:
+                    package_path = self._sequence_loader.get_package_path(config.sequence_package)
+                    folder_name = package_path.name  # e.g., "manual_test"
+                    logger.debug(f"Resolved sequence folder: {folder_name} for {config.sequence_package}")
+                except Exception as e:
+                    logger.debug(f"Could not resolve folder name for {config.sequence_package}: {e}")
+
+            return self._create_driver_for_introspection(
+                hardware_id,
+                config.hardware[hardware_id],
+                sequence_folder=folder_name,
+            )
 
         return None
 
     def _create_driver_for_introspection(
-        self, hardware_id: str, hw_config: Dict[str, Any]
+        self, hardware_id: str, hw_config: Dict[str, Any], sequence_folder: str = None
     ) -> Any:
         """
         Create a driver instance for introspection purposes.
 
         This creates a mock/real driver based on the hardware configuration
         so we can introspect its methods.
+
+        Args:
+            hardware_id: ID of the hardware device
+            hw_config: Hardware configuration dict with "driver" and "class" keys
+            sequence_folder: Actual folder name of the sequence package (not manifest name)
         """
-        # Try to import the driver from the sequence package
+        import importlib
+
+        # Get driver class info from config
+        # Note: In loaded hardware config from manifest:
+        #   "type" = module name (e.g., "mock_power_supply")
+        #   "driver" = class name (e.g., "MockPowerSupply")
+        driver_module = hw_config.get("type", "")  # e.g., "mock_power_supply"
+        driver_class_name = hw_config.get("driver", "")  # e.g., "MockPowerSupply"
+
+        if not driver_module or not driver_class_name:
+            logger.warning(f"Missing type or driver in config for {hardware_id}: {hw_config}")
+            return None
+
+        # Build dynamic import paths
+        possible_paths = []
+
+        # 1순위: sequence_folder가 제공되면 해당 시퀀스의 drivers 디렉토리
+        if sequence_folder:
+            possible_paths.append(
+                f"sequences.{sequence_folder}.drivers.{driver_module}"
+            )
+
+        # 2순위: 기존 fallback 경로들 (하위 호환)
+        possible_paths.extend([
+            f"sequences.{driver_module}",
+            f"sequences.pcb_voltage_test.drivers.{driver_module}",
+            f"sequences.sensor_inspection.drivers.{driver_module}",
+            f"sequences.manual_test.drivers.{driver_module}",
+        ])
+
+        for module_path in possible_paths:
+            try:
+                module = importlib.import_module(module_path)
+                driver_class = getattr(module, driver_class_name, None)
+                if driver_class:
+                    logger.debug(f"Found driver {driver_class_name} at {module_path}")
+                    return driver_class(name=hardware_id, config=hw_config.get("config", {}))
+            except (ImportError, AttributeError) as e:
+                logger.debug(f"Driver not found at {module_path}: {e}")
+                continue
+
+        # Fallback: Try type-based drivers
         try:
-            # Get driver class info from config
-            driver_module = hw_config.get("driver", "")
-            driver_class_name = hw_config.get("class", "")
-
-            if driver_module and driver_class_name:
-                # Try common package locations
-                possible_paths = [
-                    f"sequences.{driver_module}.{driver_class_name}",
-                    f"sequences.pcb_voltage_test.drivers.{driver_module}.{driver_class_name}",
-                    f"sequences.sensor_inspection.drivers.{driver_module}.{driver_class_name}",
-                ]
-
-                for path in possible_paths:
-                    try:
-                        parts = path.rsplit(".", 1)
-                        if len(parts) == 2:
-                            module_name, class_name = parts
-                            import importlib
-                            module = importlib.import_module(module_name)
-                            driver_class = getattr(module, class_name, None)
-                            if driver_class:
-                                return driver_class(name=hardware_id, config=hw_config)
-                    except (ImportError, AttributeError):
-                        continue
-
-            # Fallback: Try to use MockMultimeter if hardware type suggests it
             if "multimeter" in hardware_id.lower():
                 from sequences.pcb_voltage_test.drivers.mock_multimeter import MockMultimeter
                 return MockMultimeter(name=hardware_id, config=hw_config)
@@ -810,10 +844,10 @@ class BatchManager:
             if "sensor" in hardware_id.lower():
                 from sequences.sensor_inspection.drivers.mock_sensor import MockSensorInterface
                 return MockSensorInterface(name=hardware_id, config=hw_config)
-
         except Exception as e:
-            logger.warning(f"Could not create driver for introspection: {e}")
+            logger.debug(f"Type-based driver fallback failed: {e}")
 
+        logger.warning(f"Could not find driver {driver_class_name} for {hardware_id} in any path")
         return None
 
     async def get_manual_steps(self, batch_id: str) -> List[Dict[str, Any]]:
