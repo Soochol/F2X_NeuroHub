@@ -179,6 +179,31 @@ async def handle_client_message(
                 }
             )
 
+            # Push current batch status for each subscribed batch
+            # This ensures the client gets the latest state immediately
+            batch_manager = getattr(websocket.app.state, "batch_manager", None)
+            if batch_manager:
+                for batch_id in batch_ids:
+                    try:
+                        status = await batch_manager.get_batch_status(batch_id)
+                        # Use camelCase for JSON keys to match TypeScript client
+                        await websocket.send_json(
+                            {
+                                "type": "batch_status",
+                                "batchId": batch_id,
+                                "data": {
+                                    "status": status.get("status", "idle"),
+                                    "currentStep": status.get("current_step"),
+                                    "stepIndex": status.get("step_index", 0),
+                                    "progress": status.get("progress", 0.0),
+                                    "executionId": status.get("execution_id", ""),
+                                },
+                            }
+                        )
+                        logger.debug(f"Pushed initial status for batch {batch_id[:8]}...: {status.get('status')}")
+                    except Exception as e:
+                        logger.warning(f"Failed to push initial status for {batch_id}: {e}")
+
     elif msg_type == "unsubscribe":
         batch_ids = message.get("batch_ids", [])
         if isinstance(batch_ids, list):
@@ -216,16 +241,17 @@ async def broadcast_batch_status(
     """Broadcast batch status update to ALL connected clients."""
     logger.info(f"[WS Broadcast] batch_status: batch={batch_id[:8]}..., status={status}, step={current_step}, exec={execution_id}")
     # Broadcast to ALL connections - clients filter by batch_id
+    # Note: Use camelCase for JSON keys to match TypeScript client expectations
     await manager.broadcast_all(
         {
             "type": "batch_status",
-            "batch_id": batch_id,
+            "batchId": batch_id,
             "data": {
                 "status": status,
-                "current_step": current_step,
-                "step_index": step_index,
+                "currentStep": current_step,
+                "stepIndex": step_index,
                 "progress": progress,
-                "execution_id": execution_id,
+                "executionId": execution_id,
             },
         },
     )

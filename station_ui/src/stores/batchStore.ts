@@ -61,6 +61,9 @@ interface BatchState {
     executionId?: string
   ) => void;
   updateStepResult: (batchId: string, stepResult: StepResult) => void;
+  startStep: (batchId: string, stepName: string, stepIndex: number, totalSteps: number, executionId?: string) => void;
+  completeStep: (batchId: string, stepName: string, stepIndex: number, duration: number, pass: boolean, result?: Record<string, unknown>, executionId?: string) => void;
+  clearSteps: (batchId: string) => void;
   selectBatch: (batchId: string | null) => void;
   clearBatches: () => void;
 
@@ -98,9 +101,10 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         const existing = state.batches.get(batch.id);
 
         if (existing) {
-          // Never allow completed state to be reverted to running by stale API data
+          // Never allow completed state to be reverted by stale API data
           // This prevents the bug where navigating between pages causes status regression
-          if (existing.status === 'completed' && (batch.status === 'running' || batch.status === 'starting')) {
+          // After sequence completes, worker sets status to 'idle' but we want to keep 'completed'
+          if (existing.status === 'completed' && batch.status !== 'completed') {
             console.log(`[batchStore] setBatches: BLOCKED status regression ${existing.status} -> ${batch.status} for ${batch.id.slice(0, 8)}...`);
             newBatches.set(batch.id, existing);
             continue;
@@ -253,6 +257,140 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         ...batch,
         stepIndex: stepResult.order,
         progress: (batch.totalSteps ?? 0) > 0 ? stepResult.order / batch.totalSteps! : 0,
+      });
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+    }),
+
+  startStep: (batchId, stepName, stepIndex, totalSteps, executionId?) =>
+    set((state) => {
+      const batch = state.batches.get(batchId);
+      if (!batch) return state;
+
+      // Race condition guard
+      if (executionId && batch.executionId && batch.executionId !== executionId) {
+        console.log(`[batchStore] startStep IGNORED: executionId mismatch`);
+        return state;
+      }
+
+      const newBatches = new Map(state.batches);
+      const currentSteps = batch.steps || [];
+
+      // Check if step already exists
+      const existingIndex = currentSteps.findIndex(s => s.name === stepName && s.order === stepIndex + 1);
+      let newSteps: StepResult[];
+
+      if (existingIndex >= 0) {
+        // Update existing step to running
+        newSteps = [...currentSteps];
+        const existingStep = newSteps[existingIndex]!;
+        newSteps[existingIndex] = {
+          order: existingStep.order,
+          name: existingStep.name,
+          status: 'running' as const,
+          pass: existingStep.pass,
+          duration: existingStep.duration,
+          result: existingStep.result,
+        };
+      } else {
+        // Add new running step
+        newSteps = [
+          ...currentSteps,
+          {
+            order: stepIndex + 1,
+            name: stepName,
+            status: 'running' as const,
+            pass: false,
+            duration: undefined,
+            result: undefined,
+          },
+        ];
+      }
+
+      newBatches.set(batchId, {
+        ...batch,
+        currentStep: stepName,
+        stepIndex,
+        totalSteps,
+        steps: newSteps,
+        executionId: executionId || batch.executionId,
+      });
+
+      console.log(`[batchStore] startStep: ${batchId.slice(0, 8)}... step=${stepName} index=${stepIndex}`);
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+    }),
+
+  completeStep: (batchId, stepName, stepIndex, duration, pass, result?, executionId?) =>
+    set((state) => {
+      const batch = state.batches.get(batchId);
+      if (!batch) return state;
+
+      // Race condition guard
+      if (executionId && batch.executionId && batch.executionId !== executionId) {
+        console.log(`[batchStore] completeStep IGNORED: executionId mismatch`);
+        return state;
+      }
+
+      const newBatches = new Map(state.batches);
+      const currentSteps = batch.steps || [];
+
+      // Find and update the step
+      const existingIndex = currentSteps.findIndex(s => s.name === stepName);
+      let newSteps: StepResult[];
+
+      if (existingIndex >= 0) {
+        newSteps = [...currentSteps];
+        newSteps[existingIndex] = {
+          order: stepIndex + 1,
+          name: stepName,
+          status: 'completed' as const,
+          pass,
+          duration,
+          result,
+        };
+      } else {
+        // Add completed step if not found
+        newSteps = [
+          ...currentSteps,
+          {
+            order: stepIndex + 1,
+            name: stepName,
+            status: 'completed' as const,
+            pass,
+            duration,
+            result,
+          },
+        ];
+      }
+
+      // Calculate new progress
+      const totalSteps = batch.totalSteps || newSteps.length;
+      const completedSteps = newSteps.filter(s => s.status === 'completed').length;
+      const progress = totalSteps > 0 ? completedSteps / totalSteps : 0;
+
+      newBatches.set(batchId, {
+        ...batch,
+        stepIndex: stepIndex + 1,
+        steps: newSteps,
+        progress,
+        executionId: executionId || batch.executionId,
+      });
+
+      console.log(`[batchStore] completeStep: ${batchId.slice(0, 8)}... step=${stepName} pass=${pass} progress=${progress.toFixed(2)}`);
+      return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+    }),
+
+  clearSteps: (batchId) =>
+    set((state) => {
+      const batch = state.batches.get(batchId);
+      if (!batch) return state;
+
+      const newBatches = new Map(state.batches);
+      newBatches.set(batchId, {
+        ...batch,
+        steps: [],
+        stepIndex: 0,
+        progress: 0,
+        currentStep: undefined,
       });
       return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),

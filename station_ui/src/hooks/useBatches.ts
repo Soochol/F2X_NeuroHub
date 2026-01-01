@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { queryKeys } from '../api/queryClient';
 import type { ApiError } from '../api/client';
 import {
@@ -72,15 +72,65 @@ export function useBatchList() {
 
 /**
  * Hook to fetch a specific batch.
- * Polls frequently to catch real-time step updates.
+ * Combines API polling with real-time WebSocket updates from batchStore.
+ * Store data takes priority for real-time fields (status, progress, etc.).
  */
 export function useBatch(batchId: string | null) {
-  return useQuery({
+  // Get real-time state from store (updated via WebSocket)
+  const storeBatch = useBatchStore((state) =>
+    batchId ? state.batches.get(batchId) : undefined
+  );
+
+  const query = useQuery({
     queryKey: queryKeys.batch(batchId ?? ''),
     queryFn: () => getBatch(batchId!),
     enabled: !!batchId,
-    refetchInterval: POLLING_INTERVALS.batchDetail, // Poll every 1 second for step updates
+    // Disable polling during active execution (WebSocket handles updates)
+    // Resume polling when idle or completed for eventual consistency
+    refetchInterval: () => {
+      if (storeBatch?.status === 'running' || storeBatch?.status === 'starting') {
+        return false; // WebSocket handles real-time updates
+      }
+      return POLLING_INTERVALS.batchDetail;
+    },
   });
+
+  // Sync API data to store (store guards prevent status regression)
+  useEffect(() => {
+    if (query.data && batchId) {
+      useBatchStore.getState().setBatches([query.data]);
+    }
+  }, [query.data, batchId]);
+
+  // Merge: API provides detailed data, Store provides real-time status
+  const mergedData = useMemo(() => {
+    if (!batchId) return undefined;
+    if (!query.data && !storeBatch) return undefined;
+
+    // If store has real-time data and API has detailed data, merge them
+    if (storeBatch && query.data) {
+      return {
+        ...query.data,
+        // Real-time fields from store take priority
+        status: storeBatch.status,
+        progress: storeBatch.progress,
+        currentStep: storeBatch.currentStep,
+        stepIndex: storeBatch.stepIndex,
+        executionId: storeBatch.executionId,
+        lastRunPassed: storeBatch.lastRunPassed,
+        // Include steps from store for real-time step updates
+        steps: storeBatch.steps,
+      };
+    }
+
+    // Fallback to whichever is available
+    return query.data ?? storeBatch;
+  }, [batchId, storeBatch, query.data]);
+
+  return {
+    ...query,
+    data: mergedData,
+  };
 }
 
 /**

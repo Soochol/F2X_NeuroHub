@@ -599,6 +599,16 @@ class BatchWorker:
             execution_id=self._current_execution_id or "",
         ))
 
+        # Broadcast status update with current step
+        asyncio.create_task(self._ipc.status_update({
+            "status": self._status.value,
+            "execution_id": self._current_execution_id,
+            "current_step": step_name,
+            "step_index": len(self._step_results) - 1,
+            "total_steps": self._total_steps,
+            "progress": self._progress,
+        }))
+
     def _on_step_complete(self, step_name: str, step_result: StepResult) -> None:
         """Callback for step completion."""
         self._step_index = len(self._step_results)
@@ -623,6 +633,16 @@ class BatchWorker:
             result=step_result.to_dict(),
             execution_id=self._current_execution_id or "",
         ))
+
+        # Broadcast status update with new progress
+        asyncio.create_task(self._ipc.status_update({
+            "status": self._status.value,
+            "execution_id": self._current_execution_id,
+            "current_step": step_name,
+            "step_index": self._step_index,
+            "total_steps": self._total_steps,
+            "progress": self._progress,
+        }))
 
     def _on_log(self, level: str, message: str) -> None:
         """Callback for log messages."""

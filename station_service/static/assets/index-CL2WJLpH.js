@@ -1177,7 +1177,7 @@ const useBatchStore = create((set, get) => ({
     for (const batch of batches2) {
       const existing = state.batches.get(batch.id);
       if (existing) {
-        if (existing.status === "completed" && (batch.status === "running" || batch.status === "starting")) {
+        if (existing.status === "completed" && batch.status !== "completed") {
           console.log(`[batchStore] setBatches: BLOCKED status regression ${existing.status} -> ${batch.status} for ${batch.id.slice(0, 8)}...`);
           newBatches.set(batch.id, existing);
           continue;
@@ -1300,6 +1300,112 @@ const useBatchStore = create((set, get) => ({
       ...batch,
       stepIndex: stepResult.order,
       progress: (batch.totalSteps ?? 0) > 0 ? stepResult.order / batch.totalSteps : 0
+    });
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+  }),
+  startStep: (batchId, stepName, stepIndex, totalSteps, executionId) => set((state) => {
+    const batch = state.batches.get(batchId);
+    if (!batch) return state;
+    if (executionId && batch.executionId && batch.executionId !== executionId) {
+      console.log(`[batchStore] startStep IGNORED: executionId mismatch`);
+      return state;
+    }
+    const newBatches = new Map(state.batches);
+    const currentSteps = batch.steps || [];
+    const existingIndex = currentSteps.findIndex((s) => s.name === stepName && s.order === stepIndex + 1);
+    let newSteps;
+    if (existingIndex >= 0) {
+      newSteps = [...currentSteps];
+      const existingStep = newSteps[existingIndex];
+      newSteps[existingIndex] = {
+        order: existingStep.order,
+        name: existingStep.name,
+        status: "running",
+        pass: existingStep.pass,
+        duration: existingStep.duration,
+        result: existingStep.result
+      };
+    } else {
+      newSteps = [
+        ...currentSteps,
+        {
+          order: stepIndex + 1,
+          name: stepName,
+          status: "running",
+          pass: false,
+          duration: void 0,
+          result: void 0
+        }
+      ];
+    }
+    newBatches.set(batchId, {
+      ...batch,
+      currentStep: stepName,
+      stepIndex,
+      totalSteps,
+      steps: newSteps,
+      executionId: executionId || batch.executionId
+    });
+    console.log(`[batchStore] startStep: ${batchId.slice(0, 8)}... step=${stepName} index=${stepIndex}`);
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+  }),
+  completeStep: (batchId, stepName, stepIndex, duration, pass, result, executionId) => set((state) => {
+    const batch = state.batches.get(batchId);
+    if (!batch) return state;
+    if (executionId && batch.executionId && batch.executionId !== executionId) {
+      console.log(`[batchStore] completeStep IGNORED: executionId mismatch`);
+      return state;
+    }
+    const newBatches = new Map(state.batches);
+    const currentSteps = batch.steps || [];
+    const existingIndex = currentSteps.findIndex((s) => s.name === stepName);
+    let newSteps;
+    if (existingIndex >= 0) {
+      newSteps = [...currentSteps];
+      newSteps[existingIndex] = {
+        order: stepIndex + 1,
+        name: stepName,
+        status: "completed",
+        pass,
+        duration,
+        result
+      };
+    } else {
+      newSteps = [
+        ...currentSteps,
+        {
+          order: stepIndex + 1,
+          name: stepName,
+          status: "completed",
+          pass,
+          duration,
+          result
+        }
+      ];
+    }
+    const totalSteps = batch.totalSteps || newSteps.length;
+    const completedSteps = newSteps.filter((s) => s.status === "completed").length;
+    const progress = totalSteps > 0 ? completedSteps / totalSteps : 0;
+    newBatches.set(batchId, {
+      ...batch,
+      stepIndex: stepIndex + 1,
+      steps: newSteps,
+      progress,
+      executionId: executionId || batch.executionId
+    });
+    console.log(`[batchStore] completeStep: ${batchId.slice(0, 8)}... step=${stepName} pass=${pass} progress=${progress.toFixed(2)}`);
+    return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
+  }),
+  clearSteps: (batchId) => set((state) => {
+    const batch = state.batches.get(batchId);
+    if (!batch) return state;
+    const newBatches = new Map(state.batches);
+    newBatches.set(batchId, {
+      ...batch,
+      steps: [],
+      stepIndex: 0,
+      progress: 0,
+      currentStep: void 0
     });
     return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
@@ -5073,13 +5179,50 @@ function useBatchList() {
   return query;
 }
 function useBatch(batchId) {
-  return useQuery({
+  const storeBatch = useBatchStore(
+    (state) => batchId ? state.batches.get(batchId) : void 0
+  );
+  const query = useQuery({
     queryKey: queryKeys.batch(batchId ?? ""),
     queryFn: () => getBatch(batchId),
     enabled: !!batchId,
-    refetchInterval: POLLING_INTERVALS.batchDetail
-    // Poll every 1 second for step updates
+    // Disable polling during active execution (WebSocket handles updates)
+    // Resume polling when idle or completed for eventual consistency
+    refetchInterval: () => {
+      if ((storeBatch == null ? void 0 : storeBatch.status) === "running" || (storeBatch == null ? void 0 : storeBatch.status) === "starting") {
+        return false;
+      }
+      return POLLING_INTERVALS.batchDetail;
+    }
   });
+  reactExports.useEffect(() => {
+    if (query.data && batchId) {
+      useBatchStore.getState().setBatches([query.data]);
+    }
+  }, [query.data, batchId]);
+  const mergedData = reactExports.useMemo(() => {
+    if (!batchId) return void 0;
+    if (!query.data && !storeBatch) return void 0;
+    if (storeBatch && query.data) {
+      return {
+        ...query.data,
+        // Real-time fields from store take priority
+        status: storeBatch.status,
+        progress: storeBatch.progress,
+        currentStep: storeBatch.currentStep,
+        stepIndex: storeBatch.stepIndex,
+        executionId: storeBatch.executionId,
+        lastRunPassed: storeBatch.lastRunPassed,
+        // Include steps from store for real-time step updates
+        steps: storeBatch.steps
+      };
+    }
+    return query.data ?? storeBatch;
+  }, [batchId, storeBatch, query.data]);
+  return {
+    ...query,
+    data: mergedData
+  };
 }
 function useStartBatch() {
   const queryClient2 = useQueryClient();
@@ -5442,6 +5585,9 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const updateStepProgress = useBatchStore((s) => s.updateStepProgress);
   const setLastRunResult = useBatchStore((s) => s.setLastRunResult);
   const incrementBatchStats = useBatchStore((s) => s.incrementBatchStats);
+  const startStep = useBatchStore((s) => s.startStep);
+  const completeStep = useBatchStore((s) => s.completeStep);
+  const clearSteps = useBatchStore((s) => s.clearSteps);
   const addLog = useLogStore((s) => s.addLog);
   const addNotification = useNotificationStore((s) => s.addNotification);
   const handleMessage = reactExports.useCallback(
@@ -5451,6 +5597,9 @@ function WebSocketProvider({ children, url = "/ws" }) {
       switch (message.type) {
         case "batch_status": {
           console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          if (message.data.status === "running" && message.data.progress === 0) {
+            clearSteps(message.batchId);
+          }
           updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
           if (message.data.currentStep !== void 0) {
             updateStepProgress(
@@ -5465,17 +5614,27 @@ function WebSocketProvider({ children, url = "/ws" }) {
         }
         case "step_start": {
           console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
-          updateBatchStatus(message.batchId, "running", message.data.executionId);
-          updateStepProgress(
+          startStep(
             message.batchId,
             message.data.step,
             message.data.index,
-            message.data.index / message.data.total,
+            message.data.total,
             message.data.executionId
           );
+          updateBatchStatus(message.batchId, "running", message.data.executionId);
           break;
         }
         case "step_complete": {
+          console.log(`[WS] step_complete: step=${message.data.step}, index=${message.data.index}, pass=${message.data.pass}, duration=${message.data.duration}`);
+          completeStep(
+            message.batchId,
+            message.data.step,
+            message.data.index,
+            message.data.duration,
+            message.data.pass,
+            message.data.result,
+            message.data.executionId
+          );
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
@@ -5562,7 +5721,7 @@ function WebSocketProvider({ children, url = "/ws" }) {
         }
       }
     },
-    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification, queryClient2]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, startStep, completeStep, clearSteps, addLog, addNotification, queryClient2]
   );
   const connect = reactExports.useCallback(() => {
     var _a;
@@ -7615,6 +7774,9 @@ function BatchDetailPage() {
   const steps = reactExports.useMemo(() => {
     var _a;
     if (!batch) return [];
+    if (batch.steps && batch.steps.length > 0) {
+      return batch.steps;
+    }
     if (isBatchDetail$1(batch) && ((_a = batch.execution) == null ? void 0 : _a.steps)) {
       return batch.execution.steps;
     }
@@ -7671,7 +7833,7 @@ function BatchDetailPage() {
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
   const totalStepsTime = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
   const elapsedTime = isBatchDetail$1(batch) && batch.execution ? batch.execution.elapsed : batch.elapsed;
-  const progress = isBatchDetail$1(batch) && batch.execution ? batch.execution.progress : batch.progress;
+  const progress = batch.progress ?? (isBatchDetail$1(batch) && batch.execution ? batch.execution.progress : 0);
   const getFinalVerdict = () => {
     if (batch.status === "running" || batch.status === "starting") {
       return { text: "In Progress", color: "text-brand-500", icon: /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-6 h-6 animate-spin" }) };

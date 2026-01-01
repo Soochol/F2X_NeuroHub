@@ -102,6 +102,9 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
   const updateStepProgress = useBatchStore((s) => s.updateStepProgress);
   const setLastRunResult = useBatchStore((s) => s.setLastRunResult);
   const incrementBatchStats = useBatchStore((s) => s.incrementBatchStats);
+  const startStep = useBatchStore((s) => s.startStep);
+  const completeStep = useBatchStore((s) => s.completeStep);
+  const clearSteps = useBatchStore((s) => s.clearSteps);
   const addLog = useLogStore((s) => s.addLog);
   const addNotification = useNotificationStore((s) => s.addNotification);
 
@@ -113,6 +116,10 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
       switch (message.type) {
         case 'batch_status': {
           console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}`);
+          // Clear steps when starting a new execution (status changes to 'running' with new executionId)
+          if (message.data.status === 'running' && message.data.progress === 0) {
+            clearSteps(message.batchId);
+          }
           updateBatchStatus(message.batchId, message.data.status, message.data.executionId);
           if (message.data.currentStep !== undefined) {
             updateStepProgress(
@@ -128,19 +135,31 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
 
         case 'step_start': {
           console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
-          // Note: executionId is passed for race condition detection in the store
-          updateBatchStatus(message.batchId, 'running', message.data.executionId);
-          updateStepProgress(
+          // Update step tracking in store
+          startStep(
             message.batchId,
             message.data.step,
             message.data.index,
-            message.data.index / message.data.total,
+            message.data.total,
             message.data.executionId
           );
+          // Also update batch status
+          updateBatchStatus(message.batchId, 'running', message.data.executionId);
           break;
         }
 
         case 'step_complete': {
+          console.log(`[WS] step_complete: step=${message.data.step}, index=${message.data.index}, pass=${message.data.pass}, duration=${message.data.duration}`);
+          // Update step in store
+          completeStep(
+            message.batchId,
+            message.data.step,
+            message.data.index,
+            message.data.duration,
+            message.data.pass,
+            message.data.result,
+            message.data.executionId
+          );
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
@@ -239,7 +258,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
       }
     },
-    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, addLog, addNotification, queryClient]
+    [updateBatchStatus, updateStepProgress, setLastRunResult, incrementBatchStats, startStep, completeStep, clearSteps, addLog, addNotification, queryClient]
   );
 
   // Connect to WebSocket

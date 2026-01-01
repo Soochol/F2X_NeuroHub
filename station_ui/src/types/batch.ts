@@ -89,6 +89,8 @@ export interface Batch {
   totalSteps?: number;
   /** Step names in order */
   stepNames?: string[];
+  /** Step results (real-time updates from WebSocket) */
+  steps?: StepResult[];
   /** Progress (0.0 to 1.0) */
   progress: number;
   /** Current execution ID (for distinguishing between sequence runs) */

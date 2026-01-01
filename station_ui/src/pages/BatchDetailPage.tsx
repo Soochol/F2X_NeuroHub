@@ -65,10 +65,16 @@ export function BatchDetailPage() {
     return batchId ? getBatchStats(batchId) : undefined;
   }, [batchId, getBatchStats]);
 
-  // Get steps from BatchDetail or create empty array
+  // Get steps from store (real-time updates) or API (batch.execution.steps)
   // IMPORTANT: This useMemo must be before any early returns to comply with Rules of Hooks
+  // Priority: batch.steps (from store, real-time) > batch.execution.steps (from API)
   const steps: StepResult[] = useMemo(() => {
     if (!batch) return [];
+    // Prefer store steps for real-time updates during execution
+    if (batch.steps && batch.steps.length > 0) {
+      return batch.steps;
+    }
+    // Fall back to API data for historical execution details
     if (isBatchDetail(batch) && batch.execution?.steps) {
       return batch.execution.steps;
     }
@@ -147,10 +153,11 @@ export function BatchDetailPage() {
     ? batch.execution.elapsed
     : batch.elapsed;
 
-  // Calculate progress
-  const progress = isBatchDetail(batch) && batch.execution
+  // Calculate progress - prefer batch.progress which is merged from store for real-time updates
+  // batch.execution.progress is only updated via API polling, which is slower
+  const progress = batch.progress ?? (isBatchDetail(batch) && batch.execution
     ? batch.execution.progress
-    : batch.progress;
+    : 0);
 
   // Determine final verdict
   const getFinalVerdict = (): { text: string; color: string; icon: React.ReactNode } | null => {
