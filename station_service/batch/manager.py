@@ -23,6 +23,7 @@ from station_service.models.config import BatchConfig, StationConfig
 from station_service.batch.process import BatchProcess
 from station_service.storage.database import Database
 from station_service.storage.repositories.execution_repository import ExecutionRepository
+from station_service.sequence.loader import SequenceLoader
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ class BatchManager:
 
         self._event_emitter = event_emitter or get_event_emitter()
         self._batches: Dict[str, BatchProcess] = {}
+        self._sequence_loader = SequenceLoader("sequences")
 
         self._running = False
         self._monitor_task: Optional[asyncio.Task] = None
@@ -234,6 +236,17 @@ class BatchManager:
             raise BatchAlreadyRunningError(batch_id)
 
         batch_config = self._batch_configs[batch_id]
+
+        # Auto-load hardware from manifest if not explicitly provided
+        if not batch_config.hardware and batch_config.sequence_package:
+            manifest_hardware = await self._load_hardware_from_manifest(
+                batch_config.sequence_package
+            )
+            if manifest_hardware:
+                # Update config with hardware from manifest
+                batch_config = batch_config.model_copy(update={"hardware": manifest_hardware})
+                # Store updated config for future reference
+                self._batch_configs[batch_id] = batch_config
 
         # Create batch process
         batch = BatchProcess(
@@ -662,6 +675,50 @@ class BatchManager:
                 batch_id=event.batch_id,
                 data=event.data,
             ))
+
+    async def _load_hardware_from_manifest(
+        self,
+        sequence_package: str,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Load hardware configuration from sequence manifest.
+
+        This enables automatic hardware discovery when creating batches,
+        so API callers don't need to explicitly provide hardware config.
+
+        Args:
+            sequence_package: Name of the sequence package (folder or manifest name)
+
+        Returns:
+            Hardware configuration dict suitable for BatchConfig.hardware,
+            or empty dict if not found/error.
+        """
+        try:
+            manifest = await self._sequence_loader.load_package(sequence_package)
+            if manifest and manifest.hardware:
+                hardware_config: Dict[str, Dict[str, Any]] = {}
+                for hw_id, hw_def in manifest.hardware.items():
+                    hardware_config[hw_id] = {
+                        "type": hw_def.driver,
+                        "driver": hw_def.class_name,
+                        "config": {},
+                        "display_name": hw_def.display_name,
+                        "description": hw_def.description,
+                    }
+                    # Include config schema if available
+                    if hw_def.config_schema:
+                        hardware_config[hw_id]["config_schema"] = {
+                            k: v.model_dump() for k, v in hw_def.config_schema.items()
+                        }
+                logger.info(
+                    f"Loaded {len(hardware_config)} hardware devices from manifest '{sequence_package}': "
+                    f"{list(hardware_config.keys())}"
+                )
+                return hardware_config
+        except Exception as e:
+            logger.warning(f"Failed to load hardware from manifest '{sequence_package}': {e}")
+
+        return {}
 
     async def get_driver_instance(self, batch_id: str, hardware_id: str) -> Any:
         """
