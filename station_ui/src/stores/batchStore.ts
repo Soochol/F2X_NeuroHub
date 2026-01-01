@@ -39,6 +39,49 @@ function cleanupLegacyLocalBatches(): void {
 // Run cleanup on module load
 cleanupLegacyLocalBatches();
 
+/**
+ * Ensures a batch exists in the store, creating a minimal entry if needed.
+ * This handles WebSocket events arriving before API data.
+ *
+ * @param batches - Current batches Map
+ * @param batchId - Batch ID to ensure exists
+ * @param options - Optional fields to set on new batch
+ * @returns Tuple of [updated batches Map, batch object guaranteed to exist]
+ */
+function ensureBatchExists(
+  batches: Map<string, Batch>,
+  batchId: string,
+  options?: {
+    status?: BatchStatus;
+    executionId?: string;
+    progress?: number;
+  }
+): [Map<string, Batch>, Batch] {
+  const existing = batches.get(batchId);
+  if (existing) {
+    return [batches, existing];
+  }
+
+  // Create minimal batch entry for WebSocket events arriving before API data
+  const newBatches = new Map(batches);
+  const newBatch: Batch = {
+    id: batchId,
+    name: 'Loading...',
+    status: options?.status ?? 'running',
+    progress: options?.progress ?? 0,
+    executionId: options?.executionId,
+    sequencePackage: '',
+    elapsed: 0,
+    hardwareConfig: {},
+    autoStart: false,
+    steps: [],
+  };
+  newBatches.set(batchId, newBatch);
+  console.log(`[batchStore] ensureBatchExists: Created minimal batch for ${batchId.slice(0, 8)}...`);
+
+  return [newBatches, newBatch];
+}
+
 interface BatchState {
   // State
   batches: Map<string, Batch>;
@@ -110,8 +153,13 @@ export const useBatchStore = create<BatchState>((set, get) => ({
             continue;
           }
 
+          // === Clear Ownership Model for Steps ===
+          // - Running/starting/stopping: WebSocket is Source of Truth (real-time events)
+          // - Completed: API is Source of Truth (persisted in DB)
+          // This is simpler and more predictable than merge logic
+
           // Preserve real-time WebSocket updates for running/starting/stopping batches
-          // (API polling data might be stale during active execution or transitions)
+          // WebSocket owns ALL data during active execution
           if (existing.status === 'running' || existing.status === 'starting' || existing.status === 'stopping') {
             newBatches.set(batch.id, {
               ...batch,
@@ -121,6 +169,19 @@ export const useBatchStore = create<BatchState>((set, get) => ({
               progress: existing.progress,
               lastRunPassed: existing.lastRunPassed,
               executionId: existing.executionId,
+              steps: existing.steps || [],  // WebSocket owns steps during execution
+            });
+            continue;
+          }
+
+          // For completed batches: API owns steps (persisted data)
+          // Fallback to existing steps only if API returns empty (shouldn't happen normally)
+          if (existing.status === 'completed' && batch.status === 'completed') {
+            const apiSteps = batch.steps || [];
+            const existingSteps = existing.steps || [];
+            newBatches.set(batch.id, {
+              ...batch,
+              steps: apiSteps.length > 0 ? apiSteps : existingSteps,
             });
             continue;
           }
@@ -295,16 +356,20 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
   startStep: (batchId, stepName, stepIndex, totalSteps, executionId?) =>
     set((state) => {
-      const batch = state.batches.get(batchId);
-      if (!batch) return state;
+      // Ensure batch exists (handles WS events before API data)
+      const [batchesWithEntry, batch] = ensureBatchExists(
+        state.batches,
+        batchId,
+        { status: 'running', executionId }
+      );
 
-      // Race condition guard
+      // Race condition guard - only check if both have executionId
       if (executionId && batch.executionId && batch.executionId !== executionId) {
         console.log(`[batchStore] startStep IGNORED: executionId mismatch`);
         return state;
       }
 
-      const newBatches = new Map(state.batches);
+      const newBatches = new Map(batchesWithEntry);
       const currentSteps = batch.steps || [];
 
       // Check if step already exists
@@ -353,16 +418,20 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
   completeStep: (batchId, stepName, stepIndex, duration, pass, result?, executionId?) =>
     set((state) => {
-      const batch = state.batches.get(batchId);
-      if (!batch) return state;
+      // Ensure batch exists (handles WS events before API data)
+      const [batchesWithEntry, batch] = ensureBatchExists(
+        state.batches,
+        batchId,
+        { status: 'running', executionId }
+      );
 
-      // Race condition guard
+      // Race condition guard - only check if both have executionId
       if (executionId && batch.executionId && batch.executionId !== executionId) {
         console.log(`[batchStore] completeStep IGNORED: executionId mismatch`);
         return state;
       }
 
-      const newBatches = new Map(state.batches);
+      const newBatches = new Map(batchesWithEntry);
       const currentSteps = batch.steps || [];
 
       // Find and update the step

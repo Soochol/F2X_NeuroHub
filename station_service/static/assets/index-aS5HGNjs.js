@@ -1218,6 +1218,28 @@ function cleanupLegacyLocalBatches() {
   }
 }
 cleanupLegacyLocalBatches();
+function ensureBatchExists(batches2, batchId, options) {
+  const existing = batches2.get(batchId);
+  if (existing) {
+    return [batches2, existing];
+  }
+  const newBatches = new Map(batches2);
+  const newBatch = {
+    id: batchId,
+    name: "Loading...",
+    status: (options == null ? void 0 : options.status) ?? "running",
+    progress: (options == null ? void 0 : options.progress) ?? 0,
+    executionId: options == null ? void 0 : options.executionId,
+    sequencePackage: "",
+    elapsed: 0,
+    hardwareConfig: {},
+    autoStart: false,
+    steps: []
+  };
+  newBatches.set(batchId, newBatch);
+  console.log(`[batchStore] ensureBatchExists: Created minimal batch for ${batchId.slice(0, 8)}...`);
+  return [newBatches, newBatch];
+}
 const useBatchStore = create((set, get) => ({
   // Initial state
   batches: /* @__PURE__ */ new Map(),
@@ -1244,7 +1266,18 @@ const useBatchStore = create((set, get) => ({
             stepIndex: existing.stepIndex,
             progress: existing.progress,
             lastRunPassed: existing.lastRunPassed,
-            executionId: existing.executionId
+            executionId: existing.executionId,
+            steps: existing.steps || []
+            // WebSocket owns steps during execution
+          });
+          continue;
+        }
+        if (existing.status === "completed" && batch.status === "completed") {
+          const apiSteps = batch.steps || [];
+          const existingSteps = existing.steps || [];
+          newBatches.set(batch.id, {
+            ...batch,
+            steps: apiSteps.length > 0 ? apiSteps : existingSteps
           });
           continue;
         }
@@ -1380,13 +1413,16 @@ const useBatchStore = create((set, get) => ({
     return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   startStep: (batchId, stepName, stepIndex, totalSteps, executionId) => set((state) => {
-    const batch = state.batches.get(batchId);
-    if (!batch) return state;
+    const [batchesWithEntry, batch] = ensureBatchExists(
+      state.batches,
+      batchId,
+      { status: "running", executionId }
+    );
     if (executionId && batch.executionId && batch.executionId !== executionId) {
       console.log(`[batchStore] startStep IGNORED: executionId mismatch`);
       return state;
     }
-    const newBatches = new Map(state.batches);
+    const newBatches = new Map(batchesWithEntry);
     const currentSteps = batch.steps || [];
     const existingIndex = currentSteps.findIndex((s) => s.name === stepName && s.order === stepIndex + 1);
     let newSteps;
@@ -1426,13 +1462,16 @@ const useBatchStore = create((set, get) => ({
     return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
   }),
   completeStep: (batchId, stepName, stepIndex, duration, pass, result, executionId) => set((state) => {
-    const batch = state.batches.get(batchId);
-    if (!batch) return state;
+    const [batchesWithEntry, batch] = ensureBatchExists(
+      state.batches,
+      batchId,
+      { status: "running", executionId }
+    );
     if (executionId && batch.executionId && batch.executionId !== executionId) {
       console.log(`[batchStore] completeStep IGNORED: executionId mismatch`);
       return state;
     }
-    const newBatches = new Map(state.batches);
+    const newBatches = new Map(batchesWithEntry);
     const currentSteps = batch.steps || [];
     const existingIndex = currentSteps.findIndex((s) => s.name === stepName);
     let newSteps;
