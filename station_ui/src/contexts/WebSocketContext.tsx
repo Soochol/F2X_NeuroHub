@@ -18,6 +18,7 @@ import { useLogStore } from '../stores/logStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { WEBSOCKET_CONFIG } from '../config';
 import { queryKeys } from '../api/queryClient';
+import { transformKeys } from '../utils/transform';
 import type { ClientMessage, ServerMessage } from '../types';
 
 /**
@@ -55,33 +56,6 @@ function getWebSocketUrl(path: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
   return `${protocol}//${host}${path}`;
-}
-
-/**
- * Convert snake_case keys to camelCase recursively.
- */
-function snakeToCamel(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function transformKeys<T>(obj: unknown): T {
-  if (obj === null || obj === undefined) {
-    return obj as T;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => transformKeys(item)) as T;
-  }
-
-  if (typeof obj === 'object') {
-    const transformed: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      transformed[snakeToCamel(key)] = transformKeys(value);
-    }
-    return transformed as T;
-  }
-
-  return obj as T;
 }
 
 export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderProps) {

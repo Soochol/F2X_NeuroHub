@@ -4848,10 +4848,13 @@ const {
   getAdapter,
   mergeConfig
 } = axios;
-function snakeToCamel$1(str) {
+function snakeToCamel(str) {
   return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 }
-function transformKeys$1(obj) {
+function camelToSnake(str) {
+  return str.replace(/([A-Z])/g, "_$1").toLowerCase();
+}
+function transformKeys(obj, options) {
   if (obj === null || obj === void 0) {
     return obj;
   }
@@ -4859,12 +4862,13 @@ function transformKeys$1(obj) {
     return obj;
   }
   if (Array.isArray(obj)) {
-    return obj.map((item) => transformKeys$1(item));
+    return obj.map((item) => transformKeys(item));
   }
   if (typeof obj === "object" && obj.constructor === Object) {
     const transformed = {};
     for (const [key, value] of Object.entries(obj)) {
-      transformed[snakeToCamel$1(key)] = transformKeys$1(value);
+      const newKey = snakeToCamel(key);
+      transformed[newKey] = transformKeys(value);
     }
     return transformed;
   }
@@ -4886,7 +4890,7 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => {
     if (response.data) {
-      response.data = transformKeys$1(response.data);
+      response.data = transformKeys(response.data);
     }
     return response;
   },
@@ -5041,8 +5045,9 @@ async function getBatch(batchId) {
   const hardwareStatus = {};
   if (data.hardware) {
     for (const [hwId, hw] of Object.entries(data.hardware)) {
-      hardwareStatus[hwId] = {
-        id: hwId,
+      const originalHwId = camelToSnake(hwId);
+      hardwareStatus[originalHwId] = {
+        id: originalHwId,
         driver: hw.driver || hw.type || "unknown",
         status: hw.connected ? "connected" : "disconnected",
         connected: hw.connected || false,
@@ -5172,7 +5177,12 @@ async function getAllBatchStatistics() {
   const response = await apiClient.get(
     "/batches/statistics"
   );
-  return extractData(response);
+  const data = extractData(response);
+  const result = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[camelToSnake(key)] = value;
+  }
+  return result;
 }
 const batches = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
@@ -5689,25 +5699,6 @@ function getWebSocketUrl(path) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.host;
   return `${protocol}//${host}${path}`;
-}
-function snakeToCamel(str) {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-function transformKeys(obj) {
-  if (obj === null || obj === void 0) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => transformKeys(item));
-  }
-  if (typeof obj === "object") {
-    const transformed = {};
-    for (const [key, value] of Object.entries(obj)) {
-      transformed[snakeToCamel(key)] = transformKeys(value);
-    }
-    return transformed;
-  }
-  return obj;
 }
 function WebSocketProvider({ children, url = "/ws" }) {
   const queryClient2 = useQueryClient();
@@ -8142,15 +8133,22 @@ function BatchesPage() {
   const navigate = useNavigate();
   const { data: batches2, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
+  const { data: allStatistics } = useAllBatchStatistics();
   const { subscribe, isConnected } = useWebSocket();
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
   const isServerConnected = isConnected && websocketStatus === "connected";
   const batchesMap = useBatchStore((state) => state.batches);
   const batchesVersion = useBatchStore((state) => state.batchesVersion);
   const batchStatistics = useBatchStore((state) => state.batchStatistics);
+  const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
+  reactExports.useEffect(() => {
+    if (allStatistics) {
+      setAllBatchStatistics(allStatistics);
+    }
+  }, [allStatistics, setAllBatchStatistics]);
   const storeBatches = reactExports.useMemo(() => {
     const arr = Array.from(batchesMap.values());
     console.log(`[BatchesPage] storeBatches recalc: version=${batchesVersion}, size=${arr.length}`, arr.map((b) => `${b.id.slice(0, 8)}:${b.status}`));
@@ -8208,6 +8206,7 @@ function BatchesPage() {
       BatchList,
       {
         batches: displayBatches,
+        statistics: batchStatistics,
         onSelect: handleSelectBatch
       },
       `batch-list-${batchesVersion}`

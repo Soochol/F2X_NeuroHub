@@ -340,6 +340,39 @@ class IPCServer:
         """
         return batch_id in self._worker_identities
 
+    async def wait_for_worker(
+        self,
+        batch_id: str,
+        timeout: float = 10.0,
+        poll_interval: float = 0.1,
+    ) -> bool:
+        """
+        Wait for a worker to connect and register.
+
+        Args:
+            batch_id: The batch ID to wait for
+            timeout: Maximum wait time in seconds
+            poll_interval: Time between checks in seconds
+
+        Returns:
+            True if worker connected within timeout
+
+        Raises:
+            IPCTimeoutError: If worker doesn't connect within timeout
+        """
+        elapsed = 0.0
+        while elapsed < timeout:
+            if self.is_worker_connected(batch_id):
+                logger.info(f"Worker {batch_id} connected after {elapsed:.2f}s")
+                return True
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+        raise IPCTimeoutError(
+            f"Worker '{batch_id}' failed to connect",
+            timeout * 1000
+        )
+
     async def _event_loop(self) -> None:
         """Background task to receive and dispatch events."""
         logger.info("[IPC Server] Event loop started - waiting for worker events on SUB socket")

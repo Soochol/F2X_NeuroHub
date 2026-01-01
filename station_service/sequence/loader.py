@@ -95,6 +95,49 @@ class SequenceLoader:
         logger.info(f"Discovered {len(packages)} sequence packages")
         return packages
 
+    async def _find_package_by_manifest_name(self, manifest_name: str) -> Optional[Path]:
+        """
+        Find a package by its manifest name (when folder name differs from manifest name).
+
+        Scans all packages in the directory and checks their manifest names.
+
+        Args:
+            manifest_name: The manifest name to search for.
+
+        Returns:
+            Path to the package if found, None otherwise.
+        """
+        packages_path = self.packages_path
+        if not packages_path.exists():
+            return None
+
+        for item in packages_path.iterdir():
+            if not item.is_dir():
+                continue
+
+            # Skip hidden directories and __pycache__
+            if item.name.startswith(".") or item.name == "__pycache__":
+                continue
+
+            manifest_path = item / self.MANIFEST_FILENAME
+            if not manifest_path.exists():
+                continue
+
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest_data = yaml.safe_load(f)
+
+                if manifest_data and manifest_data.get("name") == manifest_name:
+                    logger.info(f"Found package '{manifest_name}' in folder '{item.name}'")
+                    # Cache the mapping for future lookups
+                    self._name_to_path[manifest_name] = item
+                    return item
+            except Exception as e:
+                logger.debug(f"Error reading manifest in {item.name}: {e}")
+                continue
+
+        return None
+
     async def load_package(self, package_name: str) -> SequenceManifest:
         """
         Load and validate a sequence package manifest.
@@ -124,10 +167,15 @@ class SequenceLoader:
             package_path = self.packages_path / package_name
 
         if not package_path.exists():
-            raise PackageError(
-                f"Package not found: {package_name}",
-                package_name=package_name,
-            )
+            # Folder doesn't exist - try to find by scanning manifest names
+            found_path = await self._find_package_by_manifest_name(package_name)
+            if found_path:
+                package_path = found_path
+            else:
+                raise PackageError(
+                    f"Package not found: {package_name}",
+                    package_name=package_name,
+                )
 
         # Validate package structure
         self._validate_package_structure(package_path)

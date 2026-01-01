@@ -12,6 +12,7 @@ import {
   useWebSocket,
   useSequenceList,
   useCreateBatches,
+  useAllBatchStatistics,
 } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { useConnectionStore } from '../stores/connectionStore';
@@ -29,6 +30,7 @@ export function BatchesPage() {
 
   const { data: batches, isLoading: batchesLoading } = useBatchList();
   const { data: sequences } = useSequenceList();
+  const { data: allStatistics } = useAllBatchStatistics();
   const { subscribe, isConnected } = useWebSocket();
 
   // Connection status for Create Batch button
@@ -40,9 +42,17 @@ export function BatchesPage() {
   const batchesMap = useBatchStore((state) => state.batches);
   const batchesVersion = useBatchStore((state) => state.batchesVersion);
   const batchStatistics = useBatchStore((state) => state.batchStatistics);
+  const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
   const isWizardOpen = useBatchStore((state) => state.isWizardOpen);
   const openWizard = useBatchStore((state) => state.openWizard);
   const closeWizard = useBatchStore((state) => state.closeWizard);
+
+  // Sync API statistics to store for real-time updates
+  useEffect(() => {
+    if (allStatistics) {
+      setAllBatchStatistics(allStatistics);
+    }
+  }, [allStatistics, setAllBatchStatistics]);
 
   // Convert Map to array - batchesVersion in deps ensures recalculation on updates
   const storeBatches = useMemo(() => {
@@ -121,6 +131,7 @@ export function BatchesPage() {
       <BatchList
         key={`batch-list-${batchesVersion}`}
         batches={displayBatches}
+        statistics={batchStatistics}
         onSelect={handleSelectBatch}
       />
 

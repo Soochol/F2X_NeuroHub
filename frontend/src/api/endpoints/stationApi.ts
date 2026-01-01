@@ -55,13 +55,20 @@ const createStationClient = (baseUrl: string): AxiosInstance => {
 const snakeToCamel = (str: string): string =>
   str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 
-const transformKeys = <T>(obj: unknown): T => {
+interface TransformKeysOptions {
+  /** If true, top-level keys are preserved (useful for ID-keyed dictionaries) */
+  preserveTopLevelKeys?: boolean;
+}
+
+const transformKeys = <T>(obj: unknown, options?: TransformKeysOptions): T => {
   if (Array.isArray(obj)) {
-    return obj.map(transformKeys) as T;
+    return obj.map((item) => transformKeys(item)) as T;
   }
   if (obj !== null && typeof obj === 'object') {
     return Object.entries(obj).reduce((acc, [key, value]) => {
-      acc[snakeToCamel(key)] = transformKeys(value);
+      const newKey = options?.preserveTopLevelKeys ? key : snakeToCamel(key);
+      // Child objects always get full transformation (no preserveTopLevelKeys)
+      acc[newKey] = transformKeys(value);
       return acc;
     }, {} as Record<string, unknown>) as T;
   }
@@ -134,12 +141,16 @@ export class StationServiceClient {
 
   /**
    * Get batch statistics
+   * Note: Batch IDs are used as dictionary keys and must remain as snake_case
+   * to match batch.id. We preserve top-level keys while transforming values.
    */
   async getBatchStatistics(): Promise<Record<string, BatchStatistics>> {
     const response = await this.client.get<StationApiResponse<Record<string, BatchStatistics>>>(
       '/api/batches/statistics'
     );
-    return transformKeys<Record<string, BatchStatistics>>(response.data.data);
+    return transformKeys<Record<string, BatchStatistics>>(response.data.data, {
+      preserveTopLevelKeys: true,
+    });
   }
 
   /**

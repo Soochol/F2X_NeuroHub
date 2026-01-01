@@ -15,6 +15,7 @@ from station_service.core.exceptions import (
     BatchError,
     BatchNotFoundError,
     BatchNotRunningError,
+    IPCTimeoutError,
 )
 from station_service.ipc import IPCServer, IPCEvent, CommandType
 from station_service.models.batch import BatchStatus
@@ -247,14 +248,24 @@ class BatchManager:
 
         self._batches[batch_id] = batch
 
-        # Emit event
+        # Wait for worker to be ready for commands
+        try:
+            await self._ipc_server.wait_for_worker(batch_id, timeout=10.0)
+        except IPCTimeoutError:
+            # Cleanup on failure
+            logger.error(f"Batch {batch_id} worker failed to connect within timeout")
+            del self._batches[batch_id]
+            await batch.stop()
+            raise BatchError(f"Batch '{batch_id}' worker failed to initialize within timeout")
+
+        # Emit event (only after worker is ready)
         await self._event_emitter.emit(Event(
             type=EventType.BATCH_STARTED,
             batch_id=batch_id,
             data={"pid": batch.pid},
         ))
 
-        logger.info(f"Batch {batch_id} started (PID: {batch.pid})")
+        logger.info(f"Batch {batch_id} started and ready (PID: {batch.pid})")
 
         return batch
 

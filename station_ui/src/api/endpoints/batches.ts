@@ -18,6 +18,7 @@ import type {
   UpdateBatchConfigRequest,
 } from '../../types';
 import apiClient, { extractData } from '../client';
+import { camelToSnake } from '../../utils/transform';
 
 /**
  * Get all batches.
@@ -78,6 +79,8 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
   const data = extractData(response);
 
   // Transform hardware from API format to HardwareStatus format
+  // Note: The global interceptor transforms keys to camelCase, but hardware IDs
+  // should remain as snake_case. We convert them back here.
   const hardwareStatus: Record<string, {
     id: string;
     driver: string;
@@ -90,8 +93,10 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
 
   if (data.hardware) {
     for (const [hwId, hw] of Object.entries(data.hardware)) {
-      hardwareStatus[hwId] = {
-        id: hwId,
+      // Convert camelCase key back to snake_case (e.g., "powerSupply" -> "power_supply")
+      const originalHwId = camelToSnake(hwId);
+      hardwareStatus[originalHwId] = {
+        id: originalHwId,
         driver: hw.driver || hw.type || 'unknown',
         status: hw.connected ? 'connected' : 'disconnected',
         connected: hw.connected || false,
@@ -309,12 +314,24 @@ export async function getBatchStatistics(batchId: string): Promise<BatchStatisti
 
 /**
  * Get all batch statistics.
+ *
+ * Note: The API client interceptor transforms all keys to camelCase,
+ * but batch_id keys in the statistics dictionary must remain as snake_case
+ * to match batch.id. We convert them back after the interceptor runs.
  */
 export async function getAllBatchStatistics(): Promise<Record<string, BatchStatistics>> {
   const response = await apiClient.get<ApiResponse<Record<string, BatchStatistics>>>(
     '/batches/statistics'
   );
-  return extractData(response);
+  const data = extractData(response);
+
+  // Convert camelCase keys back to snake_case (e.g., "sensorInspection" -> "sensor_inspection")
+  // See docs/api-conventions.md for why this is needed for ID-keyed dictionaries
+  const result: Record<string, BatchStatistics> = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[camelToSnake(key)] = value;
+  }
+  return result;
 }
 
 /**

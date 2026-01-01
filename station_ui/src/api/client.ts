@@ -4,39 +4,7 @@
 
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import type { ApiResponse, ErrorResponse } from '../types';
-
-/**
- * Convert snake_case keys to camelCase recursively.
- */
-function snakeToCamel(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function transformKeys<T>(obj: unknown): T {
-  if (obj === null || obj === undefined) {
-    return obj as T;
-  }
-
-  // Skip transformation for Blob, ArrayBuffer, and other binary types
-  if (obj instanceof Blob || obj instanceof ArrayBuffer || obj instanceof FormData) {
-    return obj as T;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => transformKeys(item)) as T;
-  }
-
-  // Only transform plain objects (not class instances)
-  if (typeof obj === 'object' && obj.constructor === Object) {
-    const transformed: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      transformed[snakeToCamel(key)] = transformKeys(value);
-    }
-    return transformed as T;
-  }
-
-  return obj as T;
-}
+import { transformKeys } from '../utils/transform';
 
 /**
  * API client instance configured for Station Service.

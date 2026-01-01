@@ -2,18 +2,15 @@
 Sequence-related API schemas for Station Service.
 
 This module defines request and response schemas for sequence package operations.
+
+Note: All schemas use snake_case for field names. The frontend handles
+transformation to camelCase via response interceptors. See docs/api-conventions.md.
 """
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-def to_camel(string: str) -> str:
-    """Convert snake_case to camelCase."""
-    components = string.split('_')
-    return components[0] + ''.join(word.capitalize() for word in components[1:])
+from pydantic import BaseModel, Field
 
 
 # ============================================================================
@@ -29,11 +26,6 @@ class HardwareConfigSchema(BaseModel):
         required: Whether the field is required
         default: Default value if not specified
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     type: str = Field(..., description="Data type")
     required: Optional[bool] = Field(False, description="Whether the field is required")
     default: Optional[Any] = Field(None, description="Default value")
@@ -50,11 +42,6 @@ class HardwareDefinition(BaseModel):
         description: Hardware description
         config_schema: Configuration schema for this hardware
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     id: str = Field(..., description="Hardware device identifier")
     display_name: str = Field(..., description="Human-readable display name")
     driver: str = Field(..., description="Driver module name")
@@ -79,11 +66,6 @@ class ParameterDefinition(BaseModel):
         unit: Unit of measurement
         options: Available options (for enum types)
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     name: str = Field(..., description="Parameter name")
     display_name: str = Field(..., description="Human-readable display name")
     type: str = Field(..., description="Data type (string, integer, float, boolean)")
@@ -107,11 +89,6 @@ class StepDefinition(BaseModel):
         cleanup: Whether this is a cleanup step (always runs)
         condition: Condition expression for conditional execution
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     order: int = Field(..., description="Step execution order (1-based)", ge=1)
     name: str = Field(..., description="Step name")
     display_name: str = Field(..., description="Human-readable display name")
@@ -138,11 +115,6 @@ class SequenceSummary(BaseModel):
         path: Path to the sequence package
         updated_at: Last update timestamp
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="Sequence version")
     display_name: str = Field(..., description="Human-readable display name")
@@ -167,11 +139,6 @@ class SequenceDetail(BaseModel):
         parameters: List of parameter definitions
         steps: List of step definitions
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="Sequence version")
     display_name: str = Field(..., description="Human-readable display name")
@@ -239,11 +206,6 @@ class SequenceUpdateResponse(BaseModel):
         version: New version after update
         updated_at: Update timestamp
     """
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-
     name: str = Field(..., description="Sequence package name")
     version: str = Field(..., description="New version after update")
     updated_at: datetime = Field(..., description="Update timestamp")
