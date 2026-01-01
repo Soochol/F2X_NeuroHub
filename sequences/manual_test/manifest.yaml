@@ -1,0 +1,497 @@
+# Manual Test Sequence Manifest
+# Demonstration sequence for testing the enhanced manual control page
+
+name: manual_test_v2
+version: "1.0.0"
+author: "NeuroHub Team"
+description: |
+  A demonstration sequence designed for testing the enhanced manual control page.
+  Features multiple hardware devices (power supply, GPIO) with various command types
+  and step-by-step manual execution support.
+
+# Execution modes
+modes:
+  automatic: true          # Standard sequential execution
+  manual: true             # Step-by-step manual execution
+  interactive: false       # Reserved for future use
+
+# Entry point
+entry_point:
+  module: sequence
+  class: ManualTestSequence
+
+# Hardware definitions with manual control commands
+hardware:
+  power_supply:
+    display_name: "Programmable Power Supply"
+    driver: mock_power_supply
+    class: MockPowerSupply
+    description: "Simulated programmable DC power supply (0-30V, 0-5A)"
+
+    # Manual control command definitions for UI
+    manual_commands:
+      # Measurement commands
+      - name: measure_voltage
+        display_name: "Measure Voltage"
+        category: measurement
+        description: "Measure the actual output voltage"
+        parameters: []
+        returns:
+          type: float
+          unit: "V"
+
+      - name: measure_current
+        display_name: "Measure Current"
+        category: measurement
+        description: "Measure the actual output current"
+        parameters: []
+        returns:
+          type: float
+          unit: "A"
+
+      - name: measure_power
+        display_name: "Measure Power"
+        category: measurement
+        description: "Measure the actual output power"
+        parameters: []
+        returns:
+          type: float
+          unit: "W"
+
+      - name: get_status
+        display_name: "Get Status"
+        category: measurement
+        description: "Get comprehensive power supply status"
+        parameters: []
+
+      # Control commands
+      - name: output_on
+        display_name: "Output ON"
+        category: control
+        description: "Enable the power supply output"
+        parameters: []
+
+      - name: output_off
+        display_name: "Output OFF"
+        category: control
+        description: "Disable the power supply output"
+        parameters: []
+
+      - name: set_voltage
+        display_name: "Set Voltage"
+        category: control
+        description: "Set the output voltage"
+        parameters:
+          - name: voltage
+            display_name: "Voltage"
+            type: number
+            min: 0
+            max: 30
+            default: 5.0
+            unit: "V"
+
+      - name: set_current
+        display_name: "Set Current Limit"
+        category: control
+        description: "Set the current limit"
+        parameters:
+          - name: current
+            display_name: "Current"
+            type: number
+            min: 0
+            max: 5
+            default: 1.0
+            unit: "A"
+
+      - name: ramp_voltage
+        display_name: "Ramp Voltage"
+        category: control
+        description: "Gradually ramp voltage to target"
+        parameters:
+          - name: target
+            display_name: "Target Voltage"
+            type: number
+            min: 0
+            max: 30
+            default: 12.0
+            unit: "V"
+          - name: step
+            display_name: "Step Size"
+            type: number
+            min: 0.1
+            max: 5
+            default: 0.5
+            unit: "V"
+          - name: delay
+            display_name: "Step Delay"
+            type: number
+            min: 0.01
+            max: 1
+            default: 0.1
+            unit: "s"
+
+      # Configuration commands
+      - name: set_ovp
+        display_name: "Set OVP"
+        category: configuration
+        description: "Set Over-Voltage Protection threshold"
+        parameters:
+          - name: voltage
+            display_name: "OVP Threshold"
+            type: number
+            min: 0
+            max: 33
+            default: 32
+            unit: "V"
+
+      - name: set_ocp
+        display_name: "Set OCP"
+        category: configuration
+        description: "Set Over-Current Protection threshold"
+        parameters:
+          - name: current
+            display_name: "OCP Threshold"
+            type: number
+            min: 0
+            max: 5.5
+            default: 5.2
+            unit: "A"
+
+      - name: clear_protection
+        display_name: "Clear Protection"
+        category: configuration
+        description: "Clear protection status"
+        parameters: []
+
+      # Diagnostic commands
+      - name: reset
+        display_name: "Reset"
+        category: diagnostic
+        description: "Reset to default state"
+        parameters: []
+
+      - name: identify
+        display_name: "Identify"
+        category: diagnostic
+        description: "Get device identification"
+        parameters: []
+
+    config_schema:
+      port:
+        type: string
+        default: "/dev/ttyUSB0"
+        description: "Serial port for connection"
+      max_voltage:
+        type: float
+        default: 30.0
+        description: "Maximum voltage limit"
+      max_current:
+        type: float
+        default: 5.0
+        description: "Maximum current limit"
+
+  gpio:
+    display_name: "GPIO Controller"
+    driver: mock_gpio
+    class: MockGPIOController
+    description: "Simulated 16-channel GPIO controller (8 inputs, 8 outputs)"
+
+    manual_commands:
+      # Measurement/Read commands
+      - name: read_input
+        display_name: "Read Input"
+        category: measurement
+        description: "Read the state of a digital input"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+
+      - name: read_all_inputs
+        display_name: "Read All Inputs"
+        category: measurement
+        description: "Read all digital inputs"
+        parameters: []
+
+      - name: read_output
+        display_name: "Read Output"
+        category: measurement
+        description: "Read the state of a digital output"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+
+      - name: read_all_outputs
+        display_name: "Read All Outputs"
+        category: measurement
+        description: "Read all digital outputs"
+        parameters: []
+
+      - name: get_io_status
+        display_name: "Get I/O Status"
+        category: measurement
+        description: "Get comprehensive I/O status"
+        parameters: []
+
+      # Control commands
+      - name: set_output
+        display_name: "Set Output"
+        category: control
+        description: "Set the state of a digital output"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+          - name: state
+            display_name: "State"
+            type: boolean
+            default: false
+
+      - name: toggle_output
+        display_name: "Toggle Output"
+        category: control
+        description: "Toggle a digital output"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+
+      - name: pulse_output
+        display_name: "Pulse Output"
+        category: control
+        description: "Generate a pulse on an output"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+          - name: duration
+            display_name: "Duration"
+            type: number
+            min: 0.01
+            max: 10
+            default: 0.5
+            unit: "s"
+
+      - name: all_outputs_on
+        display_name: "All Outputs ON"
+        category: control
+        description: "Turn on all outputs"
+        parameters: []
+
+      - name: all_outputs_off
+        display_name: "All Outputs OFF"
+        category: control
+        description: "Turn off all outputs"
+        parameters: []
+
+      # Configuration commands
+      - name: set_output_label
+        display_name: "Set Output Label"
+        category: configuration
+        description: "Set label for an output channel"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+          - name: label
+            display_name: "Label"
+            type: string
+            default: "OUT0"
+
+      - name: configure_input_debounce
+        display_name: "Configure Debounce"
+        category: configuration
+        description: "Set input debounce time"
+        parameters:
+          - name: channel
+            display_name: "Channel"
+            type: number
+            min: 0
+            max: 7
+            default: 0
+          - name: debounce_ms
+            display_name: "Debounce Time"
+            type: number
+            min: 0
+            max: 1000
+            default: 50
+            unit: "ms"
+
+      # Diagnostic commands
+      - name: reset
+        display_name: "Reset"
+        category: diagnostic
+        description: "Reset to default state"
+        parameters: []
+
+      - name: identify
+        display_name: "Identify"
+        category: diagnostic
+        description: "Get device identification"
+        parameters: []
+
+    config_schema:
+      num_inputs:
+        type: integer
+        default: 8
+        description: "Number of input channels"
+      num_outputs:
+        type: integer
+        default: 8
+        description: "Number of output channels"
+
+# Step definitions with manual mode metadata
+steps:
+  - name: initialize_hardware
+    display_name: "Initialize Hardware"
+    order: 1
+    timeout: 30.0
+    manual:
+      skippable: false
+      auto_only: false
+      prompt: null
+      pause_before: false
+      pause_after: false
+      parameter_overrides: []
+
+  - name: test_power_supply
+    display_name: "Power Supply Test"
+    order: 2
+    timeout: 60.0
+    retry: 1
+    manual:
+      skippable: true
+      auto_only: false
+      prompt: "Ready to test power supply? Ensure load is connected."
+      pause_before: true
+      pause_after: false
+      parameter_overrides:
+        - test_voltage
+        - test_current
+
+  - name: test_gpio_outputs
+    display_name: "GPIO Output Test"
+    order: 3
+    timeout: 45.0
+    retry: 1
+    manual:
+      skippable: true
+      auto_only: false
+      prompt: "Ready to test GPIO outputs?"
+      pause_before: false
+      pause_after: false
+      parameter_overrides:
+        - channels_to_test
+
+  - name: test_gpio_inputs
+    display_name: "GPIO Input Test"
+    order: 4
+    timeout: 30.0
+    manual:
+      skippable: true
+      auto_only: false
+      prompt: "Check GPIO input states?"
+      pause_before: false
+      pause_after: true
+      parameter_overrides: []
+
+  - name: combined_test
+    display_name: "Combined Test"
+    order: 5
+    timeout: 90.0
+    retry: 2
+    manual:
+      skippable: true
+      auto_only: false
+      prompt: "Run combined power and GPIO test?"
+      pause_before: false
+      pause_after: false
+      parameter_overrides:
+        - output_voltage
+        - gpio_channel
+
+  - name: cleanup
+    display_name: "Cleanup"
+    order: 99
+    timeout: 30.0
+    cleanup: true
+    manual:
+      skippable: false
+      auto_only: false
+      prompt: null
+      pause_before: false
+      pause_after: false
+      parameter_overrides: []
+
+# Sequence parameters
+parameters:
+  test_voltage:
+    display_name: "Test Voltage"
+    type: float
+    default: 12.0
+    min: 0.0
+    max: 30.0
+    unit: "V"
+    description: "Default voltage for power supply test"
+    manual_override: true
+
+  test_current:
+    display_name: "Test Current"
+    type: float
+    default: 1.0
+    min: 0.0
+    max: 5.0
+    unit: "A"
+    description: "Default current limit for power supply test"
+    manual_override: true
+
+  channels_to_test:
+    display_name: "GPIO Channels to Test"
+    type: integer
+    default: 4
+    min: 1
+    max: 8
+    description: "Number of GPIO channels to test"
+    manual_override: true
+
+  output_voltage:
+    display_name: "Combined Test Voltage"
+    type: float
+    default: 5.0
+    min: 0.0
+    max: 30.0
+    unit: "V"
+    description: "Voltage for combined test"
+    manual_override: true
+
+  gpio_channel:
+    display_name: "Combined Test GPIO Channel"
+    type: integer
+    default: 0
+    min: 0
+    max: 7
+    description: "GPIO channel for combined test"
+    manual_override: true
+
+# Python dependencies
+dependencies:
+  python: []

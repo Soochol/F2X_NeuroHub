@@ -11,26 +11,26 @@ backend:
   sync_interval: 30
   station_id: test_001
 batches:
-  - id: sensor_inspection
-    name: Sensor Inspection
-    sequence_package: sensor_inspection
-    process_id: 3
-    auto_start: false
-    hardware:
-      sensor:
-        type: mock_sensor
-        config:
-          port: COM1
-  - id: voltage_test
-    name: PCB Voltage Test
-    sequence_package: pcb_voltage_test
-    process_id: 6
-    auto_start: false
-    hardware:
-      multimeter:
-        type: mock_multimeter
-        config:
-          address: GPIB0::1::INSTR
+- id: sensor_inspection
+  name: Sensor Inspection
+  sequence_package: sensor_inspection
+  process_id: 3
+  auto_start: false
+  hardware:
+    sensor:
+      type: mock_sensor
+      config:
+        port: COM1
+- id: voltage_test
+  name: PCB Voltage Test
+  sequence_package: pcb_voltage_test
+  process_id: 6
+  auto_start: false
+  hardware:
+    multimeter:
+      type: mock_multimeter
+      config:
+        address: GPIB0::1::INSTR
 logging:
   level: INFO
   file: data/logs/station.log
