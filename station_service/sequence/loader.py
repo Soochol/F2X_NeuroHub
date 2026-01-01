@@ -100,7 +100,7 @@ class SequenceLoader:
         Load and validate a sequence package manifest.
 
         Args:
-            package_name: Name of the package to load.
+            package_name: Name of the package to load (can be folder name or manifest name).
 
         Returns:
             Validated SequenceManifest instance.
@@ -109,11 +109,19 @@ class SequenceLoader:
             PackageError: If the package does not exist or has invalid structure.
             ManifestError: If the manifest is invalid or cannot be parsed.
         """
-        # Return cached manifest if already loaded
+        # Return cached manifest if already loaded (by folder name)
         if package_name in self._loaded_packages:
             return self._loaded_packages[package_name]
 
-        package_path = self.packages_path / package_name
+        # Check if this is a manifest name that maps to a different folder
+        if package_name in self._name_to_path:
+            package_path = self._name_to_path[package_name]
+            folder_name = package_path.name
+            # Return cached manifest if already loaded (by folder name)
+            if folder_name in self._loaded_packages:
+                return self._loaded_packages[folder_name]
+        else:
+            package_path = self.packages_path / package_name
 
         if not package_path.exists():
             raise PackageError(
