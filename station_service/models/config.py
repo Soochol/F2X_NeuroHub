@@ -89,7 +89,7 @@ class BatchConfig(BaseModel):
     id: str
     name: str
     sequence_package: str
-    hardware: Dict[str, Dict[str, Any]]
+    hardware: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     auto_start: bool = False
     process_id: Optional[int] = Field(
         None, description="Associated process ID (1-8) for WIP tracking"
