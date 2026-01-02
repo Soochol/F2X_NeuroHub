@@ -234,3 +234,43 @@ class ProcessHeaderResponse(BaseModel):
             parameters=data.get("parameters", {}),
             hardware_config=data.get("hardware_config", {}),
         )
+
+
+# ============================================================
+# Sequence Pull Models (CLI-based sequence deployment)
+# ============================================================
+
+
+class SequencePullRequest(BaseModel):
+    """Request model for pulling sequence from Backend."""
+
+    station_id: str = Field(..., description="Station identifier for authentication")
+    batch_id: Optional[str] = Field(None, description="Target batch ID (optional)")
+    current_version: Optional[str] = Field(
+        None, description="Currently installed version (for update check)"
+    )
+
+
+class SequencePullResponse(BaseModel):
+    """Response model from sequence pull operation."""
+
+    name: str = Field(..., description="Sequence name")
+    version: str = Field(..., description="Latest version")
+    checksum: str = Field(..., description="SHA-256 checksum of package")
+    package_size: int = Field(..., description="Package size in bytes")
+    needs_update: bool = Field(..., description="Whether station needs to update")
+    package_data: Optional[str] = Field(
+        None, description="Base64-encoded ZIP package (only if needs_update)"
+    )
+
+    @classmethod
+    def from_api_response(cls, data: Dict[str, Any]) -> "SequencePullResponse":
+        """Create SequencePullResponse from Backend API response."""
+        return cls(
+            name=data["name"],
+            version=data["version"],
+            checksum=data["checksum"],
+            package_size=data["package_size"],
+            needs_update=data["needs_update"],
+            package_data=data.get("package_data"),
+        )

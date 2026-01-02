@@ -26,9 +26,7 @@ from station_service.api.schemas.sequence import (
 )
 from station_service.core.exceptions import SequenceNotFoundError
 from station_service.models.config import StationConfig
-from station_service.sequence.loader import SequenceLoader
-from station_service.sequence.decorators import collect_steps
-from station_service.sequence.exceptions import PackageError
+from station_service.sdk import SequenceLoader, collect_steps, PackageError
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +189,7 @@ async def get_sequence(
         steps_list: List[StepDefinition] = []
         try:
             sequence_class = await sequence_loader.load_sequence_class(manifest, package_path)
-            steps = collect_steps(sequence_class)
+            steps = collect_steps(sequence_class, manifest)
 
             for method_name, method, step_meta in steps:
                 steps_list.append(StepDefinition(

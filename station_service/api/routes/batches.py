@@ -51,8 +51,7 @@ from station_service.core.exceptions import (
     BatchValidationError,
 )
 from station_service.models.config import BatchConfig, StationConfig
-from station_service.sequence.decorators import collect_steps
-from station_service.sequence.loader import SequenceLoader
+from station_service.sdk import SequenceLoader, collect_steps
 
 logger = logging.getLogger(__name__)
 
@@ -286,7 +285,7 @@ async def get_batch(
                 sequence_class = await sequence_loader.load_sequence_class(manifest, package_path)
 
                 # Collect step metadata from the sequence class
-                step_infos = collect_steps(sequence_class)
+                step_infos = collect_steps(sequence_class, manifest)
 
                 # Create placeholder steps with pending status
                 for idx, (method_name, _, step_meta) in enumerate(step_infos):
@@ -555,6 +554,9 @@ async def start_sequence(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions (e.g., 403 from operator login check)
+        raise
     except Exception as e:
         logger.exception(f"Error starting sequence on batch {batch_id}: {e}")
         raise HTTPException(

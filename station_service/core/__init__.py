@@ -1,52 +1,10 @@
 """
-Core module for Station Service.
+Core shared utilities for Station Service.
 
-Provides exceptions, events, and utility classes.
+This module provides base classes and utilities that need to be shared
+across different packages without causing circular imports.
 """
 
-from station_service.core.exceptions import (
-    StationError,
-    BatchError,
-    BatchNotFoundError,
-    BatchAlreadyRunningError,
-    SequenceError,
-    HardwareError,
-    IPCError,
-    SyncError,
-    ConfigurationError,
-)
-from station_service.core.events import (
-    Event,
-    EventType,
-    EventEmitter,
-)
-from station_service.core.container import (
-    ServiceContainer,
-    get_container,
-    set_container,
-    initialize_container,
-    shutdown_container,
-)
+from station_service.core.base import APIBaseModel
 
-__all__ = [
-    # Exceptions
-    "StationError",
-    "BatchError",
-    "BatchNotFoundError",
-    "BatchAlreadyRunningError",
-    "SequenceError",
-    "HardwareError",
-    "IPCError",
-    "SyncError",
-    "ConfigurationError",
-    # Events
-    "Event",
-    "EventType",
-    "EventEmitter",
-    # Container
-    "ServiceContainer",
-    "get_container",
-    "set_container",
-    "initialize_container",
-    "shutdown_container",
-]
+__all__ = ["APIBaseModel"]

@@ -2,7 +2,7 @@
  * ParameterForm - Dynamic form for sequence parameters.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Settings, AlertCircle, Info } from 'lucide-react';
 import { Input } from '../../atoms/Input';
 import { Select } from '../../atoms/Select';
@@ -95,13 +95,17 @@ export function ParameterForm({
   submitText = 'Apply',
   className = '',
 }: ParameterFormProps) {
-  // Build default values from schema
-  const defaultValues = parameters.reduce(
-    (acc, param) => {
-      acc[param.name] = param.default;
-      return acc;
-    },
-    {} as Record<string, unknown>
+  // Build default values from schema (memoized)
+  const defaultValues = useMemo(
+    () =>
+      parameters.reduce(
+        (acc, param) => {
+          acc[param.name] = param.default;
+          return acc;
+        },
+        {} as Record<string, unknown>
+      ),
+    [parameters]
   );
 
   const [values, setValues] = useState<Record<string, unknown>>({
@@ -113,10 +117,10 @@ export function ParameterForm({
   // Merge external and internal errors
   const allErrors = { ...internalErrors, ...externalErrors };
 
-  // Update values when initialValues change
+  // Update values when initialValues or parameters change
   useEffect(() => {
     setValues({ ...defaultValues, ...initialValues });
-  }, [initialValues, parameters]);
+  }, [initialValues, defaultValues]);
 
   const handleChange = useCallback(
     (name: string, value: unknown, type: ParameterSchema['type']) => {
@@ -130,7 +134,8 @@ export function ParameterForm({
           if (error) {
             return { ...prev, [name]: error };
           }
-          const { [name]: _, ...rest } = prev;
+          const { [name]: _removed, ...rest } = prev;
+          void _removed; // Intentionally unused - destructuring to remove key
           return rest;
         });
       }

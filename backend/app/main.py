@@ -53,6 +53,7 @@ from app.api.v1 import (
     async_operations,
     search,
     stations,
+    sequences,
 )
 
 # Import middleware
@@ -517,6 +518,7 @@ app.include_router(printer_monitoring.router, prefix=settings.API_V1_PREFIX + "/
 app.include_router(async_operations.router, prefix=f"{settings.API_V1_PREFIX}/async", tags=["Async Operations"])
 app.include_router(search.router, prefix=f"{settings.API_V1_PREFIX}/search", tags=["Search"])
 app.include_router(stations.router, prefix=settings.API_V1_PREFIX, tags=["Stations"])
+app.include_router(sequences.router, prefix=settings.API_V1_PREFIX, tags=["Sequences"])
 
 
 if __name__ == "__main__":

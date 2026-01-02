@@ -1,0 +1,409 @@
+/**
+ * LotSearchPage CSS Module
+ * Shared styles for WipByLotPage and SerialByLotPage
+ */
+
+/* ============================================================================
+   Page Layout
+   ============================================================================ */
+
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.headerSection {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+  background-color: var(--color-bg-secondary);
+  position: sticky;
+  top: -20px;
+  z-index: 10;
+  padding: 20px;
+  margin-top: -20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.headerContent {
+  margin-bottom: 20px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: var(--color-text-primary);
+}
+
+.pageSubtitle {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* ============================================================================
+   Search Form
+   ============================================================================ */
+
+.searchForm {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+}
+
+.searchInputWrapper {
+  flex: 1;
+}
+
+.searchLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.searchInputContainer {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 12px 12px 12px 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 15px;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-brand);
+}
+
+.searchButton {
+  min-width: 100px;
+}
+
+/* ============================================================================
+   Error Message
+   ============================================================================ */
+
+.errorMessage {
+  margin-top: 15px;
+  padding: 12px;
+  background-color: var(--color-bg-error);
+  color: var(--color-error);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* ============================================================================
+   Active LOT Cards Section
+   ============================================================================ */
+
+.sectionHeader {
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.loadingText,
+.emptyText {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-secondary);
+}
+
+.lotCardsGrid {
+  display: grid;
+  gap: 15px;
+}
+
+/* ============================================================================
+   LOT Card
+   ============================================================================ */
+
+.lotCard {
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: var(--color-bg-secondary);
+}
+
+.lotCard:hover {
+  border-color: var(--color-brand);
+  background-color: var(--color-bg-tertiary);
+}
+
+.lotCardSelected {
+  padding: 20px;
+  border: 2px solid var(--color-brand);
+  border-radius: 8px;
+  background-color: var(--color-bg-tertiary);
+  margin-bottom: 20px;
+}
+
+.lotCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.lotNumber {
+  font-size: 18px;
+  font-weight: bold;
+  font-family: monospace;
+  color: var(--color-text-primary);
+}
+
+.lotTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.productInfo {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.targetQuantity {
+  text-align: right;
+}
+
+.targetValue {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-brand);
+  margin-bottom: 4px;
+}
+
+.targetLabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.lotMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.lotMetaGridCompact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.metaHighlight {
+  color: var(--color-brand);
+}
+
+/* ============================================================================
+   Item Cards (WIP / Serial)
+   ============================================================================ */
+
+.contentSection {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.backButton {
+  margin-bottom: 15px;
+}
+
+.itemsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 0 5px;
+}
+
+.itemsTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.itemsCount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.emptyItemsContainer {
+  text-align: center;
+  padding: 60px;
+  color: var(--color-text-secondary);
+}
+
+.emptyIcon {
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.emptyMessage {
+  font-size: 16px;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ============================================================================
+   Item Card (Individual WIP/Serial item)
+   ============================================================================ */
+
+.itemCard {
+  background-color: var(--color-bg-container);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.itemCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-brand);
+}
+
+.itemCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.itemId {
+  font-weight: bold;
+  font-size: 16px;
+  color: var(--color-text-primary);
+  font-family: monospace;
+}
+
+.itemStatusBadge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.itemInfoSection {
+  margin-bottom: 15px;
+}
+
+.itemInfoLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.itemInfoValue {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.reworkBadge {
+  margin-left: 10px;
+  color: var(--color-warning);
+  font-size: 13px;
+}
+
+.itemCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 15px;
+  border-top: 1px solid var(--color-border);
+}
+
+.itemDate {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewTraceLink {
+  display: flex;
+  align-items: center;
+  color: var(--color-brand);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.viewTraceLinkIcon {
+  margin-left: 4px;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

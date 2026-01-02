@@ -23,7 +23,7 @@ from station_service.models.config import BatchConfig, StationConfig
 from station_service.batch.process import BatchProcess
 from station_service.storage.database import Database
 from station_service.storage.repositories.execution_repository import ExecutionRepository
-from station_service.sequence.loader import SequenceLoader
+from station_service.sdk import SequenceLoader
 
 logger = logging.getLogger(__name__)
 
@@ -882,15 +882,14 @@ class BatchManager:
 
         # Try to load sequence metadata
         try:
-            from station_service.sequence.loader import SequenceLoader
-            from station_service.sequence.decorators import collect_steps
+            from station_service.sdk import SequenceLoader, collect_steps
 
             loader = SequenceLoader("sequences")
             manifest = await loader.load_package(config.sequence_package)
             package_path = loader.get_package_path(config.sequence_package)
             sequence_class = await loader.load_sequence_class(manifest, package_path)
 
-            step_infos = collect_steps(sequence_class)
+            step_infos = collect_steps(sequence_class, manifest)
 
             steps = []
             for method_name, _, step_meta in step_infos:

@@ -2,7 +2,7 @@
 Deploy API routes for Station Service.
 
 This module provides endpoints for deploying sequences to batches,
-managing deployments, and running simulations.
+managing deployments, pulling sequences from Backend, and running simulations.
 """
 
 import logging
@@ -23,8 +23,13 @@ from station_service.core.config_writer import (
     list_batches_with_sequences,
 )
 from station_service.models.config import StationConfig
-from station_service.sequence.loader import SequenceLoader
-from station_service.sequence.exceptions import PackageError
+from station_service.sdk import SequenceLoader, PackageError
+from station_service.services.sequence_sync import (
+    SequenceSyncService,
+    PullResult,
+    SyncResult,
+    LocalSequenceInfo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -314,11 +319,11 @@ async def run_simulation(
         started_at = datetime.now()
 
         # Load sequence class to get steps
-        from station_service.sequence.decorators import collect_steps
+        from station_service.sdk import collect_steps
 
         try:
             sequence_class = await sequence_loader.load_sequence_class(manifest, package_path)
-            steps_data = collect_steps(sequence_class)
+            steps_data = collect_steps(sequence_class, manifest)
         except Exception as e:
             logger.warning(f"Failed to load sequence class: {e}")
             steps_data = []
@@ -353,7 +358,7 @@ async def run_simulation(
             )
         else:
             # Dry run mode - execute with mock hardware
-            from station_service.sequence.simulator import SequenceSimulator
+            from station_service.sdk import SequenceSimulator
 
             simulator = SequenceSimulator(sequence_loader)
             result = await simulator.dry_run(
@@ -387,4 +392,306 @@ async def run_simulation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Simulation failed: {str(e)}",
+        )
+
+
+# ============================================================================
+# Sync Service Dependency
+# ============================================================================
+
+_sync_service: Optional[SequenceSyncService] = None
+
+
+def get_sync_service(config: StationConfig = Depends(get_config)) -> SequenceSyncService:
+    """Get or create sequence sync service."""
+    global _sync_service
+    if _sync_service is None:
+        _sync_service = SequenceSyncService(
+            backend_config=config.backend,
+            sequences_dir="sequences",
+        )
+    return _sync_service
+
+
+# ============================================================================
+# Pull Response Models
+# ============================================================================
+
+
+class PullRequest(BaseModel):
+    """Request for pulling a sequence."""
+
+    force: bool = Field(False, description="Force download even if up-to-date")
+
+
+class SyncRequest(BaseModel):
+    """Request for syncing sequences."""
+
+    sequence_names: Optional[List[str]] = Field(
+        None, description="Specific sequences to sync (all if not specified)"
+    )
+
+
+class UpdateCheckResponse(BaseModel):
+    """Response for update check."""
+
+    sequence_name: str
+    remote_version: str
+    local_version: Optional[str]
+    needs_update: bool
+    installed: bool
+
+
+# ============================================================================
+# Pull Endpoints (Backend Sync)
+# ============================================================================
+
+
+@router.post(
+    "/pull/{sequence_name}",
+    response_model=ApiResponse[PullResult],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+    },
+    summary="Pull sequence from Backend",
+    description="""
+    Pull a sequence from the Backend API.
+
+    Downloads the sequence package if:
+    - Not installed locally
+    - Local version differs from remote
+    - Force flag is set
+
+    The sequence will be installed to the sequences directory.
+    """,
+)
+async def pull_sequence_from_backend(
+    sequence_name: str,
+    request: PullRequest = PullRequest(),
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
+) -> ApiResponse[PullResult]:
+    """
+    Pull a sequence from Backend.
+    """
+    try:
+        result = await sync_service.pull_sequence(sequence_name, force=request.force)
+
+        if result.error:
+            if "not found" in result.error.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=result.error,
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.error,
+            )
+
+        # Clear loader cache if updated
+        if result.updated:
+            sequence_loader.clear_cache()
+
+        message = (
+            f"Updated {sequence_name} to v{result.version}"
+            if result.updated
+            else f"{sequence_name} is up-to-date (v{result.version})"
+        )
+
+        return ApiResponse(success=True, data=result, message=message)
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Backend not configured: {e}",
+        )
+    except Exception as e:
+        logger.exception(f"Failed to pull sequence: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to pull sequence: {str(e)}",
+        )
+
+
+@router.post(
+    "/sync",
+    response_model=ApiResponse[SyncResult],
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Sync all sequences from Backend",
+    description="""
+    Sync all or specified sequences from the Backend API.
+
+    Downloads and installs any sequences that are:
+    - Not installed locally
+    - Have newer versions available
+    """,
+)
+async def sync_sequences(
+    request: SyncRequest = SyncRequest(),
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
+) -> ApiResponse[SyncResult]:
+    """
+    Sync sequences from Backend.
+    """
+    try:
+        result = await sync_service.sync_all(request.sequence_names)
+
+        # Clear loader cache if any updates
+        if result.sequences_updated > 0:
+            sequence_loader.clear_cache()
+
+        message = (
+            f"Synced {result.sequences_checked} sequences: "
+            f"{result.sequences_updated} updated, {result.sequences_failed} failed"
+        )
+
+        return ApiResponse(success=True, data=result, message=message)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Backend not configured: {e}",
+        )
+    except Exception as e:
+        logger.exception(f"Sync failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Sync failed: {str(e)}",
+        )
+
+
+@router.get(
+    "/updates",
+    response_model=ApiResponse[List[UpdateCheckResponse]],
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Check for sequence updates",
+    description="Check which sequences have updates available from Backend.",
+)
+async def check_updates(
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+) -> ApiResponse[List[UpdateCheckResponse]]:
+    """
+    Check for sequence updates.
+    """
+    try:
+        updates = await sync_service.check_updates()
+
+        results = [
+            UpdateCheckResponse(
+                sequence_name=name,
+                remote_version=info["remote_version"],
+                local_version=info["local_version"],
+                needs_update=info["needs_update"],
+                installed=info["installed"],
+            )
+            for name, info in updates.items()
+        ]
+
+        needs_update_count = sum(1 for r in results if r.needs_update)
+        message = (
+            f"{needs_update_count} updates available"
+            if needs_update_count
+            else "All sequences up-to-date"
+        )
+
+        return ApiResponse(success=True, data=results, message=message)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Backend not configured: {e}",
+        )
+    except Exception as e:
+        logger.exception(f"Failed to check updates: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check updates: {str(e)}",
+        )
+
+
+@router.get(
+    "/local",
+    response_model=ApiResponse[List[LocalSequenceInfo]],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="List local sequences",
+    description="List all locally installed sequences.",
+)
+async def list_local_sequences(
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+) -> ApiResponse[List[LocalSequenceInfo]]:
+    """
+    List locally installed sequences.
+    """
+    try:
+        sequences = sync_service.list_local_sequences()
+        return ApiResponse(
+            success=True,
+            data=sequences,
+            message=f"Found {len(sequences)} installed sequences",
+        )
+
+    except Exception as e:
+        logger.exception(f"Failed to list local sequences: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list local sequences: {str(e)}",
+        )
+
+
+@router.delete(
+    "/local/{sequence_name}",
+    response_model=ApiResponse[bool],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Delete local sequence",
+    description="Delete a locally installed sequence.",
+)
+async def delete_local_sequence(
+    sequence_name: str,
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
+) -> ApiResponse[bool]:
+    """
+    Delete a locally installed sequence.
+    """
+    try:
+        deleted = sync_service.delete_sequence(sequence_name)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Sequence '{sequence_name}' not found locally",
+            )
+
+        # Clear loader cache
+        sequence_loader.clear_cache()
+
+        return ApiResponse(
+            success=True,
+            data=True,
+            message=f"Deleted sequence '{sequence_name}'",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to delete sequence: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete sequence: {str(e)}",
         )

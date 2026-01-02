@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import type { Batch, BatchStatus, StepResult, BatchStatistics } from '../types';
+import { batchLogger as log } from '../utils';
 
 // Legacy storage keys - will be cleaned up on initialization
 const LEGACY_LOCAL_BATCHES_KEY = 'station-ui-local-batches';
@@ -29,10 +30,10 @@ function cleanupLegacyLocalBatches(): void {
       removedKeys.push(LEGACY_LOCAL_STEPS_KEY);
     }
     if (removedKeys.length > 0) {
-      console.info('Cleaned up legacy local batch data:', removedKeys);
+      log.info('Cleaned up legacy local batch data:', removedKeys);
     }
   } catch (e) {
-    console.warn('Failed to cleanup legacy local batches:', e);
+    log.warn('Failed to cleanup legacy local batches:', e);
   }
 }
 
@@ -77,7 +78,7 @@ function ensureBatchExists(
     steps: [],
   };
   newBatches.set(batchId, newBatch);
-  console.log(`[batchStore] ensureBatchExists: Created minimal batch for ${batchId.slice(0, 8)}...`);
+  log.batch(batchId, 'ensureBatchExists: Created minimal batch');
 
   return [newBatches, newBatch];
 }
@@ -148,7 +149,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
           // This prevents the bug where navigating between pages causes status regression
           // After sequence completes, worker sets status to 'idle' but we want to keep 'completed'
           if (existing.status === 'completed' && batch.status !== 'completed') {
-            console.log(`[batchStore] setBatches: BLOCKED status regression ${existing.status} -> ${batch.status} for ${batch.id.slice(0, 8)}...`);
+            log.batch(batch.id, 'setBatches: BLOCKED status regression', { from: existing.status, to: batch.status });
             newBatches.set(batch.id, existing);
             continue;
           }
@@ -213,7 +214,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
     set((state) => {
       const newBatches = new Map(state.batches);
       const batch = state.batches.get(batchId);
-      console.log(`[batchStore] updateBatchStatus: ${batchId.slice(0, 8)}... status=${status}, exec=${executionId}, elapsed=${elapsed}, exists=${!!batch}, currentStatus=${batch?.status}, force=${!!force}`);
+      log.batch(batchId, 'updateBatchStatus', { status, exec: executionId, elapsed, exists: !!batch, currentStatus: batch?.status, force: !!force });
 
       // Prevent status regression from stale messages
       // Protect transitional states (starting, stopping) and completed state
@@ -223,19 +224,19 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
         // Don't allow completed to be reverted (except to error)
         if (currentStatus === 'completed' && status !== 'completed' && status !== 'error' && status !== 'starting') {
-          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status}`);
+          log.batch(batchId, 'updateBatchStatus: BLOCKED regression', { from: currentStatus, to: status });
           return state;
         }
 
         // Don't allow starting to be reverted to idle (optimistic update protection)
         if (currentStatus === 'starting' && status === 'idle') {
-          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+          log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
           return state;
         }
 
         // Don't allow stopping to be reverted to running (optimistic update protection)
         if (currentStatus === 'stopping' && status === 'running') {
-          console.log(`[batchStore] updateBatchStatus: BLOCKED regression ${currentStatus} -> ${status} (optimistic protection)`);
+          log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
           return state;
         }
       }
@@ -304,11 +305,11 @@ export const useBatchStore = create<BatchState>((set, get) => ({
     set((state) => {
       const newBatches = new Map(state.batches);
       const batch = state.batches.get(batchId);
-      console.log(`[batchStore] updateStepProgress: ${batchId.slice(0, 8)}... step=${currentStep}, progress=${progress.toFixed(2)}, exec=${executionId}, exists=${!!batch}, currentStatus=${batch?.status}`);
+      log.batch(batchId, 'updateStepProgress', { step: currentStep, progress: progress.toFixed(2), exec: executionId, exists: !!batch, status: batch?.status });
 
       // Race condition guard: ignore updates from old executions
       if (batch && executionId && batch.executionId && batch.executionId !== executionId) {
-        console.log(`[batchStore] IGNORED: executionId mismatch (batch=${batch.executionId}, event=${executionId})`);
+        log.debug(`IGNORED: executionId mismatch (batch=${batch.executionId}, event=${executionId})`);
         return state;
       }
 
@@ -317,7 +318,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         // Stale batch_status messages may arrive with lower progress values
         const newProgress = Math.max(batch.progress, progress);
         if (progress < batch.progress) {
-          console.log(`[batchStore] updateStepProgress: BLOCKED progress regression ${batch.progress.toFixed(2)} -> ${progress.toFixed(2)} for ${batchId.slice(0, 8)}...`);
+          log.batch(batchId, 'updateStepProgress: BLOCKED progress regression', { from: batch.progress.toFixed(2), to: progress.toFixed(2) });
         }
         newBatches.set(batchId, {
           ...batch,
@@ -370,7 +371,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
       // Race condition guard - only check if both have executionId
       if (executionId && batch.executionId && batch.executionId !== executionId) {
-        console.log(`[batchStore] startStep IGNORED: executionId mismatch`);
+        log.debug('startStep IGNORED: executionId mismatch');
         return state;
       }
 
@@ -417,7 +418,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         executionId: executionId || batch.executionId,
       });
 
-      console.log(`[batchStore] startStep: ${batchId.slice(0, 8)}... step=${stepName} index=${stepIndex}`);
+      log.batch(batchId, 'startStep', { step: stepName, index: stepIndex });
       return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 
@@ -432,7 +433,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
       // Race condition guard - only check if both have executionId
       if (executionId && batch.executionId && batch.executionId !== executionId) {
-        console.log(`[batchStore] completeStep IGNORED: executionId mismatch`);
+        log.debug('completeStep IGNORED: executionId mismatch');
         return state;
       }
 
@@ -481,7 +482,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         executionId: executionId || batch.executionId,
       });
 
-      console.log(`[batchStore] completeStep: ${batchId.slice(0, 8)}... step=${stepName} pass=${pass} progress=${progress.toFixed(2)}`);
+      log.batch(batchId, 'completeStep', { step: stepName, pass, progress: progress.toFixed(2) });
       return { batches: newBatches, batchesVersion: state.batchesVersion + 1 };
     }),
 

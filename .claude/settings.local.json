@@ -51,7 +51,14 @@
       "Bash(chmod:*)",
       "Bash(docker:*)",
       "Bash(sudo -S usermod:*)",
-      "Bash(python -m station_service.main:*)"
+      "Bash(python -m station_service.main:*)",
+      "Bash(journalctl:*)",
+      "Bash(pip3 list:*)",
+      "Bash(unzip:*)",
+      "Bash(pip3 show:*)",
+      "WebSearch",
+      "Bash(python:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

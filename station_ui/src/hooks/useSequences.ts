@@ -11,6 +11,7 @@ import {
   updateSequence,
   validateSequence,
   uploadSequence,
+  uploadSequenceFolder,
   deleteSequence,
   downloadSequence,
   deploySequence,
@@ -115,6 +116,65 @@ export function useUploadSequence() {
       });
 
       return { result, validation };
+    },
+    onSuccess: async () => {
+      // Force refetch to update the list immediately
+      await queryClient.refetchQueries({ queryKey: queryKeys.sequences });
+    },
+    onError: (error: Error) => {
+      setProgress({
+        stage: 'error',
+        progress: 0,
+        message: 'Upload failed',
+        error: error.message,
+      });
+    },
+  });
+
+  return {
+    ...mutation,
+    progress,
+    resetProgress,
+  };
+}
+
+/**
+ * Hook to upload and install a sequence package from a folder with progress tracking.
+ * Converts folder to ZIP before uploading.
+ */
+export function useUploadSequenceFolder() {
+  const queryClient = useQueryClient();
+  const [progress, setProgress] = useState<UploadProgress>({
+    stage: 'idle',
+    progress: 0,
+    message: '',
+  });
+
+  const resetProgress = useCallback(() => {
+    setProgress({ stage: 'idle', progress: 0, message: '' });
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: async ({ files, force }: { files: FileList; force?: boolean }) => {
+      // Show compressing stage
+      setProgress({ stage: 'validating', progress: 0, message: 'Compressing folder to ZIP...' });
+
+      // Upload folder (internally converts to ZIP)
+      const result = await uploadSequenceFolder(files, force ?? false, (uploadProgress) => {
+        setProgress({
+          stage: 'uploading',
+          progress: uploadProgress,
+          message: `Uploading... ${uploadProgress}%`,
+        });
+      });
+
+      setProgress({
+        stage: 'complete',
+        progress: 100,
+        message: `Successfully installed ${result.name} v${result.version}`,
+      });
+
+      return result;
     },
     onSuccess: async () => {
       // Force refetch to update the list immediately

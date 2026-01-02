@@ -32,8 +32,11 @@ import { DebugLogPanel } from '../components/organisms/debug';
 import { WipInputModal } from '../components/molecules';
 import { ROUTES } from '../constants';
 import { toast } from '../utils/toast';
+import { createLogger } from '../utils';
 import { validateWip } from '../api/endpoints/system';
 import type { Batch, BatchDetail, StepResult } from '../types';
+
+const log = createLogger({ prefix: 'BatchDetailPage' });
 
 // Type guard to check if batch is a BatchDetail
 function isBatchDetail(batch: Batch | BatchDetail): batch is BatchDetail {
@@ -73,7 +76,7 @@ export function BatchDetailPage() {
   // 3. Subscriptions are idempotent and cleaned up on WebSocket disconnect
   useEffect(() => {
     if (batchId) {
-      console.log(`[BatchDetailPage] useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
+      log.debug(`useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
       subscribe([batchId]);
       // No cleanup - subscriptions persist across navigation
     }
@@ -117,7 +120,7 @@ export function BatchDetailPage() {
   // Handle clicking "Start Sequence" button
   const handleStartSequence = async () => {
     if (!batchId || !batch) {
-      console.error('[handleStartSequence] Missing batchId or batch');
+      log.error('handleStartSequence: Missing batchId or batch');
       return;
     }
 
@@ -134,7 +137,7 @@ export function BatchDetailPage() {
   // Actually start the sequence (with optional WIP ID and pre-validated int ID)
   const doStartSequence = async (wipId?: string, wipIntId?: number) => {
     if (!batchId || !batch) {
-      console.error('[doStartSequence] Missing batchId or batch');
+      log.error('doStartSequence: Missing batchId or batch');
       return;
     }
 
@@ -142,14 +145,14 @@ export function BatchDetailPage() {
     let batchWasStarted = false;
 
     try {
-      console.log('[doStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status, 'wipId:', wipId || '(none)', 'wipIntId:', wipIntId || '(none)');
+      log.debug('doStartSequence: Starting sequence for batch:', batchId, 'status:', batch.status, 'wipId:', wipId || '(none)');
 
       // If batch is idle, start batch first then start sequence
       if (batch.status === 'idle') {
-        console.log('[doStartSequence] Starting batch first...');
+        log.debug('doStartSequence: Starting batch first...');
         await startBatch.mutateAsync(batchId);
         batchWasStarted = true;
-        console.log('[doStartSequence] Batch started');
+        log.debug('doStartSequence: Batch started');
       }
 
       // Prepare request with WIP ID and pre-validated int ID if provided
@@ -159,20 +162,20 @@ export function BatchDetailPage() {
       } : undefined;
 
       // Then start sequence
-      console.log('[doStartSequence] Starting sequence...');
+      log.debug('doStartSequence: Starting sequence...');
       await startSequence.mutateAsync({ batchId, request });
-      console.log('[doStartSequence] Sequence started successfully');
+      log.debug('doStartSequence: Sequence started successfully');
     } catch (error) {
-      console.error('[doStartSequence] Error:', error);
+      log.error('doStartSequence: Error:', error);
 
       // If we started the batch but sequence failed, stop the batch
       if (batchWasStarted) {
-        console.log('[doStartSequence] Stopping batch due to sequence start failure...');
+        log.debug('doStartSequence: Stopping batch due to sequence start failure...');
         try {
           await stopBatch.mutateAsync(batchId);
-          console.log('[doStartSequence] Batch stopped');
+          log.debug('doStartSequence: Batch stopped');
         } catch (stopError) {
-          console.error('[doStartSequence] Failed to stop batch:', stopError);
+          log.error('doStartSequence: Failed to stop batch:', stopError);
         }
       }
 

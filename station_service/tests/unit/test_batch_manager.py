@@ -44,6 +44,7 @@ class TestBatchManager:
         )
         mock.start = AsyncMock()
         mock.stop = AsyncMock()
+        mock.wait_for_worker = AsyncMock()  # async wait for worker connection
         mock.on_event = MagicMock()
         mock.unregister_worker = MagicMock()
         return mock
@@ -177,8 +178,8 @@ class TestBatchManager:
 
             await batch_manager.start_batch(batch_config.id)
 
-        # Wait for event to be processed
-        await handler.assert_called_once()
+        # Verify event was emitted
+        handler.assert_called_once()
         event = handler.call_args[0][0]
         assert event.type == EventType.BATCH_STARTED
         assert event.batch_id == batch_config.id

@@ -6,6 +6,7 @@ import { useState, useCallback, useRef } from 'react';
 import {
   Upload,
   FileArchive,
+  Folder,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -14,8 +15,10 @@ import {
 } from 'lucide-react';
 import { Button } from '../../atoms/Button';
 import { ProgressBar } from '../../atoms/ProgressBar';
-import { useUploadSequence, useValidateSequence } from '../../../hooks/useSequences';
+import { useUploadSequence, useUploadSequenceFolder, useValidateSequence } from '../../../hooks/useSequences';
 import type { ValidationResult, UploadProgress } from '../../../types';
+
+type UploadMode = 'zip' | 'folder';
 
 interface SequenceUploadProps {
   onSuccess?: () => void;
@@ -24,13 +27,23 @@ interface SequenceUploadProps {
 
 export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadMode, setUploadMode] = useState<UploadMode>('zip');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [folderName, setFolderName] = useState<string>('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [forceOverwrite, setForceOverwrite] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const validateMutation = useValidateSequence();
-  const { mutate: upload, progress, isPending, resetProgress } = useUploadSequence();
+  const { mutate: uploadZip, progress: zipProgress, isPending: isZipPending, resetProgress: resetZipProgress } = useUploadSequence();
+  const { mutate: uploadFolder, progress: folderProgress, isPending: isFolderPending, resetProgress: resetFolderProgress } = useUploadSequenceFolder();
+
+  const progress = uploadMode === 'zip' ? zipProgress : folderProgress;
+  const isPending = uploadMode === 'zip' ? isZipPending : isFolderPending;
+  // Note: resetProgress is computed but individual reset functions are used directly
+  void (uploadMode === 'zip' ? resetZipProgress : resetFolderProgress);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -41,31 +54,6 @@ export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
     e.preventDefault();
     setIsDragOver(false);
   }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragOver(false);
-
-      const files = e.dataTransfer.files;
-      const file = files[0];
-      if (file) {
-        await handleFileSelect(file);
-      }
-    },
-    []
-  );
-
-  const handleFileInputChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      const file = files?.[0];
-      if (file) {
-        await handleFileSelect(file);
-      }
-    },
-    []
-  );
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -78,9 +66,12 @@ export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
         return;
       }
 
+      setUploadMode('zip');
       setSelectedFile(file);
+      setSelectedFiles(null);
+      setFolderName('');
       setValidationResult(null);
-      resetProgress();
+      resetZipProgress();
 
       // Validate the package
       try {
@@ -98,34 +89,144 @@ export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
         });
       }
     },
-    [validateMutation, resetProgress]
+    [validateMutation, resetZipProgress]
+  );
+
+  const handleFolderSelect = useCallback(
+    async (files: FileList) => {
+      // Extract folder name from webkitRelativePath
+      const firstFile = files[0] as File & { webkitRelativePath?: string };
+      const relativePath = firstFile.webkitRelativePath || '';
+      const folderNameFromPath = relativePath.split('/')[0] || 'Unknown Folder';
+
+      // Check if manifest.yaml exists
+      let hasManifest = false;
+      const manifestInfo: { name?: string; version?: string; description?: string } = {};
+
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i] as File & { webkitRelativePath?: string };
+        if (f.webkitRelativePath?.endsWith('manifest.yaml')) {
+          hasManifest = true;
+          // Try to read manifest content for preview
+          try {
+            const text = await f.text();
+            const lines = text.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('name:')) {
+                manifestInfo.name = line.replace('name:', '').trim();
+              } else if (line.startsWith('version:')) {
+                manifestInfo.version = line.replace('version:', '').trim().replace(/['"]/g, '');
+              } else if (line.startsWith('description:')) {
+                manifestInfo.description = line.replace('description:', '').trim();
+              }
+            }
+          } catch {
+            // Ignore parse errors
+          }
+          break;
+        }
+      }
+
+      setUploadMode('folder');
+      setSelectedFile(null);
+      setSelectedFiles(files);
+      setFolderName(folderNameFromPath);
+      resetFolderProgress();
+
+      if (!hasManifest) {
+        setValidationResult({
+          valid: false,
+          errors: [{ field: 'folder', message: 'manifest.yaml not found in folder' }],
+        });
+      } else {
+        // For folder upload, we do server-side validation
+        setValidationResult({
+          valid: true,
+          manifest: manifestInfo.name ? {
+            name: manifestInfo.name,
+            version: manifestInfo.version || '0.0.0',
+            displayName: manifestInfo.name,
+            description: manifestInfo.description,
+          } : undefined,
+        });
+      }
+    },
+    [resetFolderProgress]
+  );
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+
+      const files = e.dataTransfer.files;
+      const file = files[0];
+      if (file) {
+        await handleFileSelect(file);
+      }
+    },
+    [handleFileSelect]
+  );
+
+  const handleFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      const file = files?.[0];
+      if (file) {
+        await handleFileSelect(file);
+      }
+    },
+    [handleFileSelect]
+  );
+
+  const handleFolderInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        await handleFolderSelect(files);
+      }
+    },
+    [handleFolderSelect]
   );
 
   const handleUpload = useCallback(() => {
-    if (!selectedFile || !validationResult?.valid) return;
-
-    upload(
-      { file: selectedFile, force: forceOverwrite },
-      {
-        onSuccess: () => {
-          onSuccess?.();
-        },
-      }
-    );
-  }, [selectedFile, validationResult, forceOverwrite, upload, onSuccess]);
+    if (uploadMode === 'zip') {
+      if (!selectedFile || !validationResult?.valid) return;
+      uploadZip(
+        { file: selectedFile, force: forceOverwrite },
+        { onSuccess: () => onSuccess?.() }
+      );
+    } else {
+      if (!selectedFiles || !validationResult?.valid) return;
+      uploadFolder(
+        { files: selectedFiles, force: forceOverwrite },
+        { onSuccess: () => onSuccess?.() }
+      );
+    }
+  }, [uploadMode, selectedFile, selectedFiles, validationResult, forceOverwrite, uploadZip, uploadFolder, onSuccess]);
 
   const handleReset = useCallback(() => {
     setSelectedFile(null);
+    setSelectedFiles(null);
+    setFolderName('');
     setValidationResult(null);
     setForceOverwrite(false);
-    resetProgress();
+    resetZipProgress();
+    resetFolderProgress();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [resetProgress]);
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
+  }, [resetZipProgress, resetFolderProgress]);
 
-  const handleBrowse = useCallback(() => {
+  const handleBrowseZip = useCallback(() => {
     fileInputRef.current?.click();
+  }, []);
+
+  const handleBrowseFolder = useCallback(() => {
+    folderInputRef.current?.click();
   }, []);
 
   return (
@@ -141,33 +242,62 @@ export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
       </div>
 
       {/* Drop Zone */}
-      {!selectedFile && (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-            isDragOver
-              ? 'border-brand-500 bg-brand-500/10'
-              : 'border-zinc-600 hover:border-zinc-500'
-          }`}
-          onClick={handleBrowse}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".zip"
-            onChange={handleFileInputChange}
-            className="hidden"
-          />
-          <Upload className="w-12 h-12 mx-auto text-zinc-500 mb-4" />
-          <p className="text-zinc-300 mb-2">Drag and drop a sequence package here</p>
-          <p className="text-sm text-zinc-500">or click to browse</p>
-          <p className="text-xs text-zinc-600 mt-4">Supported format: .zip</p>
+      {!selectedFile && !selectedFiles && (
+        <div className="space-y-4">
+          {/* ZIP Upload */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+              isDragOver
+                ? 'border-brand-500 bg-brand-500/10'
+                : 'border-zinc-600 hover:border-zinc-500'
+            }`}
+            onClick={handleBrowseZip}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <FileArchive className="w-10 h-10 mx-auto text-zinc-500 mb-3" />
+            <p className="text-zinc-300 mb-1">Upload ZIP file</p>
+            <p className="text-xs text-zinc-500">Drag and drop or click to browse</p>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-zinc-700" />
+            <span className="text-xs text-zinc-500">OR</span>
+            <div className="flex-1 border-t border-zinc-700" />
+          </div>
+
+          {/* Folder Upload */}
+          <div
+            className="border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer border-zinc-600 hover:border-zinc-500"
+            onClick={handleBrowseFolder}
+          >
+            <input
+              ref={folderInputRef}
+              type="file"
+              // @ts-expect-error webkitdirectory is not in the types
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={handleFolderInputChange}
+              className="hidden"
+            />
+            <Folder className="w-10 h-10 mx-auto text-zinc-500 mb-3" />
+            <p className="text-zinc-300 mb-1">Select Folder</p>
+            <p className="text-xs text-zinc-500">Choose a sequence package folder</p>
+          </div>
         </div>
       )}
 
-      {/* Selected File Info */}
+      {/* Selected File Info (ZIP) */}
       {selectedFile && (
         <div className="bg-zinc-900/50 rounded-lg p-4 space-y-4">
           {/* File Info */}
@@ -250,16 +380,92 @@ export function SequenceUpload({ onSuccess, onClose }: SequenceUploadProps) {
         </div>
       )}
 
+      {/* Selected Folder Info */}
+      {selectedFiles && (
+        <div className="bg-zinc-900/50 rounded-lg p-4 space-y-4">
+          {/* Folder Info */}
+          <div className="flex items-center gap-3">
+            <Folder className="w-8 h-8 text-brand-500" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-white truncate">{folderName}</p>
+              <p className="text-sm text-zinc-500">
+                {selectedFiles.length} files
+              </p>
+            </div>
+            {progress.stage === 'idle' && (
+              <Button variant="ghost" size="sm" onClick={handleReset}>
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {validationResult && (
+            <ValidationStatus
+              result={validationResult}
+              onOverwriteChange={setForceOverwrite}
+              forceOverwrite={forceOverwrite}
+            />
+          )}
+
+          {/* Upload Progress */}
+          {progress.stage !== 'idle' && (
+            <UploadProgressDisplay progress={progress} />
+          )}
+
+          {/* Actions */}
+          {validationResult?.valid && progress.stage === 'idle' && (
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="primary"
+                onClick={handleUpload}
+                disabled={isPending}
+                className="flex-1"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Install Package
+              </Button>
+              <Button variant="ghost" onClick={handleReset}>
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Success Actions */}
+          {progress.stage === 'complete' && (
+            <div className="flex gap-2 pt-2">
+              <Button variant="primary" onClick={handleReset} className="flex-1">
+                Upload Another
+              </Button>
+              {onClose && (
+                <Button variant="ghost" onClick={onClose}>
+                  Close
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Error Actions */}
+          {progress.stage === 'error' && (
+            <div className="flex gap-2 pt-2">
+              <Button variant="primary" onClick={handleReset} className="flex-1">
+                Try Again
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Package Requirements */}
-      <div className="text-xs text-zinc-500 space-y-1">
-        <p className="font-medium text-zinc-400">Package Requirements:</p>
-        <ul className="list-disc list-inside space-y-0.5">
-          <li>Must be a valid ZIP archive</li>
-          <li>Must contain manifest.yaml with name, version, entry_point</li>
-          <li>Must contain the entry_point Python module</li>
-          <li>Optional: drivers/, requirements.txt</li>
-        </ul>
-      </div>
+      {!selectedFile && !selectedFiles && (
+        <div className="text-xs text-zinc-500 space-y-1">
+          <p className="font-medium text-zinc-400">Package Requirements:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            <li>Must contain manifest.yaml with name, version, entry_point</li>
+            <li>Must contain the entry_point Python module</li>
+            <li>Optional: drivers/, requirements.txt</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

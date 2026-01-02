@@ -28,3 +28,10 @@ export {
 } from './endpoints/errorLogs';
 export { measurementsApi } from './endpoints/measurements';
 export { processHeadersApi } from './endpoints/processHeaders';
+export {
+  sequencesApi,
+  type Sequence,
+  type SequenceDetail,
+  type SequenceUploadResponse,
+  type SequenceListResponse,
+} from './endpoints/sequences';

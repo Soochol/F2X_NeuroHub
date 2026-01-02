@@ -9,10 +9,11 @@ Provides:
 """
 
 from dataclasses import dataclass
-from typing import Generator, Optional, Union
+from typing import AsyncGenerator, Generator, Optional, Union
 
 from fastapi import Depends, Header
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core import security
@@ -23,7 +24,7 @@ from app.core.exceptions import (
     InsufficientPermissionsException,
 )
 from app.crud import user as user_crud
-from app.database import SessionLocal
+from app.database import SessionLocal, AsyncSessionLocal
 from app.models import User
 from app.schemas import UserRole
 
@@ -120,6 +121,26 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency that provides an async database session.
+
+    Yields:
+        AsyncSession: SQLAlchemy async session
+
+    Usage:
+        @app.get("/items/")
+        async def read_items(db: AsyncSession = Depends(get_async_db)):
+            result = await db.execute(select(Item))
+            return result.scalars().all()
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 def get_auth_context(
@@ -390,3 +411,42 @@ def check_role_permission(required_role: UserRole):
         return current_user
 
     return role_checker
+
+
+# ============================================================
+# Station-Only Authentication
+# ============================================================
+
+def get_station_auth(
+    api_key: Optional[str] = Depends(get_api_key_header),
+) -> StationAuth:
+    """
+    Station-only authentication via X-API-Key.
+
+    Unlike get_auth_context, this dependency ONLY accepts station API keys.
+    User JWT tokens are NOT accepted - use this for station-specific endpoints.
+
+    Args:
+        api_key: API key from X-API-Key header
+
+    Returns:
+        StationAuth with station context
+
+    Raises:
+        InvalidTokenException: If API key is missing or invalid
+
+    Usage:
+        @router.post("/pull/{sequence_name}")
+        def pull_sequence(
+            sequence_name: str,
+            station: StationAuth = Depends(get_station_auth),
+        ):
+            # Only stations with valid API keys can access
+            log.info(f"Station {station.station_id} pulling sequence")
+    """
+    if not api_key:
+        raise InvalidTokenException(
+            message="Station API key required (X-API-Key header)"
+        )
+
+    return verify_station_api_key(api_key)

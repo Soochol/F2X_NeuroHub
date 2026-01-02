@@ -23,6 +23,7 @@ from station_service.models.config import (
     ServerConfig,
     StationConfig,
     StationInfo,
+    WorkflowConfig,
 )
 from station_service.storage.database import Database
 
@@ -83,11 +84,32 @@ class TestSystemRoutes:
         return mock
 
     @pytest.fixture
+    def mock_sync_engine(self) -> MagicMock:
+        """Create mock sync engine."""
+        mock = MagicMock()
+        mock.is_running = True
+        mock.is_connected = True
+        mock.backend_url = "http://localhost:8000"
+        return mock
+
+    @pytest.fixture
+    def mock_sequence_loader(self) -> MagicMock:
+        """Create mock sequence loader."""
+        mock = MagicMock()
+        mock.discover_packages = AsyncMock(return_value=[])
+        mock.list_packages = MagicMock(return_value=[])
+        mock.load_package = AsyncMock(return_value=None)
+        mock.get_package = MagicMock(return_value=None)
+        return mock
+
+    @pytest.fixture
     def app(
         self,
         station_config: StationConfig,
         database: Database,
         mock_ipc_server: MagicMock,
+        mock_sync_engine: MagicMock,
+        mock_sequence_loader: MagicMock,
     ):
         """Create test FastAPI app."""
         app = create_app()
@@ -103,7 +125,8 @@ class TestSystemRoutes:
         app.state.database = database
         app.state.batch_manager = batch_manager
         app.state.event_emitter = event_emitter
-        app.state.sync_engine = None
+        app.state.sync_engine = mock_sync_engine
+        app.state.sequence_loader = mock_sequence_loader
 
         return app
 
@@ -133,8 +156,9 @@ class TestSystemRoutes:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["data"]["id"] == "test_station"
-        assert data["data"]["name"] == "Test Station"
+        # JSON uses camelCase via APIBaseModel
+        assert data["data"]["stationId"] == "test_station"
+        assert data["data"]["stationName"] == "Test Station"
 
 
 class TestBatchRoutes:
@@ -147,6 +171,10 @@ class TestBatchRoutes:
             station=StationInfo(
                 id="test_station",
                 name="Test Station",
+            ),
+            workflow=WorkflowConfig(
+                enabled=False,  # Disable workflow for batch route tests
+                require_operator_login=False,
             ),
             server=ServerConfig(),
             backend=BackendConfig(),
@@ -177,12 +205,32 @@ class TestBatchRoutes:
         mock.router_address = "tcp://127.0.0.1:5555"
         mock.sub_address = "tcp://127.0.0.1:5557"
         mock.is_running = True
-        mock.is_worker_connected = MagicMock(return_value=False)
+        mock.is_worker_connected = MagicMock(return_value=True)
         mock.send_command = AsyncMock()
         mock.start = AsyncMock()
         mock.stop = AsyncMock()
+        mock.wait_for_worker = AsyncMock()
         mock.on_event = MagicMock()
         mock.unregister_worker = MagicMock()
+        return mock
+
+    @pytest.fixture
+    def mock_sync_engine(self) -> MagicMock:
+        """Create mock sync engine."""
+        mock = MagicMock()
+        mock.is_running = True
+        mock.is_connected = True
+        mock.backend_url = "http://localhost:8000"
+        return mock
+
+    @pytest.fixture
+    def mock_sequence_loader(self) -> MagicMock:
+        """Create mock sequence loader."""
+        mock = MagicMock()
+        mock.discover_packages = AsyncMock(return_value=[])
+        mock.list_packages = MagicMock(return_value=[])
+        mock.load_package = AsyncMock(return_value=None)
+        mock.get_package = MagicMock(return_value=None)
         return mock
 
     @pytest.fixture
@@ -191,6 +239,8 @@ class TestBatchRoutes:
         station_config: StationConfig,
         database: Database,
         mock_ipc_server: MagicMock,
+        mock_sync_engine: MagicMock,
+        mock_sequence_loader: MagicMock,
     ):
         """Create test FastAPI app."""
         app = create_app()
@@ -206,7 +256,8 @@ class TestBatchRoutes:
         app.state.database = database
         app.state.batch_manager = batch_manager
         app.state.event_emitter = event_emitter
-        app.state.sync_engine = None
+        app.state.sync_engine = mock_sync_engine
+        app.state.sequence_loader = mock_sequence_loader
 
         return app
 
@@ -268,7 +319,8 @@ class TestBatchRoutes:
             assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
-            assert data["data"]["batch_id"] == "batch_001"
+            # JSON uses camelCase via APIBaseModel
+            assert data["data"]["batchId"] == "batch_001"
             assert data["data"]["status"] == "started"
             assert data["data"]["pid"] == 12345
 
@@ -388,11 +440,34 @@ class TestSequenceRoutes:
         return mock
 
     @pytest.fixture
+    def mock_sync_engine(self) -> MagicMock:
+        """Create mock sync engine."""
+        mock = MagicMock()
+        mock.is_running = True
+        mock.is_connected = True
+        mock.backend_url = "http://localhost:8000"
+        return mock
+
+    @pytest.fixture
+    def mock_sequence_loader(self) -> MagicMock:
+        """Create mock sequence loader."""
+        from station_service.sdk.exceptions import PackageError
+
+        mock = MagicMock()
+        mock.discover_packages = AsyncMock(return_value=[])
+        mock.list_packages = MagicMock(return_value=[])
+        mock.load_package = AsyncMock(side_effect=PackageError("nonexistent_sequence", "Package not found"))
+        mock.get_package = MagicMock(return_value=None)
+        return mock
+
+    @pytest.fixture
     def app(
         self,
         station_config: StationConfig,
         database: Database,
         mock_ipc_server: MagicMock,
+        mock_sync_engine: MagicMock,
+        mock_sequence_loader: MagicMock,
     ):
         """Create test FastAPI app."""
         app = create_app()
@@ -408,7 +483,8 @@ class TestSequenceRoutes:
         app.state.database = database
         app.state.batch_manager = batch_manager
         app.state.event_emitter = event_emitter
-        app.state.sync_engine = None
+        app.state.sync_engine = mock_sync_engine
+        app.state.sequence_loader = mock_sequence_loader
 
         return app
 

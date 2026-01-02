@@ -3,6 +3,12 @@ Dependency injection for Station Service API.
 
 Provides FastAPI dependency functions for accessing shared resources
 like BatchManager, Database, and EventEmitter.
+
+There are two ways to access services:
+1. Via app.state (traditional) - used by existing routes
+2. Via ServiceContainer (new) - preferred for new code
+
+Both approaches are supported for backward compatibility.
 """
 
 import os
@@ -14,9 +20,10 @@ from fastapi import Depends, HTTPException, Request, status
 if TYPE_CHECKING:
     from station_service.batch.manager import BatchManager
     from station_service.core.batch_config_service import BatchConfigService
+    from station_service.core.container import ServiceContainer
     from station_service.core.events import EventEmitter
     from station_service.models.config import StationConfig
-    from station_service.sequence.loader import SequenceLoader
+    from station_service.sdk import SequenceLoader
     from station_service.storage.database import Database
     from station_service.storage.repositories import BatchConfigRepository
     from station_service.sync.backend_client import BackendClient
@@ -28,6 +35,47 @@ _batch_config_repository: Optional["BatchConfigRepository"] = None
 
 # Module-level singleton for BatchConfigService (lazily initialized)
 _batch_config_service: Optional["BatchConfigService"] = None
+
+
+# ============================================================================
+# Container-based Dependencies (New - Preferred for new code)
+# ============================================================================
+
+
+def get_container() -> "ServiceContainer":
+    """
+    Get the global ServiceContainer instance.
+
+    This is the preferred way to access services in new code.
+    Falls back to None if container not initialized.
+
+    Returns:
+        ServiceContainer instance
+
+    Raises:
+        RuntimeError: If container not initialized
+    """
+    from station_service.core.container import get_container as _get_container
+    return _get_container()
+
+
+def get_container_or_none() -> Optional["ServiceContainer"]:
+    """
+    Get the global ServiceContainer instance or None if not initialized.
+
+    Returns:
+        ServiceContainer instance or None
+    """
+    try:
+        from station_service.core.container import get_container as _get_container
+        return _get_container()
+    except RuntimeError:
+        return None
+
+
+# ============================================================================
+# App State Dependencies (Traditional - For backward compatibility)
+# ============================================================================
 
 
 def get_config(request: Request) -> "StationConfig":

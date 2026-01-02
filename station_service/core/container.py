@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from station_service.core.events import EventEmitter
     from station_service.ipc.server import IPCServer
     from station_service.models.config import StationConfig
-    from station_service.sequence.loader import SequenceLoader
+    from station_service.sdk import SequenceLoader
     from station_service.storage.database import Database
     from station_service.sync.engine import SyncEngine
 
@@ -61,6 +61,7 @@ class ServiceContainer:
     _batch_manager: Optional["BatchManager"] = field(default=None, repr=False)
     _sync_engine: Optional["SyncEngine"] = field(default=None, repr=False)
     _sequence_loader: Optional["SequenceLoader"] = field(default=None, repr=False)
+    _backend_client: Optional[Any] = field(default=None, repr=False)  # BackendClient
 
     # State tracking
     _initialized: bool = field(default=False, repr=False)
@@ -111,6 +112,16 @@ class ServiceContainer:
         return self._sequence_loader
 
     @property
+    def backend_client(self) -> Optional[Any]:
+        """Get the backend client instance (may be None if not configured)."""
+        return self._backend_client
+
+    @backend_client.setter
+    def backend_client(self, client: Any) -> None:
+        """Set the backend client instance (for external initialization)."""
+        self._backend_client = client
+
+    @property
     def is_initialized(self) -> bool:
         """Check if container is initialized."""
         return self._initialized
@@ -149,7 +160,7 @@ class ServiceContainer:
         from station_service.batch.manager import BatchManager
         from station_service.core.events import EventEmitter
         from station_service.ipc.server import IPCServer
-        from station_service.sequence.loader import SequenceLoader
+        from station_service.sdk import SequenceLoader
         from station_service.storage.database import Database
         from station_service.sync.engine import SyncEngine
 
@@ -206,32 +217,40 @@ class ServiceContainer:
 
         logger.info("Shutting down service container...")
 
-        # 1. Stop sync engine
+        # 1. Disconnect backend client
+        if self._backend_client:
+            try:
+                if hasattr(self._backend_client, 'disconnect'):
+                    await self._backend_client.disconnect()
+            except Exception as e:
+                logger.error(f"Error disconnecting backend client: {e}")
+
+        # 2. Stop sync engine
         if self._sync_engine:
             try:
                 await self._sync_engine.stop()
             except Exception as e:
                 logger.error(f"Error stopping sync engine: {e}")
 
-        # 2. Stop batch manager
+        # 3. Stop batch manager
         if self._batch_manager:
             try:
                 await self._batch_manager.stop()
             except Exception as e:
                 logger.error(f"Error stopping batch manager: {e}")
 
-        # 3. Stop IPC server
+        # 4. Stop IPC server
         if self._ipc_server:
             try:
                 await self._ipc_server.stop()
             except Exception as e:
                 logger.error(f"Error stopping IPC server: {e}")
 
-        # 4. Clear event emitter
+        # 5. Clear event emitter
         if self._event_emitter:
             self._event_emitter.clear()
 
-        # 5. Close database
+        # 6. Close database
         if self._database:
             try:
                 await self._database.close()
@@ -245,6 +264,7 @@ class ServiceContainer:
         self._batch_manager = None
         self._sync_engine = None
         self._sequence_loader = None
+        self._backend_client = None
         self._initialized = False
 
         logger.info("Service container shutdown complete")
@@ -301,7 +321,17 @@ class ServiceContainer:
             "event_emitter": self._event_emitter,
             "sync_engine": self._sync_engine,
             "sequence_loader": self._sequence_loader,
+            "backend_client": self._backend_client,
         }
+
+    def set_sync_engine(self, sync_engine: "SyncEngine") -> None:
+        """
+        Set the sync engine instance (for external initialization with extra params).
+
+        Args:
+            sync_engine: SyncEngine instance to use
+        """
+        self._sync_engine = sync_engine
 
 
 # ============================================================

@@ -16,10 +16,8 @@ Usage:
     STATION_CONFIG=/path/to/station.yaml python -m station_service.main
 """
 
-import asyncio
 import logging
 import os
-import signal
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,15 +29,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from station_service.api import create_app
-from station_service.api.websocket import manager as ws_manager, websocket_endpoint
-from station_service.batch.manager import BatchManager
-from station_service.core.events import Event, EventEmitter, EventType, get_event_emitter
-from station_service.ipc.server import IPCServer
+from station_service.api.websocket import websocket_endpoint
+from station_service.core.container import ServiceContainer, set_container
+from station_service.core.events import Event, EventEmitter, EventType
 from station_service.models.config import StationConfig
-from station_service.sequence.loader import SequenceLoader
-from station_service.storage.database import Database, get_database, close_database
 from station_service.sync.backend_client import BackendClient
-from station_service.sync.engine import SyncEngine
 
 # Configure logging
 logging.basicConfig(
@@ -52,15 +46,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Global state
-config: Optional[StationConfig] = None
-database: Optional[Database] = None
-ipc_server: Optional[IPCServer] = None
-batch_manager: Optional[BatchManager] = None
-sync_engine: Optional[SyncEngine] = None
-backend_client: Optional[BackendClient] = None
-event_emitter: Optional[EventEmitter] = None
-sequence_loader: Optional[SequenceLoader] = None
+# Global container instance (replaces individual globals)
+_container: Optional[ServiceContainer] = None
+_backend_client: Optional[BackendClient] = None
 
 
 def load_config(config_path: Optional[str] = None) -> StationConfig:
@@ -176,9 +164,9 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
 
-    Handles startup and shutdown of all components.
+    Handles startup and shutdown of all components using ServiceContainer.
     """
-    global config, database, ipc_server, batch_manager, sync_engine, backend_client, event_emitter, sequence_loader
+    global _container, _backend_client
 
     logger.info("Station Service starting...")
 
@@ -187,35 +175,34 @@ async def lifespan(app: FastAPI):
         config = load_config()
         logger.info(f"Loaded config for station: {config.station.name}")
 
-        # Initialize database
-        database = await get_database()
-        logger.info("Database initialized")
+        # Compute paths
+        project_root = Path(__file__).parent.parent
+        sequences_dir = project_root / "sequences"
+        db_path = Path("data/station.db")
 
-        # Get event emitter
-        event_emitter = get_event_emitter()
+        # Ensure data directory exists
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Initialize container with all services
+        _container = ServiceContainer()
+        await _container.initialize(
+            config=config,
+            db_path=db_path,
+            sequences_dir=str(sequences_dir),
+        )
+
+        # Set global container for backward compatibility
+        set_container(_container)
 
         # Setup event forwarding to WebSocket
-        await setup_event_forwarding(event_emitter)
+        await setup_event_forwarding(_container.event_emitter)
 
-        # Start IPC server
-        ipc_server = IPCServer()
-        await ipc_server.start()
-        logger.info("IPC server started")
-
-        # Start BatchManager
-        batch_manager = BatchManager(
-            config=config,
-            ipc_server=ipc_server,
-            event_emitter=event_emitter,
-        )
-        await batch_manager.start()
-        logger.info("BatchManager started")
-
-        # Start SyncEngine with station info for auto-registration
+        # Initialize SyncEngine separately (needs additional params not in container)
+        from station_service.sync.engine import SyncEngine
         sync_engine = SyncEngine(
             config=config.backend,
-            database=database,
-            event_emitter=event_emitter,
+            database=_container.database,
+            event_emitter=_container.event_emitter,
             station_name=config.station.name,
             station_description=config.station.description,
             server_host=config.server.host,
@@ -225,32 +212,25 @@ async def lifespan(app: FastAPI):
         logger.info("SyncEngine started")
 
         # Initialize BackendClient for operator authentication
-        backend_client = BackendClient(config=config.backend)
-        await backend_client.connect()
+        _backend_client = BackendClient(config=config.backend)
+        await _backend_client.connect()
 
         # Connect TokenManager for automatic token refresh
         from station_service.core.token_manager import get_token_manager
         from station_service.api.routes.system import update_operator_tokens
         token_manager = get_token_manager()
-        backend_client.set_token_manager(token_manager)
-        backend_client.set_token_update_callback(update_operator_tokens)
+        _backend_client.set_token_manager(token_manager)
+        _backend_client.set_token_update_callback(update_operator_tokens)
         logger.info("BackendClient initialized with TokenManager")
-
-        # Initialize SequenceLoader with absolute path
-        # Compute sequences directory relative to project root (parent of station_service)
-        project_root = Path(__file__).parent.parent
-        sequences_dir = project_root / "sequences"
-        sequence_loader = SequenceLoader(packages_dir=str(sequences_dir))
-        logger.info(f"SequenceLoader initialized with packages_dir: {sequences_dir}")
 
         # Store components in app state for route access
         app.state.config = config
-        app.state.database = database
-        app.state.batch_manager = batch_manager
+        app.state.database = _container.database
+        app.state.batch_manager = _container.batch_manager
         app.state.sync_engine = sync_engine
-        app.state.backend_client = backend_client
-        app.state.event_emitter = event_emitter
-        app.state.sequence_loader = sequence_loader
+        app.state.backend_client = _backend_client
+        app.state.event_emitter = _container.event_emitter
+        app.state.sequence_loader = _container.sequence_loader
 
         logger.info("Station Service ready")
 
@@ -264,24 +244,14 @@ async def lifespan(app: FastAPI):
         # Shutdown
         logger.info("Station Service shutting down...")
 
-        if backend_client:
-            await backend_client.disconnect()
+        if _backend_client:
+            await _backend_client.disconnect()
             logger.info("BackendClient disconnected")
 
-        if sync_engine:
-            await sync_engine.stop()
-            logger.info("SyncEngine stopped")
-
-        if batch_manager:
-            await batch_manager.stop()
-            logger.info("BatchManager stopped")
-
-        if ipc_server:
-            await ipc_server.stop()
-            logger.info("IPC server stopped")
-
-        await close_database()
-        logger.info("Database closed")
+        # Shutdown container (handles all other services)
+        if _container:
+            await _container.shutdown()
+            _container = None
 
         logger.info("Station Service stopped")
 

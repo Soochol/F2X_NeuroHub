@@ -42,6 +42,7 @@ from app.models.print_log import PrintLog, PrintStatus
 from app.models.saved_filter import SavedFilter
 from app.models.refresh_token import RefreshToken
 from app.models.station import Station, StationStatus
+from app.models.sequence import Sequence, SequenceVersion, SequenceDeployment
 
 
 __all__ = [
@@ -64,6 +65,9 @@ __all__ = [
     "SavedFilter",
     "RefreshToken",
     "Station",
+    "Sequence",
+    "SequenceVersion",
+    "SequenceDeployment",
     # Enums
     "UserRole",
     "LotStatus",

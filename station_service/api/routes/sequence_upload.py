@@ -5,14 +5,17 @@ This module provides endpoints for uploading, validating, and managing
 sequence packages as ZIP files.
 """
 
+import asyncio
 import io
 import logging
 import shutil
+import subprocess
+import sys
 import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -22,13 +25,35 @@ from pydantic import BaseModel, Field, ValidationError
 from station_service.api.dependencies import get_config, get_sequence_loader
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
 from station_service.models.config import StationConfig
-from station_service.sequence.loader import SequenceLoader
-from station_service.sequence.manifest import SequenceManifest
-from station_service.sequence.exceptions import ManifestError, PackageError
+from station_service.sdk import (
+    SequenceLoader,
+    SequenceManifest,
+    ManifestError,
+    PackageError,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sequences", tags=["Sequence Upload"])
+
+
+class DependencyInstallResult(BaseModel):
+    """Result of a single dependency installation."""
+
+    package: str = Field(..., description="Package specification (e.g., 'pyserial>=3.5')")
+    success: bool = Field(..., description="Whether installation was successful")
+    message: str = Field(default="", description="Installation message or error")
+    already_installed: bool = Field(default=False, description="Package was already installed")
+
+
+class DependenciesResult(BaseModel):
+    """Result of all dependency installations."""
+
+    total: int = Field(default=0, description="Total number of dependencies")
+    installed: int = Field(default=0, description="Number of newly installed")
+    skipped: int = Field(default=0, description="Number already installed (skipped)")
+    failed: int = Field(default=0, description="Number that failed to install")
+    details: List[DependencyInstallResult] = Field(default_factory=list, description="Per-package results")
 
 
 class SequenceUploadResponse(BaseModel):
@@ -40,6 +65,7 @@ class SequenceUploadResponse(BaseModel):
     hardware: List[str] = Field(default_factory=list, description="Hardware definitions")
     parameters: List[str] = Field(default_factory=list, description="Parameter names")
     uploaded_at: datetime = Field(..., description="Upload timestamp")
+    dependencies: Optional[DependenciesResult] = Field(None, description="Dependency installation results")
 
 
 class ValidationErrorDetail(BaseModel):
@@ -76,6 +102,132 @@ class SequenceDeleteResponse(BaseModel):
 
 
 SEQUENCES_DIR = Path("sequences")
+
+
+async def install_dependencies(
+    dependencies: List[str],
+    upgrade: bool = False,
+) -> DependenciesResult:
+    """
+    Install Python package dependencies using pip.
+
+    Args:
+        dependencies: List of package specifications (e.g., ["pyserial>=3.5", "numpy"])
+        upgrade: Whether to upgrade already installed packages
+
+    Returns:
+        DependenciesResult with installation details
+    """
+    result = DependenciesResult(total=len(dependencies))
+
+    if not dependencies:
+        return result
+
+    for pkg_spec in dependencies:
+        install_result = await _install_single_package(pkg_spec, upgrade)
+        result.details.append(install_result)
+
+        if install_result.success:
+            if install_result.already_installed:
+                result.skipped += 1
+            else:
+                result.installed += 1
+        else:
+            result.failed += 1
+
+    return result
+
+
+async def _install_single_package(
+    pkg_spec: str,
+    upgrade: bool = False,
+) -> DependencyInstallResult:
+    """
+    Install a single Python package.
+
+    Args:
+        pkg_spec: Package specification (e.g., "pyserial>=3.5")
+        upgrade: Whether to upgrade if already installed
+
+    Returns:
+        DependencyInstallResult with installation status
+    """
+    # Extract package name (without version specifier) for checking
+    pkg_name = pkg_spec.split(">=")[0].split("<=")[0].split("==")[0].split("<")[0].split(">")[0].strip()
+
+    # Check if already installed
+    try:
+        check_cmd = [sys.executable, "-m", "pip", "show", pkg_name]
+        check_result = await asyncio.to_thread(
+            subprocess.run,
+            check_cmd,
+            capture_output=True,
+            text=True,
+        )
+        already_installed = check_result.returncode == 0
+    except Exception:
+        already_installed = False
+
+    if already_installed and not upgrade:
+        logger.debug(f"Package already installed: {pkg_spec}")
+        return DependencyInstallResult(
+            package=pkg_spec,
+            success=True,
+            message="Already installed",
+            already_installed=True,
+        )
+
+    # Install the package
+    try:
+        cmd = [sys.executable, "-m", "pip", "install", pkg_spec]
+        if upgrade:
+            cmd.append("--upgrade")
+        cmd.append("--quiet")  # Less verbose output
+
+        logger.info(f"Installing dependency: {pkg_spec}")
+
+        proc_result = await asyncio.to_thread(
+            subprocess.run,
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 minute timeout per package
+        )
+
+        if proc_result.returncode == 0:
+            logger.info(f"Successfully installed: {pkg_spec}")
+            return DependencyInstallResult(
+                package=pkg_spec,
+                success=True,
+                message="Installed successfully",
+                already_installed=False,
+            )
+        else:
+            error_msg = proc_result.stderr.strip() or proc_result.stdout.strip()
+            logger.error(f"Failed to install {pkg_spec}: {error_msg}")
+            return DependencyInstallResult(
+                package=pkg_spec,
+                success=False,
+                message=f"Installation failed: {error_msg[:200]}",  # Truncate long errors
+                already_installed=False,
+            )
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Timeout installing {pkg_spec}")
+        return DependencyInstallResult(
+            package=pkg_spec,
+            success=False,
+            message="Installation timed out (120s)",
+            already_installed=False,
+        )
+    except Exception as e:
+        logger.exception(f"Error installing {pkg_spec}: {e}")
+        return DependencyInstallResult(
+            package=pkg_spec,
+            success=False,
+            message=f"Installation error: {str(e)[:200]}",
+            already_installed=False,
+        )
 
 
 @router.post(
@@ -150,40 +302,73 @@ async def upload_sequence(
 
         # Check if package already exists
         target_path = packages_dir / package_name
+        backup_path = None
+
         if target_path.exists():
             if not force:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Package '{package_name}' already exists. Use force=true to overwrite.",
                 )
-            # Remove existing package
-            shutil.rmtree(target_path)
-            logger.info(f"Removed existing package: {package_name}")
+            # Backup existing package (don't delete yet)
+            backup_path = target_path.with_suffix(".backup")
+            if backup_path.exists():
+                shutil.rmtree(backup_path)
+            shutil.move(str(target_path), str(backup_path))
+            logger.info(f"Backed up existing package: {package_name}")
 
         # Extract to temporary directory first
         temp_dir = tempfile.mkdtemp(prefix="sequence_upload_")
         zip_buffer.seek(0)
 
-        with zipfile.ZipFile(zip_buffer, "r") as zf:
-            zf.extractall(temp_dir)
+        try:
+            with zipfile.ZipFile(zip_buffer, "r") as zf:
+                zf.extractall(temp_dir)
 
-        # Find the package directory in temp
-        temp_path = Path(temp_dir)
-        extracted_dirs = [d for d in temp_path.iterdir() if d.is_dir()]
+            # Find the package directory in temp
+            temp_path = Path(temp_dir)
+            extracted_dirs = [d for d in temp_path.iterdir() if d.is_dir()]
 
-        if len(extracted_dirs) == 1:
-            # ZIP contains a single root directory
-            source_path = extracted_dirs[0]
-        else:
-            # ZIP contains files directly at root
-            source_path = temp_path
+            if len(extracted_dirs) == 1:
+                # ZIP contains a single root directory
+                source_path = extracted_dirs[0]
+            else:
+                # ZIP contains files directly at root
+                source_path = temp_path
 
-        # Move to final location
-        shutil.move(str(source_path), str(target_path))
-        logger.info(f"Installed sequence package: {package_name} to {target_path}")
+            # Move to final location
+            shutil.move(str(source_path), str(target_path))
+            logger.info(f"Installed sequence package: {package_name} to {target_path}")
+
+            # Success - remove backup
+            if backup_path and backup_path.exists():
+                shutil.rmtree(backup_path)
+                logger.info(f"Removed backup: {backup_path}")
+
+        except Exception as e:
+            # Restore from backup if installation failed
+            if backup_path and backup_path.exists():
+                if target_path.exists():
+                    shutil.rmtree(target_path)
+                shutil.move(str(backup_path), str(target_path))
+                logger.info(f"Restored package from backup: {package_name}")
+            raise
 
         # Reload the package to validate and cache
         manifest = await sequence_loader.reload_package(package_name)
+
+        # Install dependencies from manifest
+        deps_result = None
+        python_deps = manifest.get_required_packages()
+        if python_deps:
+            logger.info(f"Installing {len(python_deps)} dependencies for {package_name}")
+            deps_result = await install_dependencies(python_deps)
+
+            if deps_result.failed > 0:
+                failed_pkgs = [d.package for d in deps_result.details if not d.success]
+                logger.warning(
+                    f"Some dependencies failed to install for {package_name}: {failed_pkgs}"
+                )
 
         response = SequenceUploadResponse(
             name=manifest.name,
@@ -192,18 +377,228 @@ async def upload_sequence(
             hardware=manifest.get_hardware_names(),
             parameters=manifest.get_parameter_names(),
             uploaded_at=datetime.now(),
+            dependencies=deps_result,
         )
+
+        # Build success message
+        msg = f"Package '{package_name}' uploaded successfully"
+        if deps_result:
+            msg += f" ({deps_result.installed} deps installed, {deps_result.skipped} skipped"
+            if deps_result.failed > 0:
+                msg += f", {deps_result.failed} failed"
+            msg += ")"
 
         return ApiResponse(
             success=True,
             data=response,
-            message=f"Package '{package_name}' uploaded successfully",
+            message=msg,
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Failed to upload sequence: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload sequence: {str(e)}",
+        )
+    finally:
+        # Cleanup temp directory
+        if temp_dir and Path(temp_dir).exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@router.post(
+    "/upload-folder",
+    response_model=ApiResponse[SequenceUploadResponse],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Upload sequence package from folder",
+    description="""
+    Upload a sequence package as individual files (for folder upload support).
+
+    The files should include:
+    - manifest.yaml (required): Package metadata and configuration
+    - sequence.py (required): Main sequence class with @sequence decorator
+    - drivers/ (optional): Hardware driver implementations
+
+    File paths should be relative to the package root.
+    If a package with the same name already exists, use `force=true` to overwrite.
+    """,
+)
+async def upload_sequence_folder(
+    files: List[UploadFile] = File(..., description="Files from the sequence package folder"),
+    force: bool = Query(False, description="Overwrite existing package if it exists"),
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
+) -> ApiResponse[SequenceUploadResponse]:
+    """
+    Upload and install a sequence package from a folder (multiple files).
+    """
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No files uploaded",
+        )
+
+    temp_dir = None
+    try:
+        # Create temporary directory to reconstruct folder structure
+        temp_dir = tempfile.mkdtemp(prefix="sequence_folder_upload_")
+        temp_path = Path(temp_dir)
+
+        # Find the common root directory from file paths
+        # File paths come as "folder_name/file.py" or "folder_name/subfolder/file.py"
+        root_dirs = set()
+        for f in files:
+            if f.filename:
+                parts = f.filename.split("/")
+                if len(parts) > 1:
+                    root_dirs.add(parts[0])
+
+        if len(root_dirs) == 1:
+            # All files are under a common root directory
+            package_root = list(root_dirs)[0]
+        else:
+            # Files are at root level, use manifest name later
+            package_root = None
+
+        # Write files to temp directory
+        manifest_content = None
+        for f in files:
+            if not f.filename:
+                continue
+
+            content = await f.read()
+            file_path = temp_path / f.filename
+
+            # Create parent directories
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write file
+            file_path.write_bytes(content)
+
+            # Capture manifest content
+            if f.filename.endswith("manifest.yaml"):
+                manifest_content = content.decode("utf-8")
+
+        if not manifest_content:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="manifest.yaml not found in uploaded files",
+            )
+
+        # Parse manifest to get package name
+        try:
+            manifest_data = yaml.safe_load(manifest_content)
+            manifest = SequenceManifest.model_validate(manifest_data)
+        except yaml.YAMLError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid YAML in manifest: {e}",
+            )
+        except ValidationError as e:
+            errors = [f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors()]
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid manifest: {'; '.join(errors)}",
+            )
+
+        package_name = manifest.name
+        packages_dir = sequence_loader.packages_path
+
+        # Ensure sequences directory exists
+        packages_dir.mkdir(parents=True, exist_ok=True)
+
+        # Check if package already exists
+        target_path = packages_dir / package_name
+        backup_path = None
+
+        if target_path.exists():
+            if not force:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Package '{package_name}' already exists. Use force=true to overwrite.",
+                )
+            # Backup existing package (don't delete yet)
+            backup_path = target_path.with_suffix(".backup")
+            if backup_path.exists():
+                shutil.rmtree(backup_path)
+            shutil.move(str(target_path), str(backup_path))
+            logger.info(f"Backed up existing package: {package_name}")
+
+        try:
+            # Determine source path
+            if package_root:
+                source_path = temp_path / package_root
+            else:
+                source_path = temp_path
+
+            # Move to final location
+            shutil.move(str(source_path), str(target_path))
+            logger.info(f"Installed sequence package from folder: {package_name} to {target_path}")
+
+            # Success - remove backup
+            if backup_path and backup_path.exists():
+                shutil.rmtree(backup_path)
+                logger.info(f"Removed backup: {backup_path}")
+
+        except Exception as e:
+            # Restore from backup if installation failed
+            if backup_path and backup_path.exists():
+                if target_path.exists():
+                    shutil.rmtree(target_path)
+                shutil.move(str(backup_path), str(target_path))
+                logger.info(f"Restored package from backup: {package_name}")
+            raise
+
+        # Reload the package to validate and cache
+        manifest = await sequence_loader.reload_package(package_name)
+
+        # Install dependencies from manifest
+        deps_result = None
+        python_deps = manifest.get_required_packages()
+        if python_deps:
+            logger.info(f"Installing {len(python_deps)} dependencies for {package_name}")
+            deps_result = await install_dependencies(python_deps)
+
+            if deps_result.failed > 0:
+                failed_pkgs = [d.package for d in deps_result.details if not d.success]
+                logger.warning(
+                    f"Some dependencies failed to install for {package_name}: {failed_pkgs}"
+                )
+
+        response = SequenceUploadResponse(
+            name=manifest.name,
+            version=manifest.version,
+            path=str(target_path),
+            hardware=manifest.get_hardware_names(),
+            parameters=manifest.get_parameter_names(),
+            uploaded_at=datetime.now(),
+            dependencies=deps_result,
+        )
+
+        # Build success message
+        msg = f"Package '{package_name}' uploaded successfully (from folder)"
+        if deps_result:
+            msg += f" ({deps_result.installed} deps installed, {deps_result.skipped} skipped"
+            if deps_result.failed > 0:
+                msg += f", {deps_result.failed} failed"
+            msg += ")"
+
+        return ApiResponse(
+            success=True,
+            data=response,
+            message=msg,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to upload sequence folder: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload sequence: {str(e)}",

@@ -42,6 +42,7 @@ from app.api.v1 import (
     async_operations,
     search,
     stations,
+    sequences,
 )
 
 __all__ = [
@@ -65,4 +66,5 @@ __all__ = [
     "async_operations",
     "search",
     "stations",
+    "sequences",
 ]

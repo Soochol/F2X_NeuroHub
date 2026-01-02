@@ -2,6 +2,7 @@
  * Sequences API endpoints.
  */
 
+import JSZip from 'jszip';
 import type {
   ApiResponse,
   SequenceSummary,
@@ -96,6 +97,52 @@ export async function uploadSequence(
     }
   );
   return extractData(response);
+}
+
+/**
+ * Convert FileList to ZIP blob.
+ */
+async function filesToZip(files: FileList): Promise<Blob> {
+  const zip = new JSZip();
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file) continue;
+
+    // webkitRelativePath contains the relative path from the selected folder
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+
+    // Skip __pycache__ and .pyc files
+    if (relativePath.includes('__pycache__') || relativePath.endsWith('.pyc')) {
+      continue;
+    }
+
+    // Read file content and add to ZIP
+    const content = await file.arrayBuffer();
+    zip.file(relativePath, content);
+  }
+
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+}
+
+/**
+ * Upload and install a sequence package from a folder (converts to ZIP first).
+ */
+export async function uploadSequenceFolder(
+  files: FileList,
+  force: boolean = false,
+  onProgress?: (progress: number) => void
+): Promise<SequenceUploadResponse> {
+  // Convert folder to ZIP
+  const zipBlob = await filesToZip(files);
+
+  // Extract folder name for the ZIP filename
+  const firstFile = files[0] as File & { webkitRelativePath?: string };
+  const folderName = firstFile?.webkitRelativePath?.split('/')[0] || 'sequence';
+  const zipFile = new File([zipBlob], `${folderName}.zip`, { type: 'application/zip' });
+
+  // Use existing ZIP upload API
+  return uploadSequence(zipFile, force, onProgress);
 }
 
 /**

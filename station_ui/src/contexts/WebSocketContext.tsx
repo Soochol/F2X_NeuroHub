@@ -20,6 +20,7 @@ import { WEBSOCKET_CONFIG } from '../config';
 import { queryKeys } from '../api/queryClient';
 import { transformKeys } from '../utils/transform';
 import { toast } from '../utils/toast';
+import { wsLogger as log } from '../utils';
 import type { ClientMessage, ServerMessage } from '../types';
 
 /**
@@ -88,8 +89,8 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
   // Handle incoming messages with type narrowing
   const handleMessage = useCallback(
     (message: ServerMessage) => {
-      const batchIdForLog = 'batchId' in message ? (message.batchId as string).slice(0, 8) : null;
-      console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : '');
+      const batchIdForLog = 'batchId' in message ? log.truncateId(message.batchId as string) : null;
+      log.debug(`Received: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}` : '');
       switch (message.type) {
         case 'batch_status': {
           // Check if this is an initial status push after subscription (should bypass guards)
@@ -97,7 +98,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           if (isInitialPush) {
             justSubscribedBatches.current.delete(message.batchId);
           }
-          console.log(`[WS] batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, initial=${isInitialPush}`);
+          log.debug(`batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, initial=${isInitialPush}`);
           // Clear steps when starting a new execution (status changes to 'running' with new executionId)
           if (message.data.status === 'running' && message.data.progress === 0) {
             clearSteps(message.batchId);
@@ -117,7 +118,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
 
         case 'step_start': {
-          console.log(`[WS] step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
+          log.debug(`step_start: step=${message.data.step}, index=${message.data.index}/${message.data.total}, exec=${message.data.executionId}`);
           // Update step tracking in store
           startStep(
             message.batchId,
@@ -132,7 +133,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
 
         case 'step_complete': {
-          console.log(`[WS] step_complete: step=${message.data.step}, index=${message.data.index}, pass=${message.data.pass}, duration=${message.data.duration}`);
+          log.debug(`step_complete: step=${message.data.step}, index=${message.data.index}, pass=${message.data.pass}, duration=${message.data.duration}`);
           // Update step in store
           completeStep(
             message.batchId,
@@ -204,7 +205,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           const step = message.data?.step;
           const timestamp = message.data?.timestamp;
 
-          console.log(`[WS] error: code=${code}, message=${errorMessage}, step=${step}`);
+          log.debug(`error: code=${code}, message=${errorMessage}, step=${step}`);
 
           // Immediate toast notification (same as 착공 error)
           toast.error(`[${code}] ${errorMessage}`);
@@ -233,7 +234,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           for (const batchId of subscribedBatchIds) {
             justSubscribedBatches.current.add(batchId);
           }
-          console.log(`[WS] subscribed: ${subscribedBatchIds.length} batches marked for initial push`);
+          log.debug(`subscribed: ${subscribedBatchIds.length} batches marked for initial push`);
           break;
         }
         case 'unsubscribed':
@@ -287,14 +288,14 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
       // Re-subscribe to previously subscribed batches on reconnect
       const subscribedBatchIds = Array.from(subscriptionRefCount.current.keys());
       if (subscribedBatchIds.length > 0) {
-        console.log(`[WS] Re-subscribing on connect:`, subscribedBatchIds.map(id => id.slice(0, 8)));
+        log.debug(`Re-subscribing on connect:`, subscribedBatchIds.map(id => log.truncateId(id)));
         const message: ClientMessage = {
           type: 'subscribe',
           batchIds: subscribedBatchIds,
         };
         socket.send(JSON.stringify(message));
       } else {
-        console.log(`[WS] Connected, no batches to re-subscribe`);
+        log.debug('Connected, no batches to re-subscribe');
       }
     };
 
@@ -306,7 +307,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         const data = transformKeys<ServerMessage>(rawData);
         handleMessage(data);
       } catch (e) {
-        console.error('Failed to parse/handle WebSocket message:', e, 'raw:', event.data);
+        log.error('Failed to parse/handle WebSocket message:', e, 'raw:', event.data);
       }
     };
 
@@ -363,20 +364,20 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
     batchIds.forEach((id) => {
       const currentCount = subscriptionRefCount.current.get(id) || 0;
       subscriptionRefCount.current.set(id, currentCount + 1);
-      console.log(`[WS] subscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount + 1}`);
+      log.debug(`subscribe: ${log.truncateId(id)} refCount: ${currentCount} -> ${currentCount + 1}`);
     });
 
     // ALWAYS send subscribe message - server uses Set so duplicates are safe
     // This fixes the bug where initial subscribe fails if WebSocket wasn't ready
     if (batchIds.length > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
-      console.log(`[WS] Sending subscribe for batches:`, batchIds.map(id => id.slice(0, 8)));
+      log.debug('Sending subscribe for batches:', batchIds.map(id => log.truncateId(id)));
       const message: ClientMessage = {
         type: 'subscribe',
         batchIds,
       };
       socketRef.current.send(JSON.stringify(message));
     } else if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      console.warn(`[WS] WebSocket not open (state: ${socketRef.current?.readyState}), subscribe queued for reconnect`);
+      log.warn(`WebSocket not open (state: ${socketRef.current?.readyState}), subscribe queued for reconnect`);
     }
   }, []);
 
@@ -387,7 +388,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
 
     batchIds.forEach((id) => {
       const currentCount = subscriptionRefCount.current.get(id) || 0;
-      console.log(`[WS] unsubscribe: ${id.slice(0, 8)}... refCount: ${currentCount} -> ${currentCount > 0 ? currentCount - 1 : 0}`);
+      log.debug(`unsubscribe: ${log.truncateId(id)} refCount: ${currentCount} -> ${currentCount > 0 ? currentCount - 1 : 0}`);
       if (currentCount > 1) {
         // Other components still need this subscription
         subscriptionRefCount.current.set(id, currentCount - 1);
@@ -401,7 +402,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
 
     // Only send unsubscribe for batches that no longer have any subscribers
     if (actualUnsubscribes.length > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
-      console.log(`[WS] Sending unsubscribe for:`, actualUnsubscribes.map(id => id.slice(0, 8)));
+      log.debug('Sending unsubscribe for:', actualUnsubscribes.map(id => log.truncateId(id)));
       const message: ClientMessage = {
         type: 'unsubscribe',
         batchIds: actualUnsubscribes,

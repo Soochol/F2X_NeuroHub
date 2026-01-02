@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import Field
 
-from station_service.api.schemas.base import APIBaseModel
+from station_service.core.base import APIBaseModel
 
 
 # ============================================================

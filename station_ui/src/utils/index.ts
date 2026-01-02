@@ -3,6 +3,14 @@
  */
 
 export { toast, isErrorWithMessage, getErrorMessage, type ToastType } from './toast';
+export {
+  createLogger,
+  wsLogger,
+  batchLogger,
+  apiLogger,
+  nullLogger,
+  type Logger,
+} from './logger';
 
 /**
  * Utility function for conditionally joining class names.

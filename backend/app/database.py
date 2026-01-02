@@ -9,10 +9,11 @@ Provides:
     - Cross-database JSONB type support
 """
 
-from typing import Generator, Any, Optional, Type as TypingType, Union
+from typing import AsyncGenerator, Generator, Any, Optional, Type as TypingType, Union
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
-from sqlalchemy.pool import Pool, StaticPool
+from sqlalchemy.pool import Pool, StaticPool, NullPool
 from sqlalchemy.types import JSON, TypeDecorator
 from sqlalchemy.dialects.postgresql import JSONB as PostgreSQL_JSONB
 
@@ -128,8 +129,11 @@ JSONB = get_json_type()
 __all__ = [
     'Base',
     'engine',
+    'async_engine',
     'SessionLocal',
+    'AsyncSessionLocal',
     'get_db',
+    'get_async_db',
     'set_audit_context',
     'JSONBType',
     'JSONBDict',
@@ -179,6 +183,52 @@ SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
+)
+
+
+# ============================================================================
+# Async Database Setup (for async endpoints like sequences)
+# ============================================================================
+
+def _get_async_database_url() -> str:
+    """Convert sync database URL to async driver URL."""
+    url = settings.DATABASE_URL
+    if url.startswith("postgresql://"):
+        # Use asyncpg driver for PostgreSQL
+        return url.replace("postgresql://", "postgresql+asyncpg://")
+    elif url.startswith("sqlite://"):
+        # Use aiosqlite driver for SQLite
+        return url.replace("sqlite://", "sqlite+aiosqlite://")
+    return url
+
+
+# Create async engine
+if "sqlite" in settings.DATABASE_URL:
+    async_engine = create_async_engine(
+        _get_async_database_url(),
+        echo=settings.DB_ECHO,
+        connect_args={
+            "check_same_thread": False,
+        },
+        poolclass=StaticPool,
+    )
+else:
+    async_engine = create_async_engine(
+        _get_async_database_url(),
+        echo=settings.DB_ECHO,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
+
+
+# Async session factory
+AsyncSessionLocal = async_sessionmaker(
+    async_engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
 )
 
 
@@ -243,6 +293,26 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency that provides an async database session.
+
+    Usage in FastAPI async endpoints:
+        @app.get("/items/")
+        async def read_items(db: AsyncSession = Depends(get_async_db)):
+            result = await db.execute(select(Item))
+            return result.scalars().all()
+
+    Yields:
+        AsyncSession: SQLAlchemy async session
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 def set_audit_context(

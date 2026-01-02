@@ -14,9 +14,16 @@ server:
 
 # Backend API connection (NeuroHub)
 backend:
-  url: "http://neurohub.local:3000"  # Backend server URL
-  api_key: "${STATION_BACKEND_API_KEY}"  # Use environment variable
+  url: "http://neurohub.local:8000"  # Backend server URL (FastAPI default port)
+  # Station API Key for sequence pull authentication
+  # Generate with: python scripts/generate_station_api_key.py <station_id>
+  # The key is a JWT with station_id claim, used for X-API-Key header
+  api_key: "${STATION_API_KEY}"  # Use environment variable for security
+  # Station ID must match the station_id in the API key
+  station_id: "station_001"
   sync_interval: 30  # Seconds between sync attempts
+  timeout: 30.0  # Request timeout in seconds
+  max_retries: 5  # Maximum retry attempts for failed requests
 
 # Batch configurations
 batches:

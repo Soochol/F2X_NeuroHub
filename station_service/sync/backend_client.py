@@ -40,6 +40,8 @@ from station_service.sync.models import (
     ProcessHeaderCloseRequest,
     ProcessHeaderResponse,
     ProcessHeaderSummary,
+    SequencePullRequest,
+    SequencePullResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -1097,6 +1099,97 @@ class BackendClient:
                 return [ProcessHeaderSummary.from_api_response(item) for item in items]
 
             self._raise_backend_error(response, "list_headers")
+
+        except httpx.RequestError as e:
+            raise BackendConnectionError(self._config.url, str(e))
+
+    # ================================================================
+    # Sequence Pull (CLI-based deployment)
+    # ================================================================
+
+    @with_auth(AuthMode.API_KEY)
+    async def pull_sequence(
+        self,
+        sequence_name: str,
+        current_version: Optional[str] = None,
+        batch_id: Optional[str] = None,
+    ) -> SequencePullResponse:
+        """
+        Pull sequence package from Backend.
+
+        Uses station's API Key authentication (X-API-Key header).
+        The station_id is taken from the BackendConfig.
+
+        Args:
+            sequence_name: Name of the sequence to pull
+            current_version: Currently installed version (for update check)
+            batch_id: Optional batch ID for deployment tracking
+
+        Returns:
+            SequencePullResponse with version info and package data if update needed
+
+        Raises:
+            BackendConnectionError: If client not connected
+            BackendError: If API call fails or sequence not found
+
+        Example:
+            >>> response = await client.pull_sequence("psa_sensor_test", "1.0.0")
+            >>> if response.needs_update:
+            ...     zip_data = base64.b64decode(response.package_data)
+            ...     # Extract and install
+        """
+        if not self._client:
+            raise BackendConnectionError(self._config.url, "Client not connected")
+
+        if not self._config.station_id:
+            raise BackendError(
+                message="station_id not configured in backend config",
+                code="CONFIG_ERROR",
+            )
+
+        url = f"/api/v1/sequences/{sequence_name}/pull"
+
+        request = SequencePullRequest(
+            station_id=self._config.station_id,
+            batch_id=batch_id,
+            current_version=current_version,
+        )
+        payload = request.model_dump(exclude_none=True)
+
+        try:
+            headers = self._get_api_key_header()
+            response = await self._client.post(url, json=payload, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(
+                    f"Sequence pull: {sequence_name} v{data['version']}, "
+                    f"needs_update={data['needs_update']}"
+                )
+                return SequencePullResponse.from_api_response(data)
+
+            if response.status_code == 404:
+                raise BackendError(
+                    message=f"Sequence not found: {sequence_name}",
+                    code="SEQUENCE_NOT_FOUND",
+                    status_code=404,
+                )
+
+            if response.status_code == 401:
+                raise BackendError(
+                    message="Station API key required or invalid",
+                    code="UNAUTHORIZED",
+                    status_code=401,
+                )
+
+            if response.status_code == 403:
+                raise BackendError(
+                    message="Station ID mismatch with API key",
+                    code="FORBIDDEN",
+                    status_code=403,
+                )
+
+            self._raise_backend_error(response, f"sequence={sequence_name}")
 
         except httpx.RequestError as e:
             raise BackendConnectionError(self._config.url, str(e))

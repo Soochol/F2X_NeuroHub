@@ -9,8 +9,8 @@ import apiClient from '../client';
 import type {
   ProcessHeaderListResponse,
   ProcessHeaderFilter,
-  HeaderStatus,
 } from '@/types/api';
+import { HeaderStatus } from '@/types/api';
 
 export const processHeadersApi = {
   /**

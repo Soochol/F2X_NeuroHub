@@ -5,6 +5,7 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { DashboardPage } from './pages/DashboardPage';
 import { BatchesPage } from './pages/BatchesPage';
 import { BatchDetailPage } from './pages/BatchDetailPage';
@@ -54,19 +55,21 @@ function AppContent() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-        <Route path={ROUTES.BATCHES} element={<BatchesPage />} />
-        <Route path={ROUTES.BATCH_DETAIL} element={<BatchDetailPage />} />
-        <Route path={ROUTES.SEQUENCES} element={<SequencesPage />} />
-        <Route path={ROUTES.SEQUENCE_DETAIL} element={<SequencesPage />} />
-        <Route path={ROUTES.MANUAL} element={<ManualControlPage />} />
-        <Route path={ROUTES.LOGS} element={<LogsPage />} />
-        <Route path={ROUTES.MONITOR} element={<MonitorPage />} />
-        <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
-      </Routes>
-    </Layout>
+    <ErrorBoundary>
+      <Layout>
+        <Routes>
+          <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.BATCHES} element={<BatchesPage />} />
+          <Route path={ROUTES.BATCH_DETAIL} element={<BatchDetailPage />} />
+          <Route path={ROUTES.SEQUENCES} element={<SequencesPage />} />
+          <Route path={ROUTES.SEQUENCE_DETAIL} element={<SequencesPage />} />
+          <Route path={ROUTES.MANUAL} element={<ManualControlPage />} />
+          <Route path={ROUTES.LOGS} element={<LogsPage />} />
+          <Route path={ROUTES.MONITOR} element={<MonitorPage />} />
+          <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+        </Routes>
+      </Layout>
+    </ErrorBoundary>
   );
 }
 

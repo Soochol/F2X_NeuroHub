@@ -63,8 +63,9 @@ test.describe('Sequences Page', () => {
 test.describe('Sequences Page - With Backend', () => {
   // These tests require the station_service backend to be running
 
-  test.skip(({ browserName }) => {
+  test.skip(({ browserName: _browserName }) => {
     // Skip if CI and no backend - can be enabled when backend is running
+    void _browserName; // Unused but required by test.skip signature
     return !!process.env.CI;
   }, 'Requires backend to be running');
 

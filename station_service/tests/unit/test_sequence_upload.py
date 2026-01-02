@@ -298,7 +298,8 @@ class TestValidateSequence:
 
         assert result.success is True
         assert result.data.valid is False
-        assert "empty" in result.data.errors[0].lower()
+        # errors is a list of ValidationErrorDetail objects
+        assert "empty" in result.data.errors[0].message.lower()
 
     @pytest.mark.asyncio
     async def test_invalid_zip_returns_invalid(self):
@@ -310,7 +311,8 @@ class TestValidateSequence:
         result = await sequence_upload.validate_sequence(file=mock_file)
 
         assert result.data.valid is False
-        assert any("Invalid ZIP" in err for err in result.data.errors)
+        # errors is a list of ValidationErrorDetail objects
+        assert any("Invalid ZIP" in err.message for err in result.data.errors)
 
 
 class TestUploadSequence:

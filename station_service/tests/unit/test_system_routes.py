@@ -77,7 +77,7 @@ class TestGetHealth:
         mock_database = MagicMock()
         mock_database.is_connected = True
 
-        with patch.object(system, "_get_disk_usage", return_value=50.0):
+        with patch("station_service.api.routes.system.health._get_disk_usage", return_value=50.0):
             result = await system.get_health(
                 batch_manager=mock_batch_manager,
                 sync_engine=mock_sync_engine,
@@ -103,7 +103,7 @@ class TestGetHealth:
         mock_database = MagicMock()
         mock_database.is_connected = True
 
-        with patch.object(system, "_get_disk_usage", return_value=50.0):
+        with patch("station_service.api.routes.system.health._get_disk_usage", return_value=50.0):
             result = await system.get_health(
                 batch_manager=mock_batch_manager,
                 sync_engine=mock_sync_engine,
@@ -126,7 +126,7 @@ class TestGetHealth:
         mock_database = MagicMock()
         mock_database.is_connected = False
 
-        with patch.object(system, "_get_disk_usage", return_value=50.0):
+        with patch("station_service.api.routes.system.health._get_disk_usage", return_value=50.0):
             result = await system.get_health(
                 batch_manager=mock_batch_manager,
                 sync_engine=mock_sync_engine,
@@ -148,7 +148,7 @@ class TestGetHealth:
         mock_database = MagicMock()
         mock_database.is_connected = True
 
-        with patch.object(system, "_get_disk_usage", return_value=95.0):
+        with patch("station_service.api.routes.system.health._get_disk_usage", return_value=95.0):
             result = await system.get_health(
                 batch_manager=mock_batch_manager,
                 sync_engine=mock_sync_engine,
@@ -170,7 +170,7 @@ class TestGetHealth:
         mock_database = MagicMock()
         mock_database.is_connected = True
 
-        with patch.object(system, "_get_disk_usage", return_value=50.0):
+        with patch("station_service.api.routes.system.health._get_disk_usage", return_value=50.0):
             result = await system.get_health(
                 batch_manager=mock_batch_manager,
                 sync_engine=mock_sync_engine,

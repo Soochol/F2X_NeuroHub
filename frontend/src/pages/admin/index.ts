@@ -1,10 +1,32 @@
 /**
- * Admin Pages Index
+ * Admin Module - Barrel Export
  *
- * Note: UserManagement, ProcessManagement, ProductModelManagement,
- * ProductionLineManagement, EquipmentManagement are exported directly
- * from AdminPage.tsx and imported in App.tsx
+ * Re-exports all admin management components for clean imports:
+ * - AdminPage: Main admin page with tab navigation
+ * - Individual management components for standalone use
+ * - Shared types and utilities
  */
 
-export { SerialInspectorPage } from './SerialInspectorPage';
+// Main admin page
+export { AdminPage } from './AdminPage';
+
+// Individual management components
+export { EquipmentManagement } from './EquipmentManagement';
+export { ProcessManagement } from './ProcessManagement';
+export { ProductionLineManagement } from './ProductionLineManagement';
+export { ProductModelManagement } from './ProductModelManagement';
+export { UserManagement } from './UserManagement';
+
+// Other admin pages
 export { LotMonitorPage } from './LotMonitorPage';
+export { SerialInspectorPage } from './SerialInspectorPage';
+
+// Shared types and utilities
+export type {
+  EquipmentFormData,
+  ProcessFormData,
+  ProductFormData,
+  ProductionLineFormData,
+  TabType,
+  UserFormData,
+} from './shared';

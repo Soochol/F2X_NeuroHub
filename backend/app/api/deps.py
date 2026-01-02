@@ -16,18 +16,24 @@ Provides:
 # Re-export all dependencies from core.deps
 from app.core.deps import (
     get_db,
+    get_async_db,
     get_current_user,
     get_current_active_user,
     get_current_admin_user,
     get_current_manager_user,
     check_role_permission,
+    StationAuth,
+    get_station_auth,
 )
 
 __all__ = [
     "get_db",
+    "get_async_db",
     "get_current_user",
     "get_current_active_user",
     "get_current_admin_user",
     "get_current_manager_user",
     "check_role_permission",
+    "StationAuth",
+    "get_station_auth",
 ]
