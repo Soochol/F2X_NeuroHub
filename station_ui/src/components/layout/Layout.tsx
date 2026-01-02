@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { StatusBar } from './StatusBar';
+import { ToastContainer } from '../atoms';
 import { useSystemInfo } from '../../hooks';
 
 interface LayoutProps {
@@ -49,6 +50,7 @@ export function Layout({ children }: LayoutProps) {
         </main>
         <StatusBar />
       </div>
+      <ToastContainer />
     </div>
   );
 }

@@ -3,18 +3,21 @@ Manual Control API Schema Definitions.
 
 Defines request/response models for manual hardware control and
 command introspection endpoints.
+All responses use camelCase field names in JSON output via APIBaseModel.
 """
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 
-class ParameterInfo(BaseModel):
+class ParameterInfo(APIBaseModel):
     """Parameter definition for a hardware command."""
 
     name: str = Field(..., description="Parameter name")
-    displayName: str = Field(..., description="Display name for UI")
+    display_name: str = Field(..., description="Display name for UI")
     type: str = Field(..., description="Parameter type: string, number, boolean, select")
     required: bool = Field(False, description="Whether parameter is required")
     default: Optional[Any] = Field(None, description="Default value if not required")
@@ -27,11 +30,11 @@ class ParameterInfo(BaseModel):
     description: Optional[str] = Field(None, description="Parameter description")
 
 
-class CommandInfo(BaseModel):
+class CommandInfo(APIBaseModel):
     """Hardware command information."""
 
     name: str = Field(..., description="Command/method name")
-    displayName: str = Field(..., description="Display name for UI")
+    display_name: str = Field(..., description="Display name for UI")
     description: str = Field("", description="Command description")
     category: str = Field(
         "diagnostic",
@@ -40,24 +43,21 @@ class CommandInfo(BaseModel):
     parameters: List[ParameterInfo] = Field(
         default_factory=list, description="Command parameters"
     )
-    returnType: str = Field("Any", description="Return type")
-    returnUnit: Optional[str] = Field(None, description="Unit of return value")
-    async_: bool = Field(True, alias="async", description="Whether command is async")
-
-    class Config:
-        populate_by_name = True
+    return_type: str = Field("Any", description="Return type")
+    return_unit: Optional[str] = Field(None, description="Unit of return value")
+    is_async: bool = Field(True, serialization_alias="async", description="Whether command is async")
 
 
-class HardwareCommandsResponse(BaseModel):
+class HardwareCommandsResponse(APIBaseModel):
     """Response containing available commands for a hardware device."""
 
-    hardwareId: str = Field(..., description="Hardware device ID")
+    hardware_id: str = Field(..., description="Hardware device ID")
     driver: str = Field(..., description="Driver class name")
     connected: bool = Field(..., description="Whether device is connected")
     commands: List[CommandInfo] = Field(..., description="Available commands")
 
 
-class HardwareDetailedStatus(BaseModel):
+class HardwareDetailedStatus(APIBaseModel):
     """Detailed hardware status information."""
 
     id: str = Field(..., description="Hardware device ID")
@@ -66,27 +66,27 @@ class HardwareDetailedStatus(BaseModel):
     connected: bool = Field(..., description="Whether connected")
     config: Dict[str, Any] = Field(default_factory=dict, description="Configuration")
     info: Dict[str, Any] = Field(default_factory=dict, description="Device info")
-    lastError: Optional[str] = Field(None, description="Last error message")
+    last_error: Optional[str] = Field(None, description="Last error message")
 
 
-class ManualStepConfig(BaseModel):
+class ManualStepConfig(APIBaseModel):
     """Manual mode configuration for a sequence step."""
 
     skippable: bool = Field(True, description="Can be skipped in manual mode")
-    autoOnly: bool = Field(False, description="Only runs in automatic mode")
+    auto_only: bool = Field(False, description="Only runs in automatic mode")
     prompt: Optional[str] = Field(None, description="Confirmation prompt")
-    pauseBefore: bool = Field(False, description="Pause before execution")
-    pauseAfter: bool = Field(False, description="Pause after execution")
-    parameterOverrides: List[str] = Field(
+    pause_before: bool = Field(False, description="Pause before execution")
+    pause_after: bool = Field(False, description="Pause after execution")
+    parameter_overrides: List[str] = Field(
         default_factory=list, description="Parameters that can be overridden"
     )
 
 
-class ManualStepInfo(BaseModel):
+class ManualStepInfo(APIBaseModel):
     """Step information for manual sequence execution."""
 
     name: str = Field(..., description="Step name")
-    displayName: str = Field(..., description="Display name")
+    display_name: str = Field(..., description="Display name")
     order: int = Field(..., description="Execution order")
     timeout: float = Field(60.0, description="Timeout in seconds")
     manual: ManualStepConfig = Field(
@@ -97,7 +97,7 @@ class ManualStepInfo(BaseModel):
     duration: Optional[float] = Field(None, description="Execution duration")
 
 
-class ManualStepRequest(BaseModel):
+class ManualStepRequest(APIBaseModel):
     """Request body for manual step execution."""
 
     parameters: Optional[Dict[str, Any]] = Field(
@@ -105,21 +105,21 @@ class ManualStepRequest(BaseModel):
     )
 
 
-class CommandPreset(BaseModel):
+class CommandPreset(APIBaseModel):
     """Saved command preset for quick access."""
 
     id: str = Field(..., description="Preset ID")
     name: str = Field(..., description="Preset name")
-    hardwareId: str = Field(..., description="Hardware device ID")
+    hardware_id: str = Field(..., description="Hardware device ID")
     command: str = Field(..., description="Command name")
     params: Dict[str, Any] = Field(default_factory=dict, description="Command parameters")
-    createdAt: str = Field(..., description="Creation timestamp")
+    created_at: str = Field(..., description="Creation timestamp")
 
 
-class CommandPresetCreate(BaseModel):
+class CommandPresetCreate(APIBaseModel):
     """Request body for creating a command preset."""
 
     name: str = Field(..., description="Preset name")
-    hardwareId: str = Field(..., description="Hardware device ID")
+    hardware_id: str = Field(..., description="Hardware device ID")
     command: str = Field(..., description="Command name")
     params: Dict[str, Any] = Field(default_factory=dict, description="Command parameters")

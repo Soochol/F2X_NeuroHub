@@ -8,9 +8,10 @@ import logging
 import os
 import shutil
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -23,6 +24,7 @@ from station_service.api.dependencies import (
     get_database,
     get_sync_engine,
 )
+from station_service.api.schemas.base import APIBaseModel
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
 from station_service.api.schemas.result import HealthStatus, SystemInfo
 from station_service.models.config import StationInfo, WorkflowConfig
@@ -31,6 +33,7 @@ from station_service.models.config import StationConfig
 from station_service.storage.database import Database
 from station_service.sync.backend_client import BackendClient
 from station_service.sync.engine import SyncEngine
+from station_service.core.exceptions import BackendError, WIPNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +46,7 @@ _service_start_time: float = time.time()
 SERVICE_VERSION = "1.0.0"
 
 
-class SyncStatus(BaseModel):
+class SyncStatus(APIBaseModel):
     """Sync queue status response."""
 
     pending_count: int = Field(..., description="Number of pending sync items")
@@ -110,7 +113,7 @@ async def get_system_info(
         )
 
 
-class UpdateStationInfoRequest(BaseModel):
+class UpdateStationInfoRequest(APIBaseModel):
     """Request body for updating station information."""
 
     id: str = Field(..., min_length=1, max_length=100, description="Station ID")
@@ -424,7 +427,7 @@ def _determine_health_status(
 # ============================================================================
 
 
-class WorkflowConfigResponse(BaseModel):
+class WorkflowConfigResponse(APIBaseModel):
     """Workflow configuration response."""
 
     enabled: bool = Field(..., description="Whether workflow is enabled")
@@ -433,7 +436,7 @@ class WorkflowConfigResponse(BaseModel):
     require_operator_login: bool = Field(..., description="Require backend login")
 
 
-class UpdateWorkflowRequest(BaseModel):
+class UpdateWorkflowRequest(APIBaseModel):
     """Request body for updating workflow configuration."""
 
     enabled: Optional[bool] = Field(None, description="Enable/disable workflow")
@@ -580,7 +583,7 @@ async def update_workflow_config(
 # ============================================================================
 
 
-class OperatorInfo(BaseModel):
+class OperatorInfo(APIBaseModel):
     """Operator information from backend."""
 
     id: int = Field(..., description="Operator ID")
@@ -589,7 +592,7 @@ class OperatorInfo(BaseModel):
     role: str = Field("", description="Operator role")
 
 
-class OperatorSession(BaseModel):
+class OperatorSession(APIBaseModel):
     """Current operator session state."""
 
     logged_in: bool = Field(..., description="Whether an operator is logged in")
@@ -598,7 +601,7 @@ class OperatorSession(BaseModel):
     logged_in_at: Optional[datetime] = Field(None, description="Login timestamp")
 
 
-class OperatorLoginRequest(BaseModel):
+class OperatorLoginRequest(APIBaseModel):
     """Request body for operator login."""
 
     username: str = Field(..., min_length=1, description="Operator username")
@@ -610,6 +613,8 @@ _operator_session: Dict[str, Any] = {
     "logged_in": False,
     "operator": None,
     "access_token": None,
+    "refresh_token": None,
+    "expires_at": None,
     "logged_in_at": None,
 }
 
@@ -622,23 +627,79 @@ def get_operator_session() -> Dict[str, Any]:
 def set_operator_session(
     operator: Optional[Dict[str, Any]] = None,
     access_token: Optional[str] = None,
+    refresh_token: Optional[str] = None,
+    expires_in: Optional[int] = None,
 ) -> None:
-    """Set the operator session state."""
+    """
+    Set the operator session state.
+
+    Args:
+        operator: Operator info dict with id, username, name, role
+        access_token: JWT access token
+        refresh_token: Refresh token for obtaining new access tokens
+        expires_in: Token expiration time in seconds
+    """
     global _operator_session
     if operator and access_token:
+        expires_at = None
+        if expires_in:
+            expires_at = datetime.now() + timedelta(seconds=expires_in)
+
         _operator_session = {
             "logged_in": True,
             "operator": operator,
             "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_at": expires_at,
             "logged_in_at": datetime.now(),
         }
+
+        # Also update TokenManager for centralized token management
+        from station_service.core.token_manager import get_token_manager
+        token_manager = get_token_manager()
+        token_manager.set_tokens(
+            access_token=access_token,
+            refresh_token=refresh_token or "",
+            expires_in=expires_in,
+            user_id=operator.get("id"),
+            username=operator.get("username"),
+        )
     else:
         _operator_session = {
             "logged_in": False,
             "operator": None,
             "access_token": None,
+            "refresh_token": None,
+            "expires_at": None,
             "logged_in_at": None,
         }
+
+        # Clear TokenManager
+        from station_service.core.token_manager import get_token_manager
+        get_token_manager().clear_tokens()
+
+
+def update_operator_tokens(
+    access_token: str,
+    refresh_token: Optional[str] = None,
+    expires_at: Optional[datetime] = None,
+) -> None:
+    """
+    Update operator session tokens after refresh.
+
+    Args:
+        access_token: New access token
+        refresh_token: New refresh token (or keep existing)
+        expires_at: New expiration timestamp
+    """
+    global _operator_session
+    if _operator_session["logged_in"]:
+        _operator_session["access_token"] = access_token
+        if refresh_token:
+            _operator_session["refresh_token"] = refresh_token
+        if expires_at:
+            _operator_session["expires_at"] = expires_at
+        logger.debug("Operator session tokens updated")
 
 
 def clear_operator_session() -> None:
@@ -754,8 +815,10 @@ async def operator_login(
             password=request.password,
         )
 
-        # Extract user info
+        # Extract user info and tokens
         access_token = login_response.get("access_token", "")
+        refresh_token = login_response.get("refresh_token")
+        expires_in = login_response.get("expires_in")
         user_info = login_response.get("user", {})
 
         if not access_token or not user_info:
@@ -764,7 +827,7 @@ async def operator_login(
                 detail="Invalid login response from backend",
             )
 
-        # Store session
+        # Store session with refresh token support
         set_operator_session(
             operator={
                 "id": user_info.get("id", 0),
@@ -773,6 +836,8 @@ async def operator_login(
                 "role": user_info.get("role", ""),
             },
             access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=expires_in,
         )
 
         session = get_operator_session()
@@ -861,4 +926,406 @@ async def operator_logout() -> ApiResponse[OperatorSession]:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to logout: {str(e)}",
+        )
+
+
+# ============================================================================
+# Process List API (공정 목록)
+# ============================================================================
+
+
+class ProcessInfo(APIBaseModel):
+    """Process information from backend MES."""
+
+    id: int = Field(..., description="Process ID")
+    process_number: int = Field(..., description="Process number (1-8)")
+    process_code: str = Field(..., description="Process code (e.g., SENSOR_INSPECTION)")
+    process_name_ko: str = Field(..., description="Process name in Korean")
+    process_name_en: str = Field(..., description="Process name in English")
+
+
+@router.get(
+    "/processes",
+    response_model=ApiResponse[list[ProcessInfo]],
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get process list",
+    description="""
+    Get list of active processes from Backend MES.
+
+    Used for selecting which process to use for 착공/완공 tracking.
+    """,
+)
+async def get_processes(
+    config: StationConfig = Depends(get_config),
+    backend_client: BackendClient = Depends(get_backend_client),
+) -> ApiResponse[list[ProcessInfo]]:
+    """
+    Get process list from Backend MES.
+
+    Returns:
+        ApiResponse[list[ProcessInfo]]: List of active processes
+    """
+    from station_service.core.exceptions import BackendConnectionError, BackendError
+
+    try:
+        # Check if backend is configured
+        if not config.backend.url:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Backend not configured. Set backend URL in station.yaml.",
+            )
+
+        # Ensure client is connected
+        if not backend_client.is_connected:
+            await backend_client.connect()
+
+        # Fetch processes from backend (uses API Key auth)
+        processes_data = await backend_client.get_processes()
+
+        # Map to ProcessInfo
+        processes = [
+            ProcessInfo(
+                id=p.get("id", 0),
+                process_number=p.get("process_number", 0),
+                process_code=p.get("process_code", ""),
+                process_name_ko=p.get("process_name_ko", ""),
+                process_name_en=p.get("process_name_en", ""),
+            )
+            for p in processes_data
+        ]
+
+        return ApiResponse(
+            success=True,
+            data=processes,
+        )
+
+    except BackendConnectionError as e:
+        logger.error(f"Backend connection error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Cannot connect to backend: {str(e)}",
+        )
+    except BackendError as e:
+        logger.warning(f"Backend error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e.message) if hasattr(e, "message") else "Failed to get processes",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to get processes")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get processes: {str(e)}",
+        )
+
+
+# ============================================================================
+# Process Headers API (Process Header 목록)
+# ============================================================================
+
+
+class ProcessHeaderInfo(APIBaseModel):
+    """Process header summary from backend MES."""
+
+    id: int = Field(..., description="Header ID")
+    station_id: str = Field(..., description="Station identifier")
+    batch_id: str = Field(..., description="Batch identifier")
+    process_id: int = Field(..., description="Process ID (foreign key)")
+    status: str = Field(..., description="Header status: OPEN, CLOSED, CANCELLED")
+    total_count: int = Field(default=0, description="Total WIP items processed")
+    pass_count: int = Field(default=0, description="Number of PASS results")
+    fail_count: int = Field(default=0, description="Number of FAIL results")
+    opened_at: datetime = Field(..., description="When header was opened")
+    closed_at: Optional[datetime] = Field(None, description="When header was closed")
+    process_name: Optional[str] = Field(None, description="Process name (from relation)")
+    process_code: Optional[str] = Field(None, description="Process code (from relation)")
+
+
+@router.get(
+    "/headers",
+    response_model=ApiResponse[list[ProcessHeaderInfo]],
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get process headers",
+    description="""
+    Get list of process headers from Backend MES.
+
+    Filter by station_id, batch_id, process_id, or status.
+    Used for selecting existing headers to link to a batch.
+    """,
+)
+async def get_headers(
+    station_id: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    process_id: Optional[int] = None,
+    header_status: Optional[str] = None,
+    limit: int = 100,
+    config: StationConfig = Depends(get_config),
+    backend_client: BackendClient = Depends(get_backend_client),
+) -> ApiResponse[list[ProcessHeaderInfo]]:
+    """
+    Get process headers from Backend MES.
+
+    Args:
+        station_id: Optional filter by station ID
+        batch_id: Optional filter by batch ID
+        process_id: Optional filter by process ID
+        header_status: Optional filter by status (OPEN, CLOSED, CANCELLED)
+        limit: Maximum records to return (default 100)
+
+    Returns:
+        ApiResponse[list[ProcessHeaderInfo]]: List of process headers
+    """
+    from station_service.core.exceptions import BackendConnectionError, BackendError
+
+    try:
+        # Check if backend is configured
+        if not config.backend.url:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Backend not configured. Set backend URL in station.yaml.",
+            )
+
+        # Ensure client is connected
+        if not backend_client.is_connected:
+            await backend_client.connect()
+
+        # Fetch headers from backend (uses API Key auth internally)
+        headers_data = await backend_client.list_headers(
+            station_id=station_id,
+            batch_id=batch_id,
+            process_id=process_id,
+            status=header_status,
+            limit=limit,
+        )
+
+        # Map to ProcessHeaderInfo
+        headers = [
+            ProcessHeaderInfo(
+                id=h.id,
+                station_id=h.station_id,
+                batch_id=h.batch_id,
+                process_id=h.process_id,
+                status=h.status,
+                total_count=h.total_count,
+                pass_count=h.pass_count,
+                fail_count=h.fail_count,
+                opened_at=h.opened_at,
+                closed_at=h.closed_at,
+                process_name=h.process_name,
+                process_code=h.process_code,
+            )
+            for h in headers_data
+        ]
+
+        return ApiResponse(
+            success=True,
+            data=headers,
+        )
+
+    except BackendConnectionError as e:
+        logger.error(f"Backend connection error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Cannot connect to backend: {str(e)}",
+        )
+    except BackendError as e:
+        logger.warning(f"Backend error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e.message) if hasattr(e, "message") else "Failed to get headers",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to get headers")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get headers: {str(e)}",
+        )
+
+
+# ============================================================================
+# WIP Validation API
+# ============================================================================
+
+
+class ValidateWIPRequest(APIBaseModel):
+    """Request body for WIP validation."""
+
+    wip_id: str = Field(..., min_length=1, description="WIP ID to validate")
+    process_id: Optional[int] = Field(None, description="Optional process ID for validation")
+
+
+class ValidateWIPResponse(APIBaseModel):
+    """WIP validation response."""
+
+    valid: bool = Field(..., description="Whether the WIP ID is valid")
+    wip_id: str = Field(..., description="The validated WIP ID")
+    int_id: Optional[int] = Field(None, description="WIP integer ID (if valid)")
+    lot_id: Optional[int] = Field(None, description="LOT ID FK (if valid)")
+    status: Optional[str] = Field(None, description="WIP status (if valid)")
+    message: Optional[str] = Field(None, description="Error message (if invalid)")
+    has_pass_for_process: Optional[bool] = Field(
+        None, description="True if WIP already has PASS result for the requested process"
+    )
+    pass_warning_message: Optional[str] = Field(
+        None, description="Warning message if has_pass_for_process is True"
+    )
+
+
+@router.post(
+    "/validate-wip",
+    response_model=ApiResponse[ValidateWIPResponse],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+    },
+    summary="Validate WIP ID",
+    description="""
+    Validate a WIP ID against the backend before starting a batch.
+
+    This endpoint performs a quick validation check to verify:
+    - The WIP ID exists in the backend
+    - The WIP is in a valid status for processing
+
+    Use this before starting a batch to avoid the delay of
+    stopping a batch after WIP validation fails.
+    """,
+)
+async def validate_wip(
+    request: ValidateWIPRequest,
+    backend_client: BackendClient = Depends(get_backend_client),
+    config: StationConfig = Depends(get_config),
+) -> ApiResponse[ValidateWIPResponse]:
+    """
+    Validate WIP ID against the backend.
+
+    Args:
+        request: WIP validation request
+        backend_client: Backend client instance
+        config: Station configuration
+
+    Returns:
+        ApiResponse[ValidateWIPResponse]: Validation result
+    """
+    from station_service.core.exceptions import (
+        WIPNotFoundError,
+        BackendError as BE,
+        TokenExpiredError,
+    )
+
+    # Check if backend is configured
+    if not config.backend.url:
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=True,
+                wip_id=request.wip_id,
+                message="Backend not configured, skipping validation",
+            ),
+        )
+
+    try:
+        # Connect if not connected
+        if not backend_client.is_connected:
+            await backend_client.connect()
+
+        # Get access token from operator session
+        session = get_operator_session()
+        access_token = session.get("access_token")
+
+        if not access_token:
+            return ApiResponse(
+                success=True,
+                data=ValidateWIPResponse(
+                    valid=False,
+                    wip_id=request.wip_id,
+                    message="Operator not logged in. Please login first.",
+                ),
+            )
+
+        # Lookup WIP (uses API Key auth internally)
+        wip_result = await backend_client.lookup_wip(
+            request.wip_id,
+            process_id=request.process_id,
+        )
+
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=True,
+                wip_id=request.wip_id,
+                int_id=wip_result.id,
+                lot_id=wip_result.lot_id,
+                status=wip_result.status,
+                has_pass_for_process=wip_result.has_pass_for_process,
+                pass_warning_message=wip_result.pass_warning_message,
+            ),
+        )
+
+    except WIPNotFoundError:
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=False,
+                wip_id=request.wip_id,
+                message=f"WIP '{request.wip_id}' not found",
+            ),
+        )
+
+    except httpx.ConnectError as e:
+        logger.error(f"Backend connection error during WIP validation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Cannot connect to backend: {str(e)}",
+        )
+
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"Backend HTTP error during WIP validation: {e}")
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=False,
+                wip_id=request.wip_id,
+                message=f"Backend validation failed: {e.response.status_code}",
+            ),
+        )
+
+    except TokenExpiredError:
+        # Token expired and auto-refresh failed
+        logger.warning("Token expired during WIP validation, clearing session")
+        clear_operator_session()
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=False,
+                wip_id=request.wip_id,
+                message="세션이 만료되었습니다. 다시 로그인해주세요.",
+            ),
+        )
+
+    except BackendError as e:
+        logger.warning(f"Backend error during WIP validation: {e}")
+        return ApiResponse(
+            success=True,
+            data=ValidateWIPResponse(
+                valid=False,
+                wip_id=request.wip_id,
+                message=str(e),
+            ),
+        )
+
+    except Exception as e:
+        logger.exception("Failed to validate WIP")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate WIP: {str(e)}",
         )

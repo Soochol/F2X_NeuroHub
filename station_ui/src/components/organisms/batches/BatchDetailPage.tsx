@@ -115,7 +115,7 @@ export function BatchDetailPage({
   };
 
   // Calculate overall statistics
-  const totalStats = statistics || { total: 0, pass: 0, fail: 0, passRate: 0 };
+  const totalStats = statistics || { total: 0, passCount: 0, fail: 0, passRate: 0 };
 
   return (
     <div className="h-full flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 overflow-hidden">
@@ -164,7 +164,7 @@ export function BatchDetailPage({
         <StatItem
           icon={<CheckCircle className="w-4 h-4 text-green-500" />}
           label="Pass"
-          value={totalStats.pass}
+          value={totalStats.passCount}
           color="text-green-500"
         />
         <StatItem

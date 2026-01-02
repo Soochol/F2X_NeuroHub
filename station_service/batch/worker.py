@@ -9,9 +9,10 @@ IPC communication with the master process, and Backend integration for
 import asyncio
 import json
 import logging
+import re
 import signal
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from station_service.core.exceptions import (
@@ -33,9 +34,23 @@ from station_service.sync.models import (
     ProcessCompleteRequest,
     ProcessStartRequest,
     WIPLookupResult,
+    ProcessHeaderOpenRequest,
+    ProcessHeaderResponse,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def camel_to_snake(name: str) -> str:
+    """Convert camelCase to snake_case."""
+    # Insert underscore before uppercase letters and convert to lowercase
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+def convert_params_to_snake_case(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert all parameter keys from camelCase to snake_case."""
+    return {camel_to_snake(k): v for k, v in params.items()}
 
 
 class BatchWorker:
@@ -103,6 +118,7 @@ class BatchWorker:
         self._manifest = None
         self._loader = None
         self._package_path = None
+        self._sequence_class: Optional[type] = None  # Stored to recreate with parameters
 
         # Execution state for status reporting
         self._current_step: Optional[str] = None
@@ -125,6 +141,10 @@ class BatchWorker:
         self._current_process_id: Optional[int] = None
         self._current_operator_id: Optional[int] = None
         self._process_start_time: Optional[datetime] = None
+
+        # Process header tracking for station/batch identification
+        self._station_id: Optional[str] = backend_config.station_id if backend_config else None
+        self._current_header_id: Optional[int] = None  # ProcessHeader ID for this batch session
 
         # SQLite database and repositories for persistent data
         self._database: Optional[Database] = None
@@ -259,6 +279,7 @@ class BatchWorker:
 
         # Extract WIP context from parameters
         wip_id_string = parameters.get("wip_id")
+        wip_int_id = parameters.get("wip_int_id")  # Pre-validated WIP int ID
         process_id = parameters.get("process_id")
         operator_id = parameters.get("operator_id")
         equipment_id = parameters.get("equipment_id")
@@ -271,17 +292,25 @@ class BatchWorker:
         # ═══════════════════════════════════════════════════════════════
         if wip_id_string and process_id and operator_id:
             try:
-                # 1. Lookup WIP to get int ID
-                wip_lookup = await self._lookup_wip(wip_id_string, process_id)
+                # 1. Get WIP int ID (use pre-validated or lookup)
+                if wip_int_id:
+                    # Use pre-validated WIP int ID (skip lookup)
+                    logger.info(f"Using pre-validated WIP int ID: {wip_int_id}")
+                    wip_int_id_resolved = wip_int_id
+                else:
+                    # Lookup WIP to get int ID
+                    wip_lookup = await self._lookup_wip(wip_id_string, process_id)
+                    wip_int_id_resolved = wip_lookup.id
+
                 self._current_wip_id = wip_id_string
-                self._current_wip_int_id = wip_lookup.id
+                self._current_wip_int_id = wip_int_id_resolved
                 self._current_process_id = process_id
                 self._current_operator_id = operator_id
 
                 # 2. Call 착공 (start-process)
-                self._process_start_time = datetime.now()
+                self._process_start_time = datetime.now(timezone.utc)
                 await self._call_start_process(
-                    wip_int_id=wip_lookup.id,
+                    wip_int_id=wip_int_id_resolved,
                     process_id=process_id,
                     operator_id=operator_id,
                     equipment_id=equipment_id,
@@ -293,13 +322,18 @@ class BatchWorker:
                 return IPCResponse.error(command.request_id, str(e))
 
             except BackendError as e:
-                # Backend error but continue in offline mode
+                # Check if it's a client error (4xx) - should fail, not continue offline
+                if e.status_code and 400 <= e.status_code < 500:
+                    logger.error(f"Client error during 착공: {e}")
+                    return IPCResponse.error(command.request_id, str(e))
+
+                # Server error (5xx) or connection error - continue in offline mode
                 logger.warning(f"Backend error during 착공, continuing offline: {e}")
                 self._backend_online = False
                 self._current_wip_id = wip_id_string
                 self._current_process_id = process_id
                 self._current_operator_id = operator_id
-                self._process_start_time = datetime.now()
+                self._process_start_time = datetime.now(timezone.utc)
 
                 # Queue for later sync
                 await self._queue_for_offline_sync(
@@ -325,6 +359,18 @@ class BatchWorker:
             self._current_process_id = None
             self._current_operator_id = None
 
+        # Recreate sequence instance with parameters for this execution
+        if self._sequence_class:
+            # Convert camelCase keys to snake_case for sequence compatibility
+            snake_case_params = convert_params_to_snake_case(parameters)
+            self._sequence_instance = self._sequence_class(
+                hardware=self._drivers,
+                parameters=snake_case_params
+            )
+            logger.info(f"Sequence instance recreated with {len(snake_case_params)} parameters: {list(snake_case_params.keys())}")
+        else:
+            logger.warning("No sequence class available, using existing instance")
+
         # Create executor
         self._executor = SequenceExecutor(
             sequence_instance=self._sequence_instance,
@@ -342,7 +388,7 @@ class BatchWorker:
         self._execution_task = asyncio.create_task(self._run_sequence())
 
         self._status = BatchStatus.RUNNING
-        self._started_at = datetime.now()
+        self._started_at = datetime.now(timezone.utc)
 
         # Publish batch status update immediately so frontend knows we're running
         await self._ipc.status_update({
@@ -374,6 +420,9 @@ class BatchWorker:
             except asyncio.CancelledError:
                 pass
             self._execution_task = None
+
+        # Close process header with CANCELLED status since sequence was stopped
+        await self._close_process_header(status="CANCELLED")
 
         self._status = BatchStatus.IDLE
         self._reset_execution_state()
@@ -495,29 +544,40 @@ class BatchWorker:
                     )
 
                 except BackendError as e:
-                    # Queue for offline sync
-                    logger.warning(f"Backend error during 완공, queuing for sync: {e}")
-                    process_result = self._determine_process_result(result)
-                    measurements = self._extract_measurements(result)
-                    defects = self._extract_defects(result)
-
-                    await self._queue_for_offline_sync(
-                        "wip_process",
-                        self._current_wip_id,
-                        "complete_process",
-                        {
-                            "wip_int_id": self._current_wip_int_id,
-                            "process_id": self._current_process_id,
-                            "operator_id": self._current_operator_id,
-                            "request": {
-                                "result": process_result,
-                                "measurements": measurements,
-                                "defects": defects,
-                                "notes": f"Sequence: {result.sequence_name}",
-                                "completed_at": datetime.now().isoformat(),
-                            },
-                        },
+                    # Notify UI about the error
+                    error_message = e.message if hasattr(e, 'message') else str(e)
+                    await self._ipc.error(
+                        code="COMPLETE_PROCESS_FAILED",
+                        message=f"완공 실패: {error_message}",
+                        step="complete_process",
                     )
+                    logger.warning(f"Backend error during 완공: {e}")
+
+                    # Queue for offline sync if it's a connection/transient error
+                    # Don't queue for business rule violations (e.g., duplicate PASS)
+                    if e.status_code in (500, 502, 503, 504) or "connection" in str(e).lower():
+                        logger.info("Queuing for offline sync due to transient error")
+                        process_result = self._determine_process_result(result)
+                        measurements = self._extract_measurements(result)
+                        defects = self._extract_defects(result)
+
+                        await self._queue_for_offline_sync(
+                            "wip_process",
+                            self._current_wip_id,
+                            "complete_process",
+                            {
+                                "wip_int_id": self._current_wip_int_id,
+                                "process_id": self._current_process_id,
+                                "operator_id": self._current_operator_id,
+                                "request": {
+                                    "result": process_result,
+                                    "measurements": measurements,
+                                    "defects": defects,
+                                    "notes": f"Sequence: {result.sequence_name}",
+                                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                                },
+                            },
+                        )
 
             # Publish completion event
             await self._ipc.sequence_complete(
@@ -590,9 +650,9 @@ class BatchWorker:
                 sequence_name=sequence_name,
                 sequence_version=sequence_version,
                 status="completed" if result.overall_pass is not None else "failed",
-                started_at=self._started_at or datetime.now(),
+                started_at=self._started_at or datetime.now(timezone.utc),
                 overall_pass=result.overall_pass,
-                completed_at=datetime.now(),
+                completed_at=datetime.now(timezone.utc),
                 duration=int(result.duration or 0),
             )
 
@@ -739,7 +799,10 @@ class BatchWorker:
             # Load the sequence class
             sequence_class = await loader.load_sequence_class(manifest, package_full_path)
 
-            # Create instance of the sequence
+            # Store sequence class for recreating with parameters later
+            self._sequence_class = sequence_class
+
+            # Create initial instance of the sequence (will be recreated with parameters on start)
             self._sequence_instance = sequence_class()
 
             # Store manifest for reference
@@ -808,6 +871,9 @@ class BatchWorker:
     async def _cleanup(self) -> None:
         """Clean up resources."""
         logger.info("Cleaning up worker resources")
+
+        # Close process header if open (with CANCELLED since we're shutting down)
+        await self._close_process_header(status="CANCELLED")
 
         # Stop any running execution
         if self._executor:
@@ -1032,6 +1098,15 @@ class BatchWorker:
         try:
             self._backend_client = BackendClient(self._backend_config)
             await self._backend_client.connect()
+
+            # Connect TokenManager for automatic token refresh
+            from station_service.core.token_manager import get_token_manager
+            from station_service.api.routes.system import update_operator_tokens
+            token_manager = get_token_manager()
+            self._backend_client.set_token_manager(token_manager)
+            self._backend_client.set_token_update_callback(update_operator_tokens)
+            logger.info("Worker BackendClient connected with TokenManager")
+
             self._backend_online = await self._backend_client.health_check()
 
             if self._backend_online:
@@ -1043,6 +1118,84 @@ class BatchWorker:
             logger.warning(f"Failed to initialize Backend client: {e}")
             self._backend_client = None
             self._backend_online = False
+
+    async def _ensure_process_header(self, process_id: int) -> Optional[int]:
+        """
+        Ensure a process header exists for this batch session.
+
+        Opens a new header or retrieves existing one for station+batch+process.
+        Called before the first process start in this batch session.
+
+        Args:
+            process_id: Process ID for the header
+
+        Returns:
+            Header ID if successful, None otherwise
+        """
+        if not self._backend_client or not self._station_id:
+            logger.debug("Backend client or station_id not available, skipping header")
+            return None
+
+        # If we already have a header for this process, return it
+        if self._current_header_id is not None:
+            logger.debug(f"Using existing header: {self._current_header_id}")
+            return self._current_header_id
+
+        try:
+            # Prepare header open request
+            request = ProcessHeaderOpenRequest(
+                station_id=self._station_id,
+                batch_id=self._batch_id,
+                process_id=process_id,
+                sequence_package=self._manifest.name if self._manifest else None,
+                sequence_version=self._manifest.version if self._manifest else None,
+                parameters=self._config.parameters or {},
+                hardware_config=self._config.hardware or {},
+            )
+
+            # Open or get existing header
+            header = await self._backend_client.open_header(request)
+            self._current_header_id = header.id
+
+            logger.info(
+                f"Process header opened: id={header.id}, "
+                f"station={self._station_id}, batch={self._batch_id}, process={process_id}"
+            )
+
+            return self._current_header_id
+
+        except BackendError as e:
+            logger.warning(f"Failed to open process header: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error opening process header: {e}")
+            return None
+
+    async def _close_process_header(self, status: str = "CLOSED") -> None:
+        """
+        Close the current process header when batch completes.
+
+        Args:
+            status: Final status (CLOSED or CANCELLED)
+        """
+        if not self._backend_client or not self._current_header_id:
+            return
+
+        try:
+            header = await self._backend_client.close_header(
+                header_id=self._current_header_id,
+                status=status,
+            )
+            logger.info(
+                f"Process header closed: id={header.id}, status={status}, "
+                f"total={header.total_count}, pass={header.pass_count}, fail={header.fail_count}"
+            )
+        except BackendError as e:
+            logger.warning(f"Failed to close process header: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error closing process header: {e}")
+        finally:
+            self._current_header_id = None
 
     async def _lookup_wip(
         self,
@@ -1093,11 +1246,15 @@ class BatchWorker:
         if not self._backend_client:
             raise BackendConnectionError("", "Backend client not initialized")
 
+        # Ensure process header exists for station/batch tracking
+        header_id = await self._ensure_process_header(process_id)
+
         request = ProcessStartRequest(
             process_id=process_id,
+            header_id=header_id,  # Link to process header for station/batch tracking
             operator_id=operator_id,
             equipment_id=equipment_id,
-            started_at=datetime.now(),
+            started_at=datetime.now(timezone.utc),
         )
 
         return await self._backend_client.start_process(wip_int_id, request)
@@ -1135,10 +1292,12 @@ class BatchWorker:
 
         request = ProcessCompleteRequest(
             result=result,
+            header_id=self._current_header_id,  # Link to process header for station/batch tracking
             measurements=measurements,
             defects=defects,
             notes=notes,
-            completed_at=datetime.now(),
+            started_at=self._process_start_time,  # From 착공 time
+            completed_at=datetime.now(timezone.utc),
         )
 
         return await self._backend_client.complete_process(

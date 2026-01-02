@@ -31,6 +31,8 @@ import { SplitLayout } from '../components/layout';
 import { DebugLogPanel } from '../components/organisms/debug';
 import { WipInputModal } from '../components/molecules';
 import { ROUTES } from '../constants';
+import { toast } from '../utils/toast';
+import { validateWip } from '../api/endpoints/system';
 import type { Batch, BatchDetail, StepResult } from '../types';
 
 // Type guard to check if batch is a BatchDetail
@@ -62,6 +64,7 @@ export function BatchDetailPage() {
 
   // WIP input modal state
   const [showWipModal, setShowWipModal] = useState(false);
+  const [wipError, setWipError] = useState<string | null>(null);
 
   // Subscribe to real-time updates for this batch
   // NOTE: We intentionally don't unsubscribe on cleanup because:
@@ -128,25 +131,32 @@ export function BatchDetailPage() {
     await doStartSequence();
   };
 
-  // Actually start the sequence (with optional WIP ID)
-  const doStartSequence = async (wipId?: string) => {
+  // Actually start the sequence (with optional WIP ID and pre-validated int ID)
+  const doStartSequence = async (wipId?: string, wipIntId?: number) => {
     if (!batchId || !batch) {
       console.error('[doStartSequence] Missing batchId or batch');
       return;
     }
 
+    // Track if we started the batch so we can stop it on error
+    let batchWasStarted = false;
+
     try {
-      console.log('[doStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status, 'wipId:', wipId || '(none)');
+      console.log('[doStartSequence] Starting sequence for batch:', batchId, 'status:', batch.status, 'wipId:', wipId || '(none)', 'wipIntId:', wipIntId || '(none)');
 
       // If batch is idle, start batch first then start sequence
       if (batch.status === 'idle') {
         console.log('[doStartSequence] Starting batch first...');
         await startBatch.mutateAsync(batchId);
+        batchWasStarted = true;
         console.log('[doStartSequence] Batch started');
       }
 
-      // Prepare request with WIP ID if provided
-      const request = wipId ? { parameters: { wip_id: wipId } } : undefined;
+      // Prepare request with WIP ID and pre-validated int ID if provided
+      const request = wipId ? {
+        parameters: { wip_id: wipId },
+        wip_int_id: wipIntId,  // Skip lookup in worker if provided
+      } : undefined;
 
       // Then start sequence
       console.log('[doStartSequence] Starting sequence...');
@@ -154,13 +164,69 @@ export function BatchDetailPage() {
       console.log('[doStartSequence] Sequence started successfully');
     } catch (error) {
       console.error('[doStartSequence] Error:', error);
+
+      // If we started the batch but sequence failed, stop the batch
+      if (batchWasStarted) {
+        console.log('[doStartSequence] Stopping batch due to sequence start failure...');
+        try {
+          await stopBatch.mutateAsync(batchId);
+          console.log('[doStartSequence] Batch stopped');
+        } catch (stopError) {
+          console.error('[doStartSequence] Failed to stop batch:', stopError);
+        }
+      }
+
+      throw error; // Re-throw to allow caller to handle
     }
   };
 
   // Handle WIP input modal submit
   const handleWipSubmit = async (wipId: string) => {
+    setWipError(null);
+
+    try {
+      // Step 1: Validate WIP first (fast check, ~100ms)
+      // Get processId from BatchDetail (only available after API fetch)
+      const processId = batch && isBatchDetail(batch) ? batch.processId : undefined;
+      const validationResult = await validateWip(wipId, processId);
+
+      if (!validationResult.valid) {
+        // Show error in modal, don't close
+        setWipError(validationResult.message || `WIP '${wipId}' not found`);
+        return;
+      }
+
+      // Step 1.5: Check if WIP already PASS for this process (BR-004 pre-check)
+      if (validationResult.hasPassForProcess) {
+        setWipError(validationResult.passWarningMessage || '이 WIP는 이미 해당 공정을 PASS했습니다.');
+        return;
+      }
+
+      // Step 2: WIP is valid - close modal immediately
+      setShowWipModal(false);
+
+      // Step 3: Start batch and sequence with pre-validated int ID (runs in background)
+      await doStartSequence(wipId, validationResult.intId);
+    } catch (error) {
+      // Network error during validation - show in modal
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error as { message?: string })?.message || 'Failed to validate WIP';
+
+      // If modal is still open (validation failed), show error there
+      // Otherwise show as toast
+      if (showWipModal) {
+        setWipError(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+
+  // Handle closing the WIP modal
+  const handleWipModalClose = () => {
     setShowWipModal(false);
-    await doStartSequence(wipId || undefined);
+    setWipError(null);
   };
 
   const handleStopSequence = async () => {
@@ -241,12 +307,12 @@ export function BatchDetailPage() {
 
   return (
     <SplitLayout
-      panel={<DebugLogPanel batchId={batchId || ''} steps={steps} />}
+      panel={<DebugLogPanel batchId={batchId || ''} steps={steps} isRunning={isRunning} />}
       panelWidth={panelWidth}
       isCollapsed={isCollapsed}
       onResize={setPanelWidth}
       onToggle={toggleCollapsed}
-      panelTitle="Debug Panel"
+      panelTitle="Batch Panel"
     >
     <div className="min-h-full p-6 space-y-6" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
       {/* Header with Back Button */}
@@ -268,7 +334,7 @@ export function BatchDetailPage() {
             </div>
             <div className="flex items-center gap-1.5 text-sm">
               <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-              <span className="font-medium text-green-500">{statistics?.pass ?? 0}</span>
+              <span className="font-medium text-green-500">{statistics?.passCount ?? 0}</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
               <XCircle className="w-3.5 h-3.5 text-red-500" />
@@ -370,10 +436,11 @@ export function BatchDetailPage() {
       {/* WIP Input Modal */}
       <WipInputModal
         isOpen={showWipModal}
-        onClose={() => setShowWipModal(false)}
+        onClose={handleWipModalClose}
         onSubmit={handleWipSubmit}
         isLoading={startBatch.isPending || startSequence.isPending}
         batchName={batch.name}
+        errorMessage={wipError}
       />
     </SplitLayout>
   );

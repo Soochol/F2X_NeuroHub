@@ -58,8 +58,14 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
     };
 
     const formatDuration = (seconds: number) => {
-        const minutes = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const totalSeconds = Math.round(seconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}min ${secs}sec`;
+        }
         return `${minutes}min ${secs}sec`;
     };
 
@@ -263,7 +269,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                             </div>
                                             <div>
                                                 <span style={{ color: 'var(--color-text-secondary)' }}>Duration: </span>
-                                                <span style={{ fontWeight: '500' }}>{latestAttempt.duration_seconds ? formatDuration(latestAttempt.duration_seconds) : '-'}</span>
+                                                <span style={{ fontWeight: '500' }}>{latestAttempt.duration_seconds != null ? formatDuration(latestAttempt.duration_seconds) : '-'}</span>
                                             </div>
                                         </div>
 
@@ -322,7 +328,7 @@ export const WipTraceView = ({ trace }: WipTraceViewProps) => {
                                                                 {attempt.complete_time ? format(new Date(attempt.complete_time), 'MM/dd HH:mm:ss') : '-'}
                                                             </span>
                                                             <span>
-                                                                ({attempt.duration_seconds ? formatDuration(attempt.duration_seconds) : '-'})
+                                                                ({attempt.duration_seconds != null ? formatDuration(attempt.duration_seconds) : '-'})
                                                             </span>
                                                         </div>
 

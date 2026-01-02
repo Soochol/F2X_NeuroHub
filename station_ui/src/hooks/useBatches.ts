@@ -16,9 +16,11 @@ import {
   manualControl,
   createBatches,
   updateBatchConfig,
+  updateBatch,
   getBatchStatistics,
   getAllBatchStatistics,
   syncBatchToBackend,
+  type UpdateBatchRequest,
 } from '../api/endpoints/batches';
 import { useBatchStore } from '../stores/batchStore';
 import { useConnectionStore } from '../stores/connectionStore';
@@ -457,6 +459,31 @@ export function useSyncBatchToBackend() {
     },
     onError: (error: unknown) => {
       toast.error(`Failed to sync batch: ${getErrorMessage(error)}`);
+    },
+  });
+}
+
+/**
+ * Hook to update batch properties (PUT).
+ * Supports: name, sequencePackage, hardware, autoStart, processId
+ */
+export function useUpdateBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      request,
+    }: {
+      batchId: string;
+      request: UpdateBatchRequest;
+    }) => updateBatch(batchId, request),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.batch(variables.batchId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.batches });
+    },
+    onError: (error: unknown) => {
+      toast.error(`Failed to update batch: ${getErrorMessage(error)}`);
     },
   });
 }

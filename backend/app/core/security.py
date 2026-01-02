@@ -139,6 +139,45 @@ def create_refresh_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def create_station_api_key(
+    station_id: str,
+    expires_days: int = 365,
+) -> str:
+    """
+    Create a long-lived API key for station authentication.
+
+    Station API keys are JWT tokens with:
+    - type: "station" claim to distinguish from user tokens
+    - station_id claim for identification
+    - Long expiration (default 1 year)
+
+    Args:
+        station_id: Station identifier (e.g., "STATION-01")
+        expires_days: Expiration in days (default 365)
+
+    Returns:
+        JWT token string to be used as X-API-Key
+
+    Example:
+        >>> api_key = create_station_api_key("STATION-01")
+        >>> # Use in X-API-Key header
+    """
+    expire = datetime.utcnow() + timedelta(days=expires_days)
+
+    to_encode = {
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "type": "station",
+        "station_id": station_id,
+    }
+
+    return jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+
 def decode_access_token(token: str) -> Optional[dict[str, Any]]:
     """
     Decode and validate a JWT access token.

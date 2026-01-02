@@ -18,7 +18,6 @@ import type {
   UpdateBatchConfigRequest,
 } from '../../types';
 import apiClient, { extractData } from '../client';
-import { camelToSnake } from '../../utils/transform';
 
 /**
  * Get all batches.
@@ -35,6 +34,8 @@ interface BatchDetailApiResponse {
   id: string;
   name: string;
   status: string;
+  processId?: number;
+  headerId?: number;
   sequence?: {
     name?: string;
     version?: string;
@@ -93,10 +94,9 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
 
   if (data.hardware) {
     for (const [hwId, hw] of Object.entries(data.hardware)) {
-      // Convert camelCase key back to snake_case (e.g., "powerSupply" -> "power_supply")
-      const originalHwId = camelToSnake(hwId);
-      hardwareStatus[originalHwId] = {
-        id: originalHwId,
+      // Hardware IDs are preserved as-is (server returns snake_case IDs directly)
+      hardwareStatus[hwId] = {
+        id: hwId,
         driver: hw.driver || hw.type || 'unknown',
         status: hw.connected ? 'connected' : 'disconnected',
         connected: hw.connected || false,
@@ -138,6 +138,8 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
     autoStart: false,
     parameters: data.parameters || {},
     hardwareStatus,
+    processId: data.processId,
+    headerId: data.headerId,
     execution: data.execution ? {
       // Map API status to ExecutionStatus ('running' | 'completed' | 'failed' | 'stopped')
       status: (() => {
@@ -289,7 +291,7 @@ export async function createBatches(
 }
 
 /**
- * Update batch configuration.
+ * Update batch configuration (PATCH).
  */
 export async function updateBatchConfig(
   batchId: string,
@@ -298,6 +300,57 @@ export async function updateBatchConfig(
   const response = await apiClient.patch<ApiResponse<BatchDetail>>(
     `/batches/${batchId}/config`,
     request
+  );
+  return extractData(response);
+}
+
+/**
+ * Update batch request payload (PUT).
+ */
+export interface UpdateBatchRequest {
+  name?: string;
+  sequencePackage?: string;
+  hardware?: Record<string, Record<string, unknown>>;
+  autoStart?: boolean;
+  processId?: number;
+  headerId?: number;
+  parameters?: Record<string, unknown>;
+}
+
+/**
+ * Server-side batch update request (snake_case).
+ */
+interface ServerBatchUpdateRequest {
+  name?: string;
+  sequence_package?: string;
+  hardware?: Record<string, Record<string, unknown>>;
+  auto_start?: boolean;
+  process_id?: number;
+  header_id?: number;
+  parameters?: Record<string, unknown>;
+}
+
+/**
+ * Update batch properties (PUT).
+ * Supports updating: name, sequence_package, hardware, auto_start, process_id, header_id, parameters
+ */
+export async function updateBatch(
+  batchId: string,
+  request: UpdateBatchRequest
+): Promise<{ batchId: string; status: string }> {
+  // Transform camelCase to snake_case for server
+  const serverRequest: ServerBatchUpdateRequest = {};
+  if (request.name !== undefined) serverRequest.name = request.name;
+  if (request.sequencePackage !== undefined) serverRequest.sequence_package = request.sequencePackage;
+  if (request.hardware !== undefined) serverRequest.hardware = request.hardware;
+  if (request.autoStart !== undefined) serverRequest.auto_start = request.autoStart;
+  if (request.processId !== undefined) serverRequest.process_id = request.processId;
+  if (request.headerId !== undefined) serverRequest.header_id = request.headerId;
+  if (request.parameters !== undefined) serverRequest.parameters = request.parameters;
+
+  const response = await apiClient.put<ApiResponse<{ batchId: string; status: string }>>(
+    `/batches/${batchId}`,
+    serverRequest
   );
   return extractData(response);
 }
@@ -315,23 +368,14 @@ export async function getBatchStatistics(batchId: string): Promise<BatchStatisti
 /**
  * Get all batch statistics.
  *
- * Note: The API client interceptor transforms all keys to camelCase,
- * but batch_id keys in the statistics dictionary must remain as snake_case
- * to match batch.id. We convert them back after the interceptor runs.
+ * Server returns batch IDs as dictionary keys (snake_case preserved).
+ * Field values are camelCase via Pydantic alias_generator.
  */
 export async function getAllBatchStatistics(): Promise<Record<string, BatchStatistics>> {
   const response = await apiClient.get<ApiResponse<Record<string, BatchStatistics>>>(
     '/batches/statistics'
   );
-  const data = extractData(response);
-
-  // Convert camelCase keys back to snake_case (e.g., "sensorInspection" -> "sensor_inspection")
-  // See docs/api-conventions.md for why this is needed for ID-keyed dictionaries
-  const result: Record<string, BatchStatistics> = {};
-  for (const [key, value] of Object.entries(data)) {
-    result[camelToSnake(key)] = value;
-  }
-  return result;
+  return extractData(response);
 }
 
 /**

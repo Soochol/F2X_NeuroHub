@@ -1,11 +1,15 @@
 """
 WebSocket and IPC message model definitions.
+
+All messages use camelCase field names in JSON output via APIBaseModel.
 """
 
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 
 # ============================================================
@@ -13,14 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field
 # ============================================================
 
 
-class SubscribeMessage(BaseModel):
+class SubscribeMessage(APIBaseModel):
     """Client message to subscribe to batch updates."""
 
     type: Literal["subscribe"] = "subscribe"
     batch_ids: List[str]
 
 
-class UnsubscribeMessage(BaseModel):
+class UnsubscribeMessage(APIBaseModel):
     """Client message to unsubscribe from batch updates."""
 
     type: Literal["unsubscribe"] = "unsubscribe"
@@ -32,7 +36,7 @@ class UnsubscribeMessage(BaseModel):
 # ============================================================
 
 
-class BatchStatusMessage(BaseModel):
+class BatchStatusMessage(APIBaseModel):
     """Server message for batch status updates."""
 
     type: Literal["batch_status"] = "batch_status"
@@ -40,7 +44,7 @@ class BatchStatusMessage(BaseModel):
     data: Dict[str, Any]
 
 
-class StepStartMessage(BaseModel):
+class StepStartMessage(APIBaseModel):
     """Server message when a step starts."""
 
     type: Literal["step_start"] = "step_start"
@@ -48,7 +52,7 @@ class StepStartMessage(BaseModel):
     data: Dict[str, Any]  # step, index, total
 
 
-class StepCompleteMessage(BaseModel):
+class StepCompleteMessage(APIBaseModel):
     """Server message when a step completes."""
 
     type: Literal["step_complete"] = "step_complete"
@@ -56,7 +60,7 @@ class StepCompleteMessage(BaseModel):
     data: Dict[str, Any]  # step, index, duration, pass, result
 
 
-class SequenceCompleteMessage(BaseModel):
+class SequenceCompleteMessage(APIBaseModel):
     """Server message when a sequence completes."""
 
     type: Literal["sequence_complete"] = "sequence_complete"
@@ -64,7 +68,7 @@ class SequenceCompleteMessage(BaseModel):
     data: Dict[str, Any]  # execution_id, overall_pass, duration, steps
 
 
-class LogMessage(BaseModel):
+class LogMessage(APIBaseModel):
     """Server message for log entries."""
 
     type: Literal["log"] = "log"
@@ -72,7 +76,7 @@ class LogMessage(BaseModel):
     data: Dict[str, Any]  # level, message, timestamp
 
 
-class ErrorMessage(BaseModel):
+class ErrorMessage(APIBaseModel):
     """Server message for errors."""
 
     type: Literal["error"] = "error"
@@ -85,26 +89,26 @@ class ErrorMessage(BaseModel):
 # ============================================================
 
 
-class StartSequenceCommand(BaseModel):
+class StartSequenceCommand(APIBaseModel):
     """Command to start sequence execution."""
 
     type: Literal["START_SEQUENCE"] = "START_SEQUENCE"
     parameters: Dict[str, Any] = {}
 
 
-class StopSequenceCommand(BaseModel):
+class StopSequenceCommand(APIBaseModel):
     """Command to stop sequence execution."""
 
     type: Literal["STOP_SEQUENCE"] = "STOP_SEQUENCE"
 
 
-class GetStatusCommand(BaseModel):
+class GetStatusCommand(APIBaseModel):
     """Command to get current status."""
 
     type: Literal["GET_STATUS"] = "GET_STATUS"
 
 
-class ManualControlCommand(BaseModel):
+class ManualControlCommand(APIBaseModel):
     """Command for manual hardware control."""
 
     type: Literal["MANUAL_CONTROL"] = "MANUAL_CONTROL"
@@ -113,7 +117,7 @@ class ManualControlCommand(BaseModel):
     params: Dict[str, Any] = {}
 
 
-class ShutdownCommand(BaseModel):
+class ShutdownCommand(APIBaseModel):
     """Command to shutdown the worker process."""
 
     type: Literal["SHUTDOWN"] = "SHUTDOWN"
@@ -124,7 +128,7 @@ class ShutdownCommand(BaseModel):
 # ============================================================
 
 
-class CommandResponse(BaseModel):
+class CommandResponse(APIBaseModel):
     """Response to IPC commands."""
 
     status: str  # "ok", "error"
@@ -137,10 +141,8 @@ class CommandResponse(BaseModel):
 # ============================================================
 
 
-class StepStartEvent(BaseModel):
+class StepStartEvent(APIBaseModel):
     """Event when a step starts."""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     type: Literal["STEP_START"] = "STEP_START"
     batch_id: str
@@ -149,22 +151,20 @@ class StepStartEvent(BaseModel):
     timestamp: datetime
 
 
-class StepCompleteEvent(BaseModel):
+class StepCompleteEvent(APIBaseModel):
     """Event when a step completes."""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     type: Literal["STEP_COMPLETE"] = "STEP_COMPLETE"
     batch_id: str
     step: str
     index: int
     duration: float
-    pass_: bool = Field(alias="pass")
+    passed: bool = Field(..., serialization_alias="pass")
     result: Dict[str, Any] = {}
     timestamp: datetime
 
 
-class SequenceCompleteEvent(BaseModel):
+class SequenceCompleteEvent(APIBaseModel):
     """Event when a sequence completes."""
 
     type: Literal["SEQUENCE_COMPLETE"] = "SEQUENCE_COMPLETE"
@@ -176,7 +176,7 @@ class SequenceCompleteEvent(BaseModel):
     timestamp: datetime
 
 
-class LogEvent(BaseModel):
+class LogEvent(APIBaseModel):
     """Log event from worker."""
 
     type: Literal["LOG"] = "LOG"
@@ -186,7 +186,7 @@ class LogEvent(BaseModel):
     timestamp: datetime
 
 
-class ErrorEvent(BaseModel):
+class ErrorEvent(APIBaseModel):
     """Error event from worker."""
 
     type: Literal["ERROR"] = "ERROR"

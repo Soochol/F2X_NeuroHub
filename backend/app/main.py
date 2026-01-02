@@ -38,6 +38,7 @@ from app.api.v1 import (
     product_models,
     processes,
     process_operations,
+    process_headers,
     users,
     lots,
     wip_items,
@@ -501,6 +502,7 @@ app.include_router(dashboard.router, prefix=f"{settings.API_V1_PREFIX}/dashboard
 app.include_router(product_models.router, prefix=settings.API_V1_PREFIX, tags=["Product Models"])
 app.include_router(processes.router, prefix=settings.API_V1_PREFIX, tags=["Processes"])
 app.include_router(process_operations.router, prefix=f"{settings.API_V1_PREFIX}/process-operations", tags=["Process Operations"])
+app.include_router(process_headers.router, prefix=settings.API_V1_PREFIX, tags=["Process Headers"])
 app.include_router(users.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
 app.include_router(lots.router, prefix=settings.API_V1_PREFIX, tags=["LOTs"])
 app.include_router(wip_items.router, prefix=settings.API_V1_PREFIX, tags=["WIP Items"])

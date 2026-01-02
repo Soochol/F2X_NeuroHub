@@ -19,6 +19,7 @@ import { useNotificationStore } from '../stores/notificationStore';
 import { WEBSOCKET_CONFIG } from '../config';
 import { queryKeys } from '../api/queryClient';
 import { transformKeys } from '../utils/transform';
+import { toast } from '../utils/toast';
 import type { ClientMessage, ServerMessage } from '../types';
 
 /**
@@ -198,18 +199,29 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         }
 
         case 'error': {
+          const code = message.data?.code || 'UNKNOWN';
+          const errorMessage = message.data?.message || 'Unknown error';
+          const step = message.data?.step;
+          const timestamp = message.data?.timestamp;
+
+          console.log(`[WS] error: code=${code}, message=${errorMessage}, step=${step}`);
+
+          // Immediate toast notification (same as 착공 error)
+          toast.error(`[${code}] ${errorMessage}`);
+
+          // Log for debug panel
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
             level: 'error',
-            message: `[${message.data.code}] ${message.data.message}${message.data.step ? ` (step: ${message.data.step})` : ''}`,
-            timestamp: new Date(message.data.timestamp),
+            message: `[${code}] ${errorMessage}${step ? ` (step: ${step})` : ''}`,
+            timestamp: timestamp ? new Date(timestamp) : new Date(),
           });
-          // Add notification for errors
+          // Notification for history
           addNotification({
             type: 'error',
-            title: `Error: ${message.data.code}`,
-            message: message.data.message,
+            title: `Error: ${code}`,
+            message: errorMessage,
             batchId: message.batchId,
           });
           break;
@@ -294,7 +306,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
         const data = transformKeys<ServerMessage>(rawData);
         handleMessage(data);
       } catch (e) {
-        console.error('Failed to parse WebSocket message:', e);
+        console.error('Failed to parse/handle WebSocket message:', e, 'raw:', event.data);
       }
     };
 

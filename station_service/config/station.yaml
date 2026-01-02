@@ -5,14 +5,15 @@ station:
 workflow:
   enabled: true
   input_mode: popup
-  auto_sequence_start: true
-  require_operator_login: true
+  auto_sequence_start: false
+  require_operator_login: false
+  default_operator_id: 1
 server:
   host: 0.0.0.0
   port: 8080
 backend:
   url: http://localhost:8000
-  api_key: ${STATION_BACKEND_API_KEY}
+  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjczMzc3MDUsInN1YiI6IjEiLCJpYXQiOjE3NjczMzU5MDUsInJvbGUiOiJBRE1JTiIsInVzZXJuYW1lIjoiYWRtaW4ifQ.MeNcIY1jCWvGuwVFSoWsjjZ8r3k6gFyHUO70DtdkjcY
   sync_interval: 30
   station_id: test_001
 batches:
@@ -21,6 +22,29 @@ batches:
   sequence_package: sensor_inspection
   auto_start: false
   process_id: 3
+  parameters:
+    calibrationCycles: 99
+    tolerancePercent: 7
+    referenceValue: 100
+    warmupTime: 3
+  header_id: 1
+- id: batch-1767318946760-tqerfsu-0
+  name: sensor_inspection
+  sequence_package: sensor_inspection
+  auto_start: false
+  parameters:
+    calibrationCycles: 11
+    tolerancePercent: 5
+    referenceValue: 100
+    warmupTime: 2
+  process_id: 1
+  header_id: 1
+- id: batch-1767344940952-5o5ymoy-0
+  name: manual_test_v2
+  sequence_package: manual_test_v2
+  auto_start: false
+  process_id: 3
+  header_id: 1
 logging:
   level: INFO
   file: data/logs/station.log

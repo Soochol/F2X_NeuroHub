@@ -22,7 +22,7 @@ export function BatchStatisticsPanel({ batches, statistics }: BatchStatisticsPan
 
   statistics.forEach((stats) => {
     totalStats.total += stats.total;
-    totalStats.pass += stats.pass;
+    totalStats.pass += stats.passCount;
     totalStats.fail += stats.fail;
   });
 

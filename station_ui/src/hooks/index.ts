@@ -6,8 +6,8 @@
 export { useSystemInfo, useHealthStatus, useUpdateStationInfo } from './useSystem';
 
 // Workflow hooks
-export { useWorkflowConfig, useUpdateWorkflowConfig } from './useWorkflow';
-export type { WorkflowConfig, UpdateWorkflowRequest } from './useWorkflow';
+export { useWorkflowConfig, useUpdateWorkflowConfig, useProcesses, useProcessHeaders } from './useWorkflow';
+export type { WorkflowConfig, UpdateWorkflowRequest, ProcessInfo, ProcessHeaderInfo } from './useWorkflow';
 
 // Operator hooks
 export { useOperatorSession, useOperatorLogin, useOperatorLogout } from './useOperator';
@@ -25,6 +25,7 @@ export {
   useManualControl,
   useCreateBatches,
   useUpdateBatchConfig,
+  useUpdateBatch,
   useBatchStatistics,
   useAllBatchStatistics,
   useSyncBatchToBackend,

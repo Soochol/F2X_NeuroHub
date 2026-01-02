@@ -189,6 +189,23 @@ npm run test:coverage               # With coverage
 npm run test:e2e                    # Playwright E2E tests
 ```
 
+## MCP Tools
+
+### Chrome DevTools MCP
+An MCP server is connected that allows direct control of the Chrome browser. Use it for the following tasks:
+- Taking page snapshots/screenshots
+- UI interactions such as clicking, typing, and filling forms
+- Checking network requests/console logs
+- Performance trace analysis
+- E2E testing and debugging
+
+**Key Tools:**
+- `take_snapshot`: Page accessibility tree snapshot
+- `take_screenshot`: Take screenshots
+- `click`, `fill`, `hover`: UI interactions
+- `list_network_requests`, `list_console_messages`: Debugging
+- `performance_start_trace`: Performance analysis
+
 ## SuperClaude Rules
 When /sc: commands are detected by hooks, ALWAYS use Skill tool FIRST.
 Never attempt to handle these commands directly.

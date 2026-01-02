@@ -7,13 +7,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Input, Select } from '@/components/common';
-import { measurementsApi, processesApi } from '@/api';
+import { measurementsApi, processesApi, processHeadersApi } from '@/api';
 import type {
   MeasurementHistory,
   MeasurementHistoryFilters,
   MeasurementHistoryItem,
   MeasurementCodeInfo,
   Process,
+  ProcessHeaderSummary,
 } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
 import { format, subDays } from 'date-fns';
@@ -68,6 +69,7 @@ export const MeasurementAnalysisPage = () => {
   // Data states
   const [data, setData] = useState<MeasurementHistory[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [headers, setHeaders] = useState<ProcessHeaderSummary[]>([]);
   const [availableCodes, setAvailableCodes] = useState<MeasurementCodeInfo[]>([]);
   const [measurementStats, setMeasurementStats] = useState<MeasurementStats[]>([]);
   const [selectedMeasurement, setSelectedMeasurement] = useState<string>('');
@@ -82,6 +84,7 @@ export const MeasurementAnalysisPage = () => {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>(undefined);
+  const [selectedHeaderId, setSelectedHeaderId] = useState<number | undefined>(undefined);
 
   // Load processes for filter dropdown
   useEffect(() => {
@@ -95,6 +98,19 @@ export const MeasurementAnalysisPage = () => {
     };
     loadProcesses();
   }, []);
+
+  // Load headers for filter dropdown (CLOSED status only)
+  useEffect(() => {
+    const loadHeaders = async () => {
+      try {
+        const response = await processHeadersApi.getClosedHeaders(selectedProcessId, 100);
+        setHeaders(response.items);
+      } catch (err) {
+        console.error('Failed to load headers:', err);
+      }
+    };
+    loadHeaders();
+  }, [selectedProcessId]);
 
   // Load available measurement codes
   useEffect(() => {
@@ -195,6 +211,7 @@ export const MeasurementAnalysisPage = () => {
         start_date: startDate ? `${startDate}T00:00:00` : undefined,
         end_date: endDate ? `${endDate}T23:59:59` : undefined,
         process_id: selectedProcessId,
+        header_id: selectedHeaderId,
         skip: 0,
         limit: 500, // Get more data for analysis
       };
@@ -211,7 +228,7 @@ export const MeasurementAnalysisPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, endDate, selectedProcessId, calculateStats, selectedMeasurement, buildTrendData]);
+  }, [startDate, endDate, selectedProcessId, selectedHeaderId, calculateStats, selectedMeasurement, buildTrendData]);
 
   useEffect(() => {
     fetchData();
@@ -237,6 +254,7 @@ export const MeasurementAnalysisPage = () => {
     setStartDate(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
     setEndDate(format(new Date(), 'yyyy-MM-dd'));
     setSelectedProcessId(undefined);
+    setSelectedHeaderId(undefined);
   };
 
   // Export CSV
@@ -309,16 +327,34 @@ export const MeasurementAnalysisPage = () => {
               wrapperStyle={{ marginBottom: 0 }}
             />
           </div>
-          <div style={{ width: '200px' }}>
+          <div style={{ width: '180px' }}>
             <Select
               label="Process"
               value={selectedProcessId?.toString() || ''}
-              onChange={(e) => setSelectedProcessId(e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) => {
+                setSelectedProcessId(e.target.value ? Number(e.target.value) : undefined);
+                setSelectedHeaderId(undefined); // Reset header when process changes
+              }}
               options={[
                 { value: '', label: 'All Processes' },
                 ...processes.map((p) => ({
                   value: p.id.toString(),
                   label: p.process_name_ko || p.process_name_en,
+                })),
+              ]}
+              wrapperStyle={{ marginBottom: 0 }}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <Select
+              label="Header (Batch)"
+              value={selectedHeaderId?.toString() || ''}
+              onChange={(e) => setSelectedHeaderId(e.target.value ? Number(e.target.value) : undefined)}
+              options={[
+                { value: '', label: 'All Headers' },
+                ...headers.map((h) => ({
+                  value: h.id.toString(),
+                  label: `${h.batch_id} (${format(new Date(h.opened_at), 'MM-dd HH:mm')})`,
                 })),
               ]}
               wrapperStyle={{ marginBottom: 0 }}

@@ -37,6 +37,7 @@ from app.database import Base, JSONBDict, JSONBList
 if TYPE_CHECKING:
     from app.models.wip_item import WIPItem
     from app.models.process import Process
+    from app.models.process_header import ProcessHeader
     from app.models.user import User
     from app.models.equipment import Equipment
 
@@ -146,6 +147,15 @@ class WIPProcessHistory(Base):
         comment="Foreign key reference to equipment table (nullable)",
     )
 
+    # Header foreign key - links to process execution session
+    header_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT,
+        ForeignKey("process_headers.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+        default=None,
+        comment="Foreign key to process_headers (execution session)",
+    )
+
     # Core Data Columns
     result: Mapped[str] = mapped_column(
         VARCHAR(10),
@@ -232,6 +242,13 @@ class WIPProcessHistory(Base):
         lazy="select",
     )
 
+    header: Mapped[Optional["ProcessHeader"]] = relationship(
+        "ProcessHeader",
+        back_populates="wip_history_records",
+        foreign_keys=[header_id],
+        lazy="select",
+    )
+
     # Table Arguments: Constraints and Indexes
     __table_args__ = (
         # CHECK CONSTRAINTS
@@ -312,6 +329,12 @@ class WIPProcessHistory(Base):
             "idx_wip_history_defects",
             defects,
             postgresql_using="gin",
+        ),
+
+        # HEADER INDEX
+        Index(
+            "idx_wip_history_header",
+            header_id,
         ),
     )
 
@@ -396,6 +419,7 @@ class WIPProcessHistory(Base):
             "process_id": self.process_id,
             "operator_id": self.operator_id,
             "equipment_id": self.equipment_id,
+            "header_id": self.header_id,
             "result": self.result,
             "measurements": self.measurements,
             "defects": self.defects,

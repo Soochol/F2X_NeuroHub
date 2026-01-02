@@ -29,13 +29,13 @@ export function DashboardPage() {
 
   // Compute total stats from batchStatistics (memoized to prevent infinite loops)
   const totalStats = useMemo(() => {
-    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    const total = { total: 0, passCount: 0, fail: 0, passRate: 0 };
     batchStatistics.forEach((s) => {
       total.total += s.total;
-      total.pass += s.pass;
+      total.passCount += s.passCount;
       total.fail += s.fail;
     });
-    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    total.passRate = total.total > 0 ? total.passCount / total.total : 0;
     return total;
   }, [batchStatistics]);
 
@@ -137,7 +137,7 @@ export function DashboardPage() {
         />
         <StatsCard
           title="Pass"
-          value={totalStats.pass}
+          value={totalStats.passCount}
           icon={<CheckCircle className="w-5 h-5" />}
           variant="success"
         />

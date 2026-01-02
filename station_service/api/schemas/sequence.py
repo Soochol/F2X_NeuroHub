@@ -2,15 +2,15 @@
 Sequence-related API schemas for Station Service.
 
 This module defines request and response schemas for sequence package operations.
-
-Note: All schemas use snake_case for field names. The frontend handles
-transformation to camelCase via response interceptors. See docs/api-conventions.md.
+All responses use camelCase field names in JSON output via APIBaseModel.
 """
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 
 # ============================================================================
@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
-class HardwareConfigSchema(BaseModel):
+class HardwareConfigSchema(APIBaseModel):
     """Schema definition for a hardware configuration field.
 
     Attributes:
@@ -31,7 +31,7 @@ class HardwareConfigSchema(BaseModel):
     default: Optional[Any] = Field(None, description="Default value")
 
 
-class HardwareDefinition(BaseModel):
+class HardwareDefinition(APIBaseModel):
     """Hardware device definition in a sequence package.
 
     Attributes:
@@ -53,7 +53,7 @@ class HardwareDefinition(BaseModel):
     )
 
 
-class ParameterDefinition(BaseModel):
+class ParameterDefinition(APIBaseModel):
     """Parameter definition for sequence execution.
 
     Attributes:
@@ -76,7 +76,7 @@ class ParameterDefinition(BaseModel):
     options: Optional[List[str]] = Field(None, description="Available options for enum types")
 
 
-class StepDefinition(BaseModel):
+class StepDefinition(APIBaseModel):
     """Step definition in a sequence.
 
     Attributes:
@@ -104,7 +104,7 @@ class StepDefinition(BaseModel):
 # ============================================================================
 
 
-class SequenceSummary(BaseModel):
+class SequenceSummary(APIBaseModel):
     """Summary information for a sequence in list view.
 
     Attributes:
@@ -123,7 +123,7 @@ class SequenceSummary(BaseModel):
     updated_at: datetime = Field(..., description="Last update timestamp")
 
 
-class SequenceDetail(BaseModel):
+class SequenceDetail(APIBaseModel):
     """Detailed information for a sequence package.
 
     Attributes:
@@ -157,7 +157,7 @@ class SequenceDetail(BaseModel):
 # ============================================================================
 
 
-class ParameterUpdate(BaseModel):
+class ParameterUpdate(APIBaseModel):
     """Parameter update in sequence modification request.
 
     Attributes:
@@ -168,7 +168,7 @@ class ParameterUpdate(BaseModel):
     default: Optional[Any] = Field(None, description="New default value")
 
 
-class StepUpdate(BaseModel):
+class StepUpdate(APIBaseModel):
     """Step update in sequence modification request.
 
     Attributes:
@@ -181,7 +181,7 @@ class StepUpdate(BaseModel):
     timeout: Optional[int] = Field(None, description="New timeout value", ge=0)
 
 
-class SequenceUpdateRequest(BaseModel):
+class SequenceUpdateRequest(APIBaseModel):
     """Request body for updating a sequence package.
 
     Attributes:
@@ -198,7 +198,7 @@ class SequenceUpdateRequest(BaseModel):
     )
 
 
-class SequenceUpdateResponse(BaseModel):
+class SequenceUpdateResponse(APIBaseModel):
     """Response for sequence update action.
 
     Attributes:

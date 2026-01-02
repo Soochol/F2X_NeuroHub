@@ -192,6 +192,15 @@ class ProcessData(Base):
         default=None,
     )
 
+    # Header foreign key - links to process execution session
+    header_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT,
+        ForeignKey("process_headers.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+        default=None,
+        comment="Foreign key to process_headers (execution session)",
+    )
+
     # Core Data Columns
     data_level: Mapped[str] = mapped_column(
         VARCHAR(10),
@@ -288,6 +297,13 @@ class ProcessData(Base):
         "Equipment",
         back_populates="process_data_records",
         foreign_keys=[equipment_id],
+        lazy="select",
+    )
+
+    header: Mapped[Optional["ProcessHeader"]] = relationship(
+        "ProcessHeader",
+        back_populates="process_data_records",
+        foreign_keys=[header_id],
         lazy="select",
     )
 
@@ -412,6 +428,12 @@ class ProcessData(Base):
             process_id,
             started_at,
         ),
+
+        # HEADER INDEX
+        Index(
+            "idx_process_data_header",
+            header_id,
+        ),
     )
 
     def __repr__(self) -> str:
@@ -491,9 +513,11 @@ class ProcessData(Base):
             "id": self.id,
             "lot_id": self.lot_id,
             "serial_id": self.serial_id,
+            "wip_id": self.wip_id,
             "process_id": self.process_id,
             "operator_id": self.operator_id,
             "equipment_id": self.equipment_id,
+            "header_id": self.header_id,
             "data_level": self.data_level,
             "result": self.result,
             "measurements": self.measurements,
@@ -515,4 +539,5 @@ if TYPE_CHECKING:
     from app.models.serial import Serial
     from app.models.wip_item import WIPItem
     from app.models.process import Process
+    from app.models.process_header import ProcessHeader
     from app.models.user import User

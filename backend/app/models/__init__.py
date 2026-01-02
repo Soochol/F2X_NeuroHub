@@ -25,6 +25,7 @@ Usage:
 
 from app.models.product_model import ProductModel
 from app.models.process import Process
+from app.models.process_header import ProcessHeader, HeaderStatus
 from app.models.user import User, UserRole
 from app.models.production_line import ProductionLine
 from app.models.equipment import Equipment
@@ -47,6 +48,7 @@ __all__ = [
     # Models
     "ProductModel",
     "Process",
+    "ProcessHeader",
     "User",
     "Lot",
     "WIPItem",
@@ -69,6 +71,7 @@ __all__ = [
     "SerialStatus",
     "DataLevel",
     "ProcessResult",
+    "HeaderStatus",
     "AuditAction",
     "AlertType",
     "AlertSeverity",

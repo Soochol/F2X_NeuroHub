@@ -227,7 +227,14 @@ async def lifespan(app: FastAPI):
         # Initialize BackendClient for operator authentication
         backend_client = BackendClient(config=config.backend)
         await backend_client.connect()
-        logger.info("BackendClient initialized")
+
+        # Connect TokenManager for automatic token refresh
+        from station_service.core.token_manager import get_token_manager
+        from station_service.api.routes.system import update_operator_tokens
+        token_manager = get_token_manager()
+        backend_client.set_token_manager(token_manager)
+        backend_client.set_token_update_callback(update_operator_tokens)
+        logger.info("BackendClient initialized with TokenManager")
 
         # Initialize SequenceLoader with absolute path
         # Compute sequences directory relative to project root (parent of station_service)

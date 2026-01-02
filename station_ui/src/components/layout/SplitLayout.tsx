@@ -37,7 +37,7 @@ export function SplitLayout({
   onToggle,
   minWidth = 280,
   maxWidth = 600,
-  panelTitle = 'Debug Panel',
+  panelTitle = 'Details',
 }: SplitLayoutProps) {
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,20 +98,25 @@ export function SplitLayout({
         {children}
       </div>
 
-      {/* Collapse/Expand button when collapsed */}
-      {isCollapsed && (
-        <button
-          onClick={onToggle}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 p-2 rounded-l-lg border-l border-t border-b transition-colors hover:bg-zinc-700"
-          style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderColor: 'var(--color-border-default)',
-          }}
-          title="Open debug panel"
-        >
+      {/* Toggle button - always visible at same position */}
+      <button
+        onClick={onToggle}
+        className="fixed z-40 p-2 rounded-l-lg border-l border-t border-b transition-all duration-200 hover:bg-zinc-700"
+        style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          borderColor: 'var(--color-border-default)',
+          right: isCollapsed ? 0 : panelWidth,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        title={isCollapsed ? 'Open debug panel' : 'Close panel'}
+      >
+        {isCollapsed ? (
           <PanelRightOpen className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
-        </button>
-      )}
+        ) : (
+          <PanelRightClose className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
+        )}
+      </button>
 
       {/* Right panel */}
       <div
@@ -135,20 +140,12 @@ export function SplitLayout({
 
         {/* Panel header */}
         <div
-          className="flex items-center justify-between px-3 py-2 border-b shrink-0"
+          className="flex items-center justify-center px-3 py-2 border-b shrink-0"
           style={{ borderColor: 'var(--color-border-default)' }}
         >
-          <button
-            onClick={onToggle}
-            className="p-1 rounded hover:bg-zinc-700 transition-colors"
-            title="Close panel"
-          >
-            <PanelRightClose className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
-          </button>
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             {panelTitle}
           </span>
-          <div className="w-6" /> {/* Spacer for centering title */}
         </div>
 
         {/* Panel content */}

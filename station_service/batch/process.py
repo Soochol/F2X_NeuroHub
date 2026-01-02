@@ -12,7 +12,7 @@ import signal
 import sys
 from typing import Any, Dict, Optional
 
-from station_service.models.config import BatchConfig
+from station_service.models.config import BatchConfig, BackendConfig, WorkflowConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,8 @@ class BatchProcess:
         config: BatchConfig,
         ipc_router_address: str,
         ipc_sub_address: str,
+        backend_config: Optional[BackendConfig] = None,
+        workflow_config: Optional[WorkflowConfig] = None,
     ) -> None:
         """
         Initialize the BatchProcess.
@@ -52,11 +54,15 @@ class BatchProcess:
             config: Batch configuration
             ipc_router_address: IPC router address for commands
             ipc_sub_address: IPC sub address for events
+            backend_config: Optional backend configuration for API integration
+            workflow_config: Optional workflow configuration for 착공/완공
         """
         self._batch_id = batch_id
         self._config = config
         self._ipc_router_address = ipc_router_address
         self._ipc_sub_address = ipc_sub_address
+        self._backend_config = backend_config
+        self._workflow_config = workflow_config
 
         self._process: Optional[multiprocessing.Process] = None
         self._started_at: Optional[float] = None
@@ -95,6 +101,10 @@ class BatchProcess:
         if self._process and self._process.is_alive():
             raise RuntimeError(f"Batch {self._batch_id} is already running")
 
+        # Serialize configs for subprocess
+        backend_config_dict = self._backend_config.model_dump() if self._backend_config else None
+        workflow_config_dict = self._workflow_config.model_dump() if self._workflow_config else None
+
         # Create process
         self._process = multiprocessing.Process(
             target=self._run_worker,
@@ -103,6 +113,8 @@ class BatchProcess:
                 self._config.model_dump(),
                 self._ipc_router_address,
                 self._ipc_sub_address,
+                backend_config_dict,
+                workflow_config_dict,
             ),
             daemon=True,
             name=f"batch-{self._batch_id}",
@@ -123,14 +135,14 @@ class BatchProcess:
 
         logger.info(f"Batch {self._batch_id} process started (PID: {self._process.pid})")
 
-    async def stop(self, timeout: float = 5.0) -> None:
+    async def stop(self, timeout: float = 1.0) -> None:
         """
         Stop the batch worker process.
 
         First attempts graceful shutdown, then forceful termination.
 
         Args:
-            timeout: Timeout for graceful shutdown in seconds
+            timeout: Timeout for graceful shutdown in seconds (default: 1.0)
         """
         if not self._process:
             return
@@ -190,6 +202,8 @@ class BatchProcess:
         config_dict: Dict[str, Any],
         ipc_router_address: str,
         ipc_sub_address: str,
+        backend_config_dict: Optional[Dict[str, Any]] = None,
+        workflow_config_dict: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Entry point for the worker subprocess.
@@ -201,6 +215,8 @@ class BatchProcess:
             config_dict: Serialized batch configuration
             ipc_router_address: IPC router address
             ipc_sub_address: IPC sub address
+            backend_config_dict: Serialized backend configuration for API integration
+            workflow_config_dict: Serialized workflow configuration for 착공/완공
         """
         # Import here to avoid circular imports and ensure
         # we're importing in the subprocess context
@@ -219,10 +235,17 @@ class BatchProcess:
         try:
             # Import worker class
             from station_service.batch.worker import BatchWorker
-            from station_service.models.config import BatchConfig
+            from station_service.models.config import BatchConfig, BackendConfig, WorkflowConfig
 
-            # Reconstruct config
+            # Reconstruct configs
             config = BatchConfig(**config_dict)
+            backend_config = BackendConfig(**backend_config_dict) if backend_config_dict else None
+            workflow_config = WorkflowConfig(**workflow_config_dict) if workflow_config_dict else None
+
+            if backend_config:
+                logger.info(f"Backend integration enabled: {backend_config.url}")
+            else:
+                logger.info("Backend integration disabled (no config)")
 
             # Create and run worker
             worker = BatchWorker(
@@ -230,6 +253,8 @@ class BatchProcess:
                 config=config,
                 ipc_router_address=ipc_router_address,
                 ipc_sub_address=ipc_sub_address,
+                backend_config=backend_config,
+                workflow_config=workflow_config,
             )
 
             # Run the async main loop

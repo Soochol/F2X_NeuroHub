@@ -11,6 +11,7 @@ Usage:
 from app.crud import (
     product_model,
     process,
+    process_header,
     user,
     lot,
     serial,
@@ -25,6 +26,7 @@ from app.crud import (
 __all__ = [
     "product_model",
     "process",
+    "process_header",
     "user",
     "lot",
     "serial",

@@ -324,6 +324,10 @@ class WIPItemProcessComplete(BaseModel):
         max_length=5000,
         description="Additional comments or observations"
     )
+    started_at: Optional[datetime] = Field(
+        None,
+        description="Process start timestamp from 착공 (optional)"
+    )
     completed_at: Optional[datetime] = Field(
         None,
         description="Process completion timestamp (optional, defaults to current time)"
@@ -364,6 +368,27 @@ class WIPItemConvert(BaseModel):
         None,
         max_length=5000,
         description="Additional comments"
+    )
+
+
+class WIPScanResponse(WIPItemInDB):
+    """
+    Schema for WIP barcode scan response with process validation.
+
+    Extends WIPItemInDB with additional fields for pre-validation:
+    - has_pass_for_process: Whether WIP already PASS for the requested process
+    - pass_warning_message: Warning message if already passed
+
+    This allows UI to show warnings before starting a sequence,
+    preventing the error from occurring only at completion time.
+    """
+    has_pass_for_process: Optional[bool] = Field(
+        None,
+        description="True if WIP already has PASS result for the requested process"
+    )
+    pass_warning_message: Optional[str] = Field(
+        None,
+        description="Warning message if has_pass_for_process is True"
     )
 
 

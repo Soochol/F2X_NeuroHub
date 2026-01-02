@@ -31,8 +31,14 @@ export const SerialTraceView = ({ trace }: SerialTraceViewProps) => {
   };
 
   const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const totalSeconds = Math.round(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}min ${secs}sec`;
+    }
     return `${minutes}min ${secs}sec`;
   };
 

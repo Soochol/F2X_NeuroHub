@@ -114,6 +114,20 @@ from app.schemas.token import (
     TokenPayload,
     RefreshTokenRequest,
 )
+from app.schemas.process_header import (
+    HeaderStatus,
+    ProcessHeaderBase,
+    ProcessHeaderCreate,
+    ProcessHeaderUpdate,
+    ProcessHeaderOpen,
+    ProcessHeaderClose,
+    ProcessHeaderCancel,
+    ProcessHeaderInDB,
+    ProcessHeaderSummary,
+    ProcessHeaderListResponse,
+    ProcessHeaderStatsResponse,
+    ProcessHeaderFilter,
+)
 
 __all__ = [
     # ProductModel schemas
@@ -209,4 +223,17 @@ __all__ = [
     "Token",
     "TokenPayload",
     "RefreshTokenRequest",
+    # ProcessHeader schemas
+    "HeaderStatus",
+    "ProcessHeaderBase",
+    "ProcessHeaderCreate",
+    "ProcessHeaderUpdate",
+    "ProcessHeaderOpen",
+    "ProcessHeaderClose",
+    "ProcessHeaderCancel",
+    "ProcessHeaderInDB",
+    "ProcessHeaderSummary",
+    "ProcessHeaderListResponse",
+    "ProcessHeaderStatsResponse",
+    "ProcessHeaderFilter",
 ]

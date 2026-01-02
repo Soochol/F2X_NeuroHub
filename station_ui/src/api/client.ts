@@ -1,10 +1,12 @@
 /**
  * Axios HTTP client configuration for Station Service API.
+ *
+ * Note: The server now returns camelCase field names directly via Pydantic's
+ * alias_generator, so no client-side transformation is needed.
  */
 
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import type { ApiResponse, ErrorResponse } from '../types';
-import { transformKeys } from '../utils/transform';
 
 /**
  * API client instance configured for Station Service.
@@ -37,23 +39,32 @@ export interface ApiError {
 }
 
 /**
- * Response interceptor to transform snake_case to camelCase and handle errors.
+ * Response interceptor to handle errors.
+ * Note: No transformation needed - server returns camelCase directly.
  */
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
-    // Transform response data keys from snake_case to camelCase
-    if (response.data) {
-      response.data = transformKeys(response.data);
-    }
+    // Server returns camelCase directly via Pydantic alias_generator
     return response;
   },
   (error: AxiosError<ErrorResponse>) => {
     const status = error.response?.status;
+    const responseData = error.response?.data as Record<string, unknown> | undefined;
 
-    if (error.response?.data?.error) {
-      // Server returned a structured error - preserve status code
+    // Check for structured error response (ApiResponse format)
+    if (responseData?.error) {
       return Promise.reject({
-        ...error.response.data.error,
+        ...(responseData.error as object),
+        status,
+      } as ApiError);
+    }
+
+    // Check for FastAPI HTTPException format (detail field)
+    if (responseData?.detail) {
+      const detail = responseData.detail;
+      return Promise.reject({
+        code: 'API_ERROR',
+        message: typeof detail === 'string' ? detail : JSON.stringify(detail),
         status,
       } as ApiError);
     }

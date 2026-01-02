@@ -8,6 +8,7 @@ class ProcessStartRequest(BaseModel):
     lot_number: Optional[str] = Field(None, description="LOT number (optional, auto-resolved from wip_id)")
     serial_number: Optional[str] = Field(None, description="Serial number (optional for LOT-level)")
     process_id: str = Field(..., description="Process ID (e.g., PROC-001 or 1)")
+    header_id: Optional[int] = Field(None, description="Process header ID for station/batch tracking")
     worker_id: str = Field(..., description="Worker ID (e.g., W001)")
     equipment_id: Optional[str] = Field(None, description="Equipment ID (e.g., EQ-001)")
     # Additional fields from PySide app
@@ -32,6 +33,7 @@ class ProcessCompleteRequest(BaseModel):
     lot_number: Optional[str] = Field(None, description="LOT number (optional, auto-resolved from wip_id)")
     serial_number: Optional[str] = Field(None, description="Serial number")
     process_id: str = Field(..., description="Process ID, code, or name")
+    header_id: Optional[int] = Field(None, description="Process header ID for station/batch tracking")
     worker_id: str = Field(..., description="Worker ID (e.g., W001)")
     result: str = Field(..., description="Result: PASS, FAIL, or REWORK")
     measurements: Optional[Dict[str, Any]] = Field(

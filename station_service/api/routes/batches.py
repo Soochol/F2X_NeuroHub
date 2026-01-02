@@ -194,7 +194,7 @@ async def get_batch_statistics(
                 total=stats.get("total", 0),
                 pass_count=stats.get("pass", 0),
                 fail=stats.get("fail", 0),
-                passRate=stats.get("passRate", 0.0),
+                pass_rate=stats.get("passRate", 0.0),
             ),
         )
 
@@ -253,6 +253,16 @@ async def get_batch(
         # Build steps from status_data
         steps_data = status_data.get("steps", [])
         steps: List[StepResult] = []
+        manifest = None
+        sequence_version = "1.0.0"
+
+        # Load manifest for parameters and step metadata
+        try:
+            package_name = batch_config.sequence_package
+            manifest = await sequence_loader.load_package(package_name)
+            sequence_version = manifest.version
+        except Exception as e:
+            logger.warning(f"Failed to load manifest for {batch_id}: {e}")
 
         if steps_data:
             # Use steps from execution status
@@ -265,11 +275,9 @@ async def get_batch(
                 )
                 for s in steps_data
             ]
-        else:
+        elif manifest:
             # Load step metadata from sequence package
             try:
-                package_name = batch_config.sequence_package
-                manifest = await sequence_loader.load_package(package_name)
                 package_path = sequence_loader.get_package_path(package_name)
                 sequence_class = await sequence_loader.load_sequence_class(manifest, package_path)
 
@@ -289,6 +297,17 @@ async def get_batch(
                 logger.warning(f"Failed to load sequence steps for {batch_id}: {e}")
                 # Continue without step metadata
 
+        # Merge parameters: manifest defaults + batch config overrides
+        merged_parameters: Dict[str, Any] = {}
+        if manifest and manifest.parameters:
+            # Extract default values from manifest parameter definitions
+            for param_name, param_def in manifest.parameters.items():
+                if param_def.default is not None:
+                    merged_parameters[param_name] = param_def.default
+        # Batch config parameters override manifest defaults
+        batch_params = status_data.get("parameters", {})
+        merged_parameters.update(batch_params)
+
         # Update total_steps if we have steps from sequence
         total_steps = status_data.get("total_steps", 0)
         if total_steps == 0 and steps:
@@ -301,10 +320,10 @@ async def get_batch(
             sequence=BatchSequenceInfo(
                 # Use 'or' to handle None values (not just missing keys)
                 name=status_data.get("sequence_name") or batch_config.sequence_package or "",
-                version=status_data.get("sequence_version") or "1.0.0",
+                version=status_data.get("sequence_version") or sequence_version,
                 package_path=batch_config.sequence_package or "",
             ),
-            parameters=status_data.get("parameters", {}),
+            parameters=merged_parameters,
             hardware=hardware_status,
             execution=BatchExecution(
                 status=status_data.get("status", "idle"),
@@ -316,6 +335,8 @@ async def get_batch(
                 elapsed=status_data.get("elapsed", 0.0),
                 steps=steps,
             ),
+            process_id=batch_config.process_id,
+            header_id=batch_config.header_id,
         )
 
         return ApiResponse(success=True, data=detail)
@@ -470,25 +491,42 @@ async def start_sequence(
     Start sequence execution on a batch.
     """
     try:
-        parameters = request.parameters if request else {}
+        # Get batch config for parameters and process_id
+        batch_config = batch_manager.get_batch_config(batch_id)
 
-        # Check operator login if required
+        # Merge parameters: batch config defaults + request overrides
+        # Priority: batch_config.parameters < request.parameters < operator_id/process_id
+        parameters: Dict[str, Any] = {}
+        if batch_config and batch_config.parameters:
+            parameters.update(batch_config.parameters)
+        if request and request.parameters:
+            parameters.update(request.parameters)
+
+        # Check operator login and add operator_id for backend integration
         workflow = config.workflow
-        if workflow.enabled and workflow.require_operator_login:
+        if workflow.enabled:
             operator_session = get_operator_session()
-            if not operator_session["logged_in"]:
+
+            # Enforce login requirement if configured
+            if workflow.require_operator_login and not operator_session["logged_in"]:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Operator login required. Please login via Settings page.",
                 )
-            # Add operator_id to parameters for backend integration
-            if operator_session["operator"]:
+
+            # Add operator_id: prefer logged-in operator, fall back to default
+            if operator_session["logged_in"] and operator_session["operator"]:
                 parameters["operator_id"] = operator_session["operator"]["id"]
+            elif workflow.default_operator_id:
+                parameters["operator_id"] = workflow.default_operator_id
 
         # Add process_id from batch config for backend integration
-        batch_config = batch_manager.get_batch_config(batch_id)
         if batch_config and batch_config.process_id:
             parameters["process_id"] = batch_config.process_id
+
+        # Add pre-validated wip_int_id to skip lookup in worker
+        if request and request.wip_int_id:
+            parameters["wip_int_id"] = request.wip_int_id
 
         execution_id = await batch_manager.start_sequence(batch_id, parameters)
 
@@ -505,6 +543,13 @@ async def start_sequence(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Batch '{batch_id}' is not running. Start the batch first.",
+        )
+    except BatchError as e:
+        # BatchError from worker (e.g., WIP not found, prerequisite not met)
+        logger.warning(f"Batch error starting sequence on batch {batch_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
     except Exception as e:
         logger.exception(f"Error starting sequence on batch {batch_id}: {e}")
@@ -659,6 +704,8 @@ async def create_batch(
             hardware=request.hardware,
             auto_start=request.auto_start,
             process_id=request.process_id,
+            header_id=request.header_id,
+            parameters=request.parameters,
         )
 
         # Create via service (persists to YAML + memory)

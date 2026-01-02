@@ -2,12 +2,15 @@
 Batch-related API schemas for Station Service.
 
 This module defines request and response schemas for batch operations.
+All responses use camelCase field names in JSON output via APIBaseModel.
 """
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 
 # ============================================================================
@@ -15,7 +18,7 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
-class BatchSequenceInfo(BaseModel):
+class BatchSequenceInfo(APIBaseModel):
     """Sequence information associated with a batch.
 
     Attributes:
@@ -28,7 +31,7 @@ class BatchSequenceInfo(BaseModel):
     package_path: str = Field(..., description="Path to the sequence package")
 
 
-class HardwareStatus(BaseModel):
+class HardwareStatus(APIBaseModel):
     """Hardware device status information.
 
     Attributes:
@@ -52,7 +55,7 @@ class HardwareStatus(BaseModel):
     details: Dict[str, Any] = Field(default_factory=dict, description="Additional hardware details")
 
 
-class StepResult(BaseModel):
+class StepResult(APIBaseModel):
     """Execution result for a single step.
 
     Attributes:
@@ -67,7 +70,7 @@ class StepResult(BaseModel):
     result: Optional[Dict[str, Any]] = Field(None, description="Step result data")
 
 
-class BatchExecution(BaseModel):
+class BatchExecution(APIBaseModel):
     """Current execution state of a batch.
 
     Attributes:
@@ -95,7 +98,7 @@ class BatchExecution(BaseModel):
 # ============================================================================
 
 
-class BatchSummary(BaseModel):
+class BatchSummary(APIBaseModel):
     """Summary information for a batch in list view.
 
     Attributes:
@@ -124,7 +127,7 @@ class BatchSummary(BaseModel):
     elapsed: float = Field(default=0.0, description="Elapsed time in seconds", ge=0.0)
 
 
-class BatchDetail(BaseModel):
+class BatchDetail(APIBaseModel):
     """Detailed information for a single batch.
 
     Attributes:
@@ -135,6 +138,8 @@ class BatchDetail(BaseModel):
         parameters: Runtime parameters
         hardware: Hardware device statuses
         execution: Current execution state
+        process_id: Associated process ID for 착공/완공 tracking
+        header_id: Process header ID for linking to existing header
     """
     id: str = Field(..., description="Unique batch identifier")
     name: str = Field(..., description="Display name of the batch")
@@ -143,6 +148,8 @@ class BatchDetail(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Runtime parameters")
     hardware: Dict[str, HardwareStatus] = Field(default_factory=dict, description="Hardware statuses")
     execution: BatchExecution = Field(..., description="Current execution state")
+    process_id: Optional[int] = Field(None, description="Associated process ID (1-8) for 착공/완공 tracking")
+    header_id: Optional[int] = Field(None, description="Process header ID for linking to existing header")
 
 
 # ============================================================================
@@ -150,7 +157,7 @@ class BatchDetail(BaseModel):
 # ============================================================================
 
 
-class BatchStartResponse(BaseModel):
+class BatchStartResponse(APIBaseModel):
     """Response for batch process start action.
 
     Attributes:
@@ -163,7 +170,7 @@ class BatchStartResponse(BaseModel):
     pid: int = Field(..., description="Process ID")
 
 
-class BatchStopResponse(BaseModel):
+class BatchStopResponse(APIBaseModel):
     """Response for batch process stop action.
 
     Attributes:
@@ -174,19 +181,24 @@ class BatchStopResponse(BaseModel):
     status: str = Field(..., description="New status")
 
 
-class SequenceStartRequest(BaseModel):
+class SequenceStartRequest(APIBaseModel):
     """Request body for starting sequence execution.
 
     Attributes:
         parameters: Runtime parameters for the sequence
+        wip_int_id: Pre-validated WIP integer ID (skip lookup if provided)
     """
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Runtime parameters for the sequence execution"
     )
+    wip_int_id: Optional[int] = Field(
+        None,
+        description="Pre-validated WIP integer ID to skip lookup in worker"
+    )
 
 
-class SequenceStartResponse(BaseModel):
+class SequenceStartResponse(APIBaseModel):
     """Response for sequence start action.
 
     Attributes:
@@ -199,7 +211,7 @@ class SequenceStartResponse(BaseModel):
     status: str = Field(..., description="New status")
 
 
-class SequenceStopResponse(BaseModel):
+class SequenceStopResponse(APIBaseModel):
     """Response for sequence stop action.
 
     Attributes:
@@ -210,7 +222,7 @@ class SequenceStopResponse(BaseModel):
     status: str = Field(..., description="New status")
 
 
-class ManualControlRequest(BaseModel):
+class ManualControlRequest(APIBaseModel):
     """Request body for manual hardware control.
 
     Attributes:
@@ -223,7 +235,7 @@ class ManualControlRequest(BaseModel):
     params: Dict[str, Any] = Field(default_factory=dict, description="Command parameters")
 
 
-class ManualControlResponse(BaseModel):
+class ManualControlResponse(APIBaseModel):
     """Response for manual control command.
 
     Attributes:
@@ -236,21 +248,19 @@ class ManualControlResponse(BaseModel):
     result: Dict[str, Any] = Field(..., description="Command result")
 
 
-class BatchStatistics(BaseModel):
+class BatchStatistics(APIBaseModel):
     """Statistics for a batch's execution history.
 
     Attributes:
         total: Total number of executions
-        pass_count: Number of passed executions
+        pass_count: Number of passed executions (JSON: passCount)
         fail: Number of failed executions
-        pass_rate: Pass rate (0.0 to 1.0)
+        pass_rate: Pass rate (0.0 to 1.0) (JSON: passRate)
     """
     total: int = Field(default=0, description="Total number of executions", ge=0)
-    pass_count: int = Field(default=0, alias="pass", description="Number of passed executions", ge=0)
+    pass_count: int = Field(default=0, description="Number of passed executions", ge=0)
     fail: int = Field(default=0, description="Number of failed executions", ge=0)
-    pass_rate: float = Field(default=0.0, alias="passRate", description="Pass rate (0.0 to 1.0)", ge=0.0, le=1.0)
-
-    model_config = {"populate_by_name": True}
+    pass_rate: float = Field(default=0.0, description="Pass rate (0.0 to 1.0)", ge=0.0, le=1.0)
 
 
 # ============================================================================
@@ -258,7 +268,7 @@ class BatchStatistics(BaseModel):
 # ============================================================================
 
 
-class BatchCreateRequest(BaseModel):
+class BatchCreateRequest(APIBaseModel):
     """Request body for creating a new batch.
 
     Attributes:
@@ -268,6 +278,8 @@ class BatchCreateRequest(BaseModel):
         hardware: Hardware configuration (device_id -> config)
         auto_start: Whether to start automatically on station startup
         process_id: Associated process ID (1-8) for WIP tracking
+        header_id: Process header ID for linking to existing header
+        parameters: Batch parameters for sequence execution
     """
     id: str = Field(..., description="Unique batch identifier", min_length=1)
     name: str = Field(..., description="Display name of the batch", min_length=1)
@@ -283,9 +295,17 @@ class BatchCreateRequest(BaseModel):
         ge=1,
         le=8
     )
+    header_id: Optional[int] = Field(
+        None,
+        description="Process header ID for linking to existing header"
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Batch parameters for sequence execution"
+    )
 
 
-class BatchCreateResponse(BaseModel):
+class BatchCreateResponse(APIBaseModel):
     """Response for batch creation.
 
     Attributes:
@@ -298,7 +318,7 @@ class BatchCreateResponse(BaseModel):
     status: str = Field(..., description="Creation status")
 
 
-class BatchDeleteResponse(BaseModel):
+class BatchDeleteResponse(APIBaseModel):
     """Response for batch deletion.
 
     Attributes:
@@ -309,7 +329,7 @@ class BatchDeleteResponse(BaseModel):
     status: str = Field(..., description="Deletion status")
 
 
-class BatchUpdateRequest(BaseModel):
+class BatchUpdateRequest(APIBaseModel):
     """Request body for updating a batch configuration.
 
     All fields are optional - only provided fields will be updated.
@@ -320,6 +340,8 @@ class BatchUpdateRequest(BaseModel):
         hardware: Updated hardware configuration
         auto_start: Whether to auto-start on station startup
         process_id: Associated process ID (1-8) for WIP tracking
+        header_id: Process header ID for linking to existing header
+        parameters: Batch parameters for sequence execution
     """
     name: Optional[str] = Field(None, description="Display name of the batch", min_length=1)
     sequence_package: Optional[str] = Field(None, description="Sequence package path", min_length=1)
@@ -334,9 +356,17 @@ class BatchUpdateRequest(BaseModel):
         ge=1,
         le=8
     )
+    header_id: Optional[int] = Field(
+        None,
+        description="Process header ID for linking to existing header"
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Batch parameters for sequence execution"
+    )
 
 
-class BatchUpdateResponse(BaseModel):
+class BatchUpdateResponse(APIBaseModel):
     """Response for batch update.
 
     Attributes:

@@ -17,12 +17,13 @@ Endpoints:
 Note: WIP generation endpoint moved to /lots/{lot_id}/start-wip-generation in lots.py
 """
 
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, Query, Path
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.deps import StationAuth, get_auth_context
 from app.models import User
 from app.crud import wip_item as crud
 from app.schemas.wip_item import (
@@ -34,12 +35,14 @@ from app.schemas.wip_item import (
     WIPItemConvert,
     WIPStatistics,
     WIPStatus,
+    WIPScanResponse,
 )
 from app.utils.barcode_generator import generate_barcode_image
 from app.services.wip_service import WIPValidationError
 from app.services.printer_service import printer_service
 from app.models.process import Process
 from app.models.process_data import ProcessData, ProcessResult
+from app.models.wip_process_history import WIPProcessHistory
 from app.core.exceptions import (
     WIPItemNotFoundException,
     ValidationException,
@@ -240,27 +243,31 @@ def print_wip_label(
 
 @router.post(
     "/{wip_id}/scan",
-    response_model=WIPItemInDB,
+    response_model=WIPScanResponse,
     summary="Scan WIP barcode",
-    description="Process WIP barcode scan",
+    description="Process WIP barcode scan. Supports both JWT and API Key authentication.",
 )
 def scan_wip_barcode(
     wip_id: str = Path(..., description="WIP ID from barcode scan"),
     process_id: Optional[int] = Query(None, description="Process ID for validation"),
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),
-) -> WIPItemInDB:
+    auth: Union[User, StationAuth] = Depends(get_auth_context),
+) -> WIPScanResponse:
     """
     Process WIP barcode scan.
+
+    Supports hybrid authentication:
+    - JWT Bearer token (user authentication)
+    - X-API-Key header (station authentication)
 
     Args:
         wip_id: WIP ID from barcode scan
         process_id: Optional process ID for validation
         db: Database session
-        current_user: Current authenticated user
+        auth: Authentication context (User or StationAuth)
 
     Returns:
-        WIP item
+        WIP item with process validation info (has_pass_for_process)
 
     Raises:
         HTTPException: 404 if WIP not found, 400 if validation fails
@@ -269,7 +276,29 @@ def scan_wip_barcode(
         wip_item = crud.scan(db, wip_id, process_id)
         if not wip_item:
             raise WIPItemNotFoundException(wip_id=wip_id)
-        return wip_item
+
+        # Check if WIP already has COMPLETED PASS for the requested process (BR-004 pre-check)
+        # Only check for PASS records that have completed_at set (truly completed)
+        has_pass = False
+        warning_msg = None
+        if process_id:
+            existing_pass = db.query(WIPProcessHistory).filter(
+                WIPProcessHistory.wip_item_id == wip_item.id,
+                WIPProcessHistory.process_id == process_id,
+                WIPProcessHistory.result == ProcessResult.PASS.value,
+                WIPProcessHistory.completed_at.isnot(None),  # Must be completed
+            ).first()
+            if existing_pass:
+                has_pass = True
+                process = db.query(Process).filter(Process.id == process_id).first()
+                process_name = process.process_name_ko if process else f"공정 {process_id}"
+                warning_msg = f"이 WIP는 이미 '{process_name}'을 PASS했습니다. 다시 실행하면 완공 시 에러가 발생합니다."
+
+        # Convert to response with additional fields
+        response = WIPScanResponse.model_validate(wip_item)
+        response.has_pass_for_process = has_pass
+        response.pass_warning_message = warning_msg
+        return response
     except ValueError as e:
         raise ValidationException(message=str(e))
 
@@ -363,6 +392,7 @@ def complete_wip_process(
             process_complete.measurements,
             process_complete.defects,
             process_complete.notes,
+            started_at=process_complete.started_at,
             completed_at=process_complete.completed_at,
         )
 
@@ -467,12 +497,13 @@ def get_wip_trace(
             "target_quantity": wip_item.lot.target_quantity,
         }
 
-    # Get all process data for this WIP (ordered by process sequence and timestamp)
-    process_data_records = (
-        db.query(ProcessData)
-        .filter(ProcessData.wip_id == wip_item.id)
-        .join(Process, ProcessData.process_id == Process.id)
-        .order_by(Process.process_number, ProcessData.created_at)
+    # Get all WIP process history records (ordered by process sequence and timestamp)
+    # Note: WIPProcessHistory stores 착공/완공 records for processes 1-6
+    wip_history_records = (
+        db.query(WIPProcessHistory)
+        .filter(WIPProcessHistory.wip_item_id == wip_item.id)
+        .join(Process, WIPProcessHistory.process_id == Process.id)
+        .order_by(Process.process_number, WIPProcessHistory.created_at)
         .all()
     )
 
@@ -481,42 +512,42 @@ def get_wip_trace(
     rework_history = []
     total_cycle_time = 0
 
-    for pd in process_data_records:
+    for ph in wip_history_records:
         process_record = {
-            "process_number": pd.process.process_number if pd.process else None,
-            "process_code": pd.process.process_code if pd.process else None,
-            "process_name": pd.process.process_name_en if pd.process else None,
-            "worker_id": pd.operator.username if pd.operator else None,
-            "worker_name": pd.operator.full_name if pd.operator else None,
-            "start_time": pd.started_at.isoformat() if pd.started_at else None,
-            "complete_time": pd.completed_at.isoformat() if pd.completed_at else None,
-            "cycle_time_seconds": pd.duration_seconds,
-            "duration_seconds": pd.duration_seconds,
-            "result": pd.result if pd.result else None,
-            "measurements": pd.measurements if pd.measurements else {},
-            "defect_codes": pd.defects if pd.defects and pd.result == ProcessResult.FAIL.value else [],
-            "defects": pd.defects if pd.defects and pd.result == ProcessResult.FAIL.value else [],
-            "notes": pd.notes,
-            "is_rework": False # WIP rework logic might differ, assuming false for now or check logic
+            "process_number": ph.process.process_number if ph.process else None,
+            "process_code": ph.process.process_code if ph.process else None,
+            "process_name": ph.process.process_name_en if ph.process else None,
+            "worker_id": ph.operator.username if ph.operator else None,
+            "worker_name": ph.operator.full_name if ph.operator else None,
+            "start_time": ph.started_at.isoformat() if ph.started_at else None,
+            "complete_time": ph.completed_at.isoformat() if ph.completed_at else None,
+            "cycle_time_seconds": ph.duration_seconds,
+            "duration_seconds": ph.duration_seconds,
+            "result": ph.result if ph.result else None,
+            "measurements": ph.measurements if ph.measurements else {},
+            "defect_codes": ph.defects if ph.defects and ph.result == "FAIL" else [],
+            "defects": ph.defects if ph.defects and ph.result == "FAIL" else [],
+            "notes": ph.notes,
+            "is_rework": ph.result == "REWORK" if ph.result else False
         }
 
         process_history.append(process_record)
 
         # Accumulate cycle time
-        if pd.duration_seconds:
-            total_cycle_time += pd.duration_seconds
+        if ph.duration_seconds:
+            total_cycle_time += ph.duration_seconds
 
-    # Extract component LOTs from process data if available
+    # Extract component LOTs from process history if available
     component_lots = {}
-    for pd in process_data_records:
-        if pd.measurements and isinstance(pd.measurements, dict):
+    for ph in wip_history_records:
+        if ph.measurements and isinstance(ph.measurements, dict):
             # Look for component tracking fields
-            if "busbar_lot" in pd.measurements:
-                component_lots["busbar_lot"] = pd.measurements["busbar_lot"]
-            if "sma_spring_lot" in pd.measurements:
-                component_lots["sma_spring_lot"] = pd.measurements["sma_spring_lot"]
-            if "component_lots" in pd.measurements:
-                component_lots.update(pd.measurements["component_lots"])
+            if "busbar_lot" in ph.measurements:
+                component_lots["busbar_lot"] = ph.measurements["busbar_lot"]
+            if "sma_spring_lot" in ph.measurements:
+                component_lots["sma_spring_lot"] = ph.measurements["sma_spring_lot"]
+            if "component_lots" in ph.measurements:
+                component_lots.update(ph.measurements["component_lots"])
 
     return {
         "wip_id": wip_item.wip_id,

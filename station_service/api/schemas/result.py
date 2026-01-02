@@ -2,12 +2,15 @@
 Result-related API schemas for Station Service.
 
 This module defines request and response schemas for execution result operations.
+All responses use camelCase field names in JSON output via APIBaseModel.
 """
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 
 # ============================================================================
@@ -15,14 +18,14 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
-class StepResultDetail(BaseModel):
+class StepResultDetail(APIBaseModel):
     """Detailed result for a single step execution.
 
     Attributes:
         name: Step name
         order: Step execution order
         status: Execution status (completed, failed, skipped)
-        pass_: Whether the step passed (using pass_ to avoid Python keyword)
+        passed: Whether the step passed
         duration: Execution duration in seconds
         started_at: Step start timestamp
         completed_at: Step completion timestamp
@@ -31,14 +34,11 @@ class StepResultDetail(BaseModel):
     name: str = Field(..., description="Step name")
     order: int = Field(..., description="Step execution order", ge=1)
     status: str = Field(..., description="Execution status")
-    pass_: bool = Field(..., alias="pass", description="Whether the step passed")
+    passed: bool = Field(..., serialization_alias="pass", description="Whether the step passed")
     duration: float = Field(..., description="Execution duration in seconds", ge=0.0)
     started_at: datetime = Field(..., description="Step start timestamp")
     completed_at: datetime = Field(..., description="Step completion timestamp")
     result: Dict[str, Any] = Field(default_factory=dict, description="Step result data")
-
-    class Config:
-        populate_by_name = True
 
 
 # ============================================================================
@@ -46,7 +46,7 @@ class StepResultDetail(BaseModel):
 # ============================================================================
 
 
-class ResultSummary(BaseModel):
+class ResultSummary(APIBaseModel):
     """Summary information for an execution result in list view.
 
     Attributes:
@@ -73,7 +73,7 @@ class ResultSummary(BaseModel):
     synced: bool = Field(default=False, description="Whether synced to backend")
 
 
-class ResultDetail(BaseModel):
+class ResultDetail(APIBaseModel):
     """Detailed information for a single execution result.
 
     Attributes:
@@ -107,7 +107,7 @@ class ResultDetail(BaseModel):
 # ============================================================================
 
 
-class SystemInfo(BaseModel):
+class SystemInfo(APIBaseModel):
     """Station system information.
 
     Attributes:
@@ -126,7 +126,7 @@ class SystemInfo(BaseModel):
     backend_connected: bool = Field(..., description="Whether connected to backend")
 
 
-class HealthStatus(BaseModel):
+class HealthStatus(APIBaseModel):
     """Health check response.
 
     Attributes:
@@ -146,7 +146,7 @@ class HealthStatus(BaseModel):
 # ============================================================================
 
 
-class LogEntry(BaseModel):
+class LogEntry(APIBaseModel):
     """Single log entry.
 
     Attributes:

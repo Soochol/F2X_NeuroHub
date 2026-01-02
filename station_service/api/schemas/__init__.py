@@ -2,8 +2,10 @@
 Station Service API Schemas.
 
 This module exports all Pydantic schemas used for API request/response validation.
+All schemas use camelCase field names in JSON output via APIBaseModel.
 """
 
+from station_service.api.schemas.base import APIBaseModel
 from station_service.api.schemas.responses import (
     ApiResponse,
     ErrorDetail,
@@ -47,8 +49,21 @@ from station_service.api.schemas.result import (
     StepResultDetail,
     SystemInfo,
 )
+from station_service.api.schemas.manual import (
+    CommandInfo,
+    CommandPreset,
+    CommandPresetCreate,
+    HardwareCommandsResponse,
+    HardwareDetailedStatus,
+    ManualStepConfig,
+    ManualStepInfo,
+    ManualStepRequest,
+    ParameterInfo,
+)
 
 __all__ = [
+    # Base model
+    "APIBaseModel",
     # Common responses
     "ApiResponse",
     "ErrorDetail",
@@ -88,4 +103,14 @@ __all__ = [
     "ResultSummary",
     "StepResultDetail",
     "SystemInfo",
+    # Manual control schemas
+    "CommandInfo",
+    "CommandPreset",
+    "CommandPresetCreate",
+    "HardwareCommandsResponse",
+    "HardwareDetailedStatus",
+    "ManualStepConfig",
+    "ManualStepInfo",
+    "ManualStepRequest",
+    "ParameterInfo",
 ]

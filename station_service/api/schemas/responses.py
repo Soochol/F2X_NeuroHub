@@ -2,16 +2,19 @@
 Common API response schemas for Station Service.
 
 This module defines the standard response wrappers used across all API endpoints.
+All responses use camelCase field names in JSON output via APIBaseModel.
 """
 
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from station_service.api.schemas.base import APIBaseModel
 
 T = TypeVar("T")
 
 
-class ErrorDetail(BaseModel):
+class ErrorDetail(APIBaseModel):
     """Error detail schema for error responses.
 
     Attributes:
@@ -22,7 +25,7 @@ class ErrorDetail(BaseModel):
     message: str = Field(..., description="Human-readable error message")
 
 
-class ApiResponse(BaseModel, Generic[T]):
+class ApiResponse(APIBaseModel, Generic[T]):
     """Standard API response wrapper.
 
     All successful API responses are wrapped in this schema to provide
@@ -31,12 +34,14 @@ class ApiResponse(BaseModel, Generic[T]):
     Attributes:
         success: Whether the request was successful
         data: The response payload
+        message: Optional message for the response
     """
     success: bool = Field(default=True, description="Whether the request was successful")
     data: T = Field(..., description="Response payload")
+    message: Optional[str] = Field(None, description="Optional response message")
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(APIBaseModel):
     """Standard error response wrapper.
 
     All error responses are wrapped in this schema to provide
@@ -50,7 +55,7 @@ class ErrorResponse(BaseModel):
     error: ErrorDetail = Field(..., description="Error details")
 
 
-class PaginationMeta(BaseModel):
+class PaginationMeta(APIBaseModel):
     """Pagination metadata for paginated responses.
 
     Attributes:
@@ -63,7 +68,7 @@ class PaginationMeta(BaseModel):
     offset: int = Field(..., description="Current offset", ge=0)
 
 
-class PaginatedData(BaseModel, Generic[T]):
+class PaginatedData(APIBaseModel, Generic[T]):
     """Paginated data container.
 
     Attributes:
@@ -74,7 +79,7 @@ class PaginatedData(BaseModel, Generic[T]):
     items: List[T] = Field(default_factory=list, description="List of items")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse(APIBaseModel, Generic[T]):
     """Standard paginated response wrapper.
 
     Used for endpoints that return lists of items with pagination support.

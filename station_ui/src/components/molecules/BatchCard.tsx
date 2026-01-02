@@ -34,7 +34,7 @@ export function BatchCard({
   const canStart = batch.status === 'idle' || batch.status === 'completed' || batch.status === 'error';
 
   // Default statistics if not provided
-  const stats = statistics || { total: 0, pass: 0, fail: 0, passRate: 0 };
+  const stats = statistics || { total: 0, passCount: 0, fail: 0, passRate: 0 };
 
   return (
     <div
@@ -146,7 +146,7 @@ export function BatchCard({
         />
         <StatBadge
           icon={<CheckCircle className="w-3 h-3 text-green-500" />}
-          value={stats.pass}
+          value={stats.passCount}
           label="Pass"
           color="text-green-500"
         />

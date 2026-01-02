@@ -17,7 +17,7 @@ export interface BatchStatistics {
   /** Total number of executions */
   total: number;
   /** Number of passed executions */
-  pass: number;
+  passCount: number;
   /** Number of failed executions */
   fail: number;
   /** Pass rate (0.0 to 1.0) */
@@ -120,6 +120,10 @@ export interface BatchDetail extends Batch {
   parameters: Record<string, unknown>;
   /** Hardware status by device ID */
   hardwareStatus: Record<string, HardwareStatus>;
+  /** Process ID for 착공/완공 workflow (1-8) */
+  processId?: number;
+  /** Process header ID for linking to existing header */
+  headerId?: number;
   /** Current execution status */
   execution?: {
     status: ExecutionStatus;
@@ -138,6 +142,8 @@ export interface BatchDetail extends Batch {
  */
 export interface SequenceStartRequest {
   parameters?: Record<string, unknown>;
+  /** Pre-validated WIP integer ID (skip lookup in worker if provided) */
+  wip_int_id?: number;
 }
 
 /**

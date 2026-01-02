@@ -648,6 +648,7 @@ export interface MeasurementHistoryFilters {
   end_date?: string;
   process_id?: number;
   lot_id?: number;
+  header_id?: number;
   result?: ProcessResult;
   skip?: number;
   limit?: number;
@@ -766,4 +767,48 @@ export interface PrintLogQueryParams extends BaseQueryParams {
 export interface PrintLogsResponse {
   total: number;
   logs: PrintLog[];
+}
+
+// ============================================================================
+// Process Headers
+// ============================================================================
+
+export enum HeaderStatus {
+  OPEN = 'OPEN',
+  CLOSED = 'CLOSED',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface ProcessHeaderSummary {
+  id: number;
+  station_id: string;
+  batch_id: string;
+  process_id: number;
+  status: HeaderStatus;
+  total_count: number;
+  pass_count: number;
+  fail_count: number;
+  pass_rate: number;
+  opened_at: string;
+  closed_at?: string;
+  process_name?: string;
+  process_code?: string;
+}
+
+export interface ProcessHeaderListResponse {
+  items: ProcessHeaderSummary[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface ProcessHeaderFilter {
+  station_id?: string;
+  batch_id?: string;
+  process_id?: number;
+  status?: HeaderStatus;
+  opened_after?: string;
+  opened_before?: string;
+  skip?: number;
+  limit?: number;
 }

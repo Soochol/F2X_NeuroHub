@@ -96,6 +96,9 @@ class WorkflowConfig(BaseModel):
     require_operator_login: bool = Field(
         True, description="Require backend login before workflow operations"
     )
+    default_operator_id: Optional[int] = Field(
+        None, description="Default operator ID for 착공/완공 when no operator logged in"
+    )
 
 
 class BatchWorkflowConfig(BaseModel):
@@ -138,6 +141,12 @@ class BatchConfig(BaseModel):
     auto_start: bool = False
     process_id: Optional[int] = Field(
         None, description="Associated process ID (1-8) for WIP tracking"
+    )
+    header_id: Optional[int] = Field(
+        None, description="Process header ID for linking to existing header"
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict, description="Batch parameters for sequence execution"
     )
     workflow: BatchWorkflowConfig = Field(
         default_factory=BatchWorkflowConfig,

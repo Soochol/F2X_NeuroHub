@@ -69,7 +69,7 @@ async def get_batch_hardware(
                 connected=hw_status.get("status") == "connected",
                 config=hw_status.get("config", {}),
                 info=hw_status.get("info", {}),
-                lastError=hw_status.get("lastError"),
+                last_error=hw_status.get("last_error") or hw_status.get("lastError"),
             ))
 
         return ApiResponse(success=True, data=devices)
@@ -124,16 +124,16 @@ async def get_hardware_commands(
         commands = [
             CommandInfo(
                 name=cmd.name,
-                displayName=cmd.display_name,
+                display_name=cmd.display_name,
                 description=cmd.description,
                 category=cmd.category,
                 parameters=[
                     ParameterInfo(**p.to_dict())
                     for p in cmd.parameters
                 ],
-                returnType=cmd.return_type,
-                returnUnit=cmd.return_unit,
-                **{"async": cmd.is_async},
+                return_type=cmd.return_type,
+                return_unit=cmd.return_unit,
+                is_async=cmd.is_async,
             )
             for cmd in command_defs
         ]
@@ -141,7 +141,7 @@ async def get_hardware_commands(
         return ApiResponse(
             success=True,
             data=HardwareCommandsResponse(
-                hardwareId=hardware_id,
+                hardware_id=hardware_id,
                 driver=driver_info["className"],
                 connected=driver_info["connected"],
                 commands=commands,
@@ -192,7 +192,7 @@ async def get_manual_steps(
         for idx, step in enumerate(steps):
             step_infos.append(ManualStepInfo(
                 name=step.get("name", f"step_{idx}"),
-                displayName=step.get("displayName", step.get("name", f"Step {idx + 1}")),
+                display_name=step.get("display_name") or step.get("displayName") or step.get("name", f"Step {idx + 1}"),
                 order=step.get("order", idx + 1),
                 timeout=step.get("timeout", 60.0),
                 status=step.get("status", "pending"),
@@ -365,10 +365,10 @@ async def create_preset(
     preset = CommandPreset(
         id=preset_id,
         name=request.name,
-        hardwareId=request.hardwareId,
+        hardware_id=request.hardware_id,
         command=request.command,
         params=request.params,
-        createdAt=datetime.now().isoformat(),
+        created_at=datetime.now().isoformat(),
     )
     _presets[preset_id] = preset
     return ApiResponse(success=True, data=preset)

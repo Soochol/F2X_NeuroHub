@@ -16,6 +16,7 @@ interface WipInputModalProps {
   onSubmit: (wipId: string) => void;
   isLoading?: boolean;
   batchName?: string;
+  errorMessage?: string | null;
 }
 
 export function WipInputModal({
@@ -24,10 +25,14 @@ export function WipInputModal({
   onSubmit,
   isLoading = false,
   batchName,
+  errorMessage,
 }: WipInputModalProps) {
   const [wipId, setWipId] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Combine local and external errors
+  const error = errorMessage || localError;
 
   // Focus input when modal opens
   useEffect(() => {
@@ -40,26 +45,21 @@ export function WipInputModal({
   useEffect(() => {
     if (!isOpen) {
       setWipId('');
-      setError(null);
+      setLocalError(null);
     }
   }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setLocalError(null);
 
     const trimmedWipId = wipId.trim();
     if (!trimmedWipId) {
-      setError('WIP ID is required');
+      setLocalError('WIP ID is required');
       return;
     }
 
     onSubmit(trimmedWipId);
-  };
-
-  // Skip WIP and start without backend integration
-  const handleSkip = () => {
-    onSubmit('');
   };
 
   return (
@@ -128,11 +128,11 @@ export function WipInputModal({
             type="button"
             variant="secondary"
             size="md"
-            onClick={handleSkip}
+            onClick={onClose}
             disabled={isLoading}
             className="flex-1"
           >
-            Skip
+            Cancel
           </Button>
           <Button
             type="submit"
@@ -154,14 +154,6 @@ export function WipInputModal({
             )}
           </Button>
         </div>
-
-        {/* Skip info */}
-        <p
-          className="text-xs text-center"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        >
-          Skip to run without backend WIP tracking
-        </p>
       </form>
     </Modal>
   );

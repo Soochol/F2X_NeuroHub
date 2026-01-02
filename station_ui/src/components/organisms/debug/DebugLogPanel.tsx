@@ -1,14 +1,16 @@
 /**
- * DebugLogPanel - Main debug panel component with tabs for logs and step data.
+ * DebugLogPanel - Main debug panel component with tabs for logs, step data, params, and config.
  */
 
 import { useMemo } from 'react';
-import { FileText, Database, Download, Trash2 } from 'lucide-react';
+import { FileText, Database, Download, Trash2, Settings, Sliders } from 'lucide-react';
 import { useDebugPanelStore, type DebugPanelTab } from '../../../stores/debugPanelStore';
 import { useLogStore } from '../../../stores';
 import { LogFilters } from './LogFilters';
 import { LogEntryList } from './LogEntryList';
 import { StepDataViewer } from './StepDataViewer';
+import { BatchConfigEditor } from './BatchConfigEditor';
+import { ParametersEditor } from './ParametersEditor';
 import { Button } from '../../atoms/Button';
 import type { StepResult } from '../../../types';
 
@@ -17,6 +19,8 @@ interface DebugLogPanelProps {
   batchId: string;
   /** Step results to display in data tab */
   steps: StepResult[];
+  /** Whether batch is currently running (disables config editing) */
+  isRunning?: boolean;
 }
 
 interface TabButtonProps {
@@ -43,7 +47,7 @@ function TabButton({ label, icon, isActive, onClick }: TabButtonProps) {
   );
 }
 
-export function DebugLogPanel({ batchId, steps }: DebugLogPanelProps) {
+export function DebugLogPanel({ batchId, steps, isRunning = false }: DebugLogPanelProps) {
   const { activeTab, setActiveTab, selectedStep, logLevel, searchQuery } = useDebugPanelStore();
   const logs = useLogStore((s) => s.logs);
   const clearLogs = useLogStore((s) => s.clearLogs);
@@ -131,6 +135,20 @@ export function DebugLogPanel({ batchId, steps }: DebugLogPanelProps) {
             isActive={activeTab === 'data'}
             onClick={() => setActiveTab('data')}
           />
+          <TabButton
+            tab="params"
+            label="Params"
+            icon={<Sliders className="w-3.5 h-3.5" />}
+            isActive={activeTab === 'params'}
+            onClick={() => setActiveTab('params')}
+          />
+          <TabButton
+            tab="config"
+            label="Config"
+            icon={<Settings className="w-3.5 h-3.5" />}
+            isActive={activeTab === 'config'}
+            onClick={() => setActiveTab('config')}
+          />
         </div>
 
         {/* Action buttons */}
@@ -165,11 +183,10 @@ export function DebugLogPanel({ batchId, steps }: DebugLogPanelProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'logs' ? (
-          <LogEntryList batchId={batchId} />
-        ) : (
-          <StepDataViewer steps={steps} />
-        )}
+        {activeTab === 'logs' && <LogEntryList batchId={batchId} />}
+        {activeTab === 'data' && <StepDataViewer steps={steps} />}
+        {activeTab === 'params' && <ParametersEditor batchId={batchId} isRunning={isRunning} />}
+        {activeTab === 'config' && <BatchConfigEditor batchId={batchId} isRunning={isRunning} />}
       </div>
     </div>
   );

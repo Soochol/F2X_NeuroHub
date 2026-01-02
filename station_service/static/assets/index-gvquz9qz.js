@@ -911,6 +911,23 @@ const SkipForward = createLucideIcon("SkipForward", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const SlidersVertical = createLucideIcon("SlidersVertical", [
+  ["line", { x1: "4", x2: "4", y1: "21", y2: "14", key: "1p332r" }],
+  ["line", { x1: "4", x2: "4", y1: "10", y2: "3", key: "gb41h5" }],
+  ["line", { x1: "12", x2: "12", y1: "21", y2: "12", key: "hf2csr" }],
+  ["line", { x1: "12", x2: "12", y1: "8", y2: "3", key: "1kfi7u" }],
+  ["line", { x1: "20", x2: "20", y1: "21", y2: "16", key: "1lhrwl" }],
+  ["line", { x1: "20", x2: "20", y1: "12", y2: "3", key: "16vvfq" }],
+  ["line", { x1: "2", x2: "6", y1: "14", y2: "14", key: "1uebub" }],
+  ["line", { x1: "10", x2: "14", y1: "8", y2: "8", key: "1yglbp" }],
+  ["line", { x1: "18", x2: "22", y1: "16", y2: "16", key: "1jxqpz" }]
+]);
+/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Square = createLucideIcon("Square", [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
 ]);
@@ -1653,14 +1670,14 @@ const useBatchStore = create((set, get) => ({
   }),
   incrementBatchStats: (batchId, passed) => set((state) => {
     const newStats = new Map(state.batchStatistics);
-    const current = newStats.get(batchId) || { total: 0, pass: 0, fail: 0 };
+    const current = newStats.get(batchId) || { total: 0, passCount: 0, fail: 0 };
     const updated = {
       total: current.total + 1,
-      pass: passed ? current.pass + 1 : current.pass,
+      passCount: passed ? current.passCount + 1 : current.passCount,
       fail: passed ? current.fail : current.fail + 1,
       passRate: 0
     };
-    updated.passRate = updated.total > 0 ? updated.pass / updated.total : 0;
+    updated.passRate = updated.total > 0 ? updated.passCount / updated.total : 0;
     newStats.set(batchId, updated);
     return { batchStatistics: newStats };
   }),
@@ -1690,13 +1707,13 @@ const useBatchStore = create((set, get) => ({
   },
   getTotalStats: () => {
     const { batchStatistics } = get();
-    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    const total = { total: 0, passCount: 0, fail: 0, passRate: 0 };
     batchStatistics.forEach((s) => {
       total.total += s.total;
-      total.pass += s.pass;
+      total.passCount += s.passCount;
       total.fail += s.fail;
     });
-    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    total.passRate = total.total > 0 ? total.passCount / total.total : 0;
     return total;
   }
 }));
@@ -4830,32 +4847,6 @@ const {
   getAdapter,
   mergeConfig
 } = axios;
-function snakeToCamel(str) {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-function camelToSnake(str) {
-  return str.replace(/([A-Z])/g, "_$1").toLowerCase();
-}
-function transformKeys(obj, options) {
-  if (obj === null || obj === void 0) {
-    return obj;
-  }
-  if (obj instanceof Blob || obj instanceof ArrayBuffer || obj instanceof FormData) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => transformKeys(item));
-  }
-  if (typeof obj === "object" && obj.constructor === Object) {
-    const transformed = {};
-    for (const [key, value] of Object.entries(obj)) {
-      const newKey = snakeToCamel(key);
-      transformed[newKey] = transformKeys(value);
-    }
-    return transformed;
-  }
-  return obj;
-}
 const getBaseUrl = () => {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/ui")) {
     return "/api";
@@ -4871,17 +4862,23 @@ const apiClient = axios.create({
 });
 apiClient.interceptors.response.use(
   (response) => {
-    if (response.data) {
-      response.data = transformKeys(response.data);
-    }
     return response;
   },
   (error) => {
-    var _a, _b, _c;
+    var _a, _b;
     const status = (_a = error.response) == null ? void 0 : _a.status;
-    if ((_c = (_b = error.response) == null ? void 0 : _b.data) == null ? void 0 : _c.error) {
+    const responseData = (_b = error.response) == null ? void 0 : _b.data;
+    if (responseData == null ? void 0 : responseData.error) {
       return Promise.reject({
-        ...error.response.data.error,
+        ...responseData.error,
+        status
+      });
+    }
+    if (responseData == null ? void 0 : responseData.detail) {
+      const detail = responseData.detail;
+      return Promise.reject({
+        code: "API_ERROR",
+        message: typeof detail === "string" ? detail : JSON.stringify(detail),
         status
       });
     }
@@ -4939,6 +4936,17 @@ async function operatorLogout() {
   const response = await apiClient.post("/system/operator-logout");
   return extractData(response);
 }
+async function getProcesses() {
+  const response = await apiClient.get("/system/processes");
+  return extractData(response);
+}
+async function validateWip(wipId, processId) {
+  const response = await apiClient.post(
+    "/system/validate-wip",
+    { wip_id: wipId, process_id: processId }
+  );
+  return extractData(response);
+}
 function useSystemInfo() {
   return useQuery({
     queryKey: queryKeys.systemInfo,
@@ -4975,6 +4983,14 @@ function useUpdateWorkflowConfig() {
     onSuccess: (data) => {
       queryClient2.setQueryData(queryKeys.workflowConfig, data);
     }
+  });
+}
+function useProcesses() {
+  return useQuery({
+    queryKey: ["system", "processes"],
+    queryFn: getProcesses,
+    staleTime: 5 * 60 * 1e3
+    // Cache for 5 minutes
   });
 }
 function useOperatorSession() {
@@ -5090,9 +5106,8 @@ async function getBatch(batchId) {
   const hardwareStatus = {};
   if (data.hardware) {
     for (const [hwId, hw] of Object.entries(data.hardware)) {
-      const originalHwId = camelToSnake(hwId);
-      hardwareStatus[originalHwId] = {
-        id: originalHwId,
+      hardwareStatus[hwId] = {
+        id: hwId,
         driver: hw.driver || hw.type || "unknown",
         status: hw.connected ? "connected" : "disconnected",
         connected: hw.connected || false,
@@ -5129,6 +5144,8 @@ async function getBatch(batchId) {
     autoStart: false,
     parameters: data.parameters || {},
     hardwareStatus,
+    processId: data.processId,
+    headerId: data.headerId,
     execution: data.execution ? {
       // Map API status to ExecutionStatus ('running' | 'completed' | 'failed' | 'stopped')
       status: (() => {
@@ -5212,6 +5229,21 @@ async function createBatches(request) {
     createdAt: timestamp
   };
 }
+async function updateBatch(batchId, request) {
+  const serverRequest = {};
+  if (request.name !== void 0) serverRequest.name = request.name;
+  if (request.sequencePackage !== void 0) serverRequest.sequence_package = request.sequencePackage;
+  if (request.hardware !== void 0) serverRequest.hardware = request.hardware;
+  if (request.autoStart !== void 0) serverRequest.auto_start = request.autoStart;
+  if (request.processId !== void 0) serverRequest.process_id = request.processId;
+  if (request.headerId !== void 0) serverRequest.header_id = request.headerId;
+  if (request.parameters !== void 0) serverRequest.parameters = request.parameters;
+  const response = await apiClient.put(
+    `/batches/${batchId}`,
+    serverRequest
+  );
+  return extractData(response);
+}
 async function getBatchStatistics(batchId) {
   const response = await apiClient.get(
     `/batches/${batchId}/statistics`
@@ -5222,12 +5254,7 @@ async function getAllBatchStatistics() {
   const response = await apiClient.get(
     "/batches/statistics"
   );
-  const data = extractData(response);
-  const result = {};
-  for (const [key, value] of Object.entries(data)) {
-    result[camelToSnake(key)] = value;
-  }
-  return result;
+  return extractData(response);
 }
 const batches = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
@@ -5241,7 +5268,8 @@ const batches = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   startBatch,
   startSequence,
   stopBatch,
-  stopSequence
+  stopSequence,
+  updateBatch
 }, Symbol.toStringTag, { value: "Module" }));
 const _ToastManager = class _ToastManager {
   constructor() {
@@ -5558,6 +5586,22 @@ function useAllBatchStatistics() {
     // Don't throw errors
   });
 }
+function useUpdateBatch() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      request
+    }) => updateBatch(batchId, request),
+    onSuccess: (_, variables) => {
+      queryClient2.invalidateQueries({ queryKey: queryKeys.batch(variables.batchId) });
+      queryClient2.invalidateQueries({ queryKey: queryKeys.batches });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update batch: ${getErrorMessage(error)}`);
+    }
+  });
+}
 async function getSequences() {
   const response = await apiClient.get("/sequences");
   return extractData(response);
@@ -5736,6 +5780,29 @@ function useLogList(params) {
     enabled: params !== void 0
   });
 }
+function snakeToCamel(str) {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+function transformKeys(obj, options) {
+  if (obj === null || obj === void 0) {
+    return obj;
+  }
+  if (obj instanceof Blob || obj instanceof ArrayBuffer || obj instanceof FormData) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => transformKeys(item));
+  }
+  if (typeof obj === "object" && obj.constructor === Object) {
+    const transformed = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const newKey = snakeToCamel(key);
+      transformed[newKey] = transformKeys(value);
+    }
+    return transformed;
+  }
+  return obj;
+}
 const WebSocketContext = reactExports.createContext(null);
 function generateLogId() {
   return Date.now() * 1e3 + Math.floor(Math.random() * 1e3);
@@ -5767,7 +5834,7 @@ function WebSocketProvider({ children, url = "/ws" }) {
   const addNotification = useNotificationStore((s) => s.addNotification);
   const handleMessage = reactExports.useCallback(
     (message) => {
-      var _a;
+      var _a, _b, _c, _d, _e;
       const batchIdForLog = "batchId" in message ? message.batchId.slice(0, 8) : null;
       console.log(`[WS] Received message: ${message.type}`, batchIdForLog ? `batch: ${batchIdForLog}...` : "");
       switch (message.type) {
@@ -5864,23 +5931,29 @@ function WebSocketProvider({ children, url = "/ws" }) {
           break;
         }
         case "error": {
+          const code = ((_a = message.data) == null ? void 0 : _a.code) || "UNKNOWN";
+          const errorMessage = ((_b = message.data) == null ? void 0 : _b.message) || "Unknown error";
+          const step = (_c = message.data) == null ? void 0 : _c.step;
+          const timestamp = (_d = message.data) == null ? void 0 : _d.timestamp;
+          console.log(`[WS] error: code=${code}, message=${errorMessage}, step=${step}`);
+          toast.error(`[${code}] ${errorMessage}`);
           addLog({
             id: generateLogId(),
             batchId: message.batchId,
             level: "error",
-            message: `[${message.data.code}] ${message.data.message}${message.data.step ? ` (step: ${message.data.step})` : ""}`,
-            timestamp: new Date(message.data.timestamp)
+            message: `[${code}] ${errorMessage}${step ? ` (step: ${step})` : ""}`,
+            timestamp: timestamp ? new Date(timestamp) : /* @__PURE__ */ new Date()
           });
           addNotification({
             type: "error",
-            title: `Error: ${message.data.code}`,
-            message: message.data.message,
+            title: `Error: ${code}`,
+            message: errorMessage,
             batchId: message.batchId
           });
           break;
         }
         case "subscribed": {
-          const subscribedBatchIds = ((_a = message.data) == null ? void 0 : _a.batchIds) || [];
+          const subscribedBatchIds = ((_e = message.data) == null ? void 0 : _e.batchIds) || [];
           for (const batchId of subscribedBatchIds) {
             justSubscribedBatches.current.add(batchId);
           }
@@ -5944,7 +6017,7 @@ function WebSocketProvider({ children, url = "/ws" }) {
         const data = transformKeys(rawData);
         handleMessage(data);
       } catch (e) {
-        console.error("Failed to parse WebSocket message:", e);
+        console.error("Failed to parse/handle WebSocket message:", e, "raw:", event.data);
       }
     };
     socket.onclose = () => {
@@ -6689,6 +6762,455 @@ function StatusBar() {
     }
   );
 }
+const Button = reactExports.forwardRef(
+  ({
+    className = "",
+    variant = "primary",
+    size = "md",
+    isLoading = false,
+    disabled,
+    children,
+    ...props
+  }, ref) => {
+    const baseClasses = "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+    const variantClasses = {
+      primary: "bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500",
+      secondary: "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white hover:bg-zinc-300 dark:hover:bg-zinc-600 focus:ring-zinc-500",
+      danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+      ghost: "bg-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 focus:ring-zinc-500"
+    };
+    const sizeClasses2 = {
+      sm: "px-3 py-1.5 text-sm",
+      md: "px-4 py-2 text-sm",
+      lg: "px-6 py-3 text-base"
+    };
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        ref,
+        className: `${baseClasses} ${variantClasses[variant]} ${sizeClasses2[size]} ${className}`,
+        disabled: disabled || isLoading,
+        ...props,
+        children: [
+          isLoading && /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-2 animate-spin" }),
+          children
+        ]
+      }
+    );
+  }
+);
+Button.displayName = "Button";
+const Input = reactExports.forwardRef(
+  ({ className = "", label, error, helperText, id, ...props }, ref) => {
+    const inputId = id ?? (label == null ? void 0 : label.toLowerCase().replace(/\s+/g, "-"));
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full", children: [
+      label && /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: inputId, className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          ref,
+          id: inputId,
+          className: `w-full px-3 py-2 bg-white dark:bg-zinc-800 border rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-colors ${error ? "border-red-500" : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600"} ${className}`,
+          ...props
+        }
+      ),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-red-500 dark:text-red-400", children: error }),
+      helperText && !error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-zinc-600 dark:text-zinc-500", children: helperText })
+    ] });
+  }
+);
+Input.displayName = "Input";
+const Select = reactExports.forwardRef(
+  ({ className = "", label, error, options, placeholder, id, ...props }, ref) => {
+    const selectId = id ?? (label == null ? void 0 : label.toLowerCase().replace(/\s+/g, "-"));
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full", children: [
+      label && /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: selectId, className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: label }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            ref,
+            id: selectId,
+            className: `w-full px-3 py-2 bg-white dark:bg-zinc-800 border rounded-lg text-zinc-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-colors cursor-pointer ${error ? "border-red-500" : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600"} ${className}`,
+            ...props,
+            children: [
+              placeholder && /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", disabled: true, children: placeholder }),
+              options.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { className: "absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-zinc-400 pointer-events-none" })
+      ] }),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-red-500 dark:text-red-400", children: error })
+    ] });
+  }
+);
+Select.displayName = "Select";
+const variantColors = {
+  default: "var(--color-brand-500)",
+  success: "#22c55e",
+  warning: "#f59e0b",
+  error: "#ef4444"
+};
+const sizeClasses$2 = {
+  sm: "h-1",
+  md: "h-2",
+  lg: "h-3"
+};
+function ProgressBar({
+  value,
+  max = 100,
+  variant = "default",
+  size = "md",
+  showLabel = false,
+  className = ""
+}) {
+  const percentage = Math.min(100, Math.max(0, value / max * 100));
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `w-full ${className}`, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: `w-full rounded-full overflow-hidden ${sizeClasses$2[size]}`,
+        style: { backgroundColor: "var(--color-border-default)" },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "h-full transition-all duration-300 ease-out",
+            style: {
+              width: `${percentage}%`,
+              backgroundColor: variantColors[variant]
+            }
+          }
+        )
+      }
+    ),
+    showLabel && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "mt-1 text-xs text-right",
+        style: { color: "var(--color-text-secondary)" },
+        children: [
+          Math.round(percentage),
+          "%"
+        ]
+      }
+    )
+  ] });
+}
+const statusConfig = {
+  idle: {
+    label: "IDLE",
+    bg: "rgba(113, 113, 122, 0.2)",
+    text: "#a1a1aa",
+    dot: "#a1a1aa"
+  },
+  starting: {
+    label: "STARTING",
+    bg: "rgba(59, 130, 246, 0.2)",
+    text: "#60a5fa",
+    dot: "#60a5fa"
+  },
+  running: {
+    label: "RUNNING",
+    bg: "rgba(62, 207, 142, 0.2)",
+    text: "#3ecf8e",
+    dot: "#3ecf8e",
+    animate: true
+  },
+  stopping: {
+    label: "STOPPING",
+    bg: "rgba(245, 158, 11, 0.2)",
+    text: "#fbbf24",
+    dot: "#fbbf24"
+  },
+  completed: {
+    label: "COMPLETED",
+    bg: "rgba(34, 197, 94, 0.2)",
+    text: "#4ade80",
+    dot: "#4ade80"
+  },
+  error: {
+    label: "ERROR",
+    bg: "rgba(239, 68, 68, 0.2)",
+    text: "#f87171",
+    dot: "#f87171"
+  },
+  connected: {
+    label: "CONNECTED",
+    bg: "rgba(34, 197, 94, 0.2)",
+    text: "#4ade80",
+    dot: "#4ade80"
+  },
+  disconnected: {
+    label: "DISCONNECTED",
+    bg: "rgba(239, 68, 68, 0.2)",
+    text: "#f87171",
+    dot: "#f87171"
+  },
+  warning: {
+    label: "WARNING",
+    bg: "rgba(245, 158, 11, 0.2)",
+    text: "#fbbf24",
+    dot: "#fbbf24",
+    animate: true
+  },
+  pass: {
+    label: "PASS",
+    bg: "rgba(34, 197, 94, 0.2)",
+    text: "#4ade80",
+    dot: "#4ade80"
+  },
+  fail: {
+    label: "FAIL",
+    bg: "rgba(239, 68, 68, 0.2)",
+    text: "#f87171",
+    dot: "#f87171"
+  }
+};
+const sizeClasses$1 = {
+  sm: "px-2 py-0.5 text-xs",
+  md: "px-2.5 py-1 text-xs"
+};
+const dotSizeClasses = {
+  sm: "w-1.5 h-1.5",
+  md: "w-2 h-2"
+};
+function StatusBadge({ status, size = "md", className = "" }) {
+  const config = statusConfig[status] ?? statusConfig["idle"];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "span",
+    {
+      className: `inline-flex items-center gap-1.5 rounded-full font-medium ${sizeClasses$1[size]} ${className}`,
+      style: { backgroundColor: config.bg, color: config.text },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: `rounded-full ${dotSizeClasses[size]} ${config.animate ? "animate-pulse" : ""}`,
+            style: { backgroundColor: config.dot }
+          }
+        ),
+        config.label
+      ]
+    }
+  );
+}
+function LoadingSpinner({ size = "md", className = "" }) {
+  const sizeClasses2 = {
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-8 h-8"
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex items-center justify-center ${className}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: `animate-spin text-brand-500 ${sizeClasses2[size]}` }) });
+}
+function LoadingOverlay({ message = "Loading..." }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-12", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, { size: "lg" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-zinc-400", children: message })
+  ] });
+}
+const sizeClasses = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg"
+};
+function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = "md",
+  showCloseButton = true
+}) {
+  const modalRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+  function handleBackdropClick(event) {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  }
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "fixed inset-0 z-50 flex items-center justify-center p-4",
+      onClick: handleBackdropClick,
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "absolute inset-0 bg-black/60 backdrop-blur-sm",
+            "aria-hidden": "true"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            ref: modalRef,
+            className: `relative w-full ${sizeClasses[size]} rounded-xl border shadow-2xl`,
+            style: {
+              backgroundColor: "var(--color-bg-secondary)",
+              borderColor: "var(--color-border-default)"
+            },
+            role: "dialog",
+            "aria-modal": "true",
+            "aria-labelledby": "modal-title",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  className: "flex items-center justify-between px-6 py-4 border-b",
+                  style: { borderColor: "var(--color-border-default)" },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "h2",
+                      {
+                        id: "modal-title",
+                        className: "text-lg font-semibold",
+                        style: { color: "var(--color-text-primary)" },
+                        children: title
+                      }
+                    ),
+                    showCloseButton && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        onClick: onClose,
+                        className: "p-1 rounded-lg transition-colors",
+                        style: { color: "var(--color-text-tertiary)" },
+                        onMouseEnter: (e) => {
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
+                          e.currentTarget.style.color = "var(--color-text-primary)";
+                        },
+                        onMouseLeave: (e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "var(--color-text-tertiary)";
+                        },
+                        "aria-label": "Close modal",
+                        children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-5 h-5" })
+                      }
+                    )
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4", children })
+            ]
+          }
+        )
+      ]
+    }
+  );
+}
+const typeConfig = {
+  success: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5" }),
+    bgColor: "var(--color-status-success)",
+    borderColor: "var(--color-status-success)"
+  },
+  error: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-5 h-5" }),
+    bgColor: "var(--color-status-error)",
+    borderColor: "var(--color-status-error)"
+  },
+  warning: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-5 h-5" }),
+    bgColor: "var(--color-status-warning)",
+    borderColor: "var(--color-status-warning)"
+  },
+  info: {
+    icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Info, { className: "w-5 h-5" }),
+    bgColor: "var(--color-accent-blue)",
+    borderColor: "var(--color-accent-blue)"
+  }
+};
+const DEFAULT_DURATION = 5e3;
+function ToastContainer() {
+  const [toasts, setToasts] = reactExports.useState([]);
+  const removeToast = reactExports.useCallback((id) => {
+    setToasts((prev) => prev.filter((toast2) => toast2.id !== id));
+  }, []);
+  const addToast = reactExports.useCallback((type, message, duration = DEFAULT_DURATION) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const toast2 = { id, type, message, duration };
+    setToasts((prev) => [...prev, toast2]);
+    if (duration > 0) {
+      setTimeout(() => removeToast(id), duration);
+    }
+  }, [removeToast]);
+  reactExports.useEffect(() => {
+    const handleToast = (event) => {
+      const { type, message, duration } = event.detail;
+      addToast(type, message, duration ?? DEFAULT_DURATION);
+    };
+    window.addEventListener("toast", handleToast);
+    return () => window.removeEventListener("toast", handleToast);
+  }, [addToast]);
+  if (toasts.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 max-w-md", children: [
+    toasts.map((toast2) => {
+      const config = typeConfig[toast2.type];
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex items-start gap-3 p-4 rounded-lg shadow-lg animate-slide-in-down",
+          style: {
+            backgroundColor: "var(--color-bg-secondary)",
+            border: `1px solid ${config.borderColor}`
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { color: config.bgColor }, className: "flex-shrink-0 mt-0.5", children: config.icon }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "p",
+              {
+                className: "flex-1 text-sm",
+                style: { color: "var(--color-text-primary)" },
+                children: toast2.message
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => removeToast(toast2.id),
+                className: "flex-shrink-0 p-1 rounded hover:bg-white/10 transition-colors",
+                style: { color: "var(--color-text-tertiary)" },
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-4 h-4" })
+              }
+            )
+          ]
+        },
+        toast2.id
+      );
+    }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
+        @keyframes slide-in-down {
+          from {
+            transform: translateY(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in-down {
+          animation: slide-in-down 0.3s ease-out;
+        }
+      ` })
+  ] });
+}
 function Layout({ children }) {
   const { data: systemInfo, isLoading } = useSystemInfo();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = reactExports.useState(() => {
@@ -6726,7 +7248,8 @@ function Layout({ children }) {
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBar, {})
-        ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ToastContainer, {})
       ]
     }
   );
@@ -6930,169 +7453,6 @@ function LogEntryRow$1({ log, showBatchId = true }) {
     }
   );
 }
-const variantColors = {
-  default: "var(--color-brand-500)",
-  success: "#22c55e",
-  warning: "#f59e0b",
-  error: "#ef4444"
-};
-const sizeClasses$2 = {
-  sm: "h-1",
-  md: "h-2",
-  lg: "h-3"
-};
-function ProgressBar({
-  value,
-  max = 100,
-  variant = "default",
-  size = "md",
-  showLabel = false,
-  className = ""
-}) {
-  const percentage = Math.min(100, Math.max(0, value / max * 100));
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `w-full ${className}`, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        className: `w-full rounded-full overflow-hidden ${sizeClasses$2[size]}`,
-        style: { backgroundColor: "var(--color-border-default)" },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: "h-full transition-all duration-300 ease-out",
-            style: {
-              width: `${percentage}%`,
-              backgroundColor: variantColors[variant]
-            }
-          }
-        )
-      }
-    ),
-    showLabel && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "div",
-      {
-        className: "mt-1 text-xs text-right",
-        style: { color: "var(--color-text-secondary)" },
-        children: [
-          Math.round(percentage),
-          "%"
-        ]
-      }
-    )
-  ] });
-}
-const statusConfig = {
-  idle: {
-    label: "IDLE",
-    bg: "rgba(113, 113, 122, 0.2)",
-    text: "#a1a1aa",
-    dot: "#a1a1aa"
-  },
-  starting: {
-    label: "STARTING",
-    bg: "rgba(59, 130, 246, 0.2)",
-    text: "#60a5fa",
-    dot: "#60a5fa"
-  },
-  running: {
-    label: "RUNNING",
-    bg: "rgba(62, 207, 142, 0.2)",
-    text: "#3ecf8e",
-    dot: "#3ecf8e",
-    animate: true
-  },
-  stopping: {
-    label: "STOPPING",
-    bg: "rgba(245, 158, 11, 0.2)",
-    text: "#fbbf24",
-    dot: "#fbbf24"
-  },
-  completed: {
-    label: "COMPLETED",
-    bg: "rgba(34, 197, 94, 0.2)",
-    text: "#4ade80",
-    dot: "#4ade80"
-  },
-  error: {
-    label: "ERROR",
-    bg: "rgba(239, 68, 68, 0.2)",
-    text: "#f87171",
-    dot: "#f87171"
-  },
-  connected: {
-    label: "CONNECTED",
-    bg: "rgba(34, 197, 94, 0.2)",
-    text: "#4ade80",
-    dot: "#4ade80"
-  },
-  disconnected: {
-    label: "DISCONNECTED",
-    bg: "rgba(239, 68, 68, 0.2)",
-    text: "#f87171",
-    dot: "#f87171"
-  },
-  warning: {
-    label: "WARNING",
-    bg: "rgba(245, 158, 11, 0.2)",
-    text: "#fbbf24",
-    dot: "#fbbf24",
-    animate: true
-  },
-  pass: {
-    label: "PASS",
-    bg: "rgba(34, 197, 94, 0.2)",
-    text: "#4ade80",
-    dot: "#4ade80"
-  },
-  fail: {
-    label: "FAIL",
-    bg: "rgba(239, 68, 68, 0.2)",
-    text: "#f87171",
-    dot: "#f87171"
-  }
-};
-const sizeClasses$1 = {
-  sm: "px-2 py-0.5 text-xs",
-  md: "px-2.5 py-1 text-xs"
-};
-const dotSizeClasses = {
-  sm: "w-1.5 h-1.5",
-  md: "w-2 h-2"
-};
-function StatusBadge({ status, size = "md", className = "" }) {
-  const config = statusConfig[status] ?? statusConfig["idle"];
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "span",
-    {
-      className: `inline-flex items-center gap-1.5 rounded-full font-medium ${sizeClasses$1[size]} ${className}`,
-      style: { backgroundColor: config.bg, color: config.text },
-      children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "span",
-          {
-            className: `rounded-full ${dotSizeClasses[size]} ${config.animate ? "animate-pulse" : ""}`,
-            style: { backgroundColor: config.dot }
-          }
-        ),
-        config.label
-      ]
-    }
-  );
-}
-function LoadingSpinner({ size = "md", className = "" }) {
-  const sizeClasses2 = {
-    sm: "w-4 h-4",
-    md: "w-6 h-6",
-    lg: "w-8 h-8"
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex items-center justify-center ${className}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: `animate-spin text-brand-500 ${sizeClasses2[size]}` }) });
-}
-function LoadingOverlay({ message = "Loading..." }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-12", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingSpinner, { size: "lg" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-zinc-400", children: message })
-  ] });
-}
 function BatchOverviewCard({ batch }) {
   const navigate = useNavigate();
   const handleClick = () => {
@@ -7257,13 +7617,13 @@ function DashboardPage() {
   const setAllBatchStatistics = useBatchStore((state) => state.setAllBatchStatistics);
   const batchStatistics = useBatchStore(useShallow((state) => state.batchStatistics));
   const totalStats = reactExports.useMemo(() => {
-    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    const total = { total: 0, passCount: 0, fail: 0, passRate: 0 };
     batchStatistics.forEach((s) => {
       total.total += s.total;
-      total.pass += s.pass;
+      total.passCount += s.passCount;
       total.fail += s.fail;
     });
-    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    total.passRate = total.total > 0 ? total.passCount / total.total : 0;
     return total;
   }, [batchStatistics]);
   const websocketStatus = useConnectionStore((state) => state.websocketStatus);
@@ -7349,7 +7709,7 @@ function DashboardPage() {
         StatsCard,
         {
           title: "Pass",
-          value: totalStats.pass,
+          value: totalStats.passCount,
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-5 h-5" }),
           variant: "success"
         }
@@ -7504,44 +7864,6 @@ function formatUptime$1(seconds) {
   const days = Math.floor(hours / 24);
   return `${days}d ${hours % 24}h`;
 }
-const Button = reactExports.forwardRef(
-  ({
-    className = "",
-    variant = "primary",
-    size = "md",
-    isLoading = false,
-    disabled,
-    children,
-    ...props
-  }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
-    const variantClasses = {
-      primary: "bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500",
-      secondary: "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white hover:bg-zinc-300 dark:hover:bg-zinc-600 focus:ring-zinc-500",
-      danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
-      ghost: "bg-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 focus:ring-zinc-500"
-    };
-    const sizeClasses2 = {
-      sm: "px-3 py-1.5 text-sm",
-      md: "px-4 py-2 text-sm",
-      lg: "px-6 py-3 text-base"
-    };
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "button",
-      {
-        ref,
-        className: `${baseClasses} ${variantClasses[variant]} ${sizeClasses2[size]} ${className}`,
-        disabled: disabled || isLoading,
-        ...props,
-        children: [
-          isLoading && /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-2 animate-spin" }),
-          children
-        ]
-      }
-    );
-  }
-);
-Button.displayName = "Button";
 function BatchCard({
   batch,
   statistics,
@@ -7554,7 +7876,7 @@ function BatchCard({
 }) {
   const isRunning = batch.status === "running" || batch.status === "starting";
   const canStart = batch.status === "idle" || batch.status === "completed" || batch.status === "error";
-  const stats = statistics || { total: 0, pass: 0, fail: 0, passRate: 0 };
+  const stats = statistics || { total: 0, passCount: 0, fail: 0, passRate: 0 };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
@@ -7654,7 +7976,7 @@ function BatchCard({
             StatBadge,
             {
               icon: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-3 h-3 text-green-500" }),
-              value: stats.pass,
+              value: stats.passCount,
               label: "Pass",
               color: "text-green-500"
             }
@@ -7691,32 +8013,6 @@ function StatBadge({
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-sm font-medium ${color || ""}`, style: color ? void 0 : { color: "var(--color-text-primary)" }, children: value })
   ] });
 }
-const Select = reactExports.forwardRef(
-  ({ className = "", label, error, options, placeholder, id, ...props }, ref) => {
-    const selectId = id ?? (label == null ? void 0 : label.toLowerCase().replace(/\s+/g, "-"));
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full", children: [
-      label && /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: selectId, className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: label }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            ref,
-            id: selectId,
-            className: `w-full px-3 py-2 bg-white dark:bg-zinc-800 border rounded-lg text-zinc-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-colors cursor-pointer ${error ? "border-red-500" : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600"} ${className}`,
-            ...props,
-            children: [
-              placeholder && /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", disabled: true, children: placeholder }),
-              options.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { className: "absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-zinc-400 pointer-events-none" })
-      ] }),
-      error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-red-500 dark:text-red-400", children: error })
-    ] });
-  }
-);
-Select.displayName = "Select";
 function BatchList({ batches: batches2, statistics, onStart, onStop, onDelete, onSelect, isLoading }) {
   const { batchId: selectedBatchId } = useParams();
   const [statusFilter, setStatusFilter] = reactExports.useState("all");
@@ -7762,26 +8058,6 @@ function BatchList({ batches: batches2, statistics, onStart, onStop, onDelete, o
     )) })
   ] });
 }
-const Input = reactExports.forwardRef(
-  ({ className = "", label, error, helperText, id, ...props }, ref) => {
-    const inputId = id ?? (label == null ? void 0 : label.toLowerCase().replace(/\s+/g, "-"));
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full", children: [
-      label && /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: inputId, className: "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5", children: label }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          ref,
-          id: inputId,
-          className: `w-full px-3 py-2 bg-white dark:bg-zinc-800 border rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-colors ${error ? "border-red-500" : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600"} ${className}`,
-          ...props
-        }
-      ),
-      error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-red-500 dark:text-red-400", children: error }),
-      helperText && !error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1.5 text-sm text-zinc-600 dark:text-zinc-500", children: helperText })
-    ] });
-  }
-);
-Input.displayName = "Input";
 const WIZARD_STEPS = [
   { key: "sequence", label: "Select Sequence" },
   { key: "steps", label: "Configure Steps" },
@@ -8345,7 +8621,7 @@ function BatchStatisticsPanel({ batches: batches2, statistics }) {
   };
   statistics.forEach((stats) => {
     totalStats.total += stats.total;
-    totalStats.pass += stats.pass;
+    totalStats.pass += stats.passCount;
     totalStats.fail += stats.fail;
   });
   if (totalStats.total > 0) {
@@ -8597,7 +8873,7 @@ function SplitLayout({
   onToggle,
   minWidth = 280,
   maxWidth = 600,
-  panelTitle = "Debug Panel"
+  panelTitle = "Details"
 }) {
   const [isResizing, setIsResizing] = reactExports.useState(false);
   const containerRef = reactExports.useRef(null);
@@ -8649,17 +8925,20 @@ function SplitLayout({
         children
       }
     ),
-    isCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsx(
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
       "button",
       {
         onClick: onToggle,
-        className: "fixed right-0 top-1/2 -translate-y-1/2 z-40 p-2 rounded-l-lg border-l border-t border-b transition-colors hover:bg-zinc-700",
+        className: "fixed z-40 p-2 rounded-l-lg border-l border-t border-b transition-all duration-200 hover:bg-zinc-700",
         style: {
           backgroundColor: "var(--color-bg-secondary)",
-          borderColor: "var(--color-border-default)"
+          borderColor: "var(--color-border-default)",
+          right: isCollapsed ? 0 : panelWidth,
+          top: "50%",
+          transform: "translateY(-50%)"
         },
-        title: "Open debug panel",
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightOpen, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } })
+        title: isCollapsed ? "Open debug panel" : "Close panel",
+        children: isCollapsed ? /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightOpen, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } }) : /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightClose, { className: "w-5 h-5", style: { color: "var(--color-text-secondary)" } })
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -8680,25 +8959,12 @@ function SplitLayout({
               style: { transform: "translateX(-50%)" }
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
             "div",
             {
-              className: "flex items-center justify-between px-3 py-2 border-b shrink-0",
+              className: "flex items-center justify-center px-3 py-2 border-b shrink-0",
               style: { borderColor: "var(--color-border-default)" },
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: onToggle,
-                    className: "p-1 rounded hover:bg-zinc-700 transition-colors",
-                    title: "Close panel",
-                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightClose, { className: "w-4 h-4", style: { color: "var(--color-text-secondary)" } })
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: panelTitle }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-6" }),
-                " "
-              ]
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: panelTitle })
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-hidden", children: panel })
@@ -9057,6 +9323,358 @@ function StepDataViewer({ steps }) {
     `${step.order}-${step.name}`
   )) });
 }
+function isBatchDetail$3(batch) {
+  return batch !== null && typeof batch === "object" && "parameters" in batch;
+}
+function BatchConfigEditor({ batchId, isRunning }) {
+  const { data: batch } = useBatch(batchId);
+  const { data: processes = [], isLoading: processesLoading } = useProcesses();
+  const updateBatch2 = useUpdateBatch();
+  const [selectedProcessId, setSelectedProcessId] = reactExports.useState();
+  const [headerId, setHeaderId] = reactExports.useState();
+  const [hasChanges, setHasChanges] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (batch && isBatchDetail$3(batch)) {
+      setSelectedProcessId(batch.processId);
+      setHeaderId(batch.headerId);
+      setHasChanges(false);
+    }
+  }, [batch]);
+  const handleProcessChange = (processId) => {
+    setSelectedProcessId(processId);
+    setHasChanges(true);
+  };
+  const handleHeaderIdChange = (value) => {
+    const parsed = parseInt(value, 10);
+    setHeaderId(isNaN(parsed) ? void 0 : parsed);
+    setHasChanges(true);
+  };
+  const handleSave = async () => {
+    if (!batchId) return;
+    await updateBatch2.mutateAsync({ batchId, request: { processId: selectedProcessId, headerId } });
+    setHasChanges(false);
+  };
+  const handleReset = () => {
+    if (batch && isBatchDetail$3(batch)) {
+      setSelectedProcessId(batch.processId);
+      setHeaderId(batch.headerId);
+      setHasChanges(false);
+    }
+  };
+  const selectedProcess = reactExports.useMemo(() => {
+    return processes.find((p) => p.processNumber === selectedProcessId);
+  }, [processes, selectedProcessId]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-center justify-between px-3 py-2 border-b shrink-0",
+        style: { borderColor: "var(--color-border-default)" },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { className: "w-4 h-4", style: { color: "var(--color-text-tertiary)" } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: "Process Configuration" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            hasChanges && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                variant: "ghost",
+                size: "sm",
+                onClick: handleReset,
+                disabled: isRunning,
+                title: "Reset changes",
+                className: "p-1",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { className: "w-3.5 h-3.5" })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              Button,
+              {
+                variant: "primary",
+                size: "sm",
+                onClick: handleSave,
+                disabled: !hasChanges || isRunning || updateBatch2.isPending,
+                isLoading: updateBatch2.isPending,
+                title: "Save changes",
+                className: "px-2 py-1 text-xs",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-3 h-3 mr-1" }),
+                  "Save"
+                ]
+              }
+            )
+          ] })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-auto p-3 space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "label",
+          {
+            className: "block text-xs font-medium",
+            style: { color: "var(--color-text-secondary)" },
+            children: "MES Process (Start/Complete)"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: selectedProcessId ?? "",
+            onChange: (e) => handleProcessChange(Number(e.target.value)),
+            disabled: isRunning || processesLoading,
+            className: "w-full text-sm rounded px-3 py-2 border outline-none transition-colors disabled:opacity-50",
+            style: {
+              backgroundColor: "var(--color-bg-tertiary)",
+              borderColor: "var(--color-border-default)",
+              color: "var(--color-text-primary)"
+            },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Select process..." }),
+              processes.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: p.processNumber, children: [
+                "P",
+                p.processNumber,
+                ". ",
+                p.processNameKo
+              ] }, p.id))
+            ]
+          }
+        ),
+        selectedProcess && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: [
+          "Code: ",
+          selectedProcess.processCode,
+          " | ",
+          selectedProcess.processNameEn
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "label",
+          {
+            className: "block text-xs font-medium",
+            style: { color: "var(--color-text-secondary)" },
+            children: "Process Header ID"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "number",
+            value: headerId ?? "",
+            onChange: (e) => handleHeaderIdChange(e.target.value),
+            disabled: isRunning,
+            placeholder: "Enter header ID...",
+            className: "w-full text-sm rounded px-3 py-2 border outline-none transition-colors disabled:opacity-50",
+            style: {
+              backgroundColor: "var(--color-bg-tertiary)",
+              borderColor: "var(--color-border-default)",
+              color: "var(--color-text-primary)"
+            }
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: "Unique ID to distinguish batches (e.g., 1, 2, 3, 4...)" })
+      ] }),
+      isRunning && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          className: "text-xs p-2 rounded",
+          style: {
+            backgroundColor: "rgba(var(--color-brand-rgb), 0.1)",
+            color: "var(--color-brand-500)"
+          },
+          children: "Process selection is disabled while the batch is running."
+        }
+      )
+    ] })
+  ] });
+}
+function isBatchDetail$2(batch) {
+  return batch !== null && typeof batch === "object" && "parameters" in batch;
+}
+function ParametersEditor({ batchId, isRunning }) {
+  const { data: batch } = useBatch(batchId);
+  const updateBatch2 = useUpdateBatch();
+  const [editedParams, setEditedParams] = reactExports.useState({});
+  const [hasChanges, setHasChanges] = reactExports.useState(false);
+  const [searchQuery, setSearchQuery] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    if (batch && isBatchDetail$2(batch)) {
+      setEditedParams(batch.parameters || {});
+      setHasChanges(false);
+    }
+  }, [batch]);
+  const currentParams = reactExports.useMemo(() => {
+    if (batch && isBatchDetail$2(batch)) {
+      return batch.parameters || {};
+    }
+    return {};
+  }, [batch]);
+  const filteredParams = reactExports.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return Object.entries(editedParams);
+    }
+    const query = searchQuery.toLowerCase();
+    return Object.entries(editedParams).filter(
+      ([key, value]) => key.toLowerCase().includes(query) || String(value ?? "").toLowerCase().includes(query)
+    );
+  }, [editedParams, searchQuery]);
+  const handleParamChange = (key, value) => {
+    const newParams = { ...editedParams };
+    if (value === "true") {
+      newParams[key] = true;
+    } else if (value === "false") {
+      newParams[key] = false;
+    } else if (!isNaN(Number(value)) && value !== "") {
+      newParams[key] = Number(value);
+    } else {
+      newParams[key] = value;
+    }
+    setEditedParams(newParams);
+    setHasChanges(true);
+  };
+  const handleSave = async () => {
+    if (!batchId) return;
+    if (JSON.stringify(editedParams) !== JSON.stringify(currentParams)) {
+      await updateBatch2.mutateAsync({ batchId, request: { parameters: editedParams } });
+      setHasChanges(false);
+    }
+  };
+  const handleReset = () => {
+    if (batch && isBatchDetail$2(batch)) {
+      setEditedParams(batch.parameters || {});
+      setHasChanges(false);
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-center justify-between px-3 py-2 border-b shrink-0",
+        style: { borderColor: "var(--color-border-default)" },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(SlidersVertical, { className: "w-4 h-4", style: { color: "var(--color-text-tertiary)" } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-medium", style: { color: "var(--color-text-primary)" }, children: "Parameters" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs", style: { color: "var(--color-text-tertiary)" }, children: [
+              "(",
+              filteredParams.length,
+              "/",
+              Object.keys(editedParams).length,
+              ")"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            hasChanges && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                variant: "ghost",
+                size: "sm",
+                onClick: handleReset,
+                disabled: isRunning,
+                title: "Reset changes",
+                className: "p-1",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { className: "w-3.5 h-3.5" })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              Button,
+              {
+                variant: "primary",
+                size: "sm",
+                onClick: handleSave,
+                disabled: !hasChanges || isRunning || updateBatch2.isPending,
+                isLoading: updateBatch2.isPending,
+                title: "Save changes",
+                className: "px-2 py-1 text-xs",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-3 h-3 mr-1" }),
+                  "Save"
+                ]
+              }
+            )
+          ] })
+        ]
+      }
+    ),
+    Object.keys(editedParams).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3 py-2 border-b shrink-0", style: { borderColor: "var(--color-border-default)" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Search,
+        {
+          className: "absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5",
+          style: { color: "var(--color-text-tertiary)" }
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          value: searchQuery,
+          onChange: (e) => setSearchQuery(e.target.value),
+          placeholder: "Search parameters...",
+          className: "w-full text-xs rounded px-2 py-1.5 pl-7 pr-7 border outline-none transition-colors",
+          style: {
+            backgroundColor: "var(--color-bg-tertiary)",
+            borderColor: "var(--color-border-default)",
+            color: "var(--color-text-primary)"
+          }
+        }
+      ),
+      searchQuery && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => setSearchQuery(""),
+          className: "absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-black/10",
+          title: "Clear search",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-3 h-3", style: { color: "var(--color-text-tertiary)" } })
+        }
+      )
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-auto p-3", children: [
+      Object.keys(editedParams).length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs italic", style: { color: "var(--color-text-tertiary)" }, children: "No parameters configured for this batch." }) : filteredParams.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs italic", style: { color: "var(--color-text-tertiary)" }, children: [
+        'No parameters match "',
+        searchQuery,
+        '"'
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: filteredParams.map(([key, value]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "label",
+          {
+            className: "text-xs w-1/3 truncate",
+            style: { color: "var(--color-text-secondary)" },
+            title: key,
+            children: key
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "text",
+            value: String(value ?? ""),
+            onChange: (e) => handleParamChange(key, e.target.value),
+            disabled: isRunning,
+            className: "flex-1 text-xs rounded px-2 py-1 border outline-none transition-colors disabled:opacity-50",
+            style: {
+              backgroundColor: "var(--color-bg-tertiary)",
+              borderColor: "var(--color-border-default)",
+              color: "var(--color-text-primary)"
+            }
+          }
+        )
+      ] }, key)) }),
+      isRunning && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          className: "text-xs p-2 rounded mt-4",
+          style: {
+            backgroundColor: "rgba(var(--color-brand-rgb), 0.1)",
+            color: "var(--color-brand-500)"
+          },
+          children: "Parameter editing is disabled while the batch is running."
+        }
+      )
+    ] })
+  ] });
+}
 function TabButton$1({ label, icon, isActive, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "button",
@@ -9070,7 +9688,7 @@ function TabButton$1({ label, icon, isActive, onClick }) {
     }
   );
 }
-function DebugLogPanel({ batchId, steps }) {
+function DebugLogPanel({ batchId, steps, isRunning = false }) {
   const { activeTab, setActiveTab, selectedStep, logLevel, searchQuery } = useDebugPanelStore();
   const logs = useLogStore((s) => s.logs);
   const clearLogs = useLogStore((s) => s.clearLogs);
@@ -9152,6 +9770,26 @@ function DebugLogPanel({ batchId, steps }) {
                 isActive: activeTab === "data",
                 onClick: () => setActiveTab("data")
               }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              TabButton$1,
+              {
+                tab: "params",
+                label: "Params",
+                icon: /* @__PURE__ */ jsxRuntimeExports.jsx(SlidersVertical, { className: "w-3.5 h-3.5" }),
+                isActive: activeTab === "params",
+                onClick: () => setActiveTab("params")
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              TabButton$1,
+              {
+                tab: "config",
+                label: "Config",
+                icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { className: "w-3.5 h-3.5" }),
+                isActive: activeTab === "config",
+                onClick: () => setActiveTab("config")
+              }
             )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
@@ -9184,124 +9822,26 @@ function DebugLogPanel({ batchId, steps }) {
       }
     ),
     activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(LogFilters, { stepNames }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-hidden", children: activeTab === "logs" ? /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryList, { batchId }) : /* @__PURE__ */ jsxRuntimeExports.jsx(StepDataViewer, { steps }) })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-hidden", children: [
+      activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryList, { batchId }),
+      activeTab === "data" && /* @__PURE__ */ jsxRuntimeExports.jsx(StepDataViewer, { steps }),
+      activeTab === "params" && /* @__PURE__ */ jsxRuntimeExports.jsx(ParametersEditor, { batchId, isRunning }),
+      activeTab === "config" && /* @__PURE__ */ jsxRuntimeExports.jsx(BatchConfigEditor, { batchId, isRunning })
+    ] })
   ] });
-}
-const sizeClasses = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg"
-};
-function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  size = "md",
-  showCloseButton = true
-}) {
-  const modalRef = reactExports.useRef(null);
-  reactExports.useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
-  function handleBackdropClick(event) {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  }
-  if (!isOpen) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-    "div",
-    {
-      className: "fixed inset-0 z-50 flex items-center justify-center p-4",
-      onClick: handleBackdropClick,
-      children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: "absolute inset-0 bg-black/60 backdrop-blur-sm",
-            "aria-hidden": "true"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "div",
-          {
-            ref: modalRef,
-            className: `relative w-full ${sizeClasses[size]} rounded-xl border shadow-2xl`,
-            style: {
-              backgroundColor: "var(--color-bg-secondary)",
-              borderColor: "var(--color-border-default)"
-            },
-            role: "dialog",
-            "aria-modal": "true",
-            "aria-labelledby": "modal-title",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "div",
-                {
-                  className: "flex items-center justify-between px-6 py-4 border-b",
-                  style: { borderColor: "var(--color-border-default)" },
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "h2",
-                      {
-                        id: "modal-title",
-                        className: "text-lg font-semibold",
-                        style: { color: "var(--color-text-primary)" },
-                        children: title
-                      }
-                    ),
-                    showCloseButton && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        onClick: onClose,
-                        className: "p-1 rounded-lg transition-colors",
-                        style: { color: "var(--color-text-tertiary)" },
-                        onMouseEnter: (e) => {
-                          e.currentTarget.style.backgroundColor = "var(--color-bg-tertiary)";
-                          e.currentTarget.style.color = "var(--color-text-primary)";
-                        },
-                        onMouseLeave: (e) => {
-                          e.currentTarget.style.backgroundColor = "transparent";
-                          e.currentTarget.style.color = "var(--color-text-tertiary)";
-                        },
-                        "aria-label": "Close modal",
-                        children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-5 h-5" })
-                      }
-                    )
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-6 py-4", children })
-            ]
-          }
-        )
-      ]
-    }
-  );
 }
 function WipInputModal({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
-  batchName
+  batchName,
+  errorMessage
 }) {
   const [wipId, setWipId] = reactExports.useState("");
-  const [error, setError] = reactExports.useState(null);
+  const [localError, setLocalError] = reactExports.useState(null);
   const inputRef = reactExports.useRef(null);
+  const error = errorMessage || localError;
   reactExports.useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
@@ -9310,21 +9850,18 @@ function WipInputModal({
   reactExports.useEffect(() => {
     if (!isOpen) {
       setWipId("");
-      setError(null);
+      setLocalError(null);
     }
   }, [isOpen]);
   const handleSubmit = (e) => {
     e.preventDefault();
-    setError(null);
+    setLocalError(null);
     const trimmedWipId = wipId.trim();
     if (!trimmedWipId) {
-      setError("WIP ID is required");
+      setLocalError("WIP ID is required");
       return;
     }
     onSubmit(trimmedWipId);
-  };
-  const handleSkip = () => {
-    onSubmit("");
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     Modal,
@@ -9398,10 +9935,10 @@ function WipInputModal({
               type: "button",
               variant: "secondary",
               size: "md",
-              onClick: handleSkip,
+              onClick: onClose,
               disabled: isLoading,
               className: "flex-1",
-              children: "Skip"
+              children: "Cancel"
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -9421,15 +9958,7 @@ function WipInputModal({
               ] })
             }
           )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "p",
-          {
-            className: "text-xs text-center",
-            style: { color: "var(--color-text-tertiary)" },
-            children: "Skip to run without backend WIP tracking"
-          }
-        )
+        ] })
       ] })
     }
   );
@@ -9453,6 +9982,7 @@ function BatchDetailPage() {
   const { isCollapsed, panelWidth, setPanelWidth, toggleCollapsed, setSelectedStep } = useDebugPanelStore();
   const { data: workflowConfig } = useWorkflowConfig();
   const [showWipModal, setShowWipModal] = reactExports.useState(false);
+  const [wipError, setWipError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (batchId) {
       console.log(`[BatchDetailPage] useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
@@ -9493,29 +10023,69 @@ function BatchDetailPage() {
     }
     await doStartSequence();
   };
-  const doStartSequence = async (wipId) => {
+  const doStartSequence = async (wipId, wipIntId) => {
     if (!batchId || !batch) {
       console.error("[doStartSequence] Missing batchId or batch");
       return;
     }
+    let batchWasStarted = false;
     try {
-      console.log("[doStartSequence] Starting sequence for batch:", batchId, "status:", batch.status, "wipId:", wipId || "(none)");
+      console.log("[doStartSequence] Starting sequence for batch:", batchId, "status:", batch.status, "wipId:", wipId || "(none)", "wipIntId:", wipIntId || "(none)");
       if (batch.status === "idle") {
         console.log("[doStartSequence] Starting batch first...");
         await startBatch2.mutateAsync(batchId);
+        batchWasStarted = true;
         console.log("[doStartSequence] Batch started");
       }
-      const request = wipId ? { parameters: { wip_id: wipId } } : void 0;
+      const request = wipId ? {
+        parameters: { wip_id: wipId },
+        wip_int_id: wipIntId
+        // Skip lookup in worker if provided
+      } : void 0;
       console.log("[doStartSequence] Starting sequence...");
       await startSequence2.mutateAsync({ batchId, request });
       console.log("[doStartSequence] Sequence started successfully");
     } catch (error) {
       console.error("[doStartSequence] Error:", error);
+      if (batchWasStarted) {
+        console.log("[doStartSequence] Stopping batch due to sequence start failure...");
+        try {
+          await stopBatch2.mutateAsync(batchId);
+          console.log("[doStartSequence] Batch stopped");
+        } catch (stopError) {
+          console.error("[doStartSequence] Failed to stop batch:", stopError);
+        }
+      }
+      throw error;
     }
   };
   const handleWipSubmit = async (wipId) => {
+    setWipError(null);
+    try {
+      const processId = batch && isBatchDetail$1(batch) ? batch.processId : void 0;
+      const validationResult = await validateWip(wipId, processId);
+      if (!validationResult.valid) {
+        setWipError(validationResult.message || `WIP '${wipId}' not found`);
+        return;
+      }
+      if (validationResult.hasPassForProcess) {
+        setWipError(validationResult.passWarningMessage || "이 WIP는 이미 해당 공정을 PASS했습니다.");
+        return;
+      }
+      setShowWipModal(false);
+      await doStartSequence(wipId, validationResult.intId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : (error == null ? void 0 : error.message) || "Failed to validate WIP";
+      if (showWipModal) {
+        setWipError(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+  const handleWipModalClose = () => {
     setShowWipModal(false);
-    await doStartSequence(wipId || void 0);
+    setWipError(null);
   };
   const handleStopSequence = async () => {
     if (batchId) {
@@ -9569,12 +10139,12 @@ function BatchDetailPage() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     SplitLayout,
     {
-      panel: /* @__PURE__ */ jsxRuntimeExports.jsx(DebugLogPanel, { batchId: batchId || "", steps }),
+      panel: /* @__PURE__ */ jsxRuntimeExports.jsx(DebugLogPanel, { batchId: batchId || "", steps, isRunning }),
       panelWidth,
       isCollapsed,
       onResize: setPanelWidth,
       onToggle: toggleCollapsed,
-      panelTitle: "Debug Panel",
+      panelTitle: "Batch Panel",
       children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-full p-6 space-y-6", style: { backgroundColor: "var(--color-bg-primary)" }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
@@ -9595,7 +10165,7 @@ function BatchDetailPage() {
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-3.5 h-3.5 text-green-500" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-green-500", children: (statistics == null ? void 0 : statistics.pass) ?? 0 })
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-green-500", children: (statistics == null ? void 0 : statistics.passCount) ?? 0 })
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-sm", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5 text-red-500" }),
@@ -9705,10 +10275,11 @@ function BatchDetailPage() {
           WipInputModal,
           {
             isOpen: showWipModal,
-            onClose: () => setShowWipModal(false),
+            onClose: handleWipModalClose,
             onSubmit: handleWipSubmit,
             isLoading: startBatch2.isPending || startSequence2.isPending,
-            batchName: batch.name
+            batchName: batch.name,
+            errorMessage: wipError
           }
         )
       ]

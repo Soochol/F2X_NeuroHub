@@ -248,12 +248,14 @@ class BatchManager:
                 # Store updated config for future reference
                 self._batch_configs[batch_id] = batch_config
 
-        # Create batch process
+        # Create batch process with backend and workflow configs for 착공/완공 integration
         batch = BatchProcess(
             batch_id=batch_id,
             config=batch_config,
             ipc_router_address=self._ipc_server.router_address,
             ipc_sub_address=self._ipc_server.sub_address,
+            backend_config=self._config.backend,
+            workflow_config=self._config.workflow,
         )
 
         # Start the process
@@ -406,6 +408,7 @@ class BatchManager:
             "sequence_package": config.sequence_package,
             "auto_start": config.auto_start,
             "pid": self._batches[batch_id].pid if is_running else None,
+            "parameters": config.parameters,
         }
 
         # Get detailed status from worker if running

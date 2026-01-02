@@ -5,11 +5,13 @@ Provides:
     - Database session dependency
     - Authentication dependencies (current user, permissions)
     - Role-based access control (RBAC) dependencies
+    - Hybrid authentication (JWT + API Key for stations)
 """
 
-from typing import Generator, Optional
+from dataclasses import dataclass
+from typing import Generator, Optional, Union
 
-from fastapi import Depends
+from fastapi import Depends, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -33,6 +35,74 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
+# ============================================================
+# Station API Key Authentication
+# ============================================================
+
+@dataclass
+class StationAuth:
+    """
+    Station authentication context.
+
+    Returned when a station authenticates via API Key instead of user JWT.
+    """
+    station_id: str
+    auth_type: str = "api_key"
+
+    @property
+    def is_station(self) -> bool:
+        return True
+
+
+def get_api_key_header(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+) -> Optional[str]:
+    """
+    Extract X-API-Key header from request.
+
+    Args:
+        x_api_key: API key from X-API-Key header
+
+    Returns:
+        API key string or None if not provided
+    """
+    return x_api_key
+
+
+def verify_station_api_key(api_key: str) -> StationAuth:
+    """
+    Verify station API key and return station context.
+
+    API keys are JWT tokens with:
+    - Long expiration (configured via STATION_API_KEY_EXPIRE_DAYS)
+    - station_id claim
+    - type: "station" claim
+
+    Args:
+        api_key: API key string (JWT format)
+
+    Returns:
+        StationAuth with station info
+
+    Raises:
+        InvalidTokenException: If API key is invalid
+    """
+    payload = security.decode_access_token(api_key)
+    if payload is None:
+        raise InvalidTokenException(message="Invalid or expired API key")
+
+    # Verify this is a station token, not a user token
+    token_type = payload.get("type")
+    if token_type != "station":
+        raise InvalidTokenException(message="Invalid API key type")
+
+    station_id = payload.get("station_id")
+    if not station_id:
+        raise InvalidTokenException(message="API key missing station_id")
+
+    return StationAuth(station_id=station_id)
+
+
 def get_db() -> Generator[Session, None, None]:
     """
     Dependency that provides a database session.
@@ -50,6 +120,116 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_auth_context(
+    token: Optional[str] = Depends(oauth2_scheme),
+    api_key: Optional[str] = Depends(get_api_key_header),
+    db: Session = Depends(get_db),
+) -> Union[User, StationAuth]:
+    """
+    Hybrid authentication: Accept JWT Bearer token OR X-API-Key.
+
+    Priority:
+    1. Bearer token (JWT) -> returns User
+    2. X-API-Key -> returns StationAuth
+    3. Neither -> raises 401
+
+    Args:
+        token: JWT from Authorization header
+        api_key: API key from X-API-Key header
+        db: Database session
+
+    Returns:
+        User object if JWT authenticated, or StationAuth if API key
+
+    Raises:
+        InvalidTokenException: If neither auth method succeeds
+
+    Usage:
+        @router.get("/processes/active")
+        def get_processes(auth: Union[User, StationAuth] = Depends(get_auth_context)):
+            if isinstance(auth, StationAuth):
+                # Station authenticated via API key
+                log.info(f"Station {auth.station_id} accessed")
+            else:
+                # User authenticated via JWT
+                log.info(f"User {auth.username} accessed")
+    """
+    # Try JWT first (user authentication)
+    if token:
+        try:
+            payload = security.decode_access_token(token)
+            if payload is not None:
+                # Check if this is a user token (has 'sub' but no 'type' or type != 'station')
+                token_type = payload.get("type")
+                if token_type != "station":
+                    user_id = payload.get("sub")
+                    if user_id:
+                        user = user_crud.get(db, user_id=int(user_id))
+                        if user:
+                            return user
+        except Exception:
+            pass  # Fall through to API key
+
+    # Try API key (station authentication)
+    if api_key:
+        return verify_station_api_key(api_key)
+
+    raise InvalidTokenException(
+        message="Authentication required (Bearer token or X-API-Key)"
+    )
+
+
+def get_optional_auth_context(
+    token: Optional[str] = Depends(oauth2_scheme),
+    api_key: Optional[str] = Depends(get_api_key_header),
+    db: Session = Depends(get_db),
+) -> Optional[Union[User, StationAuth]]:
+    """
+    Optional authentication: Accept JWT Bearer token OR X-API-Key, but allow anonymous.
+
+    Same as get_auth_context but returns None instead of raising exception
+    when no authentication is provided.
+
+    Args:
+        token: JWT from Authorization header
+        api_key: API key from X-API-Key header
+        db: Database session
+
+    Returns:
+        User object if JWT authenticated, StationAuth if API key, or None if no auth
+
+    Usage:
+        @router.get("/processes/active")
+        def get_processes(auth: Optional[Union[User, StationAuth]] = Depends(get_optional_auth_context)):
+            # Works with or without authentication
+            ...
+    """
+    # Try JWT first (user authentication)
+    if token:
+        try:
+            payload = security.decode_access_token(token)
+            if payload is not None:
+                token_type = payload.get("type")
+                if token_type != "station":
+                    user_id = payload.get("sub")
+                    if user_id:
+                        user = user_crud.get(db, user_id=int(user_id))
+                        if user:
+                            return user
+        except Exception:
+            pass  # Fall through to API key
+
+    # Try API key (station authentication)
+    if api_key:
+        try:
+            return verify_station_api_key(api_key)
+        except Exception:
+            pass  # Fall through to None
+
+    # No auth provided - that's OK for optional auth
+    return None
 
 
 def get_current_user(

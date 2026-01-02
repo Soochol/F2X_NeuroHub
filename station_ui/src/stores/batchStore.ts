@@ -516,14 +516,14 @@ export const useBatchStore = create<BatchState>((set, get) => ({
   incrementBatchStats: (batchId, passed) =>
     set((state) => {
       const newStats = new Map(state.batchStatistics);
-      const current = newStats.get(batchId) || { total: 0, pass: 0, fail: 0, passRate: 0 };
+      const current = newStats.get(batchId) || { total: 0, passCount: 0, fail: 0, passRate: 0 };
       const updated = {
         total: current.total + 1,
-        pass: passed ? current.pass + 1 : current.pass,
+        passCount: passed ? current.passCount + 1 : current.passCount,
         fail: passed ? current.fail : current.fail + 1,
         passRate: 0,
       };
-      updated.passRate = updated.total > 0 ? updated.pass / updated.total : 0;
+      updated.passRate = updated.total > 0 ? updated.passCount / updated.total : 0;
       newStats.set(batchId, updated);
       return { batchStatistics: newStats };
     }),
@@ -560,15 +560,15 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
   getTotalStats: () => {
     const { batchStatistics } = get();
-    const total = { total: 0, pass: 0, fail: 0, passRate: 0 };
+    const total = { total: 0, passCount: 0, fail: 0, passRate: 0 };
 
     batchStatistics.forEach((s) => {
       total.total += s.total;
-      total.pass += s.pass;
+      total.passCount += s.passCount;
       total.fail += s.fail;
     });
 
-    total.passRate = total.total > 0 ? total.pass / total.total : 0;
+    total.passRate = total.total > 0 ? total.passCount / total.total : 0;
     return total;
   },
 }));

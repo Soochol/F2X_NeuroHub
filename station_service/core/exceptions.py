@@ -522,6 +522,51 @@ class BackendConnectionError(BackendError):
         self.reason = reason
 
 
+class TokenExpiredError(BackendError):
+    """
+    Exception raised when access token is expired and refresh failed.
+
+    This indicates the user session has expired and re-authentication is required.
+    """
+
+    def __init__(self, message: Optional[str] = None) -> None:
+        """
+        Initialize exception.
+
+        Args:
+            message: Optional custom message
+        """
+        super().__init__(
+            message=message or "세션이 만료되었습니다. 다시 로그인해주세요.",
+            code="TOKEN_EXPIRED",
+        )
+
+
+class TokenRefreshError(BackendError):
+    """
+    Exception raised when token refresh fails.
+
+    This can happen when:
+    - Refresh token is invalid
+    - Refresh token is expired
+    - Backend auth service is unavailable
+    """
+
+    def __init__(self, reason: str) -> None:
+        """
+        Initialize exception.
+
+        Args:
+            reason: Reason for refresh failure
+        """
+        super().__init__(
+            message=f"토큰 갱신 실패: {reason}",
+            code="TOKEN_REFRESH_ERROR",
+        )
+        self.details = {"reason": reason}
+        self.reason = reason
+
+
 # ============================================================
 # Configuration Exceptions
 # ============================================================

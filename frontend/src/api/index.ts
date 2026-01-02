@@ -27,3 +27,4 @@ export {
   type ErrorLogFilters
 } from './endpoints/errorLogs';
 export { measurementsApi } from './endpoints/measurements';
+export { processHeadersApi } from './endpoints/processHeaders';

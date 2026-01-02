@@ -1,13 +1,13 @@
 /**
- * Debug Panel state store.
- * Manages the state of the debug log panel in BatchDetailPage.
+ * Batch Details Panel state store.
+ * Manages the state of the batch details panel in BatchDetailPage.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LogLevel } from '../types';
 
-export type DebugPanelTab = 'logs' | 'data';
+export type DebugPanelTab = 'logs' | 'data' | 'params' | 'config';
 
 interface DebugPanelState {
   // Panel visibility & sizing

@@ -25,11 +25,12 @@ All endpoints include:
     - Dependency injection for database sessions
 """
 
-from typing import List
+from typing import List, Union
 from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.deps import StationAuth, get_auth_context
 from app.models import User
 from app.schemas.process import (
     ProcessCreate,
@@ -154,17 +155,20 @@ def get_process_by_code(
     "/active",
     response_model=List[ProcessInDB],
     summary="List active processes",
-    description="Retrieve list of all active processes ordered by sort_order",
+    description="Retrieve list of all active processes ordered by sort_order. No authentication required.",
 )
 def get_active_processes(
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_active_user),
 ) -> List[ProcessInDB]:
     """Get all active processes ordered by sort_order.
 
     Retrieves all processes where is_active is True, ordered by sort_order
     for proper display sequence in the UI. Useful for populating dropdowns
     and process selection interfaces in the manufacturing workflow.
+
+    Note: This endpoint does not require authentication as process list
+    is not sensitive data and is needed for batch configuration before
+    operator login.
 
     Args:
         db: SQLAlchemy database session (injected via dependency).

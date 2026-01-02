@@ -364,6 +364,7 @@ async def broadcast_error(
     batch_id: str, code: str, message: str, step: str = None, timestamp: str = None, execution_id: str = ""
 ) -> None:
     """Broadcast error event to subscribers only."""
+    logger.info(f"[WS] Broadcasting error: batch={batch_id[:8]}..., code={code}, message={message}")
     # Broadcast only to subscribers of this batch
     # Use camelCase for JSON keys to match TypeScript client expectations
     await manager.broadcast(

@@ -264,6 +264,7 @@ class ProcessService(BaseService):
                     serial_id=serial.id if serial else None,
                     wip_id=wip_item.id if wip_item else None,
                     process_id=process.id,
+                    header_id=request.header_id,  # Link to process header for station/batch tracking
                     operator_id=operator.id,
                     started_at=start_time,
                     data_level=data_level,
@@ -370,10 +371,11 @@ class ProcessService(BaseService):
                 wip_history = WIPProcessHistory(
                     wip_item_id=wip_item.id,
                     process_id=process_data.process_id,
+                    header_id=request.header_id,  # Link to process header for station/batch tracking
                     result=request.result,
                     started_at=process_data.started_at,
                     completed_at=end_time,
-                    operator_id=process_data.operator_id
+                    operator_id=process_data.operator_id,
                 )
                 db.add(wip_history)
                 db.flush()  # Flush to make wip_history visible in subsequent queries

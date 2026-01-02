@@ -21,7 +21,7 @@ Functions:
     get_statistics: Get WIP statistics by LOT or process
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Literal
 from sqlalchemy import and_, func, desc
 from sqlalchemy.orm import Session, selectinload, joinedload, Query
@@ -300,9 +300,9 @@ def update_status(
 
         # Set timestamps based on status
         if new_status == WIPStatus.COMPLETED:
-            wip_item.completed_at = datetime.utcnow()
+            wip_item.completed_at = datetime.now(timezone.utc)
         elif new_status == WIPStatus.CONVERTED:
-            wip_item.converted_at = datetime.utcnow()
+            wip_item.converted_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(wip_item)
@@ -392,7 +392,7 @@ def start_process(
     # Create process history record (in-progress, no result yet)
     # Note: This is a "start" record - will be updated when completed
     if started_at is None:
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
     try:
         # Update WIP status to IN_PROGRESS
@@ -461,11 +461,11 @@ def complete_process(
     # BR-004: Validate no duplicate PASS
     wip_service.validate_process_completion(db, wip_item, process_id, result)
 
-    # Set timestamps
-    if started_at is None:
-        started_at = datetime.utcnow()
+    # Set timestamps (completed_at first, then started_at defaults to same time)
     if completed_at is None:
-        completed_at = datetime.utcnow()
+        completed_at = datetime.now(timezone.utc)
+    if started_at is None:
+        started_at = completed_at  # Use completed time to ensure started <= completed
 
     # Calculate duration
     duration_seconds = int((completed_at - started_at).total_seconds())
@@ -501,7 +501,7 @@ def complete_process(
 
             if len(set(completed_processes)) >= active_manufacturing_count:
                 wip_item.status = WIPStatus.COMPLETED.value
-                wip_item.completed_at = datetime.utcnow()
+                wip_item.completed_at = datetime.now(timezone.utc)
                 wip_item.current_process_id = None
             else:
                 wip_item.status = WIPStatus.IN_PROGRESS.value
@@ -589,7 +589,7 @@ def convert_to_serial(
         # Update WIP
         wip_item.status = WIPStatus.CONVERTED.value
         wip_item.serial_id = serial.id
-        wip_item.converted_at = datetime.utcnow()
+        wip_item.converted_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(serial)
