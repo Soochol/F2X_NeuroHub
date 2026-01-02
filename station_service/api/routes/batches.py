@@ -147,6 +147,8 @@ async def get_all_batch_statistics(
                 pass_count=s.get("pass", 0),
                 fail=s.get("fail", 0),
                 pass_rate=s.get("passRate", 0.0),
+                avg_duration=s.get("avgDuration", 0.0),
+                last_duration=s.get("lastDuration", 0.0),
             )
             for batch_id, s in stats.items()
         }
@@ -186,7 +188,7 @@ async def get_batch_statistics(
     """
     try:
         all_stats = await batch_manager.get_all_batch_statistics()
-        stats = all_stats.get(batch_id, {"total": 0, "pass": 0, "fail": 0, "passRate": 0.0})
+        stats = all_stats.get(batch_id, {"total": 0, "pass": 0, "fail": 0, "passRate": 0.0, "avgDuration": 0.0, "lastDuration": 0.0})
 
         return ApiResponse(
             success=True,
@@ -195,6 +197,8 @@ async def get_batch_statistics(
                 pass_count=stats.get("pass", 0),
                 fail=stats.get("fail", 0),
                 pass_rate=stats.get("passRate", 0.0),
+                avg_duration=stats.get("avgDuration", 0.0),
+                last_duration=stats.get("lastDuration", 0.0),
             ),
         )
 

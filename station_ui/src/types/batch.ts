@@ -22,6 +22,10 @@ export interface BatchStatistics {
   fail: number;
   /** Pass rate (0.0 to 1.0) */
   passRate: number;
+  /** Average duration in seconds */
+  avgDuration?: number;
+  /** Last execution duration in seconds */
+  lastDuration?: number;
 }
 
 /**

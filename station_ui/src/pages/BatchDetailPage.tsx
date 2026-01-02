@@ -270,9 +270,15 @@ export function BatchDetailPage() {
 
   // Prefer batch.elapsed (from store, updated via WebSocket) over batch.execution.elapsed (from API)
   // Store's elapsed is updated in real-time when sequence_complete is received
-  const elapsedTime = batch.elapsed > 0
+  // When running/starting: always show batch.elapsed (even if 0)
+  // When idle/completed with no recent elapsed: fall back to lastDuration from statistics
+  const elapsedTime = isRunning
     ? batch.elapsed
-    : (isBatchDetail(batch) && batch.execution ? batch.execution.elapsed : 0);
+    : batch.elapsed > 0
+      ? batch.elapsed
+      : (isBatchDetail(batch) && batch.execution && batch.execution.elapsed > 0)
+        ? batch.execution.elapsed
+        : (statistics?.lastDuration ?? 0);
 
   // Calculate progress - prefer batch.progress which is merged from store for real-time updates
   // batch.execution.progress is only updated via API polling, which is slower

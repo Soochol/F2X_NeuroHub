@@ -246,6 +246,11 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         if (status === 'completed') {
           updates.progress = 1.0;
         }
+        // Reset elapsed and progress when starting a new sequence
+        if (status === 'starting' || (status === 'running' && batch.status !== 'running')) {
+          updates.elapsed = 0;
+          updates.progress = 0;
+        }
         // Track execution ID for race condition detection
         if (executionId) {
           updates.executionId = executionId;
@@ -522,6 +527,9 @@ export const useBatchStore = create<BatchState>((set, get) => ({
         passCount: passed ? current.passCount + 1 : current.passCount,
         fail: passed ? current.fail : current.fail + 1,
         passRate: 0,
+        // Preserve duration stats from API (will be updated on next API fetch)
+        avgDuration: current.avgDuration,
+        lastDuration: current.lastDuration,
       };
       updated.passRate = updated.total > 0 ? updated.passCount / updated.total : 0;
       newStats.set(batchId, updated);

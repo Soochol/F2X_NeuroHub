@@ -534,6 +534,8 @@ class BatchManager:
                 "pass": 0,
                 "fail": 0,
                 "passRate": 0.0,
+                "avgDuration": 0.0,
+                "lastDuration": 0.0,
             }
 
             # Always read from database for reliable statistics
@@ -567,11 +569,12 @@ class BatchManager:
             # Use Database.create() factory method
             db = await Database.create(db_path=db_path)
 
-            # Query execution results for this batch
+            # Query execution results for this batch (including duration)
             rows = await db.fetch_all(
                 """
-                SELECT overall_pass FROM execution_results
+                SELECT overall_pass, duration FROM execution_results
                 WHERE batch_id = ?
+                ORDER BY completed_at DESC
                 """,
                 (batch_id,),
             )
@@ -585,11 +588,20 @@ class BatchManager:
             failed = total - passed
             pass_rate = passed / total if total > 0 else 0.0
 
+            # Calculate average duration (only from rows with valid duration)
+            durations = [r.get("duration") for r in rows if r.get("duration") is not None]
+            avg_duration = sum(durations) / len(durations) if durations else 0.0
+
+            # Get last duration (most recent execution)
+            last_duration = rows[0].get("duration") if rows and rows[0].get("duration") is not None else 0.0
+
             return {
                 "total": total,
                 "pass": passed,
                 "fail": failed,
                 "passRate": pass_rate,
+                "avgDuration": round(avg_duration, 2),
+                "lastDuration": round(last_duration, 2),
             }
 
         except Exception as e:

@@ -256,11 +256,15 @@ class BatchStatistics(APIBaseModel):
         pass_count: Number of passed executions (JSON: passCount)
         fail: Number of failed executions
         pass_rate: Pass rate (0.0 to 1.0) (JSON: passRate)
+        avg_duration: Average execution duration in seconds (JSON: avgDuration)
+        last_duration: Last execution duration in seconds (JSON: lastDuration)
     """
     total: int = Field(default=0, description="Total number of executions", ge=0)
     pass_count: int = Field(default=0, description="Number of passed executions", ge=0)
     fail: int = Field(default=0, description="Number of failed executions", ge=0)
     pass_rate: float = Field(default=0.0, description="Pass rate (0.0 to 1.0)", ge=0.0, le=1.0)
+    avg_duration: float = Field(default=0.0, description="Average execution duration in seconds", ge=0.0)
+    last_duration: float = Field(default=0.0, description="Last execution duration in seconds", ge=0.0)
 
 
 # ============================================================================
