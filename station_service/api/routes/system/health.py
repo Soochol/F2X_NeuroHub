@@ -79,6 +79,8 @@ async def get_system_info(
             version=SERVICE_VERSION,
             uptime=uptime_seconds,
             backend_connected=sync_engine.is_connected if sync_engine.is_running else False,
+            sequences_dir=config.paths.sequences_dir,
+            data_dir=config.paths.data_dir,
         )
 
         return ApiResponse(
@@ -131,6 +133,8 @@ async def update_station_info(
             version=SERVICE_VERSION,
             uptime=uptime_seconds,
             backend_connected=sync_engine.is_connected if sync_engine.is_running else False,
+            sequences_dir=config.paths.sequences_dir,
+            data_dir=config.paths.data_dir,
         )
 
         return ApiResponse(

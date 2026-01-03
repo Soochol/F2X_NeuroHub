@@ -3,4 +3,3 @@
  */
 
 export { ParameterForm } from './ParameterForm';
-export { SequenceUpload } from './SequenceUpload';

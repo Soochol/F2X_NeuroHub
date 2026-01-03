@@ -5,29 +5,22 @@ This module provides functions that work with both legacy decorator-based
 sequences and new SDK-based sequences.
 """
 
-from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Tuple, Type, TYPE_CHECKING
+
+from .types import StepInfo, StepMeta
 
 if TYPE_CHECKING:
     from .manifest import SequenceManifest
 
 
-@dataclass(frozen=True)
-class StepInfo:
-    """
-    Unified step information structure.
-
-    Works with both legacy decorator-based and SDK-based sequences.
-    """
-
-    name: str
-    display_name: str
-    order: int
-    timeout: float = 60.0
-    retry: int = 0
-    cleanup: bool = False
-    description: str = ""
-    method: Optional[Callable] = None
+# Re-export for backward compatibility
+__all__ = [
+    "StepInfo",
+    "StepMeta",
+    "collect_steps",
+    "collect_steps_from_manifest",
+    "collect_steps_from_class",
+]
 
 
 def collect_steps_from_manifest(manifest: "SequenceManifest") -> List[StepInfo]:
@@ -137,8 +130,8 @@ def collect_steps(
     # Convert to legacy format for backward compatibility
     result = []
     for step in steps:
-        # Create a StepMeta-like object for compatibility
-        step_meta = _StepMetaCompat(
+        # Create a StepMeta object for compatibility
+        step_meta = StepMeta(
             name=step.name,
             order=step.order,
             timeout=step.timeout,
@@ -149,20 +142,3 @@ def collect_steps(
         result.append((step.name, step.method, step_meta))
 
     return result
-
-
-@dataclass(frozen=True)
-class _StepMetaCompat:
-    """Compatibility class matching legacy StepMeta interface."""
-
-    name: str
-    order: int
-    timeout: float = 60.0
-    retry: int = 0
-    cleanup: bool = False
-    condition: Optional[str] = None
-    description: str = ""
-
-
-# Alias for backward compatibility
-StepMeta = _StepMetaCompat

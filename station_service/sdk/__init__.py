@@ -37,6 +37,18 @@ Usage:
 from .base import SequenceBase, StepResult
 from .context import ExecutionContext, Measurement
 from .protocol import MessageType, OutputProtocol
+from .types import (
+    # TypedDict definitions
+    RunResult,
+    ExecutionResult,
+    MeasurementDict,
+    StepResultDict,
+    SimulationResult,
+    # Type aliases
+    HardwareConfigDict,
+    ParametersDict,
+    MeasurementsDict,
+)
 from .exceptions import (
     # Base
     SequenceError,
@@ -98,6 +110,27 @@ from .helpers import (
     collect_steps_from_class,
 )
 from .simulator import SequenceSimulator, MockHardware
+from .interactive import (
+    InteractiveSimulator,
+    SimulationSession,
+    SimulationSessionStatus,
+    StepState,
+    StepExecutionStatus,
+)
+from .driver_registry import (
+    DriverRegistry,
+    DriverLoadError,
+    DriverConnectionError,
+)
+from .manual_executor import (
+    ManualSequenceExecutor,
+    ManualSession,
+    ManualSessionStatus,
+    ManualStepState,
+    ManualStepStatus,
+    HardwareState,
+    CommandResult,
+)
 from .decorators import (
     # Decorators for legacy pattern compatibility
     sequence,
@@ -126,6 +159,15 @@ __all__ = [
     # Protocol
     "MessageType",
     "OutputProtocol",
+    # Types (TypedDict definitions)
+    "RunResult",
+    "ExecutionResult",
+    "MeasurementDict",
+    "StepResultDict",
+    "SimulationResult",
+    "HardwareConfigDict",
+    "ParametersDict",
+    "MeasurementsDict",
     # Interfaces (for extensibility)
     "OutputStrategy",
     "LifecycleHook",
@@ -182,6 +224,24 @@ __all__ = [
     # Simulator
     "SequenceSimulator",
     "MockHardware",
+    # Interactive Simulator
+    "InteractiveSimulator",
+    "SimulationSession",
+    "SimulationSessionStatus",
+    "StepState",
+    "StepExecutionStatus",
+    # Driver Registry
+    "DriverRegistry",
+    "DriverLoadError",
+    "DriverConnectionError",
+    # Manual Sequence Executor
+    "ManualSequenceExecutor",
+    "ManualSession",
+    "ManualSessionStatus",
+    "ManualStepState",
+    "ManualStepStatus",
+    "HardwareState",
+    "CommandResult",
     # Decorators (legacy pattern support)
     "sequence",
     "step",

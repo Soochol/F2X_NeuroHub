@@ -338,6 +338,7 @@ async def get_batch(
                 elapsed=status_data.get("elapsed", 0.0),
                 steps=steps,
             ),
+            last_run_passed=status_data.get("last_run_passed"),
             process_id=batch_config.process_id,
             header_id=batch_config.header_id,
         )

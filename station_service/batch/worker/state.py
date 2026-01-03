@@ -152,7 +152,7 @@ class LastRunState:
 
         return cls(
             passed=passed,
-            progress=1.0 if execution.total_steps > 0 else execution.progress,
+            progress=1.0,  # 완료된 실행은 항상 100%
             step_results=execution.step_results.copy(),
         )
 

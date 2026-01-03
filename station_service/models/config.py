@@ -166,6 +166,19 @@ class LoggingConfig(BaseModel):
     backup_count: int = 5
 
 
+class PathsConfig(BaseModel):
+    """Path configuration for Station Service."""
+
+    sequences_dir: str = Field(
+        "sequences",
+        description="Directory for sequence packages (relative to project root or absolute)",
+    )
+    data_dir: str = Field(
+        "data",
+        description="Directory for data files (database, logs)",
+    )
+
+
 class StationConfig(BaseModel):
     """Complete station configuration (station.yaml)."""
 
@@ -176,6 +189,10 @@ class StationConfig(BaseModel):
     )
     server: ServerConfig = ServerConfig()
     backend: BackendConfig = BackendConfig()
+    paths: PathsConfig = Field(
+        default_factory=PathsConfig,
+        description="Path configuration",
+    )
     batches: List[BatchConfig] = []
     logging: LoggingConfig = LoggingConfig()
     simulation: SimulationConfig = SimulationConfig()

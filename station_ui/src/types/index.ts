@@ -46,10 +46,10 @@ export type {
   StepSchema,
   SequenceUpdateRequest,
   SequenceUpdateResponse,
-  ValidationResult,
-  ValidationErrorDetail,
-  SequenceUploadResponse,
-  UploadProgress,
+  // Registry types
+  SequenceStatus,
+  SequenceRegistryItem,
+  PullResult,
   // Deploy types
   DeployResponse,
   DeployedSequenceInfo,
@@ -111,3 +111,24 @@ export type {
   ResultHistoryEntry,
   ManualControlState,
 } from './manual';
+
+// Report types
+export type {
+  ReportType,
+  PeriodType,
+  ExportFormat,
+  StepSummary,
+  BatchSummaryReport,
+  PeriodDataPoint,
+  PeriodStatisticsReport,
+  FailureReason,
+  StepAnalysisItem,
+  StepAnalysisReport,
+  ReportFilters,
+  BulkExportRequest,
+  ReportTypeInfo,
+  ExportFormatInfo,
+  ReportTypesResponse,
+} from './report';
+
+export { EXPORT_FORMAT_INFO, REPORT_TYPE_INFO } from './report';

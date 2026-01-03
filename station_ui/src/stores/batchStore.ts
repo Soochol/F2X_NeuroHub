@@ -177,12 +177,19 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
           // For completed batches: API owns steps (persisted data)
           // Fallback to existing steps only if API returns empty (shouldn't happen normally)
+          // Preserve lastRunPassed: prefer store value (set via WebSocket), fallback to API
           if (existing.status === 'completed' && batch.status === 'completed') {
             const apiSteps = batch.steps || [];
             const existingSteps = existing.steps || [];
+            // lastRunPassed: store value is authoritative (from WebSocket sequence_complete)
+            // Use API value only if store has no value
+            const lastRunPassed = existing.lastRunPassed !== undefined
+              ? existing.lastRunPassed
+              : batch.lastRunPassed;
             newBatches.set(batch.id, {
               ...batch,
               steps: apiSteps.length > 0 ? apiSteps : existingSteps,
+              lastRunPassed,
             });
             continue;
           }
@@ -218,26 +225,36 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
       // Prevent status regression from stale messages
       // Protect transitional states (starting, stopping) and completed state
-      // Exception: force=true bypasses guards for authoritative server updates (e.g., initial status push after subscribe)
-      if (batch && !force) {
+      if (batch) {
         const currentStatus = batch.status;
 
-        // Don't allow completed to be reverted (except to error)
-        if (currentStatus === 'completed' && status !== 'completed' && status !== 'error' && status !== 'starting') {
-          log.batch(batchId, 'updateBatchStatus: BLOCKED regression', { from: currentStatus, to: status });
+        // CRITICAL: Never regress from 'completed' to 'idle' - even with force=true
+        // Server reports 'idle' after sequence completes, but client should keep 'completed' for UX
+        // This protects lastRunPassed and steps from being lost when API data arrives
+        if (currentStatus === 'completed' && status === 'idle') {
+          log.batch(batchId, 'updateBatchStatus: BLOCKED completed→idle regression (preserving lastRunPassed)', { force: !!force });
           return state;
         }
 
-        // Don't allow starting to be reverted to idle (optimistic update protection)
-        if (currentStatus === 'starting' && status === 'idle') {
-          log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
-          return state;
-        }
+        // Other guards only apply when force=false
+        if (!force) {
+          // Don't allow completed to be reverted (except to error or starting)
+          if (currentStatus === 'completed' && status !== 'completed' && status !== 'error' && status !== 'starting') {
+            log.batch(batchId, 'updateBatchStatus: BLOCKED regression', { from: currentStatus, to: status });
+            return state;
+          }
 
-        // Don't allow stopping to be reverted to running (optimistic update protection)
-        if (currentStatus === 'stopping' && status === 'running') {
-          log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
-          return state;
+          // Don't allow starting to be reverted to idle (optimistic update protection)
+          if (currentStatus === 'starting' && status === 'idle') {
+            log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
+            return state;
+          }
+
+          // Don't allow stopping to be reverted to running (optimistic update protection)
+          if (currentStatus === 'stopping' && status === 'running') {
+            log.batch(batchId, 'updateBatchStatus: BLOCKED regression (optimistic)', { from: currentStatus, to: status });
+            return state;
+          }
         }
       }
 

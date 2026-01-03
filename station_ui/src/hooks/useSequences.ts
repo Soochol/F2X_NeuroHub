@@ -1,34 +1,40 @@
 /**
  * Sequence-related React Query hooks.
+ *
+ * Note: Upload functionality has been moved to Backend.
+ * Use usePullSequence() to install sequences from Backend.
  */
 
-import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../api/queryClient';
 import {
   getSequences,
   getSequence,
   updateSequence,
-  validateSequence,
-  uploadSequence,
-  uploadSequenceFolder,
   deleteSequence,
   downloadSequence,
+  getSequenceRegistry,
+  pullSequence,
+  syncSequences,
   deploySequence,
   getDeployments,
   getDeployedSequence,
   runSimulation,
 } from '../api/endpoints/sequences';
-import type { SequenceUpdateRequest, UploadProgress, SimulationMode } from '../types';
+import type { SequenceUpdateRequest, SimulationMode } from '../types';
+
+// ============================================================================
+// Sequence Hooks
+// ============================================================================
 
 /**
- * Hook to fetch all sequences.
+ * Hook to fetch all local sequences.
  */
 export function useSequenceList() {
   return useQuery({
     queryKey: queryKeys.sequences,
     queryFn: getSequences,
-    staleTime: 5 * 60 * 1000, // 5 minutes - sequences don't change often
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -65,139 +71,6 @@ export function useUpdateSequence() {
 }
 
 /**
- * Hook to validate a sequence package.
- */
-export function useValidateSequence() {
-  return useMutation({
-    mutationFn: (file: File) => validateSequence(file),
-  });
-}
-
-/**
- * Hook to upload and install a sequence package with progress tracking.
- */
-export function useUploadSequence() {
-  const queryClient = useQueryClient();
-  const [progress, setProgress] = useState<UploadProgress>({
-    stage: 'idle',
-    progress: 0,
-    message: '',
-  });
-
-  const resetProgress = useCallback(() => {
-    setProgress({ stage: 'idle', progress: 0, message: '' });
-  }, []);
-
-  const mutation = useMutation({
-    mutationFn: async ({ file, force }: { file: File; force?: boolean }) => {
-      setProgress({ stage: 'validating', progress: 0, message: 'Validating package...' });
-
-      // First validate
-      const validation = await validateSequence(file);
-      if (!validation.valid) {
-        throw new Error(validation.errors?.map((e) => e.message).join(', ') || 'Validation failed');
-      }
-
-      setProgress({ stage: 'uploading', progress: 0, message: 'Uploading package...' });
-
-      // Then upload with progress tracking
-      const result = await uploadSequence(file, force ?? false, (uploadProgress) => {
-        setProgress({
-          stage: 'uploading',
-          progress: uploadProgress,
-          message: `Uploading... ${uploadProgress}%`,
-        });
-      });
-
-      setProgress({
-        stage: 'complete',
-        progress: 100,
-        message: `Successfully installed ${result.name} v${result.version}`,
-      });
-
-      return { result, validation };
-    },
-    onSuccess: async () => {
-      // Force refetch to update the list immediately
-      await queryClient.refetchQueries({ queryKey: queryKeys.sequences });
-    },
-    onError: (error: Error) => {
-      setProgress({
-        stage: 'error',
-        progress: 0,
-        message: 'Upload failed',
-        error: error.message,
-      });
-    },
-  });
-
-  return {
-    ...mutation,
-    progress,
-    resetProgress,
-  };
-}
-
-/**
- * Hook to upload and install a sequence package from a folder with progress tracking.
- * Converts folder to ZIP before uploading.
- */
-export function useUploadSequenceFolder() {
-  const queryClient = useQueryClient();
-  const [progress, setProgress] = useState<UploadProgress>({
-    stage: 'idle',
-    progress: 0,
-    message: '',
-  });
-
-  const resetProgress = useCallback(() => {
-    setProgress({ stage: 'idle', progress: 0, message: '' });
-  }, []);
-
-  const mutation = useMutation({
-    mutationFn: async ({ files, force }: { files: FileList; force?: boolean }) => {
-      // Show compressing stage
-      setProgress({ stage: 'validating', progress: 0, message: 'Compressing folder to ZIP...' });
-
-      // Upload folder (internally converts to ZIP)
-      const result = await uploadSequenceFolder(files, force ?? false, (uploadProgress) => {
-        setProgress({
-          stage: 'uploading',
-          progress: uploadProgress,
-          message: `Uploading... ${uploadProgress}%`,
-        });
-      });
-
-      setProgress({
-        stage: 'complete',
-        progress: 100,
-        message: `Successfully installed ${result.name} v${result.version}`,
-      });
-
-      return result;
-    },
-    onSuccess: async () => {
-      // Force refetch to update the list immediately
-      await queryClient.refetchQueries({ queryKey: queryKeys.sequences });
-    },
-    onError: (error: Error) => {
-      setProgress({
-        stage: 'error',
-        progress: 0,
-        message: 'Upload failed',
-        error: error.message,
-      });
-    },
-  });
-
-  return {
-    ...mutation,
-    progress,
-    resetProgress,
-  };
-}
-
-/**
  * Hook to delete a sequence package.
  */
 export function useDeleteSequence() {
@@ -207,6 +80,7 @@ export function useDeleteSequence() {
     mutationFn: (name: string) => deleteSequence(name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sequences });
+      queryClient.invalidateQueries({ queryKey: ['registry'] });
     },
   });
 }
@@ -230,6 +104,55 @@ export function useDownloadSequence() {
       window.URL.revokeObjectURL(url);
 
       return { name };
+    },
+  });
+}
+
+// ============================================================================
+// Registry Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch unified sequence registry (local + remote).
+ */
+export function useSequenceRegistry() {
+  return useQuery({
+    queryKey: ['registry'],
+    queryFn: getSequenceRegistry,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Hook to pull (install/update) a sequence from Backend.
+ */
+export function usePullSequence() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ name, force = false }: { name: string; force?: boolean }) =>
+      pullSequence(name, force),
+    onSuccess: async () => {
+      // Use refetchQueries to force immediate refetch after pull
+      await queryClient.refetchQueries({ queryKey: queryKeys.sequences });
+      await queryClient.refetchQueries({ queryKey: ['registry'] });
+    },
+  });
+}
+
+/**
+ * Hook to sync all sequences from Backend.
+ */
+export function useSyncSequences() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sequenceNames?: string[]) => syncSequences(sequenceNames),
+    onSuccess: async () => {
+      // Use refetchQueries to force immediate refetch after sync
+      await queryClient.refetchQueries({ queryKey: queryKeys.sequences });
+      await queryClient.refetchQueries({ queryKey: ['registry'] });
     },
   });
 }

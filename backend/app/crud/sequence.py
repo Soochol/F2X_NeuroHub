@@ -351,6 +351,32 @@ class SequenceCRUD:
     # ========================================================================
 
     @staticmethod
+    def increment_version(current_version: str) -> str:
+        """
+        Auto-increment patch version.
+
+        Examples:
+            "2.0.0" -> "2.0.1"
+            "1.2.3" -> "1.2.4"
+            "1.0" -> "1.0.1"
+            "1" -> "1.0.1"
+        """
+        parts = current_version.split(".")
+
+        # Ensure at least 3 parts (major.minor.patch)
+        while len(parts) < 3:
+            parts.append("0")
+
+        # Increment patch version
+        try:
+            parts[2] = str(int(parts[2]) + 1)
+        except ValueError:
+            # If patch is not a number, reset to 1
+            parts[2] = "1"
+
+        return ".".join(parts)
+
+    @staticmethod
     def calculate_checksum(data: bytes) -> str:
         """Calculate SHA-256 checksum of data."""
         return hashlib.sha256(data).hexdigest()

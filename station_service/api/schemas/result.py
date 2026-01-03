@@ -117,6 +117,8 @@ class SystemInfo(APIBaseModel):
         version: Service version
         uptime: Service uptime in seconds
         backend_connected: Whether connected to NeuroHub backend
+        sequences_dir: Directory for sequence packages
+        data_dir: Directory for data files
     """
     station_id: str = Field(..., description="Unique station identifier")
     station_name: str = Field(..., description="Display name of the station")
@@ -124,6 +126,8 @@ class SystemInfo(APIBaseModel):
     version: str = Field(..., description="Service version")
     uptime: int = Field(..., description="Service uptime in seconds", ge=0)
     backend_connected: bool = Field(..., description="Whether connected to backend")
+    sequences_dir: str = Field(..., description="Directory for sequence packages")
+    data_dir: str = Field(..., description="Directory for data files")
 
 
 class HealthStatus(APIBaseModel):

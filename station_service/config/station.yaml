@@ -10,13 +10,16 @@ workflow:
 server:
   host: 0.0.0.0
   port: 8080
+paths:
+  sequences_dir: sequences
+  data_dir: data
 backend:
   url: http://localhost:8000
-  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTg5MTE5MzMsImlhdCI6MTc2NzM3NTkzMywidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoidGVzdF8wMDEifQ.UlMjgb8w1A5t27_zLxBKU__EfFZ4PsdX2L6LRyL8AtQ
+  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTg5ODM3MzQsImlhdCI6MTc2NzQ0NzczNCwidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoidGVzdF8wMDEifQ.ONULGlA-eu9C_uC-UyBdiWkOser96W9Lqhp0V8bv7K0
   sync_interval: 30
   station_id: test_001
 batches:
-- id: batch-1767363543670-gvgnckq-0
+- id: batch-1767448973123-56c1fgd-0
   name: psa_sensor_test
   sequence_package: psa_sensor_test
   auto_start: false

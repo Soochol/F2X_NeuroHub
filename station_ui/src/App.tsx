@@ -11,6 +11,7 @@ import { BatchesPage } from './pages/BatchesPage';
 import { BatchDetailPage } from './pages/BatchDetailPage';
 import { SequencesPage } from './pages/SequencesPage';
 import { ManualControlPage } from './pages/ManualControlPage';
+import { ResultsPage } from './pages/ResultsPage';
 import { LogsPage } from './pages/LogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MonitorPage } from './pages/MonitorPage';
@@ -64,6 +65,7 @@ function AppContent() {
           <Route path={ROUTES.SEQUENCES} element={<SequencesPage />} />
           <Route path={ROUTES.SEQUENCE_DETAIL} element={<SequencesPage />} />
           <Route path={ROUTES.MANUAL} element={<ManualControlPage />} />
+          <Route path={ROUTES.RESULTS} element={<ResultsPage />} />
           <Route path={ROUTES.LOGS} element={<LogsPage />} />
           <Route path={ROUTES.MONITOR} element={<MonitorPage />} />
           <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />

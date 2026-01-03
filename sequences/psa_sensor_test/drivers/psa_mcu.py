@@ -11,7 +11,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .base import BaseDriver
+# Import BaseDriver - try relative import first, fallback to direct import
+try:
+    from .base import BaseDriver
+except ImportError:
+    from base import BaseDriver
 
 # Add libs folder to sys.path for psa_protocol import
 _libs_path = Path(__file__).parent.parent / "libs"

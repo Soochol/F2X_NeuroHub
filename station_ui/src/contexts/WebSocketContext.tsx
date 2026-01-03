@@ -98,7 +98,7 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
           if (isInitialPush) {
             justSubscribedBatches.current.delete(message.batchId);
           }
-          log.debug(`batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, initial=${isInitialPush}`);
+          log.debug(`batch_status: status=${message.data.status}, step=${message.data.currentStep}, progress=${message.data.progress}, exec=${message.data.executionId}, lastRunPassed=${message.data.lastRunPassed}, initial=${isInitialPush}`);
           // Clear steps when starting a new execution (status changes to 'running' with new executionId)
           if (message.data.status === 'running' && message.data.progress === 0) {
             clearSteps(message.batchId);
@@ -113,6 +113,10 @@ export function WebSocketProvider({ children, url = '/ws' }: WebSocketProviderPr
               message.data.progress,
               message.data.executionId
             );
+          }
+          // Update lastRunPassed from initial push (authoritative server state)
+          if (isInitialPush && message.data.lastRunPassed !== undefined && message.data.lastRunPassed !== null) {
+            setLastRunResult(message.batchId, message.data.lastRunPassed);
           }
           break;
         }

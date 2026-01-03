@@ -24,6 +24,7 @@ from app.core.deps import (
     check_role_permission,
     StationAuth,
     get_station_auth,
+    get_auth_context,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "check_role_permission",
     "StationAuth",
     "get_station_auth",
+    "get_auth_context",
 ]

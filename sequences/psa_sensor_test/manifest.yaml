@@ -25,7 +25,7 @@ entry_point:
 hardware:
   psa_mcu:
     display_name: "PSA MCU (STM32H723)"
-    driver: psa_mcu
+    driver: drivers.psa_mcu
     class: PSAMCUDriver
     description: "STM32H723 MCU 센서 테스트 보드"
     config_schema:

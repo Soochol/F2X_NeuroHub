@@ -200,6 +200,8 @@ async def handle_client_message(
                                     "stepIndex": status.get("step_index", 0),
                                     "progress": status.get("progress", 0.0),
                                     "executionId": status.get("execution_id", ""),
+                                    "lastRunPassed": status.get("last_run_passed"),
+                                    "steps": status.get("steps", []),
                                 },
                             }
                         )

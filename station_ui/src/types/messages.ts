@@ -47,6 +47,10 @@ export interface BatchStatusMessage {
     stepIndex: number;
     progress: number;
     executionId?: string;
+    /** Last run result (included in initial push after subscribe) */
+    lastRunPassed?: boolean | null;
+    /** Step results (included in initial push after subscribe) */
+    steps?: StepResult[];
   };
 }
 

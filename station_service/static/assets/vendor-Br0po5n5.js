@@ -1,4 +1,3 @@
-var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
 }
@@ -9238,12 +9237,10 @@ export {
   React as R,
   reactExports as a,
   requireReactDom as b,
-  commonjsGlobal as c,
-  useNavigate as d,
-  useParams as e,
-  Routes as f,
-  getDefaultExportFromCjs as g,
-  Route as h,
+  useNavigate as c,
+  useParams as d,
+  Routes as e,
+  Route as f,
   requireReact as r,
   useLocation as u
 };

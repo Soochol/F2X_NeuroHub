@@ -17,6 +17,7 @@ import {
   Pause,
   Cloud,
   ScanBarcode,
+  FolderOpen,
 } from 'lucide-react';
 import { useSystemInfo, useHealthStatus, useUpdateStationInfo, useWorkflowConfig, useUpdateWorkflowConfig } from '../hooks';
 import { useUIStore } from '../stores/uiStore';
@@ -264,6 +265,51 @@ export function SettingsPage() {
                   <InfoRow label="Description" value={systemInfo.description || '-'} />
                 </>
               )}
+            </div>
+          )}
+        </Section>
+
+        {/* Paths Configuration */}
+        <Section
+          icon={<FolderOpen className="w-5 h-5" />}
+          title="Paths"
+          isLoading={infoLoading}
+        >
+          {systemInfo && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Sequences Directory</span>
+                <span
+                  className="text-sm font-mono px-2 py-1 rounded"
+                  style={{
+                    backgroundColor: 'var(--color-bg-tertiary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {systemInfo.sequencesDir || 'sequences'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--color-text-secondary)' }}>Data Directory</span>
+                <span
+                  className="text-sm font-mono px-2 py-1 rounded"
+                  style={{
+                    backgroundColor: 'var(--color-bg-tertiary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {systemInfo.dataDir || 'data'}
+                </span>
+              </div>
+              <div
+                className="text-xs p-2 rounded"
+                style={{
+                  backgroundColor: 'var(--color-bg-tertiary)',
+                  color: 'var(--color-text-tertiary)',
+                }}
+              >
+                Paths are configured in station.yaml. Relative paths are resolved from project root.
+              </div>
             </div>
           )}
         </Section>

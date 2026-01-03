@@ -24,6 +24,10 @@ structlog>=23.0.0
 # HTTP Client (for backend sync)
 httpx>=0.24.0
 
+# Export Libraries
+openpyxl>=3.1.0        # Excel (.xlsx) export
+reportlab>=4.0.0       # PDF export
+
 # Development dependencies (optional)
 # pytest>=7.0.0
 # pytest-asyncio>=0.21.0

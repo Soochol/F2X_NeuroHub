@@ -23,5 +23,6 @@ export {
   ProcessManagement,
   ProductionLineManagement,
   ProductModelManagement,
+  SequenceManagement,
   UserManagement,
 } from './admin';

@@ -25,6 +25,12 @@ backend:
   timeout: 30.0  # Request timeout in seconds
   max_retries: 5  # Maximum retry attempts for failed requests
 
+# Path configuration
+# Paths can be absolute or relative to the project root
+paths:
+  sequences_dir: "sequences"  # Directory for sequence packages
+  data_dir: "data"            # Directory for data files (database, logs)
+
 # Batch configurations
 batches:
   - id: "batch_1"

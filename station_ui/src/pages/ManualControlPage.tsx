@@ -8,761 +8,889 @@
  * - Manual sequence step-by-step execution
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Wrench,
-  AlertTriangle,
-  Send,
-  History,
-  Cpu,
   Play,
   SkipForward,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
-  Gauge,
-  Settings,
-  Zap,
-  Search,
   ListOrdered,
   CheckCircle,
   XCircle,
   Clock,
   FastForward,
+  FlaskConical,
+  RefreshCw,
+  StopCircle,
+  Plug,
+  Terminal,
+  Settings,
+  Bug,
+  Trash2,
 } from 'lucide-react';
 import {
-  useBatchList,
-  useBatch,
-  useHardwareCommands,
-  useExecuteCommand,
-  useManualSteps,
-  useRunManualStep,
-  useSkipManualStep,
-  useResetManualSequence,
+  useSequenceList,
+  useSequence,
+  useSimulationSession,
+  useCreateSimulationSession,
+  useInitializeSimulationSession,
+  useFinalizeSimulationSession,
+  useAbortSimulationSession,
+  useRunSimulationStep,
+  useSkipSimulationStep,
+  useDeleteSimulationSession,
+  // Manual Sequence (real hardware) hooks
+  useManualSession,
+  useCreateManualSession,
+  useInitializeManualSession,
+  useFinalizeManualSession,
+  useAbortManualSession,
+  useRunManualSequenceStep,
+  useSkipManualSequenceStep,
+  useDeleteManualSession,
 } from '../hooks';
-import { useManualControlStore, selectGroupedCommands } from '../stores/manualControlStore';
 import { Button } from '../components/atoms/Button';
-import { Input } from '../components/atoms/Input';
 import { Select } from '../components/atoms/Select';
-import { LoadingOverlay } from '../components/atoms/LoadingSpinner';
 import { StatusBadge } from '../components/atoms/StatusBadge';
-import { cn } from '../utils';
-import type {
-  CommandInfo,
-  CommandParameter,
-  ManualStepInfo,
-  HardwareStatus,
-  BatchDetail,
-} from '../types';
-
-// Type guard to check if data is a BatchDetail
-function isBatchDetail(data: unknown): data is BatchDetail {
-  return data !== null && typeof data === 'object' && 'hardwareStatus' in data;
-}
-
-const CATEGORY_ICONS = {
-  measurement: Gauge,
-  control: Zap,
-  configuration: Settings,
-  diagnostic: Search,
-};
-
-const CATEGORY_LABELS = {
-  measurement: 'Measurement',
-  control: 'Control',
-  configuration: 'Configuration',
-  diagnostic: 'Diagnostic',
-};
+import { cn, getErrorMessage } from '../utils';
+import type { ManualStepState } from '../hooks';
+import type { ParameterSchema } from '../types';
 
 export function ManualControlPage() {
-  const { data: batches, isLoading } = useBatchList();
-  const [activeTab, setActiveTab] = useState<'commands' | 'sequence'>('commands');
-
-  // Store state
-  const selectedBatchId = useManualControlStore((s) => s.selectedBatchId);
-  const selectedHardwareId = useManualControlStore((s) => s.selectedHardwareId);
-  const selectDevice = useManualControlStore((s) => s.selectDevice);
-  const selectedCommand = useManualControlStore((s) => s.selectedCommand);
-  const selectCommand = useManualControlStore((s) => s.selectCommand);
-  const parameterValues = useManualControlStore((s) => s.parameterValues);
-  const setParameterValue = useManualControlStore((s) => s.setParameterValue);
-  const resultHistory = useManualControlStore((s) => s.resultHistory);
-
-  // Fetch batch detail
-  const { data: batchDetail } = useBatch(selectedBatchId);
-
-  // Fetch hardware commands
-  const { data: commandsData, isLoading: loadingCommands } = useHardwareCommands(
-    selectedBatchId,
-    selectedHardwareId
-  );
-
-  // Execute command mutation
-  const executeCommand = useExecuteCommand();
-
-  // Group commands by category
-  const groupedCommands = useMemo(() => {
-    if (!commandsData?.commands) return {};
-    return selectGroupedCommands(commandsData.commands);
-  }, [commandsData]);
-
-  // Batch options (only idle batches for manual control)
-  const batchOptions = useMemo(() => {
-    return (
-      batches
-        ?.filter((b) => b.status === 'idle')
-        .map((b) => ({
-          value: b.id,
-          label: `${b.name} - ${b.sequenceName ?? 'No sequence'}`,
-        })) ?? []
-    );
-  }, [batches]);
-
-  // Hardware options from batch detail
-  const hardwareOptions = useMemo(() => {
-    if (!isBatchDetail(batchDetail) || !batchDetail.hardwareStatus) return [];
-    return Object.entries(batchDetail.hardwareStatus).map(([id, status]) => ({
-      value: id,
-      label: `${id} (${(status as HardwareStatus).driver})`,
-    }));
-  }, [batchDetail]);
-
-  const handleExecute = async () => {
-    if (!selectedBatchId || !selectedHardwareId || !selectedCommand) return;
-
-    await executeCommand.mutateAsync({
-      batchId: selectedBatchId,
-      request: {
-        hardware: selectedHardwareId,
-        command: selectedCommand.name,
-        params: parameterValues,
-      },
-      command: selectedCommand,
-    });
-  };
-
-  if (isLoading) {
-    return <LoadingOverlay message="Loading batches..." />;
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Wrench className="w-6 h-6 text-brand-500" />
-          <h2
-            className="text-2xl font-bold"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            Manual Control
-          </h2>
-        </div>
-
-        {/* Tab Toggle */}
-        <div className="flex gap-2 p-1 rounded-lg" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-          <button
-            onClick={() => setActiveTab('commands')}
-            className={cn(
-              'px-4 py-2 rounded-md text-sm font-medium transition-all',
-              activeTab === 'commands'
-                ? 'bg-brand-500 text-white'
-                : 'hover:bg-brand-500/20'
-            )}
-            style={activeTab !== 'commands' ? { color: 'var(--color-text-secondary)' } : {}}
-          >
-            <Cpu className="w-4 h-4 inline mr-2" />
-            Hardware Commands
-          </button>
-          <button
-            onClick={() => setActiveTab('sequence')}
-            className={cn(
-              'px-4 py-2 rounded-md text-sm font-medium transition-all',
-              activeTab === 'sequence'
-                ? 'bg-brand-500 text-white'
-                : 'hover:bg-brand-500/20'
-            )}
-            style={activeTab !== 'sequence' ? { color: 'var(--color-text-secondary)' } : {}}
-          >
-            <ListOrdered className="w-4 h-4 inline mr-2" />
-            Manual Sequence
-          </button>
-        </div>
-      </div>
-
-      {/* Warning Banner */}
-      <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-        <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-        <span className="text-yellow-400 text-sm">
-          Manual control mode. Use with caution - direct hardware access can affect system state.
-        </span>
-      </div>
-
-      {/* Device Selection Bar */}
-      <div
-        className="p-4 rounded-lg border flex flex-wrap gap-4 items-end"
-        style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-default)',
-        }}
-      >
-        <div className="flex-1 min-w-[200px]">
-          <Select
-            label="Test Station (Batch)"
-            options={batchOptions}
-            value={selectedBatchId ?? ''}
-            onChange={(e) => {
-              selectDevice(e.target.value || null, null);
-              selectCommand(null);
-            }}
-            placeholder="Select idle batch..."
-          />
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <Select
-            label="Hardware Device"
-            options={hardwareOptions}
-            value={selectedHardwareId ?? ''}
-            onChange={(e) => {
-              selectDevice(selectedBatchId, e.target.value || null);
-              selectCommand(null);
-            }}
-            placeholder="Select hardware..."
-            disabled={!selectedBatchId}
-          />
-        </div>
-        {commandsData && (
-          <div className="flex items-center gap-2">
-            <StatusBadge
-              status={commandsData.connected ? 'connected' : 'disconnected'}
-              size="sm"
-            />
-            <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
-              {commandsData.driver}
-            </span>
-          </div>
-        )}
+      <div className="flex items-center gap-3">
+        <Wrench className="w-6 h-6 text-brand-500" />
+        <h2
+          className="text-2xl font-bold"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          Manual Control
+        </h2>
       </div>
 
       {/* Main Content */}
-      {activeTab === 'commands' ? (
-        <CommandsTab
-          groupedCommands={groupedCommands}
-          selectedCommand={selectedCommand}
-          selectCommand={selectCommand}
-          parameterValues={parameterValues}
-          setParameterValue={setParameterValue}
-          resultHistory={resultHistory}
-          onExecute={handleExecute}
-          isExecuting={executeCommand.isPending}
-          isDisabled={!selectedBatchId || !selectedHardwareId}
-          loadingCommands={loadingCommands}
-        />
-      ) : (
-        <SequenceTab batchId={selectedBatchId} />
-      )}
+      <ManualTestTab />
     </div>
   );
 }
 
 // ============================================================================
-// Commands Tab
+// Debug Log Types
 // ============================================================================
 
-interface CommandsTabProps {
-  groupedCommands: Record<string, CommandInfo[]>;
-  selectedCommand: CommandInfo | null;
-  selectCommand: (cmd: CommandInfo | null) => void;
-  parameterValues: Record<string, unknown>;
-  setParameterValue: (name: string, value: unknown) => void;
-  resultHistory: Array<{
-    id: string;
-    hardware: string;
-    command: string;
-    result: unknown;
-    success: boolean;
-    duration: number;
-    timestamp: Date;
-    unit?: string;
-  }>;
-  onExecute: () => void;
-  isExecuting: boolean;
-  isDisabled: boolean;
-  loadingCommands: boolean;
+interface DebugLogEntry {
+  id: number;
+  timestamp: Date;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  data?: unknown;
 }
 
-function CommandsTab({
-  groupedCommands,
-  selectedCommand,
-  selectCommand,
-  parameterValues,
-  setParameterValue,
-  resultHistory,
-  onExecute,
-  isExecuting,
-  isDisabled,
-  loadingCommands,
-}: CommandsTabProps) {
-  const [activeCategory, setActiveCategory] = useState<string>('measurement');
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function formatResult(result: unknown): string {
+  if (typeof result === 'number') {
+    return result.toFixed(4);
+  }
+  if (typeof result === 'boolean') {
+    return result ? 'TRUE' : 'FALSE';
+  }
+  if (typeof result === 'string') {
+    return result;
+  }
+  if (result === null || result === undefined) {
+    return '-';
+  }
+  return JSON.stringify(result);
+}
+
+// ============================================================================
+// Manual Test Tab (Real Hardware or Mock Mode)
+// ============================================================================
+
+function ManualTestTab() {
+  const { data: sequences, isLoading: loadingSequences } = useSequenceList();
+  const [selectedSequence, setSelectedSequence] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [parameterValues, setParameterValues] = useState<Record<string, unknown>>({});
+  const [mockMode, setMockMode] = useState(false);
+
+  // Debug log state
+  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+  const [showDebugPanel, setShowDebugPanel] = useState(true);
+  const logIdRef = useRef(0);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // Add debug log helper
+  const addLog = useCallback((level: DebugLogEntry['level'], message: string, data?: unknown) => {
+    setDebugLogs(prev => {
+      const newLog: DebugLogEntry = {
+        id: ++logIdRef.current,
+        timestamp: new Date(),
+        level,
+        message,
+        data,
+      };
+      // Keep last 100 logs
+      const updated = [...prev, newLog].slice(-100);
+      return updated;
+    });
+  }, []);
+
+  // Auto-scroll to bottom when new logs are added
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [debugLogs]);
+
+  // Clear logs
+  const clearLogs = useCallback(() => {
+    setDebugLogs([]);
+  }, []);
+
+  // Fetch sequence details for parameters
+  const { data: sequenceDetails } = useSequence(selectedSequence || null);
+
+  // Session management - conditionally use manual or simulation hooks
+  // Manual (real hardware) hooks
+  const manualSessionQuery = useManualSession(mockMode ? null : sessionId);
+  const createManualSession = useCreateManualSession();
+  const initializeManualSession = useInitializeManualSession();
+  const finalizeManualSession = useFinalizeManualSession();
+  const abortManualSession = useAbortManualSession();
+  const deleteManualSession = useDeleteManualSession();
+  const runManualStep = useRunManualSequenceStep();
+  const skipManualStep = useSkipManualSequenceStep();
+
+  // Simulation (mock) hooks
+  const simulationSessionQuery = useSimulationSession(mockMode ? sessionId : null);
+  const createSimulationSession = useCreateSimulationSession();
+  const initializeSimulationSession = useInitializeSimulationSession();
+  const finalizeSimulationSession = useFinalizeSimulationSession();
+  const abortSimulationSession = useAbortSimulationSession();
+  const deleteSimulationSession = useDeleteSimulationSession();
+  const runSimulationStep = useRunSimulationStep();
+  const skipSimulationStep = useSkipSimulationStep();
+
+  // Unified session data
+  const session = mockMode ? simulationSessionQuery.data : manualSessionQuery.data;
+  const loadingSession = mockMode ? simulationSessionQuery.isLoading : manualSessionQuery.isLoading;
+
+  const sequenceOptions = useMemo(() => {
+    return (
+      sequences?.map((s) => ({
+        value: s.name,
+        label: `${s.displayName} (v${s.version})`,
+      })) ?? []
+    );
+  }, [sequences]);
+
+  const handleCreateSession = async () => {
+    if (!selectedSequence) return;
+    // Clear debug logs for new session
+    clearLogs();
+    try {
+      // Build parameters with overrides
+      const params: Record<string, unknown> = {};
+      if (sequenceDetails?.parameters) {
+        for (const param of sequenceDetails.parameters) {
+          params[param.name] = parameterValues[param.name] ?? param.default;
+        }
+      }
+      const modeLabel = mockMode ? '[Mock]' : '[Hardware]';
+      addLog('info', `${modeLabel} Creating session for "${selectedSequence}"...`, { params, mockMode });
+
+      const newSession = mockMode
+        ? await createSimulationSession.mutateAsync({
+            sequenceName: selectedSequence,
+            parameters: Object.keys(params).length > 0 ? params : undefined,
+          })
+        : await createManualSession.mutateAsync({
+            sequenceName: selectedSequence,
+            parameters: Object.keys(params).length > 0 ? params : undefined,
+          });
+
+      setSessionId(newSession.id);
+      addLog('success', `Session created: ${newSession.id}`, {
+        status: newSession.status,
+        steps: newSession.steps.length,
+      });
+    } catch (error) {
+      addLog('error', `Failed to create session: ${getErrorMessage(error)}`, error);
+      console.error('Failed to create session:', error);
+    }
+  };
+
+  const handleInitialize = async () => {
+    if (!sessionId) return;
+    // Clear logs before initializing
+    clearLogs();
+    try {
+      if (mockMode) {
+        addLog('info', 'Initializing simulation session...');
+        const result = await initializeSimulationSession.mutateAsync(sessionId);
+        addLog('success', `Session initialized.`, { status: result.status });
+      } else {
+        addLog('info', 'Initializing session (connecting hardware)...');
+        const result = await initializeManualSession.mutateAsync(sessionId);
+        const hwConnected = result.hardware.filter((h) => h.connected).length;
+        addLog('success', `Session initialized. Hardware: ${hwConnected}/${result.hardware.length} connected`, {
+          status: result.status,
+          hardware: result.hardware.map((h) => ({ id: h.id, connected: h.connected, error: h.error })),
+        });
+      }
+    } catch (error) {
+      addLog('error', `Failed to initialize session: ${getErrorMessage(error)}`, error);
+      console.error('Failed to initialize session:', error);
+    }
+  };
+
+  const handleFinalize = async () => {
+    if (!sessionId) return;
+    try {
+      addLog('info', 'Finalizing session...');
+      const result = mockMode
+        ? await finalizeSimulationSession.mutateAsync(sessionId)
+        : await finalizeManualSession.mutateAsync(sessionId);
+      addLog('success', `Session finalized. Overall: ${result.overallPass ? 'PASS' : 'FAIL'}`, {
+        status: result.status,
+        overallPass: result.overallPass,
+      });
+    } catch (error) {
+      addLog('error', `Failed to finalize session: ${getErrorMessage(error)}`, error);
+      console.error('Failed to finalize session:', error);
+    }
+  };
+
+  const handleAbort = async () => {
+    if (!sessionId) return;
+    try {
+      addLog('warning', 'Aborting session...');
+      if (mockMode) {
+        await abortSimulationSession.mutateAsync(sessionId);
+      } else {
+        await abortManualSession.mutateAsync(sessionId);
+      }
+      addLog('warning', 'Session aborted');
+    } catch (error) {
+      addLog('error', `Failed to abort session: ${getErrorMessage(error)}`, error);
+      console.error('Failed to abort session:', error);
+    }
+  };
+
+  const handleReset = async () => {
+    if (sessionId) {
+      if (mockMode) {
+        await deleteSimulationSession.mutateAsync(sessionId);
+      } else {
+        await deleteManualSession.mutateAsync(sessionId);
+      }
+    }
+    setSessionId(null);
+    setSelectedSequence('');
+    setParameterValues({});
+    // Clear debug logs on reset
+    clearLogs();
+  };
+
+  const handleRunStep = async (stepName: string) => {
+    if (!sessionId) return;
+    try {
+      // Build parameter overrides from modified values
+      const overrides = Object.keys(parameterValues).length > 0 ? parameterValues : undefined;
+      if (overrides) {
+        addLog('info', `Running step: ${stepName} with parameter overrides...`, overrides);
+      } else {
+        addLog('info', `Running step: ${stepName}...`);
+      }
+
+      const result = mockMode
+        ? await runSimulationStep.mutateAsync({ sessionId, stepName, parameterOverrides: overrides })
+        : await runManualStep.mutateAsync({ sessionId, stepName, parameterOverrides: overrides });
+
+      if (result.status === 'passed') {
+        addLog('success', `Step "${stepName}" passed (${result.duration.toFixed(2)}s)`, {
+          measurements: result.measurements,
+          result: result.result,
+        });
+      } else {
+        addLog('error', `Step "${stepName}" failed: ${result.error}`, {
+          measurements: result.measurements,
+          error: result.error,
+        });
+      }
+    } catch (error) {
+      addLog('error', `Failed to run step "${stepName}": ${getErrorMessage(error)}`, error);
+      console.error('Failed to run step:', error);
+    }
+  };
+
+  const handleSkipStep = async (stepName: string) => {
+    if (!sessionId) return;
+    try {
+      addLog('warning', `Skipping step: ${stepName}`);
+      if (mockMode) {
+        await skipSimulationStep.mutateAsync({ sessionId, stepName });
+      } else {
+        await skipManualStep.mutateAsync({ sessionId, stepName });
+      }
+      addLog('info', `Step "${stepName}" skipped`);
+    } catch (error) {
+      addLog('error', `Failed to skip step "${stepName}": ${getErrorMessage(error)}`, error);
+      console.error('Failed to skip step:', error);
+    }
+  };
+
+  // Initialize parameters when sequence is selected
+  const handleSequenceChange = (sequenceName: string) => {
+    setSelectedSequence(sequenceName);
+    setParameterValues({});
+  };
+
+  // Update parameter value
+  const handleParameterChange = (name: string, value: unknown) => {
+    setParameterValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Session status helpers
+  const isCreated = session?.status === 'created';
+  const isConnecting = session?.status === 'connecting';
+  const isReady = session?.status === 'ready';
+  const isRunning = session?.status === 'running';
+  const isActive = isReady || isRunning;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Command Selection Panel */}
+    <div className="space-y-4">
+      {/* Session Setup / Control */}
       <div
-        className="p-4 rounded-lg border space-y-4"
+        className="p-4 rounded-lg border"
         style={{
           backgroundColor: 'var(--color-bg-secondary)',
           borderColor: 'var(--color-border-default)',
         }}
       >
-        <h3
-          className="text-lg font-semibold"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          Commands
-        </h3>
+        {!session ? (
+          <div className="space-y-4">
+            <h3
+              className="text-lg font-semibold"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              Create Test Session
+            </h3>
 
-        {/* Category Tabs */}
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-            const Icon = CATEGORY_ICONS[key as keyof typeof CATEGORY_ICONS];
-            const count = groupedCommands[key]?.length ?? 0;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveCategory(key)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                  activeCategory === key
-                    ? 'bg-brand-500 text-white'
-                    : 'hover:bg-brand-500/20'
-                )}
-                style={
-                  activeCategory !== key
-                    ? { color: 'var(--color-text-secondary)' }
-                    : {}
-                }
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-                {count > 0 && (
-                  <span
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Select
+                  label="Select Sequence"
+                  options={sequenceOptions}
+                  value={selectedSequence}
+                  onChange={(e) => handleSequenceChange(e.target.value)}
+                  placeholder="Choose a sequence..."
+                  disabled={loadingSequences}
+                />
+              </div>
+              {/* Mock Mode Toggle */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={mockMode}
+                    onChange={(e) => setMockMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div
                     className={cn(
-                      'px-1.5 py-0.5 rounded text-xs',
-                      activeCategory === key
-                        ? 'bg-white/20'
-                        : 'bg-gray-600/50'
+                      'w-11 h-6 rounded-full transition-colors',
+                      mockMode ? 'bg-brand-500' : 'bg-gray-600'
                     )}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Command List */}
-        <div className="space-y-1 max-h-64 overflow-y-auto">
-          {loadingCommands ? (
-            <p
-              className="text-sm py-4 text-center"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              Loading commands...
-            </p>
-          ) : (groupedCommands[activeCategory]?.length ?? 0) === 0 ? (
-            <p
-              className="text-sm py-4 text-center"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              {isDisabled
-                ? 'Select a batch and hardware device'
-                : 'No commands available'}
-            </p>
-          ) : (
-            groupedCommands[activeCategory]?.map((cmd) => (
-              <button
-                key={cmd.name}
-                onClick={() => selectCommand(cmd)}
-                className={cn(
-                  'w-full text-left px-3 py-2 rounded-md transition-all',
-                  selectedCommand?.name === cmd.name
-                    ? 'bg-brand-500/20 border border-brand-500/50'
-                    : 'hover:bg-brand-500/10'
-                )}
+                  />
+                  <div
+                    className={cn(
+                      'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+                      mockMode && 'translate-x-5'
+                    )}
+                  />
+                </div>
+                <span
+                  className="text-sm font-medium flex items-center gap-1"
+                  style={{ color: mockMode ? 'var(--color-brand-500)' : 'var(--color-text-secondary)' }}
+                >
+                  <FlaskConical className="w-4 h-4" />
+                  Mock
+                </span>
+              </label>
+              <Button
+                variant="primary"
+                onClick={handleCreateSession}
+                isLoading={mockMode ? createSimulationSession.isPending : createManualSession.isPending}
+                disabled={!selectedSequence}
               >
-                <div
-                  className="font-medium text-sm"
+                <Terminal className="w-4 h-4 mr-2" />
+                Create Session
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3
+                  className="text-lg font-semibold"
                   style={{ color: 'var(--color-text-primary)' }}
                 >
-                  {cmd.displayName}
-                </div>
-                {cmd.description && (
-                  <div
-                    className="text-xs mt-0.5 line-clamp-1"
+                  {session.sequenceName}
+                  <span
+                    className="ml-2 text-sm font-normal"
                     style={{ color: 'var(--color-text-tertiary)' }}
                   >
-                    {cmd.description}
-                  </div>
+                    v{session.sequenceVersion}
+                  </span>
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <StatusBadge
+                    status={
+                      session.status === 'completed' && session.overallPass
+                        ? 'pass'
+                        : session.status === 'completed' && !session.overallPass
+                        ? 'fail'
+                        : session.status === 'ready'
+                        ? 'idle'
+                        : session.status === 'running'
+                        ? 'running'
+                        : session.status === 'connecting'
+                        ? 'running'
+                        : session.status === 'failed'
+                        ? 'error'
+                        : 'idle'
+                    }
+                    size="sm"
+                  />
+                  <span
+                    className="text-sm"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    Session: {session.id}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {isCreated && (
+                  <Button
+                    variant="primary"
+                    onClick={handleInitialize}
+                    isLoading={
+                      mockMode
+                        ? initializeSimulationSession.isPending
+                        : initializeManualSession.isPending || isConnecting
+                    }
+                  >
+                    {mockMode ? (
+                      <>
+                        <Play className="w-4 h-4 mr-1" />
+                        Initialize
+                      </>
+                    ) : (
+                      <>
+                        <Plug className="w-4 h-4 mr-1" />
+                        Connect & Initialize
+                      </>
+                    )}
+                  </Button>
                 )}
-              </button>
-            ))
-          )}
-        </div>
-      </div>
+                {isActive && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={handleFinalize}
+                      isLoading={mockMode ? finalizeSimulationSession.isPending : finalizeManualSession.isPending}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Finalize
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={handleAbort}
+                      isLoading={mockMode ? abortSimulationSession.isPending : abortManualSession.isPending}
+                    >
+                      <StopCircle className="w-4 h-4 mr-1" />
+                      Abort
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" onClick={handleReset}>
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Reset
+                </Button>
+              </div>
+            </div>
 
-      {/* Parameter Form Panel */}
-      <div
-        className="p-4 rounded-lg border space-y-4"
-        style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-default)',
-        }}
-      >
-        <h3
-          className="text-lg font-semibold"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          {selectedCommand?.displayName ?? 'Parameters'}
-        </h3>
-
-        {selectedCommand ? (
-          <>
-            {selectedCommand.description && (
-              <p
-                className="text-sm"
-                style={{ color: 'var(--color-text-tertiary)' }}
-              >
-                {selectedCommand.description}
-              </p>
+            {/* Hardware Status - Only show for manual mode */}
+            {!mockMode && 'hardware' in session && session.hardware.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {session.hardware.map((hw) => (
+                  <div
+                    key={hw.id}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm',
+                      hw.connected
+                        ? 'bg-green-500/10 border border-green-500/30'
+                        : 'bg-gray-500/10 border border-gray-500/30'
+                    )}
+                  >
+                    <Plug
+                      className={cn(
+                        'w-4 h-4',
+                        hw.connected ? 'text-green-500' : 'text-gray-500'
+                      )}
+                    />
+                    <span style={{ color: 'var(--color-text-secondary)' }}>
+                      {hw.displayName}
+                    </span>
+                    {hw.error && (
+                      <span className="text-red-400 text-xs">({hw.error})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
 
-            {selectedCommand.parameters.length > 0 ? (
-              <div className="space-y-3">
-                {selectedCommand.parameters.map((param) => (
-                  <ParameterInput
-                    key={param.name}
-                    parameter={param}
-                    value={parameterValues[param.name]}
-                    onChange={(v) => setParameterValue(param.name, v)}
+            {/* Progress Bar */}
+            {session.steps.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>
+                    Progress
+                  </span>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>
+                    {session.steps.filter((s) => s.status !== 'pending').length} /{' '}
+                    {session.steps.length} steps
+                  </span>
+                </div>
+                <div
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
+                >
+                  <div
+                    className="h-full bg-brand-500 transition-all duration-300"
+                    style={{
+                      width: `${
+                        (session.steps.filter((s) => s.status !== 'pending').length /
+                          session.steps.length) *
+                        100
+                      }%`,
+                    }}
                   />
-                ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Three-column layout: Test Steps | Parameters | Debug Logs */}
+      {session && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Column 1: Test Steps */}
+          <div
+            className="p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <h3
+              className="text-lg font-semibold mb-4 flex items-center gap-2"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              <ListOrdered className="w-5 h-5" />
+              Test Steps
+            </h3>
+
+            {loadingSession ? (
+              <p
+                className="text-sm text-center py-4"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                Loading session...
+              </p>
+            ) : session.steps.length === 0 ? (
+              <p
+                className="text-sm text-center py-4"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                No steps available
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                {session.steps.map((step, index) => {
+                  // Handle skippable - only exists in ManualStepState
+                  const isSkippable = 'skippable' in step ? step.skippable : true;
+                  return (
+                    <ManualTestStepCard
+                      key={step.name}
+                      step={{
+                        ...step,
+                        skippable: isSkippable,
+                        parameterOverrides: 'parameterOverrides' in step ? step.parameterOverrides : [],
+                      }}
+                      index={index}
+                      isCurrent={index === session.currentStepIndex}
+                      canRun={isReady && step.status === 'pending'}
+                      canSkip={isReady && step.status === 'pending' && isSkippable}
+                      onRun={() => handleRunStep(step.name)}
+                      onSkip={() => handleSkipStep(step.name)}
+                      isRunning={mockMode ? runSimulationStep.isPending : runManualStep.isPending}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Run All Button */}
+            {session && isReady && session.steps.some((s) => s.status === 'pending') && (
+              <div className="mt-4">
+                <Button
+                  className="w-full"
+                  onClick={async () => {
+                    for (const step of session.steps) {
+                      if (step.status === 'pending') {
+                        await handleRunStep(step.name);
+                      }
+                    }
+                  }}
+                  isLoading={mockMode ? runSimulationStep.isPending : runManualStep.isPending}
+                >
+                  <FastForward className="w-4 h-4 mr-1" />
+                  Run All Remaining
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Column 2: Parameters */}
+          <div
+            className="p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <h3
+              className="text-lg font-semibold mb-4 flex items-center gap-2"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              <Settings className="w-5 h-5" />
+              Parameters
+            </h3>
+
+            {sequenceDetails?.parameters && sequenceDetails.parameters.length > 0 ? (
+              <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                {sequenceDetails.parameters.map((param) => {
+                  // Use parameterValues if set, otherwise fall back to session.parameters or default
+                  const currentValue = parameterValues[param.name] ?? session.parameters?.[param.name] ?? param.default;
+                  return (
+                    <ParameterInput
+                      key={param.name}
+                      param={param}
+                      value={currentValue}
+                      onChange={(value) => handleParameterChange(param.name, value)}
+                    />
+                  );
+                })}
+                {Object.keys(parameterValues).length > 0 && (
+                  <p
+                    className="text-xs italic"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    * Modified parameters will be applied to next step execution
+                  </p>
+                )}
               </div>
             ) : (
               <p
-                className="text-sm italic"
+                className="text-sm text-center py-4"
                 style={{ color: 'var(--color-text-tertiary)' }}
               >
-                No parameters required
+                No parameters configured
               </p>
             )}
-
-            <Button
-              variant="primary"
-              className="w-full mt-4"
-              onClick={onExecute}
-              isLoading={isExecuting}
-              disabled={isDisabled}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Execute {selectedCommand.displayName}
-            </Button>
-
-            {selectedCommand.returnUnit && (
-              <p
-                className="text-xs text-center"
-                style={{ color: 'var(--color-text-tertiary)' }}
-              >
-                Returns: {selectedCommand.returnType} ({selectedCommand.returnUnit})
-              </p>
-            )}
-          </>
-        ) : (
-          <p
-            className="text-sm py-8 text-center"
-            style={{ color: 'var(--color-text-tertiary)' }}
-          >
-            Select a command to configure parameters
-          </p>
-        )}
-      </div>
-
-      {/* Results Panel */}
-      <div
-        className="p-4 rounded-lg border space-y-4"
-        style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-default)',
-        }}
-      >
-        <h3
-          className="text-lg font-semibold flex items-center gap-2"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          <History className="w-5 h-5" />
-          Results
-        </h3>
-
-        {/* Last Result */}
-        {resultHistory[0] && (
-          <div
-            className={cn(
-              'p-3 rounded-lg border',
-              resultHistory[0].success
-                ? 'border-green-500/30 bg-green-500/10'
-                : 'border-red-500/30 bg-red-500/10'
-            )}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span
-                className="text-sm font-medium"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                {resultHistory[0].hardware}.{resultHistory[0].command}
-              </span>
-              <StatusBadge
-                status={resultHistory[0].success ? 'pass' : 'fail'}
-                size="sm"
-              />
-            </div>
-            <div
-              className="text-2xl font-bold"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {formatResult(resultHistory[0].result)}
-              {resultHistory[0].unit && (
-                <span className="text-sm ml-1">{resultHistory[0].unit}</span>
-              )}
-            </div>
-            <div
-              className="text-xs mt-1"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              {resultHistory[0].duration}ms
-            </div>
           </div>
-        )}
 
-        {/* History List */}
-        <div className="space-y-1 max-h-64 overflow-y-auto">
-          {resultHistory.length === 0 ? (
-            <p
-              className="text-sm text-center py-4"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              No commands executed yet
-            </p>
-          ) : (
-            resultHistory.slice(1).map((entry) => (
+          {/* Column 3: Debug Logs */}
+          <div
+            className="p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3
+                className="text-lg font-semibold flex items-center gap-2"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                <Bug className="w-5 h-5" />
+                Debug Logs
+              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowDebugPanel(!showDebugPanel)}
+                >
+                  {showDebugPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearLogs}
+                  disabled={debugLogs.length === 0}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {showDebugPanel && (
               <div
-                key={entry.id}
-                className="flex items-center justify-between p-2 rounded-md text-sm"
+                ref={logContainerRef}
+                className="font-mono text-xs space-y-1 max-h-[500px] overflow-y-auto p-2 rounded"
                 style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
               >
-                <div className="flex items-center gap-2">
-                  {entry.success ? (
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-500" />
-                  )}
-                  <span style={{ color: 'var(--color-text-secondary)' }}>
-                    {entry.command}
-                  </span>
-                </div>
-                <span
-                  className="text-xs"
-                  style={{ color: 'var(--color-text-tertiary)' }}
-                >
-                  {entry.timestamp.toLocaleTimeString()}
-                </span>
+                {debugLogs.length === 0 ? (
+                  <p
+                    className="text-center py-4"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    No logs yet. Actions will be logged here.
+                  </p>
+                ) : (
+                  debugLogs.map((log) => (
+                    <DebugLogRow key={log.id} log={log} />
+                  ))
+                )}
               </div>
-            ))
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 // ============================================================================
-// Sequence Tab
+// Debug Log Row Component
 // ============================================================================
 
-interface SequenceTabProps {
-  batchId: string | null;
-}
+function DebugLogRow({ log }: { log: DebugLogEntry }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-function SequenceTab({ batchId }: SequenceTabProps) {
-  const { data: steps, isLoading } = useManualSteps(batchId);
-  const sequenceSteps = useManualControlStore((s) => s.sequenceSteps);
-  const currentStepIndex = useManualControlStore((s) => s.currentStepIndex);
-  const stepOverrides = useManualControlStore((s) => s.stepOverrides);
-  const setStepOverride = useManualControlStore((s) => s.setStepOverride);
+  const levelColors = {
+    info: 'text-blue-400',
+    success: 'text-green-400',
+    warning: 'text-yellow-400',
+    error: 'text-red-400',
+  };
 
-  const runStep = useRunManualStep();
-  const skipStep = useSkipManualStep();
-  const resetSequence = useResetManualSequence();
+  const levelLabels = {
+    info: 'INFO',
+    success: 'PASS',
+    warning: 'WARN',
+    error: 'ERR ',
+  };
 
-  const handleRunStep = (stepName: string) => {
-    if (!batchId) return;
-    runStep.mutate({
-      batchId,
-      stepName,
-      parameters: stepOverrides[stepName],
+  const formatTimestamp = (date: Date) => {
+    const time = date.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     });
+    const ms = String(date.getMilliseconds()).padStart(3, '0');
+    return `${time}.${ms}`;
   };
 
-  const handleSkipStep = (stepName: string) => {
-    if (!batchId) return;
-    skipStep.mutate({ batchId, stepName });
-  };
-
-  const handleReset = () => {
-    if (!batchId) return;
-    resetSequence.mutate(batchId);
-  };
-
-  if (!batchId) {
-    return (
-      <div
-        className="p-8 text-center rounded-lg border"
-        style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-default)',
-        }}
-      >
-        <ListOrdered
-          className="w-12 h-12 mx-auto mb-4"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        />
-        <p style={{ color: 'var(--color-text-tertiary)' }}>
-          Select a batch to view sequence steps
-        </p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return <LoadingOverlay message="Loading sequence steps..." />;
-  }
-
-  const displaySteps = sequenceSteps.length > 0 ? sequenceSteps : steps ?? [];
+  const hasData = log.data !== undefined && log.data !== null;
 
   return (
     <div
-      className="p-4 rounded-lg border"
-      style={{
-        backgroundColor: 'var(--color-bg-secondary)',
-        borderColor: 'var(--color-border-default)',
-      }}
+      className="py-1 border-b last:border-b-0"
+      style={{ borderColor: 'var(--color-border-default)' }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3
-          className="text-lg font-semibold flex items-center gap-2"
+      <div className="flex items-start gap-2">
+        <span style={{ color: 'var(--color-text-tertiary)' }}>{formatTimestamp(log.timestamp)}</span>
+        <span className={cn('font-bold', levelColors[log.level])}>
+          [{levelLabels[log.level]}]
+        </span>
+        <span
+          className="flex-1"
           style={{ color: 'var(--color-text-primary)' }}
         >
-          <ListOrdered className="w-5 h-5" />
-          Manual Sequence Execution
-        </h3>
-        <Button variant="ghost" size="sm" onClick={handleReset}>
-          <RotateCcw className="w-4 h-4 mr-1" />
-          Reset
-        </Button>
+          {log.message}
+        </span>
+        {hasData && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-1 hover:bg-white/10 rounded"
+            style={{ color: 'var(--color-text-tertiary)' }}
+          >
+            {isExpanded ? '[-]' : '[+]'}
+          </button>
+        )}
       </div>
-
-      {displaySteps.length === 0 ? (
-        <p
-          className="text-sm text-center py-8"
-          style={{ color: 'var(--color-text-tertiary)' }}
+      {isExpanded && hasData && (
+        <pre
+          className="mt-1 ml-20 p-2 rounded text-xs overflow-auto max-h-32"
+          style={{
+            backgroundColor: 'var(--color-bg-secondary)',
+            color: 'var(--color-text-secondary)',
+          }}
         >
-          No sequence steps available
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {displaySteps.map((step, index) => (
-            <StepCard
-              key={step.name}
-              step={step}
-              index={index}
-              isCurrent={index === currentStepIndex}
-              overrides={stepOverrides[step.name]}
-              onRun={() => handleRunStep(step.name)}
-              onSkip={() => handleSkipStep(step.name)}
-              onUpdateOverrides={(overrides) =>
-                setStepOverride(step.name, overrides)
-              }
-              isRunning={runStep.isPending}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Bulk Actions */}
-      {displaySteps.length > 0 && (
-        <div className="flex gap-2 mt-4">
-          <Button
-            className="flex-1"
-            onClick={() => {
-              const nextPending = displaySteps.find(
-                (s) => s.status === 'pending'
-              );
-              if (nextPending) {
-                handleRunStep(nextPending.name);
-              }
-            }}
-            disabled={
-              !displaySteps.some((s) => s.status === 'pending') ||
-              runStep.isPending
-            }
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Run Next Step
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={true} // TODO: Implement run all
-          >
-            <FastForward className="w-4 h-4 mr-1" />
-            Run All Remaining
-          </Button>
-        </div>
+          {JSON.stringify(log.data, null, 2)}
+        </pre>
       )}
     </div>
   );
 }
 
 // ============================================================================
-// Step Card Component
+// Manual Test Step Card
 // ============================================================================
 
-interface StepCardProps {
-  step: ManualStepInfo;
+interface ManualTestStepCardProps {
+  step: ManualStepState;
   index: number;
   isCurrent: boolean;
-  overrides?: Record<string, unknown>;
+  canRun: boolean;
+  canSkip: boolean;
   onRun: () => void;
   onSkip: () => void;
-  onUpdateOverrides: (overrides: Record<string, unknown>) => void;
   isRunning: boolean;
 }
 
-function StepCard({
+function ManualTestStepCard({
   step,
   index,
   isCurrent,
-  overrides: _overrides,
+  canRun,
+  canSkip,
   onRun,
   onSkip,
-  onUpdateOverrides: _onUpdateOverrides,
   isRunning,
-}: StepCardProps) {
+}: ManualTestStepCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     pending: 'border-gray-500/30',
     running: 'border-blue-500 bg-blue-500/10',
-    completed: 'border-green-500 bg-green-500/10',
+    passed: 'border-green-500 bg-green-500/10',
     failed: 'border-red-500 bg-red-500/10',
     skipped: 'border-gray-500 bg-gray-500/10',
   };
@@ -770,16 +898,16 @@ function StepCard({
   const StatusIcon = {
     pending: Clock,
     running: Play,
-    completed: CheckCircle,
+    passed: CheckCircle,
     failed: XCircle,
     skipped: SkipForward,
-  }[step.status];
+  }[step.status] ?? Clock;
 
   return (
     <div
       className={cn(
         'p-3 rounded-lg border transition-all',
-        statusColors[step.status],
+        statusColors[step.status] ?? 'border-gray-500/30',
         isCurrent && 'ring-2 ring-brand-500'
       )}
     >
@@ -789,7 +917,7 @@ function StepCard({
             className={cn(
               'w-5 h-5',
               step.status === 'running' && 'animate-pulse',
-              step.status === 'completed' && 'text-green-500',
+              step.status === 'passed' && 'text-green-500',
               step.status === 'failed' && 'text-red-500',
               step.status === 'skipped' && 'text-gray-500'
             )}
@@ -806,63 +934,81 @@ function StepCard({
             >
               {index + 1}. {step.displayName}
             </span>
-            {step.duration !== undefined && (
+            {step.duration > 0 && (
               <span
                 className="ml-2 text-xs"
                 style={{ color: 'var(--color-text-tertiary)' }}
               >
-                {step.duration.toFixed(1)}s
+                {step.duration.toFixed(2)}s
               </span>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {step.status === 'pending' && isCurrent && (
-            <>
-              <Button size="sm" onClick={onRun} isLoading={isRunning}>
-                <Play className="w-3 h-3" />
-              </Button>
-              {step.manual?.skippable && (
-                <Button size="sm" variant="ghost" onClick={onSkip}>
-                  Skip
-                </Button>
-              )}
-            </>
-          )}
-          {step.status === 'failed' && (
-            <Button size="sm" variant="secondary" onClick={onRun}>
-              <RotateCcw className="w-3 h-3 mr-1" />
-              Retry
+          {canRun && (
+            <Button size="sm" onClick={onRun} isLoading={isRunning}>
+              <Play className="w-3 h-3" />
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? <ChevronUp /> : <ChevronDown />}
-          </Button>
+          {canSkip && (
+            <Button size="sm" variant="ghost" onClick={onSkip}>
+              Skip
+            </Button>
+          )}
+          {(step.result || step.error || Object.keys(step.measurements).length > 0) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? <ChevronUp /> : <ChevronDown />}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Expanded Content */}
       {isExpanded && (
         <div
-          className="mt-3 pt-3 border-t"
+          className="mt-3 pt-3 border-t space-y-2"
           style={{ borderColor: 'var(--color-border-default)' }}
         >
-          {step.manual?.prompt && (
-            <p
-              className="text-sm mb-2 italic"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              {step.manual.prompt}
-            </p>
+          {step.error && (
+            <div className="p-2 rounded bg-red-500/10 text-red-400 text-sm">
+              Error: {step.error}
+            </div>
+          )}
+
+          {Object.keys(step.measurements).length > 0 && (
+            <div>
+              <h4
+                className="text-sm font-medium mb-1"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                Measurements
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(step.measurements).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="p-2 rounded text-sm"
+                    style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
+                  >
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>
+                      {key}:
+                    </span>{' '}
+                    <span style={{ color: 'var(--color-text-primary)' }}>
+                      {formatResult(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {step.result && (
-            <div className="mt-2">
+            <div>
               <h4
                 className="text-sm font-medium mb-1"
                 style={{ color: 'var(--color-text-secondary)' }}
@@ -891,108 +1037,107 @@ function StepCard({
 // ============================================================================
 
 interface ParameterInputProps {
-  parameter: CommandParameter;
+  param: ParameterSchema;
   value: unknown;
   onChange: (value: unknown) => void;
 }
 
-function ParameterInput({ parameter, value, onChange }: ParameterInputProps) {
-  switch (parameter.type) {
-    case 'number':
-      return (
-        <div>
-          <label
-            className="block text-sm font-medium mb-1"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            {parameter.displayName}
-            {parameter.unit && (
-              <span className="ml-1 text-xs">({parameter.unit})</span>
-            )}
-          </label>
-          <input
-            type="number"
-            value={value as number ?? parameter.default ?? ''}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            min={parameter.min}
-            max={parameter.max}
-            step="any"
-            className="w-full px-3 py-2 rounded-lg text-sm"
+function ParameterInput({ param, value, onChange }: ParameterInputProps) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const rawValue = e.target.value;
+
+    switch (param.type) {
+      case 'float':
+        onChange(rawValue === '' ? param.default : parseFloat(rawValue));
+        break;
+      case 'integer':
+        onChange(rawValue === '' ? param.default : parseInt(rawValue, 10));
+        break;
+      case 'boolean':
+        onChange(rawValue === 'true');
+        break;
+      default:
+        onChange(rawValue);
+    }
+  };
+
+  const inputClasses = cn(
+    'w-full px-3 py-2 rounded-md text-sm',
+    'border transition-colors',
+    'focus:outline-none focus:ring-2 focus:ring-brand-500/50'
+  );
+
+  const inputStyle = {
+    backgroundColor: 'var(--color-bg-secondary)',
+    borderColor: 'var(--color-border-default)',
+    color: 'var(--color-text-primary)',
+  };
+
+  return (
+    <div className="space-y-1">
+      <label
+        className="text-sm font-medium flex items-center gap-2"
+        style={{ color: 'var(--color-text-secondary)' }}
+      >
+        {param.displayName}
+        {param.unit && (
+          <span
+            className="text-xs px-1.5 py-0.5 rounded"
             style={{
-              backgroundColor: 'var(--color-bg-tertiary)',
-              borderColor: 'var(--color-border-default)',
-              color: 'var(--color-text-primary)',
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: 'var(--color-text-tertiary)',
             }}
-          />
-          {(parameter.min !== undefined || parameter.max !== undefined) && (
-            <p
-              className="text-xs mt-1"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              Range: {parameter.min ?? '-∞'} to {parameter.max ?? '∞'}
-            </p>
-          )}
-        </div>
-      );
-
-    case 'boolean':
-      return (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={value as boolean ?? parameter.default as boolean ?? false}
-            onChange={(e) => onChange(e.target.checked)}
-            className="w-4 h-4 rounded"
-          />
-          <span style={{ color: 'var(--color-text-secondary)' }}>
-            {parameter.displayName}
+          >
+            {param.unit}
           </span>
-        </label>
-      );
+        )}
+      </label>
 
-    case 'select':
-      return (
-        <Select
-          label={parameter.displayName}
-          value={String(value ?? parameter.default ?? '')}
-          onChange={(e) => onChange(e.target.value)}
-          options={
-            parameter.options?.map((opt) => ({
-              value: String(opt.value),
-              label: opt.label,
-            })) ?? []
-          }
+      {param.type === 'boolean' ? (
+        <select
+          className={inputClasses}
+          style={inputStyle}
+          value={String(value)}
+          onChange={handleChange}
+        >
+          <option value="true">True</option>
+          <option value="false">False</option>
+        </select>
+      ) : param.options && param.options.length > 0 ? (
+        <select
+          className={inputClasses}
+          style={inputStyle}
+          value={String(value)}
+          onChange={handleChange}
+        >
+          {param.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={param.type === 'float' || param.type === 'integer' ? 'number' : 'text'}
+          className={inputClasses}
+          style={inputStyle}
+          value={value === null || value === undefined ? '' : String(value)}
+          onChange={handleChange}
+          min={param.min}
+          max={param.max}
+          step={param.type === 'float' ? 'any' : param.type === 'integer' ? 1 : undefined}
+          placeholder={param.description}
         />
-      );
+      )}
 
-    default:
-      return (
-        <Input
-          label={parameter.displayName}
-          value={String(value ?? parameter.default ?? '')}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={parameter.description}
-        />
-      );
-  }
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function formatResult(result: unknown): string {
-  if (typeof result === 'number') {
-    return result.toFixed(4);
-  }
-  if (typeof result === 'boolean') {
-    return result ? 'TRUE' : 'FALSE';
-  }
-  if (typeof result === 'string') {
-    return result;
-  }
-  if (result === null || result === undefined) {
-    return '-';
-  }
-  return JSON.stringify(result);
+      {param.description && (
+        <p
+          className="text-xs"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          {param.description}
+        </p>
+      )}
+    </div>
+  );
 }

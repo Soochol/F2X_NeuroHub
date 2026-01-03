@@ -1,4 +1,4 @@
-import { R as React } from "./vendor-CZPWNuc-.js";
+import { R as React } from "./vendor-Br0po5n5.js";
 const createStoreImpl = (createState) => {
   let state;
   const listeners = /* @__PURE__ */ new Set();

@@ -116,6 +116,12 @@ class ExecutionContext:
     hardware_config: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     parameters: Dict[str, Any] = field(default_factory=dict)
 
+    # Hardware instances (populated at runtime)
+    hardware: Dict[str, Any] = field(default_factory=dict)
+
+    # Execution mode
+    dry_run: bool = False
+
     # Execution state
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None

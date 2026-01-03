@@ -442,6 +442,31 @@ class UpdateCheckResponse(BaseModel):
     installed: bool
 
 
+class SequenceRegistryItem(BaseModel):
+    """Unified sequence registry item combining local and remote info."""
+
+    name: str = Field(..., description="Sequence name")
+    display_name: Optional[str] = Field(None, description="Human-readable name")
+    description: Optional[str] = Field(None, description="Sequence description")
+
+    # Status
+    status: Literal[
+        "installed_latest",  # Installed and up-to-date
+        "update_available",  # Installed but newer version on server
+        "not_installed",     # Available on server, not installed locally
+        "local_only",        # Installed locally, not on server
+    ] = Field(..., description="Installation status")
+
+    # Version info
+    local_version: Optional[str] = Field(None, description="Locally installed version")
+    remote_version: Optional[str] = Field(None, description="Version available on server")
+
+    # Metadata
+    installed_at: Optional[datetime] = Field(None, description="When installed locally")
+    remote_updated_at: Optional[datetime] = Field(None, description="When updated on server")
+    is_active: bool = Field(True, description="Whether sequence is active on server")
+
+
 # ============================================================================
 # Pull Endpoints (Backend Sync)
 # ============================================================================
@@ -694,4 +719,156 @@ async def delete_local_sequence(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete sequence: {str(e)}",
+        )
+
+
+# ============================================================================
+# Registry Endpoint (Unified View)
+# ============================================================================
+
+
+def _is_newer_version(version_a: str, version_b: str) -> bool:
+    """
+    Check if version_a is newer than version_b using semantic versioning.
+
+    Args:
+        version_a: Version to compare (e.g., "1.2.0")
+        version_b: Version to compare against (e.g., "1.1.0")
+
+    Returns:
+        True if version_a is strictly newer than version_b
+    """
+    def parse_version(v: str) -> tuple:
+        """Parse version string into comparable tuple."""
+        parts = v.split(".")
+        result = []
+        for part in parts:
+            try:
+                result.append(int(part))
+            except ValueError:
+                result.append(0)
+        # Pad to 3 parts (major, minor, patch)
+        while len(result) < 3:
+            result.append(0)
+        return tuple(result[:3])
+
+    try:
+        return parse_version(version_a) > parse_version(version_b)
+    except Exception:
+        # Fallback to string comparison if parsing fails
+        return version_a != version_b
+
+
+@router.get(
+    "/registry",
+    response_model=ApiResponse[List[SequenceRegistryItem]],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get sequence registry",
+    description="""
+    Get unified registry of all sequences (local and remote).
+
+    Returns combined view with status indicating:
+    - installed_latest: Installed and matches server version
+    - update_available: Installed but newer version on server
+    - not_installed: Available on server, not installed locally
+    - local_only: Installed locally, not available on server
+    """,
+)
+async def get_sequence_registry(
+    sync_service: SequenceSyncService = Depends(get_sync_service),
+) -> ApiResponse[List[SequenceRegistryItem]]:
+    """
+    Get unified sequence registry.
+    """
+    try:
+        registry: List[SequenceRegistryItem] = []
+
+        # Get local sequences
+        local_sequences = {s.name: s for s in sync_service.list_local_sequences()}
+
+        # Try to get remote sequences
+        remote_sequences = {}
+        backend_available = True
+        try:
+            available = await sync_service.list_available_sequences()
+            remote_sequences = {s.name: s for s in available}
+        except Exception as e:
+            logger.warning(f"Could not fetch remote sequences: {e}")
+            backend_available = False
+
+        # Process remote sequences
+        for name, remote in remote_sequences.items():
+            local = local_sequences.pop(name, None)
+
+            if local:
+                # Installed - check if update available using semantic version comparison
+                if _is_newer_version(remote.version, local.version):
+                    status_val = "update_available"
+                else:
+                    status_val = "installed_latest"
+
+                registry.append(SequenceRegistryItem(
+                    name=name,
+                    display_name=remote.display_name or name,
+                    description=remote.description,
+                    status=status_val,
+                    local_version=local.version,
+                    remote_version=remote.version,
+                    installed_at=local.installed_at,
+                    is_active=remote.is_active,
+                ))
+            else:
+                # Not installed
+                registry.append(SequenceRegistryItem(
+                    name=name,
+                    display_name=remote.display_name or name,
+                    description=remote.description,
+                    status="not_installed",
+                    local_version=None,
+                    remote_version=remote.version,
+                    is_active=remote.is_active,
+                ))
+
+        # Process remaining local-only sequences
+        for name, local in local_sequences.items():
+            registry.append(SequenceRegistryItem(
+                name=name,
+                display_name=name,
+                description=None,
+                status="local_only",
+                local_version=local.version,
+                remote_version=None,
+                installed_at=local.installed_at,
+                is_active=True,
+            ))
+
+        # Sort: updates first, then installed, then not installed
+        status_order = {
+            "update_available": 0,
+            "installed_latest": 1,
+            "local_only": 2,
+            "not_installed": 3,
+        }
+        registry.sort(key=lambda x: (status_order.get(x.status, 99), x.name))
+
+        # Build message
+        installed_count = sum(1 for r in registry if r.status in ("installed_latest", "update_available", "local_only"))
+        update_count = sum(1 for r in registry if r.status == "update_available")
+
+        if not backend_available:
+            message = f"{installed_count} local sequences (backend unavailable)"
+        elif update_count > 0:
+            message = f"{len(registry)} sequences, {update_count} updates available"
+        else:
+            message = f"{len(registry)} sequences, all up-to-date"
+
+        return ApiResponse(success=True, data=registry, message=message)
+
+    except Exception as e:
+        logger.exception(f"Failed to get registry: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get registry: {str(e)}",
         )

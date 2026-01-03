@@ -4,7 +4,22 @@ Backward compatibility decorators for legacy sequence patterns.
 This module provides decorators that were previously in station_service.sequence.decorators.
 It allows existing sequences using the decorator pattern to continue working with the new SDK.
 
-Usage:
+DEPRECATION NOTICE:
+    These decorators are deprecated in favor of the SequenceBase class pattern.
+    Please migrate to the new SDK pattern:
+
+    # Old (deprecated):
+    @sequence(name="my_test")
+    class MyTestSequence:
+        @step(order=1)
+        async def test_something(self): ...
+
+    # New (recommended):
+    class MyTestSequence(SequenceBase):
+        name = "my_test"
+        async def run(self) -> dict: ...
+
+Usage (deprecated):
     from station_service.sdk.decorators import sequence, step, parameter
 
     @sequence(name="my_test", description="My test sequence")
@@ -14,24 +29,33 @@ Usage:
             return {"status": "passed"}
 """
 
+import warnings
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Callable, Optional, TypeVar, Union
 
+from .types import StepMeta
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-@dataclass
-class StepMeta:
-    """Metadata for a step method."""
-
-    name: str
-    order: int
-    timeout: float = 60.0
-    retry: int = 0
-    cleanup: bool = False
-    condition: Optional[str] = None
-    description: str = ""
+# Re-export StepMeta for backward compatibility
+# New code should import from .types directly
+__all__ = [
+    "StepMeta",
+    "ParameterMeta",
+    "SequenceMeta",
+    "sequence",
+    "step",
+    "parameter",
+    "get_sequence_meta",
+    "get_step_meta",
+    "get_parameter_meta",
+    "is_step_method",
+    "is_parameter_method",
+    "collect_steps_from_decorated_class",
+    "collect_parameters_from_decorated_class",
+]
 
 
 @dataclass
@@ -61,6 +85,9 @@ def sequence(
     """
     Decorator to mark a class as a sequence.
 
+    .. deprecated::
+        Use SequenceBase class instead. This decorator will be removed in v3.0.
+
     Args:
         name: Unique identifier for the sequence
         description: Human-readable description
@@ -71,6 +98,13 @@ def sequence(
     """
 
     def decorator(cls: type) -> type:
+        warnings.warn(
+            f"@sequence decorator is deprecated. "
+            f"Migrate '{name}' to SequenceBase class pattern. "
+            f"See SDK documentation for migration guide.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
         cls._sequence_meta = SequenceMeta(
             name=name,
             description=description,
@@ -99,6 +133,10 @@ def step(
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as a test step.
+
+    .. deprecated::
+        Use SequenceBase with emit_step_start/emit_step_complete instead.
+        This decorator will be removed in v3.0.
 
     Args:
         order: Execution order (lower numbers run first)

@@ -113,7 +113,7 @@ export interface BatchStepResult {
 
 export interface BatchStatistics {
   total: number;
-  pass: number;
+  passCount: number;
   fail: number;
   passRate: number;
 }

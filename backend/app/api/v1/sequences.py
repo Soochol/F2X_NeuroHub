@@ -7,14 +7,14 @@ to Station Services.
 
 import io
 import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_async_db, get_station_auth, StationAuth
+from app.api.deps import get_current_user, get_async_db, get_station_auth, get_auth_context, StationAuth
 from app.crud.sequence import sequence_crud
 from app.models.sequence import Sequence
 from app.models.user import User, UserRole
@@ -174,12 +174,13 @@ async def list_sequences(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    auth: Union[User, StationAuth] = Depends(get_auth_context),
 ) -> Dict[str, Any]:
     """
     List all sequences with filtering and pagination.
 
     Returns list of sequences with total count.
+    Supports both JWT Bearer token (user) and X-API-Key (station) authentication.
     """
     params = SequenceListParams(
         is_active=is_active,
@@ -204,9 +205,9 @@ async def list_sequences(
 async def get_sequence(
     sequence_name: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    auth: Union[User, StationAuth] = Depends(get_auth_context),
 ) -> SequenceResponse:
-    """Get sequence details by name."""
+    """Get sequence details by name. Supports JWT and X-API-Key authentication."""
     sequence = await get_sequence_or_404(db, sequence_name=sequence_name)
     return SequenceResponse.model_validate(sequence)
 
@@ -216,9 +217,9 @@ async def get_sequence_versions(
     sequence_name: str,
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user),
+    auth: Union[User, StationAuth] = Depends(get_auth_context),
 ) -> List[SequenceVersionResponse]:
-    """Get version history for a sequence."""
+    """Get version history for a sequence. Supports JWT and X-API-Key authentication."""
     sequence = await get_sequence_or_404(db, sequence_name=sequence_name)
     versions = await sequence_crud.get_versions(db, sequence.id, limit=limit)
     return [SequenceVersionResponse.model_validate(v) for v in versions]
@@ -300,10 +301,13 @@ async def upload_sequence(
                 message="Package unchanged (same checksum)",
             )
 
+        # Auto-increment version (ignore manifest version)
+        new_version = sequence_crud.increment_version(existing.version)
+
         sequence, version = await sequence_crud.update_package(
             db,
             existing,
-            version=manifest.version,
+            version=new_version,
             package_data=package_data,
             checksum=checksum,
             package_size=package_size,
@@ -325,15 +329,15 @@ async def upload_sequence(
             package_size=package_size,
             is_new=False,
             previous_version=previous_version,
-            message=f"Updated from v{previous_version} to v{sequence.version}",
+            message=f"Updated from v{previous_version} to v{sequence.version} (auto-versioned)",
         )
 
     else:
-        # Create new sequence
+        # Create new sequence - always start at 1.0.0
         sequence = await sequence_crud.create(
             db,
             name=manifest.name,
-            version=manifest.version,
+            version="1.0.0",
             package_data=package_data,
             checksum=checksum,
             package_size=package_size,

@@ -509,3 +509,323 @@ class ExecutionRepository:
             "DELETE FROM step_results WHERE execution_id = ?",
             (execution_id,),
         )
+
+    # ==================== Report Aggregation Queries ====================
+
+    async def get_batch_statistics(self, batch_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get aggregated statistics for a batch.
+
+        Args:
+            batch_id: Batch ID.
+
+        Returns:
+            Dict with total_executions, pass_count, fail_count, avg_duration,
+            first_execution, last_execution, sequence_name, sequence_version.
+        """
+        row = await self._db.fetch_one(
+            """
+            SELECT
+                COUNT(*) as total_executions,
+                SUM(CASE WHEN overall_pass = 1 THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN overall_pass = 0 OR overall_pass IS NULL THEN 1 ELSE 0 END) as fail_count,
+                AVG(duration) as avg_duration,
+                MIN(started_at) as first_execution,
+                MAX(started_at) as last_execution,
+                sequence_name,
+                sequence_version
+            FROM execution_results
+            WHERE batch_id = ? AND status IN ('completed', 'failed')
+            GROUP BY batch_id
+            """,
+            (batch_id,),
+        )
+        return dict(row) if row else None
+
+    async def get_step_statistics_by_batch(self, batch_id: str) -> list[dict[str, Any]]:
+        """
+        Get per-step statistics for a batch.
+
+        Args:
+            batch_id: Batch ID.
+
+        Returns:
+            List of dicts with step_name, step_order, total_runs, pass_count,
+            fail_count, avg_duration, min_duration, max_duration.
+        """
+        rows = await self._db.fetch_all(
+            """
+            SELECT
+                sr.step_name,
+                sr.step_order,
+                COUNT(*) as total_runs,
+                SUM(CASE WHEN sr.pass = 1 THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN sr.pass = 0 OR sr.pass IS NULL THEN 1 ELSE 0 END) as fail_count,
+                AVG(sr.duration) as avg_duration,
+                MIN(sr.duration) as min_duration,
+                MAX(sr.duration) as max_duration
+            FROM step_results sr
+            JOIN execution_results er ON sr.execution_id = er.id
+            WHERE er.batch_id = ? AND sr.status IN ('completed', 'failed')
+            GROUP BY sr.step_name, sr.step_order
+            ORDER BY sr.step_order
+            """,
+            (batch_id,),
+        )
+        return [dict(row) for row in rows]
+
+    async def get_period_statistics(
+        self,
+        period_type: str,
+        from_date: datetime,
+        to_date: datetime,
+        batch_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get statistics grouped by time period.
+
+        Args:
+            period_type: Period type (daily, weekly, monthly).
+            from_date: Start date.
+            to_date: End date.
+            batch_id: Optional batch filter.
+
+        Returns:
+            List of dicts with period_label, total, pass_count, fail_count, avg_duration.
+        """
+        # SQLite strftime format for grouping
+        period_format = {
+            "daily": "%Y-%m-%d",
+            "weekly": "%Y-W%W",
+            "monthly": "%Y-%m",
+        }
+        fmt = period_format.get(period_type, "%Y-%m-%d")
+
+        where_clause = "WHERE started_at >= ? AND started_at <= ? AND status IN ('completed', 'failed')"
+        params: list[Any] = [from_date.isoformat(), to_date.isoformat()]
+
+        if batch_id:
+            where_clause += " AND batch_id = ?"
+            params.append(batch_id)
+
+        query = f"""
+            SELECT
+                strftime('{fmt}', started_at) as period_label,
+                MIN(started_at) as period_start,
+                MAX(started_at) as period_end,
+                COUNT(*) as total,
+                SUM(CASE WHEN overall_pass = 1 THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN overall_pass = 0 OR overall_pass IS NULL THEN 1 ELSE 0 END) as fail_count,
+                AVG(duration) as avg_duration
+            FROM execution_results
+            {where_clause}
+            GROUP BY period_label
+            ORDER BY period_label
+        """
+
+        rows = await self._db.fetch_all(query, params)
+        return [dict(row) for row in rows]
+
+    async def get_step_analysis(
+        self,
+        from_date: Optional[datetime] = None,
+        to_date: Optional[datetime] = None,
+        batch_id: Optional[str] = None,
+        step_name: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get step-level analysis sorted by failure rate.
+
+        Args:
+            from_date: Optional start date filter.
+            to_date: Optional end date filter.
+            batch_id: Optional batch filter.
+            step_name: Optional step name filter.
+
+        Returns:
+            List of dicts with step_name, total_runs, fail_count, fail_rate,
+            avg_duration, min_duration, max_duration.
+        """
+        where_clauses = ["sr.status IN ('completed', 'failed')"]
+        params: list[Any] = []
+
+        if from_date:
+            where_clauses.append("er.started_at >= ?")
+            params.append(from_date.isoformat())
+        if to_date:
+            where_clauses.append("er.started_at <= ?")
+            params.append(to_date.isoformat())
+        if batch_id:
+            where_clauses.append("er.batch_id = ?")
+            params.append(batch_id)
+        if step_name:
+            where_clauses.append("sr.step_name = ?")
+            params.append(step_name)
+
+        where_clause = " AND ".join(where_clauses)
+
+        query = f"""
+            SELECT
+                sr.step_name,
+                COUNT(*) as total_runs,
+                SUM(CASE WHEN sr.pass = 0 OR sr.pass IS NULL THEN 1 ELSE 0 END) as fail_count,
+                AVG(sr.duration) as avg_duration,
+                MIN(sr.duration) as min_duration,
+                MAX(sr.duration) as max_duration
+            FROM step_results sr
+            JOIN execution_results er ON sr.execution_id = er.id
+            WHERE {where_clause}
+            GROUP BY sr.step_name
+            ORDER BY (CAST(fail_count AS REAL) / NULLIF(total_runs, 0)) DESC
+        """
+
+        rows = await self._db.fetch_all(query, params)
+        return [dict(row) for row in rows]
+
+    async def get_step_durations(
+        self,
+        step_name: str,
+        from_date: Optional[datetime] = None,
+        to_date: Optional[datetime] = None,
+        batch_id: Optional[str] = None,
+    ) -> list[float]:
+        """
+        Get all durations for a step (for percentile calculation).
+
+        Args:
+            step_name: Step name.
+            from_date: Optional start date filter.
+            to_date: Optional end date filter.
+            batch_id: Optional batch filter.
+
+        Returns:
+            List of duration values.
+        """
+        where_clauses = [
+            "sr.step_name = ?",
+            "sr.status IN ('completed', 'failed')",
+            "sr.duration IS NOT NULL",
+        ]
+        params: list[Any] = [step_name]
+
+        if from_date:
+            where_clauses.append("er.started_at >= ?")
+            params.append(from_date.isoformat())
+        if to_date:
+            where_clauses.append("er.started_at <= ?")
+            params.append(to_date.isoformat())
+        if batch_id:
+            where_clauses.append("er.batch_id = ?")
+            params.append(batch_id)
+
+        where_clause = " AND ".join(where_clauses)
+
+        query = f"""
+            SELECT sr.duration
+            FROM step_results sr
+            JOIN execution_results er ON sr.execution_id = er.id
+            WHERE {where_clause}
+            ORDER BY sr.duration
+        """
+
+        rows = await self._db.fetch_all(query, params)
+        return [row["duration"] for row in rows if row["duration"] is not None]
+
+    async def get_failure_reasons_by_step(
+        self,
+        step_name: str,
+        from_date: Optional[datetime] = None,
+        to_date: Optional[datetime] = None,
+        batch_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """
+        Get aggregated failure reasons for a step.
+
+        Args:
+            step_name: Step name.
+            from_date: Optional start date filter.
+            to_date: Optional end date filter.
+            batch_id: Optional batch filter.
+            limit: Maximum number of reasons to return.
+
+        Returns:
+            List of dicts with error, occurrence_count.
+        """
+        where_clauses = [
+            "sr.step_name = ?",
+            "sr.pass = 0",
+            "sr.error IS NOT NULL",
+            "sr.error != ''",
+        ]
+        params: list[Any] = [step_name]
+
+        if from_date:
+            where_clauses.append("er.started_at >= ?")
+            params.append(from_date.isoformat())
+        if to_date:
+            where_clauses.append("er.started_at <= ?")
+            params.append(to_date.isoformat())
+        if batch_id:
+            where_clauses.append("er.batch_id = ?")
+            params.append(batch_id)
+
+        where_clause = " AND ".join(where_clauses)
+        params.append(limit)
+
+        query = f"""
+            SELECT
+                sr.error,
+                COUNT(*) as occurrence_count
+            FROM step_results sr
+            JOIN execution_results er ON sr.execution_id = er.id
+            WHERE {where_clause}
+            GROUP BY sr.error
+            ORDER BY occurrence_count DESC
+            LIMIT ?
+        """
+
+        rows = await self._db.fetch_all(query, params)
+        return [dict(row) for row in rows]
+
+    async def get_multiple_executions_with_steps(
+        self,
+        result_ids: list[str],
+    ) -> list[dict[str, Any]]:
+        """
+        Get multiple execution results with their steps for bulk export.
+
+        Args:
+            result_ids: List of execution IDs.
+
+        Returns:
+            List of execution results with steps.
+        """
+        if not result_ids:
+            return []
+
+        placeholders = ",".join("?" * len(result_ids))
+        rows = await self._db.fetch_all(
+            f"""
+            SELECT * FROM execution_results
+            WHERE id IN ({placeholders})
+            ORDER BY started_at DESC
+            """,
+            result_ids,
+        )
+
+        results = []
+        for row in rows:
+            execution = dict(row)
+            if execution.get("parameters_json"):
+                execution["parameters"] = json.loads(execution["parameters_json"])
+            else:
+                execution["parameters"] = {}
+            del execution["parameters_json"]
+
+            # Get steps for this execution
+            steps = await self.get_step_results(execution["id"])
+            execution["steps"] = steps
+            results.append(execution)
+
+        return results

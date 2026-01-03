@@ -80,6 +80,11 @@ export function isErrorWithMessage(error: unknown): error is { message: string }
 
 /**
  * Extract error message from unknown error.
+ * Handles:
+ * - Error objects with .message
+ * - String errors
+ * - API responses with .detail
+ * - Axios errors with .response.data.detail
  */
 export function getErrorMessage(error: unknown): string {
   if (isErrorWithMessage(error)) {
@@ -87,6 +92,26 @@ export function getErrorMessage(error: unknown): string {
   }
   if (typeof error === 'string') {
     return error;
+  }
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+    // Handle API error with detail field
+    if ('detail' in err && typeof err.detail === 'string') {
+      return err.detail;
+    }
+    // Handle Axios error response
+    if ('response' in err && err.response && typeof err.response === 'object') {
+      const response = err.response as Record<string, unknown>;
+      if ('data' in response && response.data && typeof response.data === 'object') {
+        const data = response.data as Record<string, unknown>;
+        if ('detail' in data && typeof data.detail === 'string') {
+          return data.detail;
+        }
+        if ('message' in data && typeof data.message === 'string') {
+          return data.message;
+        }
+      }
+    }
   }
   return 'An unknown error occurred';
 }

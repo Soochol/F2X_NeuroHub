@@ -138,6 +138,7 @@ class BatchDetail(APIBaseModel):
         parameters: Runtime parameters
         hardware: Hardware device statuses
         execution: Current execution state
+        last_run_passed: Result of last completed execution (True=pass, False=fail, None=no execution)
         process_id: Associated process ID for 착공/완공 tracking
         header_id: Process header ID for linking to existing header
     """
@@ -148,6 +149,7 @@ class BatchDetail(APIBaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Runtime parameters")
     hardware: Dict[str, HardwareStatus] = Field(default_factory=dict, description="Hardware statuses")
     execution: BatchExecution = Field(..., description="Current execution state")
+    last_run_passed: Optional[bool] = Field(None, description="Result of last completed execution (True=pass, False=fail, None=no execution)")
     process_id: Optional[int] = Field(None, description="Associated process ID (1-8) for 착공/완공 tracking")
     header_id: Optional[int] = Field(None, description="Process header ID for linking to existing header")
 

@@ -36,6 +36,7 @@ const AdminProductsPage = lazy(() => import('./pages/AdminPage').then(module => 
 const AdminProductionLinesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProductionLineManagement })));
 const SerialInspectorPage = lazy(() => import('./pages/admin/SerialInspectorPage').then(module => ({ default: module.SerialInspectorPage })));
 const LotMonitorPage = lazy(() => import('./pages/admin/LotMonitorPage').then(module => ({ default: module.LotMonitorPage })));
+const AdminSequencesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.SequenceManagement })));
 
 // Quality Pages
 const ProcessDefectRatePage = lazy(() => import('./pages/ProcessDefectRatePage').then(module => ({ default: module.ProcessDefectRatePage })));
@@ -133,6 +134,7 @@ function AppContent() {
                   <Route path="/admin/products" element={<AdminProductsPage />} />
                   <Route path="/admin/production-lines" element={<AdminProductionLinesPage />} />
                   <Route path="/admin/equipment" element={<AdminEquipmentPage />} />
+                  <Route path="/admin/sequences" element={<AdminSequencesPage />} />
                   <Route path="/admin/serial-inspector" element={<SerialInspectorPage />} />
                   <Route path="/admin/lot-monitor" element={<LotMonitorPage />} />
 

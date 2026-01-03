@@ -175,13 +175,28 @@ async def lifespan(app: FastAPI):
         config = load_config()
         logger.info(f"Loaded config for station: {config.station.name}")
 
-        # Compute paths
+        # Compute paths from config
         project_root = Path(__file__).parent.parent
-        sequences_dir = project_root / "sequences"
-        db_path = Path("data/station.db")
 
-        # Ensure data directory exists
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Resolve sequences_dir (can be relative or absolute)
+        sequences_dir_config = config.paths.sequences_dir
+        if Path(sequences_dir_config).is_absolute():
+            sequences_dir = Path(sequences_dir_config)
+        else:
+            sequences_dir = project_root / sequences_dir_config
+
+        # Resolve data_dir
+        data_dir_config = config.paths.data_dir
+        if Path(data_dir_config).is_absolute():
+            data_dir = Path(data_dir_config)
+        else:
+            data_dir = project_root / data_dir_config
+
+        db_path = data_dir / "station.db"
+
+        # Ensure directories exist
+        sequences_dir.mkdir(parents=True, exist_ok=True)
+        data_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize container with all services
         _container = ServiceContainer()

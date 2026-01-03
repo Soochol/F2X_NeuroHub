@@ -43,6 +43,7 @@ Usage:
 """
 
 import asyncio
+import logging
 import sys
 import traceback
 from abc import ABC, abstractmethod
@@ -55,6 +56,9 @@ from .context import ExecutionContext, Measurement
 from .protocol import OutputProtocol
 from .exceptions import SequenceError, SetupError, TeardownError, AbortError
 from .interfaces import OutputStrategy, LifecycleHook, CompositeHook
+from .types import RunResult, ExecutionResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -352,17 +356,25 @@ class SequenceBase(ABC):
         pass
 
     @abstractmethod
-    async def run(self) -> Dict[str, Any]:
+    async def run(self) -> RunResult:
         """
         Execute the main sequence logic.
 
         Should execute all test steps and collect measurements.
 
         Returns:
-            Result dict with at least:
-            - passed: bool
+            RunResult TypedDict with:
+            - passed: bool (required)
             - measurements: dict (optional)
             - data: dict (optional)
+
+        Example:
+            async def run(self) -> RunResult:
+                return {
+                    "passed": True,
+                    "measurements": {"voltage": 3.3},
+                    "data": {"serial": "ABC123"},
+                }
 
         Raises:
             SequenceError: If execution fails
@@ -421,9 +433,12 @@ class SequenceBase(ABC):
         self._output.status("running", progress, step_name, f"Step {index}/{total}")
         self._output.step_start(step_name, index, total, description)
 
-        # Call hook (fire and forget - don't await in sync method)
+        # Call hook with error logging (fire and forget pattern with error handling)
         asyncio.create_task(
-            self._hooks.on_step_start(self.context, step_name, index, total)
+            self._safe_call_hook(
+                self._hooks.on_step_start(self.context, step_name, index, total),
+                "on_step_start",
+            )
         )
 
     def emit_step_complete(
@@ -473,10 +488,13 @@ class SequenceBase(ABC):
             data=data,
         )
 
-        # Call hook (fire and forget)
+        # Call hook with error logging
         asyncio.create_task(
-            self._hooks.on_step_complete(
-                self.context, step_name, index, passed, duration, error
+            self._safe_call_hook(
+                self._hooks.on_step_complete(
+                    self.context, step_name, index, passed, duration, error
+                ),
+                "on_step_complete",
             )
         )
 
@@ -525,8 +543,13 @@ class SequenceBase(ABC):
             step_name=self._current_step,
         )
 
-        # Call hook (fire and forget)
-        asyncio.create_task(self._hooks.on_measurement(self.context, measurement))
+        # Call hook with error logging
+        asyncio.create_task(
+            self._safe_call_hook(
+                self._hooks.on_measurement(self.context, measurement),
+                "on_measurement",
+            )
+        )
 
     def emit_error(
         self,
@@ -548,6 +571,35 @@ class SequenceBase(ABC):
             step=self._current_step,
             recoverable=recoverable,
         )
+
+    # =========================================================================
+    # Internal Helpers
+    # =========================================================================
+
+    async def _safe_call_hook(self, coro, hook_name: str) -> None:
+        """
+        Safely call an async hook with error logging.
+
+        Hooks should not interrupt sequence execution, so errors are logged
+        but not re-raised.
+
+        Args:
+            coro: The coroutine to await
+            hook_name: Name of the hook for error messages
+        """
+        try:
+            await coro
+        except Exception as e:
+            logger.warning(
+                f"Hook '{hook_name}' raised exception: {e}",
+                exc_info=True,
+            )
+            # Emit error but don't fail the sequence
+            self._output.log(
+                "warning",
+                f"Hook error in {hook_name}: {str(e)}",
+                hook=hook_name,
+            )
 
     # =========================================================================
     # User Input (Manual Control)

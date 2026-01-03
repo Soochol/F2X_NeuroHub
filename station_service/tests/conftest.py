@@ -332,3 +332,180 @@ async def wait_for_condition(
         await asyncio.sleep(interval)
         elapsed += interval
     return False
+
+
+# ============================================================
+# Manual Sequence Testing Fixtures
+# ============================================================
+
+
+@pytest.fixture
+def mock_driver():
+    """Mock 드라이버."""
+    driver = AsyncMock()
+    driver.connect = AsyncMock(return_value=True)
+    driver.disconnect = AsyncMock()
+    driver.connected = True
+    driver.ping = AsyncMock(return_value={"status": "ok"})
+    driver.get_sensor_list = AsyncMock(return_value=["sensor1", "sensor2"])
+    return driver
+
+
+@pytest.fixture
+def mock_sequence():
+    """Mock 시퀀스 클래스."""
+    class MockSequence:
+        async def setup(self, hw):
+            pass
+
+        async def teardown(self, hw):
+            pass
+
+        async def initialize(self, hw):
+            return {"initialized": True}
+
+        async def test_step(self, hw):
+            return {"test": "passed", "value": 42}
+
+        async def finalize(self, hw):
+            return {"finalized": True}
+
+    return MockSequence
+
+
+@pytest.fixture
+def mock_manifest():
+    """Mock manifest for manual sequence."""
+    return {
+        "name": "test_sequence",
+        "display_name": "Test Sequence",
+        "version": "1.0.0",
+        "hardware": {
+            "test_device": {
+                "display_name": "Test Device",
+                "driver": "test_driver.TestDriver",
+                "config": {"port": "/dev/ttyUSB0"},
+            }
+        },
+        "steps": [
+            {
+                "name": "initialize",
+                "display_name": "Initialize",
+                "method": "initialize",
+                "order": 1,
+                "skippable": False,
+            },
+            {
+                "name": "test_step",
+                "display_name": "Test Step",
+                "method": "test_step",
+                "order": 2,
+                "skippable": True,
+            },
+            {
+                "name": "finalize",
+                "display_name": "Finalize",
+                "method": "finalize",
+                "order": 3,
+                "skippable": False,
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def mock_executor():
+    """Mock ManualSequenceExecutor."""
+    from station_service.sdk.manual_executor import (
+        ManualSession,
+        ManualSessionStatus,
+        ManualStepState,
+        ManualStepStatus,
+        HardwareState,
+        CommandResult,
+    )
+
+    executor = MagicMock()
+
+    # Default session
+    mock_session = ManualSession(
+        id="test-session-123",
+        sequence_name="test_sequence",
+        sequence_version="1.0.0",
+        status=ManualSessionStatus.CREATED,
+        steps=[
+            ManualStepState(
+                name="initialize",
+                display_name="Initialize",
+                order=1,
+                skippable=False,
+            ),
+            ManualStepState(
+                name="test_step",
+                display_name="Test Step",
+                order=2,
+                skippable=True,
+            ),
+        ],
+        hardware=[
+            HardwareState(
+                id="test_device",
+                display_name="Test Device",
+            )
+        ],
+    )
+
+    executor.create_session = AsyncMock(return_value=mock_session)
+    executor.get_session = AsyncMock(return_value=mock_session)
+    executor.list_sessions = AsyncMock(return_value=[mock_session])
+    executor.delete_session = AsyncMock(return_value=True)
+    executor.initialize_session = AsyncMock(return_value=mock_session)
+    executor.finalize_session = AsyncMock(return_value=mock_session)
+    executor.abort_session = AsyncMock(return_value=mock_session)
+    executor.run_step = AsyncMock(
+        return_value=ManualStepState(
+            name="test_step",
+            display_name="Test Step",
+            order=1,
+            skippable=True,
+            status=ManualStepStatus.PASSED,
+            duration=0.5,
+            result={"test": "passed"},
+        )
+    )
+    executor.skip_step = AsyncMock(
+        return_value=ManualStepState(
+            name="test_step",
+            display_name="Test Step",
+            order=1,
+            skippable=True,
+            status=ManualStepStatus.SKIPPED,
+        )
+    )
+    executor.execute_hardware_command = AsyncMock(
+        return_value=CommandResult(
+            success=True,
+            hardware_id="test_device",
+            command="ping",
+            result={"status": "ok"},
+            duration=0.05,
+        )
+    )
+    executor.get_hardware_commands = AsyncMock(
+        return_value=[
+            {"name": "ping", "display_name": "Ping", "parameters": []},
+            {"name": "reset", "display_name": "Reset", "parameters": []},
+        ]
+    )
+
+    return executor
+
+
+@pytest_asyncio.fixture
+async def async_client(test_app):
+    """비동기 테스트 클라이언트."""
+    from httpx import AsyncClient, ASGITransport
+
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

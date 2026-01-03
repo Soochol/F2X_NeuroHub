@@ -17,6 +17,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Activity,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../../constants';
@@ -46,6 +47,7 @@ const navSections: NavSection[] = [
     items: [
       { path: ROUTES.SEQUENCES, label: 'Sequences', icon: GitBranch },
       { path: ROUTES.MANUAL, label: 'Manual Control', icon: Wrench },
+      { path: ROUTES.RESULTS, label: 'Results', icon: ClipboardList },
     ],
   },
   {

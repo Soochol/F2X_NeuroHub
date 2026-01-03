@@ -135,49 +135,58 @@ export interface SequenceUpdateResponse {
   updatedAt: string;
 }
 
+// ============================================================================
+// Registry Types (for unified local/remote view)
+// ============================================================================
+
 /**
- * Validation error detail.
+ * Sequence installation status.
  */
-export interface ValidationErrorDetail {
-  field: string;
-  message: string;
+export type SequenceStatus =
+  | 'installed_latest'    // Installed and up-to-date
+  | 'update_available'    // Installed but newer version on server
+  | 'not_installed'       // Available on server, not installed locally
+  | 'local_only';         // Installed locally, not on server
+
+/**
+ * Unified sequence registry item combining local and remote info.
+ */
+export interface SequenceRegistryItem {
+  /** Sequence name */
+  name: string;
+  /** Human-readable name */
+  displayName?: string;
+  /** Sequence description */
+  description?: string;
+
+  /** Installation status */
+  status: SequenceStatus;
+
+  /** Locally installed version */
+  localVersion?: string;
+  /** Version available on server */
+  remoteVersion?: string;
+
+  /** When installed locally */
+  installedAt?: string;
+  /** When updated on server */
+  remoteUpdatedAt?: string;
+  /** Whether sequence is active on server */
+  isActive: boolean;
 }
 
 /**
- * Result of sequence validation.
+ * Response for pull operation.
  */
-export interface ValidationResult {
-  valid: boolean;
-  errors?: ValidationErrorDetail[];
-  warnings?: string[];
-  manifest?: {
-    name: string;
-    version: string;
-    displayName?: string;
-    description?: string;
-  };
-}
-
-/**
- * Response for sequence upload operation.
- */
-export interface SequenceUploadResponse {
+export interface PullResult {
   name: string;
   version: string;
-  path: string;
-  hardware: string[];
-  parameters: string[];
-  uploaded_at: string;
-}
-
-/**
- * State for upload progress tracking.
- */
-export interface UploadProgress {
-  stage: 'idle' | 'validating' | 'uploading' | 'complete' | 'error';
-  progress: number;
-  message: string;
+  checksum: string;
+  packageSize: number;
+  needsUpdate: boolean;
+  updated: boolean;
   error?: string;
+  installedAt?: string;
 }
 
 // ============================================================================

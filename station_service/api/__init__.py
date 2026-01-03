@@ -17,9 +17,12 @@ from station_service.api.routes import (
     deploy_router,
     logs_router,
     manual_router,
+    manual_sequence_router,
+    reports_router,
     results_router,
     sequences_router,
     sequence_upload_router,
+    simulation_router,
     system_router,
 )
 
@@ -65,6 +68,9 @@ def create_app(
     app.include_router(results_router)
     app.include_router(logs_router)
     app.include_router(manual_router)
+    app.include_router(simulation_router)
+    app.include_router(manual_sequence_router)
+    app.include_router(reports_router)
 
     return app
 
@@ -75,8 +81,11 @@ __all__ = [
     "deploy_router",
     "logs_router",
     "manual_router",
+    "manual_sequence_router",
+    "reports_router",
     "results_router",
     "sequences_router",
     "sequence_upload_router",
+    "simulation_router",
     "system_router",
 ]

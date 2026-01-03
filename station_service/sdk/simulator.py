@@ -15,8 +15,117 @@ if TYPE_CHECKING:
     from .manifest import SequenceManifest
 
 from .helpers import collect_steps
+from .context import ExecutionContext
+from .base import SequenceBase
+from .interfaces import OutputStrategy
 
 logger = logging.getLogger(__name__)
+
+
+class DryRunOutputStrategy(OutputStrategy):
+    """
+    Output strategy that captures output for dry run results.
+
+    Collects step results and measurements without printing to stdout.
+    """
+
+    def __init__(self):
+        self.step_results: List[Dict[str, Any]] = []
+        self.measurements: Dict[str, Any] = {}
+        self.logs: List[Dict[str, Any]] = []
+        self.errors: List[Dict[str, Any]] = []
+        self._current_step: Optional[Dict[str, Any]] = None
+
+    def log(self, level: str, message: str, **extra: Any) -> None:
+        self.logs.append({"level": level, "message": message, **extra})
+
+    def status(self, status: str, progress: float, step: Optional[str] = None, message: Optional[str] = None) -> None:
+        pass  # Ignore status updates for dry run
+
+    def step_start(self, step_name: str, index: int, total: int, description: str = "") -> None:
+        self._current_step = {
+            "name": step_name,
+            "index": index,
+            "total": total,
+            "description": description,
+            "started_at": datetime.now().isoformat(),
+        }
+
+    def step_complete(
+        self,
+        step_name: str,
+        index: int,
+        passed: bool,
+        duration: float,
+        measurements: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        step_result = {
+            "name": step_name,
+            "index": index,
+            "passed": passed,
+            "duration": duration,
+            "measurements": measurements or {},
+            "error": error,
+            "data": data or {},
+            "completed_at": datetime.now().isoformat(),
+        }
+        if self._current_step:
+            step_result["started_at"] = self._current_step.get("started_at")
+        self.step_results.append(step_result)
+        self._current_step = None
+
+    def measurement(
+        self,
+        name: str,
+        value: Any,
+        unit: str = "",
+        passed: Optional[bool] = None,
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None,
+        step_name: Optional[str] = None,
+    ) -> None:
+        self.measurements[name] = {
+            "value": value,
+            "unit": unit,
+            "passed": passed,
+            "min": min_value,
+            "max": max_value,
+            "step": step_name,
+        }
+
+    def error(self, code: str, message: str, step: Optional[str] = None, recoverable: bool = False) -> None:
+        self.errors.append({
+            "code": code,
+            "message": message,
+            "step": step,
+            "recoverable": recoverable,
+        })
+
+    def sequence_complete(
+        self,
+        overall_pass: bool,
+        duration: float,
+        steps: List[Dict[str, Any]],
+        measurements: Dict[str, Any],
+        error: Optional[str] = None,
+    ) -> None:
+        pass  # Handled externally
+
+    def input_request(
+        self,
+        request_id: str,
+        prompt: str,
+        input_type: str,
+        options: Optional[List[str]] = None,
+        default: Any = None,
+        timeout: float = 300,
+    ) -> None:
+        pass  # Not supported in dry run
+
+    def wait_for_input(self, request_id: str, timeout: float = 300) -> Any:
+        return None  # Auto-respond for dry run
 
 
 class SequenceSimulator:
@@ -74,40 +183,78 @@ class SequenceSimulator:
             if parameters:
                 final_params.update(parameters)
 
-            # Create sequence instance with mock hardware
-            mock_hardware = self._create_mock_hardware(manifest)
-            sequence_instance = sequence_class(
-                hardware=mock_hardware,
+            # Create execution context for dry run
+            context = ExecutionContext(
+                execution_id=f"dry-run-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                sequence_name=manifest.name,
+                sequence_version=manifest.version,
                 parameters=final_params,
+                dry_run=True,
             )
 
-            # Get and sort steps
-            steps = collect_steps(sequence_class, manifest)
-            regular_steps = [s for s in steps if not s[2].cleanup]
-            cleanup_steps = [s for s in steps if s[2].cleanup]
+            # Create mock hardware and add to context
+            mock_hardware = self._create_mock_hardware(manifest)
+            context.hardware = mock_hardware
 
-            # Execute regular steps
-            for method_name, method, step_meta in regular_steps:
-                step_result = await self._execute_step(
-                    sequence_instance, method_name, method, step_meta
+            # Check if this is an SDK 2.0 SequenceBase class
+            if issubclass(sequence_class, SequenceBase):
+                # Use _execute() lifecycle with DryRunOutputStrategy
+                output_strategy = DryRunOutputStrategy()
+                sequence_instance = sequence_class(
+                    context=context,
+                    hardware_config={},
+                    parameters=final_params,
+                    output_strategy=output_strategy,
                 )
-                result["steps"].append(step_result)
 
-                if step_result["status"] == "failed":
-                    result["overall_pass"] = False
-                    # Continue to cleanup steps on failure
+                # Execute using the SequenceBase lifecycle
+                exec_result = await sequence_instance._execute()
 
-            # Execute cleanup steps
-            for method_name, method, step_meta in cleanup_steps:
-                step_result = await self._execute_step(
-                    sequence_instance, method_name, method, step_meta
+                # Extract results from output strategy
+                result["steps"] = output_strategy.step_results
+                result["measurements"] = output_strategy.measurements
+                result["logs"] = output_strategy.logs
+                result["overall_pass"] = exec_result.get("passed", False)
+
+                if exec_result.get("error"):
+                    result["error"] = exec_result["error"]
+                    result["status"] = "failed"
+
+            else:
+                # Legacy @step decorated sequences - use old approach
+                sequence_instance = sequence_class(
+                    context=context,
+                    hardware_config={},
+                    parameters=final_params,
                 )
-                result["steps"].append(step_result)
+
+                # Get and sort steps
+                steps = collect_steps(sequence_class, manifest)
+                regular_steps = [s for s in steps if not s[2].cleanup]
+                cleanup_steps = [s for s in steps if s[2].cleanup]
+
+                # Execute regular steps
+                for method_name, method, step_meta in regular_steps:
+                    step_result = await self._execute_step(
+                        sequence_instance, method_name, method, step_meta
+                    )
+                    result["steps"].append(step_result)
+
+                    if step_result["status"] == "failed":
+                        result["overall_pass"] = False
+                        # Continue to cleanup steps on failure
+
+                # Execute cleanup steps
+                for method_name, method, step_meta in cleanup_steps:
+                    step_result = await self._execute_step(
+                        sequence_instance, method_name, method, step_meta
+                    )
+                    result["steps"].append(step_result)
+
+                if not result["overall_pass"]:
+                    result["status"] = "failed"
 
             result["completed_at"] = datetime.now().isoformat()
-
-            if not result["overall_pass"]:
-                result["status"] = "failed"
 
         except Exception as e:
             logger.exception(f"Dry run failed: {e}")
@@ -324,6 +471,54 @@ class MockHardware:
             "deviation_percent": round(deviation, 2),
             "tolerance_percent": tolerance,
             "passed": deviation <= tolerance,
+        }
+
+    # PSA MCU specific methods
+    async def ping(self) -> str:
+        """Simulate MCU ping - returns firmware version."""
+        await self._simulate_delay()
+        return "SIM-1.0.0"
+
+    async def get_sensor_list(self) -> List[Dict[str, Any]]:
+        """Simulate getting sensor list."""
+        await self._simulate_delay()
+        return [
+            {"name": "VL53L0X", "type": "distance", "status": "ok"},
+            {"name": "MLX90640", "type": "thermal", "status": "ok"},
+        ]
+
+    async def test_vl53l0x(
+        self, target_mm: float = 500, tolerance_mm: float = 100
+    ) -> Dict[str, Any]:
+        """Simulate VL53L0X distance sensor test."""
+        await self._simulate_delay()
+        # Simulate measurement near target with some variance
+        measured = round(random.gauss(target_mm, tolerance_mm * 0.3), 1)
+        passed = abs(measured - target_mm) <= tolerance_mm
+
+        return {
+            "passed": passed,
+            "measured_mm": measured,
+            "target_mm": target_mm,
+            "tolerance_mm": tolerance_mm,
+            "status_name": "PASS" if passed else "OUT_OF_RANGE",
+        }
+
+    async def test_mlx90640(
+        self, target_celsius: float = 25.0, tolerance_celsius: float = 10.0
+    ) -> Dict[str, Any]:
+        """Simulate MLX90640 thermal sensor test."""
+        await self._simulate_delay()
+        # Simulate temperature near target
+        measured = round(random.gauss(target_celsius, tolerance_celsius * 0.2), 2)
+        passed = abs(measured - target_celsius) <= tolerance_celsius
+
+        return {
+            "passed": passed,
+            "measured_celsius": measured,
+            "target_celsius": target_celsius,
+            "tolerance_celsius": tolerance_celsius,
+            "status_name": "PASS" if passed else "OUT_OF_RANGE",
         }
 
     async def _simulate_delay(self) -> None:

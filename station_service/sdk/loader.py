@@ -5,11 +5,12 @@ This module provides the SequenceLoader class for discovering,
 loading, and validating sequence packages from the filesystem.
 """
 
+import contextlib
 import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Generator, List, Optional, Type
 
 import yaml
 from pydantic import ValidationError as PydanticValidationError
@@ -18,6 +19,41 @@ from .exceptions import ManifestError, PackageError
 from .manifest import HardwareDefinition, SequenceManifest
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def temporary_sys_path(paths: List[str]) -> Generator[None, None, None]:
+    """
+    Context manager for temporarily adding paths to sys.path.
+
+    Safely adds paths at the beginning of sys.path and removes them
+    when exiting the context, even if an exception occurs.
+
+    Args:
+        paths: List of path strings to temporarily add
+
+    Yields:
+        None
+
+    Example:
+        with temporary_sys_path(["/path/to/package", "/path/to/parent"]):
+            import my_module  # Can now find modules in those paths
+        # Paths are removed after exiting
+    """
+    added_paths: List[str] = []
+    for path in paths:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+            added_paths.append(path)
+            logger.debug(f"Temporarily added to sys.path: {path}")
+
+    try:
+        yield
+    finally:
+        for path in reversed(added_paths):
+            if path in sys.path:
+                sys.path.remove(path)
+                logger.debug(f"Removed from sys.path: {path}")
 
 
 class SequenceLoader:
@@ -267,7 +303,26 @@ class SequenceLoader:
         module_name = f"_sequence_packages.{package_path.name}.{entry_point.module}"
 
         try:
-            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            # Add package paths permanently for imports within the package
+            # This is needed because sequence modules may do lazy imports later
+            # (e.g., in setup() method) that require these paths
+            package_parent = str(package_path.parent)
+            package_path_str = str(package_path)
+
+            # Add paths BEFORE creating the spec
+            if package_path_str not in sys.path:
+                sys.path.insert(0, package_path_str)
+                logger.debug(f"Added to sys.path: {package_path_str}")
+            if package_parent not in sys.path:
+                sys.path.insert(0, package_parent)
+                logger.debug(f"Added to sys.path: {package_parent}")
+
+            # Create spec with submodule_search_locations for relative import support
+            spec = importlib.util.spec_from_file_location(
+                module_name,
+                module_path,
+                submodule_search_locations=[str(package_path)],
+            )
             if spec is None or spec.loader is None:
                 raise PackageError(
                     f"Failed to create module spec for: {module_path}",
@@ -276,40 +331,37 @@ class SequenceLoader:
 
             module = importlib.util.module_from_spec(spec)
 
-            # Add package path to sys.path temporarily for imports within the package
-            package_parent = str(package_path.parent)
-            if package_parent not in sys.path:
-                sys.path.insert(0, package_parent)
+            # Create parent module hierarchy in sys.modules
+            import types
+            parent_module_name = "_sequence_packages"
+            if parent_module_name not in sys.modules:
+                parent_module = types.ModuleType(parent_module_name)
+                parent_module.__path__ = []
+                sys.modules[parent_module_name] = parent_module
 
-            # Also add the package path itself for relative imports
-            package_path_str = str(package_path)
-            if package_path_str not in sys.path:
-                sys.path.insert(0, package_path_str)
+            package_module_name = f"_sequence_packages.{package_path.name}"
+            if package_module_name not in sys.modules:
+                package_module = types.ModuleType(package_module_name)
+                package_module.__path__ = [str(package_path)]
+                sys.modules[package_module_name] = package_module
 
-            try:
-                # Create parent module hierarchy in sys.modules
-                parent_module_name = "_sequence_packages"
-                if parent_module_name not in sys.modules:
-                    import types
-                    parent_module = types.ModuleType(parent_module_name)
-                    parent_module.__path__ = []
-                    sys.modules[parent_module_name] = parent_module
+            # Register subdirectories as subpackages for relative imports
+            # This allows from .drivers.xxx import ... to work
+            for subdir in package_path.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith((".", "_")):
+                    subpackage_name = f"{package_module_name}.{subdir.name}"
+                    if subpackage_name not in sys.modules:
+                        subpackage = types.ModuleType(subpackage_name)
+                        subpackage.__path__ = [str(subdir)]
+                        subpackage.__package__ = subpackage_name
+                        sys.modules[subpackage_name] = subpackage
+                        logger.debug(f"Registered subpackage: {subpackage_name}")
 
-                package_module_name = f"_sequence_packages.{package_path.name}"
-                if package_module_name not in sys.modules:
-                    import types
-                    package_module = types.ModuleType(package_module_name)
-                    package_module.__path__ = [str(package_path)]
-                    sys.modules[package_module_name] = package_module
+            # Set module's __package__ for relative imports
+            module.__package__ = package_module_name
 
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-            finally:
-                # Clean up sys.path
-                if package_parent in sys.path:
-                    sys.path.remove(package_parent)
-                if package_path_str in sys.path:
-                    sys.path.remove(package_path_str)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
 
         except Exception as e:
             raise PackageError(

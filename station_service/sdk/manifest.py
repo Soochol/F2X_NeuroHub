@@ -42,8 +42,14 @@ class HardwareDefinition(BaseModel):
     class_name: str = Field(alias="class")
     description: str = ""
     config_schema: Optional[Dict[str, ConfigFieldSchema]] = None
+    manual_commands: List["ManualCommand"] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True}
+
+    @property
+    def driver_class(self) -> str:
+        """Get the driver class name (alias for class_name)."""
+        return self.class_name
 
 
 class ParameterDefinition(BaseModel):
@@ -271,3 +277,7 @@ class SequenceManifest(BaseModel):
     def get_total_estimated_duration(self) -> float:
         """Get total estimated duration of all steps in seconds."""
         return sum(step.estimated_duration for step in self.steps)
+
+
+# Resolve forward references for HardwareDefinition.manual_commands
+HardwareDefinition.model_rebuild()

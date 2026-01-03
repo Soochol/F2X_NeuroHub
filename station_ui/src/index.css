@@ -29,6 +29,11 @@
   --color-status-stopping: #f59e0b;
   --color-status-completed: #22c55e;
   --color-status-error: #ef4444;
+
+  /* Rate Indicator Colors (Pass Rate, Fail Rate) */
+  --color-rate-high: #22c55e;     /* >= 90% pass or <= 5% fail */
+  --color-rate-medium: #eab308;   /* 70-90% pass or 5-10% fail */
+  --color-rate-low: #ef4444;      /* < 70% pass or > 10% fail */
 }
 
 /* Dark Theme (Default) */
@@ -54,6 +59,22 @@
   --color-error-bg: rgba(239, 68, 68, 0.15);
   --color-success-bg: rgba(34, 197, 94, 0.15);
   --color-info-bg: rgba(59, 130, 246, 0.15);
+
+  /* Input/Form Colors */
+  --color-input-border: #52525b;
+  --color-input-border-hover: #71717a;
+
+  /* Step Status Badge Colors */
+  --color-step-pending-bg: rgba(161, 161, 170, 0.15);
+  --color-step-pending-text: #a1a1aa;
+  --color-step-running-bg: rgba(59, 130, 246, 0.15);
+  --color-step-running-text: #60a5fa;
+  --color-step-completed-bg: rgba(34, 197, 94, 0.15);
+  --color-step-completed-text: #4ade80;
+  --color-step-failed-bg: rgba(239, 68, 68, 0.15);
+  --color-step-failed-text: #f87171;
+  --color-step-skipped-bg: rgba(234, 179, 8, 0.15);
+  --color-step-skipped-text: #facc15;
 }
 
 /* Light Theme */
@@ -79,6 +100,22 @@
   --color-error-bg: rgba(239, 68, 68, 0.1);
   --color-success-bg: rgba(34, 197, 94, 0.1);
   --color-info-bg: rgba(59, 130, 246, 0.1);
+
+  /* Input/Form Colors */
+  --color-input-border: #d4d4d8;
+  --color-input-border-hover: #a1a1aa;
+
+  /* Step Status Badge Colors */
+  --color-step-pending-bg: rgba(161, 161, 170, 0.2);
+  --color-step-pending-text: #71717a;
+  --color-step-running-bg: rgba(59, 130, 246, 0.15);
+  --color-step-running-text: #2563eb;
+  --color-step-completed-bg: rgba(34, 197, 94, 0.15);
+  --color-step-completed-text: #16a34a;
+  --color-step-failed-bg: rgba(239, 68, 68, 0.15);
+  --color-step-failed-text: #dc2626;
+  --color-step-skipped-bg: rgba(234, 179, 8, 0.15);
+  --color-step-skipped-text: #ca8a04;
 }
 
 /* Base styles */
@@ -154,3 +191,60 @@ body {
 .sidebar-nav-item {
   transition: all 0.2s ease;
 }
+
+/* Date Picker Styles */
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"] {
+  color-scheme: dark;
+}
+
+.light input[type="date"],
+.light input[type="datetime-local"],
+.light input[type="time"] {
+  color-scheme: light;
+}
+
+/* Date picker calendar icon */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Dark mode: invert and increase brightness for better visibility */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.8;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+.dark input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Light mode: ensure good contrast */
+.light input[type="date"]::-webkit-calendar-picker-indicator,
+.light input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.light input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0.5);
+  opacity: 0.7;
+}
+
+.light input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.light input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+.light input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+

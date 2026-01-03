@@ -31,6 +31,7 @@ import {
   PanelLeftClose,
   LogOut,
   Server,
+  FileCode,
   type LucideIcon
 } from 'lucide-react';
 
@@ -60,12 +61,12 @@ const navSections: NavSection[] = [
     sectionLabel: 'MAIN',
     items: [
       { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/lots', label: 'LOT Issuance', icon: Package, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
     ]
   },
   {
     sectionLabel: 'PRODUCTION',
     items: [
+      { path: '/lots', label: 'LOT Issuance', icon: Package, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
       {
         id: 'wip',
         label: 'WIP',
@@ -115,6 +116,7 @@ const navSections: NavSection[] = [
           { path: '/admin/products', label: 'Products', icon: Package, roles: [UserRole.ADMIN] },
           { path: '/admin/production-lines', label: 'Production Lines', icon: Factory, roles: [UserRole.ADMIN] },
           { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN] },
+          { path: '/admin/sequences', label: 'Test Sequences', icon: FileCode, roles: [UserRole.ADMIN] },
         ]
       },
       { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN] },

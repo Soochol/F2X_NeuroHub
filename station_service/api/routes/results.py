@@ -32,6 +32,8 @@ class ExportFormat(str, Enum):
 
     JSON = "json"
     CSV = "csv"
+    XLSX = "xlsx"
+    PDF = "pdf"
 
 
 class ResultStatistics(BaseModel):
@@ -344,6 +346,8 @@ async def get_result(
     Supported formats:
     - json: Complete result data in JSON format
     - csv: Tabular step data in CSV format
+    - xlsx: Excel spreadsheet
+    - pdf: PDF document
 
     The response content type matches the requested format.
     """,
@@ -351,7 +355,7 @@ async def get_result(
 async def export_result(
     database: Database = Depends(get_database),
     result_id: str = Path(..., description="Unique execution result identifier"),
-    format: ExportFormat = Query(ExportFormat.JSON, description="Export format (json, csv)"),
+    format: ExportFormat = Query(ExportFormat.JSON, description="Export format"),
 ) -> Response:
     """
     Export execution result in the specified format.
@@ -374,7 +378,7 @@ async def export_result(
                 media_type="application/json",
                 headers={"Content-Disposition": f'attachment; filename="{result_id}.json"'},
             )
-        else:  # CSV
+        elif format == ExportFormat.CSV:
             output = io.StringIO()
             writer = csv.writer(output)
 
@@ -412,6 +416,15 @@ async def export_result(
                 media_type="text/csv",
                 headers={"Content-Disposition": f'attachment; filename="{result_id}.csv"'},
             )
+        else:
+            # Use ExportService for XLSX and PDF
+            from station_service.api.schemas.report import ExportFormat as ReportExportFormat
+            from station_service.services.export_service import ExportService
+
+            export_service = ExportService()
+            export_format = ReportExportFormat(format.value)
+            exporter = export_service.get_exporter(export_format)
+            return exporter.export([execution], f"result_{result_id}")
     except HTTPException:
         raise
     except Exception as e:
@@ -478,3 +491,138 @@ def _parse_datetime(value: Any) -> datetime:
         return datetime.fromisoformat(str(value))
     except (ValueError, TypeError):
         return datetime.now()
+
+
+class BulkExportRequest(BaseModel):
+    """Request body for bulk export."""
+
+    result_ids: List[str] = Field(..., description="List of result IDs to export", min_length=1)
+    format: ExportFormat = Field(ExportFormat.XLSX, description="Export format")
+    include_step_details: bool = Field(True, description="Include step-level details")
+
+
+@router.post(
+    "/export",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {
+                "application/json": {},
+                "text/csv": {},
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {},
+                "application/pdf": {},
+            },
+            "description": "Exported results",
+        },
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Bulk export results",
+    description="""
+    Export multiple execution results in the specified format.
+
+    Supported formats:
+    - json: Complete results data in JSON format
+    - csv: Tabular data in CSV format
+    - xlsx: Excel spreadsheet with multiple sheets
+    - pdf: PDF document with tables
+
+    Use this endpoint when you need to export multiple selected results.
+    """,
+)
+async def export_results_bulk(
+    request: BulkExportRequest,
+    database: Database = Depends(get_database),
+) -> Response:
+    """
+    Export multiple execution results.
+    """
+    try:
+        if not request.result_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one result ID is required",
+            )
+
+        repo = ExecutionRepository(database)
+
+        # Get all executions with steps
+        executions = await repo.get_multiple_executions_with_steps(request.result_ids)
+
+        if not executions:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No results found for the specified IDs",
+            )
+
+        # Export based on format
+        if request.format == ExportFormat.JSON:
+            return Response(
+                content=json.dumps(executions, indent=2, default=str),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition": f'attachment; filename="results_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+                },
+            )
+        elif request.format == ExportFormat.CSV:
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow([
+                "execution_id", "batch_id", "sequence_name", "sequence_version",
+                "status", "overall_pass", "duration", "started_at", "completed_at",
+                "step_name", "step_order", "step_status", "step_pass", "step_duration",
+            ])
+
+            # Write data
+            for execution in executions:
+                base_row = [
+                    execution.get("id", ""),
+                    execution.get("batch_id", ""),
+                    execution.get("sequence_name", ""),
+                    execution.get("sequence_version", ""),
+                    execution.get("status", ""),
+                    execution.get("overall_pass", ""),
+                    execution.get("duration", ""),
+                    execution.get("started_at", ""),
+                    execution.get("completed_at", ""),
+                ]
+                if request.include_step_details and execution.get("steps"):
+                    for step in execution["steps"]:
+                        writer.writerow(base_row + [
+                            step.get("step_name", ""),
+                            step.get("step_order", ""),
+                            step.get("status", ""),
+                            step.get("pass_result", ""),
+                            step.get("duration", ""),
+                        ])
+                else:
+                    writer.writerow(base_row + ["", "", "", "", ""])
+
+            content = "\ufeff" + output.getvalue()  # BOM for Excel
+            return Response(
+                content=content.encode("utf-8"),
+                media_type="text/csv; charset=utf-8",
+                headers={
+                    "Content-Disposition": f'attachment; filename="results_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+                },
+            )
+        else:
+            # Use ExportService for XLSX and PDF
+            from station_service.api.schemas.report import ExportFormat as ReportExportFormat
+            from station_service.services.export_service import ExportService
+
+            export_service = ExportService()
+            export_format = ReportExportFormat(request.format.value)
+            exporter = export_service.get_exporter(export_format)
+            filename = f"results_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            return exporter.export(executions, filename)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to bulk export results")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export results: {str(e)}",
+        )

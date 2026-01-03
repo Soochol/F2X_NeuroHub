@@ -22,6 +22,7 @@ import {
 import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket, useWorkflowConfig } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { useDebugPanelStore } from '../stores/debugPanelStore';
+import { useLogStore } from '../stores/logStore';
 import type { BatchStatistics } from '../types';
 import { Button } from '../components/atoms/Button';
 import { StatusBadge } from '../components/atoms/StatusBadge';
@@ -140,6 +141,9 @@ export function BatchDetailPage() {
       log.error('doStartSequence: Missing batchId or batch');
       return;
     }
+
+    // Clear logs before starting new sequence
+    useLogStore.getState().clearLogs();
 
     // Track if we started the batch so we can stop it on error
     let batchWasStarted = false;
@@ -295,11 +299,10 @@ export function BatchDetailPage() {
       return { text: 'In Progress', color: 'text-brand-500', icon: <Loader2 className="w-6 h-6 animate-spin" /> };
     }
     if (batch.status === 'completed') {
-      const hasFailed = steps.some((s) => !s.pass && s.status === 'completed');
-      if (hasFailed) {
-        return { text: 'FAIL', color: 'text-red-500', icon: <XCircle className="w-6 h-6" /> };
+      if (batch.lastRunPassed) {
+        return { text: 'PASS', color: 'text-green-500', icon: <CheckCircle className="w-6 h-6" /> };
       }
-      return { text: 'PASS', color: 'text-green-500', icon: <CheckCircle className="w-6 h-6" /> };
+      return { text: 'FAIL', color: 'text-red-500', icon: <XCircle className="w-6 h-6" /> };
     }
     if (batch.status === 'error') {
       return { text: 'ERROR', color: 'text-red-500', icon: <XCircle className="w-6 h-6" /> };
@@ -408,7 +411,7 @@ export function BatchDetailPage() {
         </div>
         <ProgressBar
           value={progress * 100}
-          variant={batch.status === 'completed' ? (steps.every((s) => s.pass) ? 'success' : 'error') : 'default'}
+          variant={batch.status === 'completed' ? (batch.lastRunPassed ? 'success' : 'error') : 'default'}
         />
         {batch.currentStep && isRunning && (
           <p className="mt-2 text-sm text-brand-400">

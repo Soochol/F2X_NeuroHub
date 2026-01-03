@@ -37,6 +37,10 @@ export interface SystemInfo {
   version: string;
   uptime: number;
   backendConnected: boolean;
+  /** Directory for sequence packages */
+  sequencesDir: string;
+  /** Directory for data files (database, logs) */
+  dataDir: string;
 }
 
 /**

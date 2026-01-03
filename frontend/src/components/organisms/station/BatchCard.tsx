@@ -158,7 +158,7 @@ export const BatchCard = ({
           </div>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>Pass</span>
-            <span className={`${styles.statValue} ${styles.pass}`}>{statistics.pass}</span>
+            <span className={`${styles.statValue} ${styles.pass}`}>{statistics.passCount}</span>
           </div>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>Fail</span>
