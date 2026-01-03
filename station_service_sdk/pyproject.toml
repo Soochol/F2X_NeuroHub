@@ -22,4 +22,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["station_service_sdk"]
+packages = ["."]
+
+[tool.hatch.build.targets.wheel.sources]
+"" = "station_service_sdk"

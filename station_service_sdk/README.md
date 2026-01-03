@@ -54,7 +54,7 @@ if __name__ == "__main__":
 ### 2. 시퀀스 실행
 
 ```bash
-python -m sequences.my_test.main --start --config '{"wip_id": "WIP001"}'
+python -m my_sequence.main --start --config '{"execution_id": "exec-001"}'
 ```
 
 ## 핵심 컴포넌트
@@ -97,13 +97,8 @@ class SequenceBase(ABC):
 from station_service_sdk import ExecutionContext
 
 context = ExecutionContext(
-    execution_id="abc123",
-    wip_id="WIP-001",
-    process_id=3,
-    operator_id=1,
-    lot_id="LOT-001",
-    serial_number="SN-001",
-    hardware_config={"mcu": {"port": "/dev/ttyUSB0"}},
+    execution_id="exec-001",
+    hardware_config={"device": {"port": "/dev/ttyUSB0"}},
     parameters={"timeout": 30}
 )
 ```
