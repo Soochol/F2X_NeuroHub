@@ -175,6 +175,13 @@ parameters:
     default: true
     description: "MLX90640 IR 센서 테스트 실행 여부"
 
+  # 실행 제어
+  stop_on_failure:
+    display_name: "실패 시 중단"
+    type: boolean
+    default: true
+    description: "스텝 실패 시 즉시 시퀀스 중단 (false면 모든 스텝 실행)"
+
 # 스텝 정의
 # Note: setup과 teardown은 SDK에서 자동으로 추가되는 lifecycle 스텝입니다.
 steps:

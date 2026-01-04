@@ -123,6 +123,9 @@ class PSASensorTestSequence(SequenceBase):
         self.test_vl53l0x_enabled: bool = self.get_parameter("test_vl53l0x_enabled", True)
         self.test_mlx90640_enabled: bool = self.get_parameter("test_mlx90640_enabled", True)
 
+        # Stop on first failure (default: True for manufacturing tests)
+        self.stop_on_failure: bool = self.get_parameter("stop_on_failure", True)
+
         logger.debug(f"Initialized {self.name} v{self.version}")
 
     # =========================================================================
@@ -230,6 +233,8 @@ class PSASensorTestSequence(SequenceBase):
             self.emit_step_complete("initialize", current_step, False, duration, error=str(e))
             self.emit_error("INIT_ERROR", str(e))
             all_passed = False
+            if self.stop_on_failure:
+                return {"passed": False, "measurements": measurements, "data": {"stopped_at": "initialize"}}
 
         # =====================================================================
         # Step 2: VL53L0X Distance Test (if enabled)
@@ -278,11 +283,17 @@ class PSASensorTestSequence(SequenceBase):
                     measurements={"vl53l0x_distance": measured_mm} if self.mcu else None,
                 )
 
+                # Stop on measurement failure if configured
+                if not step_passed and self.stop_on_failure:
+                    return {"passed": False, "measurements": measurements, "data": {"stopped_at": "test_vl53l0x"}}
+
             except Exception as e:
                 duration = time.time() - start_time
                 self.emit_step_complete("test_vl53l0x", current_step, False, duration, error=str(e))
                 self.emit_error("VL53L0X_ERROR", str(e))
                 all_passed = False
+                if self.stop_on_failure:
+                    return {"passed": False, "measurements": measurements, "data": {"stopped_at": "test_vl53l0x"}}
 
         # =====================================================================
         # Step 3: MLX90640 Temperature Test (if enabled)
@@ -331,11 +342,17 @@ class PSASensorTestSequence(SequenceBase):
                     measurements={"mlx90640_temperature": measured_celsius} if self.mcu else None,
                 )
 
+                # Stop on measurement failure if configured
+                if not step_passed and self.stop_on_failure:
+                    return {"passed": False, "measurements": measurements, "data": {"stopped_at": "test_mlx90640"}}
+
             except Exception as e:
                 duration = time.time() - start_time
                 self.emit_step_complete("test_mlx90640", current_step, False, duration, error=str(e))
                 self.emit_error("MLX90640_ERROR", str(e))
                 all_passed = False
+                if self.stop_on_failure:
+                    return {"passed": False, "measurements": measurements, "data": {"stopped_at": "test_mlx90640"}}
 
         # =====================================================================
         # Step 4: Finalize
