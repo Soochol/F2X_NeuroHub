@@ -274,7 +274,7 @@ export async function createBatches(
     const serverRequest: ServerBatchCreateRequest = {
       id: batchId,
       name: batchName,
-      sequence_package: request.sequenceName,
+      sequence_package: `sequences/${request.sequenceName}`,
       hardware: {},
       auto_start: false,
     };

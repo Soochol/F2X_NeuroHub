@@ -82,6 +82,7 @@ export function CreateBatchWizard({
   // Load sequence details when selected
   const handleSequenceSelect = useCallback(
     async (sequenceName: string) => {
+      console.log('[CreateBatchWizard] handleSequenceSelect called with:', sequenceName);
       setSelectedSequence(sequenceName);
       if (!sequenceName) {
         setSequenceDetail(null);
@@ -92,12 +93,22 @@ export function CreateBatchWizard({
 
       setIsLoadingSequence(true);
       try {
+        console.log('[CreateBatchWizard] Fetching sequence detail for:', sequenceName);
         const detail = await getSequenceDetail(sequenceName);
+        console.log('[CreateBatchWizard] Received sequence detail:', detail);
+
+        if (!detail) {
+          console.error('[CreateBatchWizard] Received null/undefined detail');
+          return;
+        }
+
         setSequenceDetail(detail);
 
         // Initialize step order from sequence (include displayName for UI)
+        const steps = detail.steps || [];
+        console.log('[CreateBatchWizard] Steps count:', steps.length);
         setStepOrder(
-          detail.steps.map((step) => ({
+          steps.map((step) => ({
             name: step.name,
             displayName: step.displayName,
             order: step.order,
@@ -107,12 +118,15 @@ export function CreateBatchWizard({
 
         // Initialize parameters with defaults
         const defaultParams: Record<string, unknown> = {};
-        detail.parameters.forEach((param) => {
+        const params = detail.parameters || [];
+        params.forEach((param) => {
           defaultParams[param.name] = param.default;
         });
         setParameters(defaultParams);
       } catch (error) {
-        console.error('Failed to load sequence:', error);
+        console.error('[CreateBatchWizard] Failed to load sequence:', error);
+        // Reset sequence detail on error
+        setSequenceDetail(null);
       } finally {
         setIsLoadingSequence(false);
       }

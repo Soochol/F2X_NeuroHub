@@ -176,9 +176,9 @@ async def lifespan(app: FastAPI):
         logger.info(f"Loaded config for station: {config.station.name}")
 
         # Compute paths from config
-        # __file__ = src/station_service/main.py
-        # project_root = station_service/ (where pyproject.toml is)
-        project_root = Path(__file__).parent.parent.parent
+        # __file__ = station/station_service/main.py
+        # project_root = station/ (where pyproject.toml is)
+        project_root = Path(__file__).parent.parent
 
         # Resolve sequences_dir (can be relative or absolute)
         sequences_dir_config = config.paths.sequences_dir

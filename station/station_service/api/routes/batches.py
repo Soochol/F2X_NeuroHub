@@ -262,7 +262,10 @@ async def get_batch(
 
         # Load manifest for parameters and step metadata
         try:
+            # Extract package name from sequence_package path (e.g., "sequences/psa_sensor_test" -> "psa_sensor_test")
             package_name = batch_config.sequence_package
+            if package_name.startswith("sequences/"):
+                package_name = package_name[len("sequences/"):]
             manifest = await sequence_loader.load_package(package_name)
             sequence_version = manifest.version
             # Get all step names from manifest (for displaying skipped steps)

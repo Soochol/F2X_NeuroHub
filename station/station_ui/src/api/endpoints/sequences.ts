@@ -26,11 +26,22 @@ import apiClient, { extractData } from '../client';
 // ============================================================================
 
 /**
- * Get all local sequences.
+ * Get all local (installed) sequences.
+ * Uses the registry endpoint and filters to installed sequences.
  */
 export async function getSequences(): Promise<SequenceSummary[]> {
-  const response = await apiClient.get<ApiResponse<SequenceSummary[]>>('/sequences');
-  return extractData(response);
+  // Get registry and filter to installed sequences
+  const registry = await getSequenceRegistry();
+
+  return registry
+    .filter((item) => ['installed_latest', 'update_available', 'local_only'].includes(item.status))
+    .map((item) => ({
+      name: item.name,
+      version: item.localVersion || '0.0.0',
+      displayName: item.displayName || item.name,
+      description: item.description || '',
+      path: `sequences/${item.name}`,
+    }));
 }
 
 /**
@@ -59,7 +70,7 @@ export async function updateSequence(
  * Delete a sequence package.
  */
 export async function deleteSequence(name: string): Promise<void> {
-  await apiClient.delete(`/sequences/${name}`);
+  await apiClient.delete(`/deploy/local/${name}`);
 }
 
 /**

@@ -195,7 +195,7 @@ steps:
       auto_only: true
 
   - name: initialize
-    display_name: "하드웨어 초기화"
+    display_name: "Initialize"
     order: 1
     timeout: 30.0
     estimated_duration: 5.0
@@ -207,7 +207,7 @@ steps:
       pause_after: false
 
   - name: test_vl53l0x
-    display_name: "VL53L0X 거리 테스트"
+    display_name: "Test VL53L0X"
     order: 2
     timeout: 15.0
     estimated_duration: 8.0
@@ -222,7 +222,7 @@ steps:
         - vl53l0x_tolerance_mm
 
   - name: test_mlx90640
-    display_name: "MLX90640 온도 테스트"
+    display_name: "Test MLX90640"
     order: 3
     timeout: 20.0
     estimated_duration: 12.0
@@ -237,7 +237,7 @@ steps:
         - mlx90640_tolerance_celsius
 
   - name: finalize
-    display_name: "정리"
+    display_name: "Finalize"
     order: 4
     timeout: 10.0
     estimated_duration: 2.0
