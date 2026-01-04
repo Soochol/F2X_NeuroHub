@@ -239,3 +239,19 @@ class SequenceListParams(BaseModel):
     search: Optional[str] = Field(None, description="Search in name/display_name/description")
     skip: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=100)
+
+
+# ============================================================================
+# GitHub Upload Schemas
+# ============================================================================
+
+
+class GithubUploadRequest(BaseModel):
+    """Request schema for uploading sequence from GitHub URL."""
+
+    url: str = Field(
+        ...,
+        description="GitHub repository or folder URL (e.g., https://github.com/owner/repo/tree/branch/path)",
+        examples=["https://github.com/owner/repo/tree/main/sequences/my_sequence"],
+    )
+    change_notes: Optional[str] = Field(None, description="Version change notes")

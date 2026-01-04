@@ -6,9 +6,12 @@ to Station Services.
 """
 
 import io
+import re
 import zipfile
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse
 
+import httpx
 import yaml
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
@@ -19,6 +22,7 @@ from app.crud.sequence import sequence_crud
 from app.models.sequence import Sequence
 from app.models.user import User, UserRole
 from app.schemas.sequence import (
+    GithubUploadRequest,
     SequenceDeployRequest,
     SequenceDeployResponse,
     SequenceDeploymentResponse,
@@ -158,6 +162,146 @@ def validate_package_structure(zip_data: bytes, sequence_name: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid ZIP file",
         )
+
+
+def parse_github_url(url: str) -> tuple[str, str, str, str]:
+    """
+    Parse GitHub URL to extract owner, repo, branch, and path.
+
+    Supports formats:
+    - https://github.com/owner/repo/tree/branch/path/to/folder
+    - https://github.com/owner/repo/tree/branch (entire repo)
+
+    Returns:
+        Tuple of (owner, repo, branch, path)
+
+    Raises:
+        HTTPException: If URL format is invalid
+    """
+    parsed = urlparse(url)
+
+    if parsed.netloc != "github.com":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only GitHub URLs are supported",
+        )
+
+    # Parse path: /owner/repo/tree/branch/path...
+    path_parts = parsed.path.strip("/").split("/")
+
+    if len(path_parts) < 4 or path_parts[2] != "tree":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid GitHub URL format. Expected: https://github.com/owner/repo/tree/branch/path",
+        )
+
+    owner = path_parts[0]
+    repo = path_parts[1]
+    branch = path_parts[3]
+    folder_path = "/".join(path_parts[4:]) if len(path_parts) > 4 else ""
+
+    return owner, repo, branch, folder_path
+
+
+async def download_github_folder_as_zip(
+    owner: str, repo: str, branch: str, folder_path: str
+) -> bytes:
+    """
+    Download a GitHub folder as a ZIP file.
+
+    Uses GitHub API to list files and download them, then creates a ZIP.
+
+    Args:
+        owner: Repository owner
+        repo: Repository name
+        branch: Branch name
+        folder_path: Path to folder within repo
+
+    Returns:
+        ZIP file contents as bytes
+    """
+    base_api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "F2X-NeuroHub-Sequence-Uploader",
+    }
+
+    async def fetch_contents(path: str) -> list:
+        """Recursively fetch directory contents."""
+        url = f"{base_api_url}/{path}" if path else base_api_url
+        url = f"{url}?ref={branch}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, headers=headers)
+
+            if response.status_code == 404:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Path not found: {path}",
+                )
+            elif response.status_code == 403:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="GitHub API rate limit exceeded. Please try again later.",
+                )
+            elif response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_BAD_GATEWAY,
+                    detail=f"GitHub API error: {response.status_code}",
+                )
+
+            return response.json()
+
+    async def download_file(download_url: str) -> bytes:
+        """Download a single file."""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(download_url, headers=headers)
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_BAD_GATEWAY,
+                    detail=f"Failed to download file: {download_url}",
+                )
+            return response.content
+
+    async def process_contents(path: str, files: dict) -> None:
+        """Recursively process directory contents."""
+        contents = await fetch_contents(path)
+
+        if not isinstance(contents, list):
+            # Single file
+            contents = [contents]
+
+        for item in contents:
+            item_path = item["path"]
+            # Calculate relative path from folder_path
+            if folder_path:
+                rel_path = item_path[len(folder_path):].lstrip("/")
+            else:
+                rel_path = item_path
+
+            if item["type"] == "file":
+                file_content = await download_file(item["download_url"])
+                files[rel_path] = file_content
+            elif item["type"] == "dir":
+                await process_contents(item_path, files)
+
+    # Collect all files
+    files: Dict[str, bytes] = {}
+    await process_contents(folder_path, files)
+
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No files found in the specified path",
+        )
+
+    # Create ZIP
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path, content in files.items():
+            zf.writestr(file_path, content)
+
+    return zip_buffer.getvalue()
 
 
 # ============================================================================
@@ -361,6 +505,160 @@ async def upload_sequence(
             is_new=True,
             previous_version=None,
             message=f"New sequence created: {sequence.name} v{sequence.version}",
+        )
+
+
+# ============================================================================
+# GitHub Upload Endpoint
+# ============================================================================
+
+
+@router.post("/upload/github", response_model=SequenceUploadResponse)
+async def upload_sequence_from_github(
+    request: GithubUploadRequest,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+) -> SequenceUploadResponse:
+    """
+    Upload a sequence from a GitHub repository URL.
+
+    The URL should point to a folder containing:
+    - manifest.yaml with name, version, and metadata
+    - main.py as CLI entry point
+    - sequence.py with SequenceBase implementation
+
+    Supported URL formats:
+    - https://github.com/owner/repo/tree/branch/path/to/sequence
+
+    If a sequence with the same name exists, it will be updated
+    and the previous version saved to history.
+    """
+    require_manager_role(current_user)
+
+    # Parse GitHub URL
+    owner, repo, branch, folder_path = parse_github_url(request.url)
+
+    # Download folder as ZIP
+    try:
+        zip_data = await download_github_folder_as_zip(owner, repo, branch, folder_path)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_BAD_GATEWAY,
+            detail=f"Failed to download from GitHub: {str(e)}",
+        )
+
+    if len(zip_data) > 50 * 1024 * 1024:  # 50MB limit
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Package size exceeds 50MB limit",
+        )
+
+    # Parse manifest
+    manifest = parse_manifest(zip_data)
+    if not manifest.name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sequence name required in manifest.yaml",
+        )
+
+    # Validate package structure
+    validate_package_structure(zip_data, manifest.name)
+
+    # Calculate checksum and encode
+    checksum = sequence_crud.calculate_checksum(zip_data)
+    package_data = sequence_crud.encode_package(zip_data)
+    package_size = len(zip_data)
+
+    # Check if sequence exists
+    existing = await sequence_crud.get_by_name(db, manifest.name)
+
+    if existing:
+        # Update existing sequence
+        previous_version = existing.version
+
+        # Check if same checksum (no actual change)
+        if existing.checksum == checksum:
+            return SequenceUploadResponse(
+                id=existing.id,
+                name=existing.name,
+                version=existing.version,
+                display_name=existing.display_name,
+                checksum=checksum,
+                package_size=package_size,
+                is_new=False,
+                previous_version=previous_version,
+                message="Package unchanged (same checksum)",
+            )
+
+        # Auto-increment version (ignore manifest version)
+        new_version = sequence_crud.increment_version(existing.version)
+
+        # Add GitHub URL to change notes
+        change_notes = request.change_notes or ""
+        if change_notes:
+            change_notes += f"\n\nSource: {request.url}"
+        else:
+            change_notes = f"Source: {request.url}"
+
+        sequence, version = await sequence_crud.update_package(
+            db,
+            existing,
+            version=new_version,
+            package_data=package_data,
+            checksum=checksum,
+            package_size=package_size,
+            hardware=manifest.hardware,
+            parameters=manifest.parameters,
+            steps=manifest.steps,
+            uploaded_by=current_user.id,
+            change_notes=change_notes,
+        )
+
+        await db.commit()
+
+        return SequenceUploadResponse(
+            id=sequence.id,
+            name=sequence.name,
+            version=sequence.version,
+            display_name=sequence.display_name,
+            checksum=checksum,
+            package_size=package_size,
+            is_new=False,
+            previous_version=previous_version,
+            message=f"Updated from v{previous_version} to v{sequence.version} (from GitHub)",
+        )
+
+    else:
+        # Create new sequence - always start at 1.0.0
+        sequence = await sequence_crud.create(
+            db,
+            name=manifest.name,
+            version="1.0.0",
+            package_data=package_data,
+            checksum=checksum,
+            package_size=package_size,
+            display_name=manifest.display_name,
+            description=manifest.description,
+            hardware=manifest.hardware,
+            parameters=manifest.parameters,
+            steps=manifest.steps,
+            uploaded_by=current_user.id,
+        )
+
+        await db.commit()
+
+        return SequenceUploadResponse(
+            id=sequence.id,
+            name=sequence.name,
+            version=sequence.version,
+            display_name=sequence.display_name,
+            checksum=checksum,
+            package_size=package_size,
+            is_new=True,
+            previous_version=None,
+            message=f"New sequence created: {sequence.name} v{sequence.version} (from GitHub)",
         )
 
 

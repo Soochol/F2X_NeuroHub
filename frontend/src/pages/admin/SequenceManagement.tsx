@@ -68,6 +68,8 @@ export const SequenceManagement = () => {
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [dragActive, setDragActive] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [showGithubInput, setShowGithubInput] = useState(false);
+  const [githubUrl, setGithubUrl] = useState('');
   const detailModal = useModalState<SequenceDetail>();
   const [selectedSequence, setSelectedSequence] = useState<SequenceDetail | null>(null);
 
@@ -187,6 +189,35 @@ export const SequenceManagement = () => {
     },
     [handleUpload, message]
   );
+
+  const handleGithubUpload = useCallback(async () => {
+    if (!githubUrl.trim()) {
+      message.error('Please enter a GitHub URL');
+      return;
+    }
+
+    // Validate URL format
+    if (!githubUrl.startsWith('https://github.com/')) {
+      message.error('Please enter a valid GitHub URL (https://github.com/...)');
+      return;
+    }
+
+    setUploading(true);
+    setUploadStatus('Downloading from GitHub...');
+    try {
+      const result = await sequencesApi.uploadFromGithub({ url: githubUrl.trim() });
+      message.success(result.message || `Sequence "${result.name}" v${result.version} uploaded from GitHub`);
+      setGithubUrl('');
+      setShowGithubInput(false);
+      refetch();
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err, 'Failed to upload from GitHub');
+      message.error(errorMsg);
+    } finally {
+      setUploading(false);
+      setUploadStatus('');
+    }
+  }, [githubUrl, message, refetch]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -424,6 +455,7 @@ export const SequenceManagement = () => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '10px',
+                          borderBottom: '1px solid var(--color-border)',
                           transition: 'background-color 0.15s',
                         }}
                         onMouseEnter={(e) =>
@@ -441,6 +473,34 @@ export const SequenceManagement = () => {
                           </div>
                         </div>
                       </div>
+                      <div
+                        onClick={() => {
+                          setShowGithubInput(true);
+                          setShowUploadMenu(false);
+                        }}
+                        style={{
+                          padding: '12px 16px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          transition: 'background-color 0.15s',
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <span style={{ fontSize: '18px' }}>🐙</span>
+                        <div>
+                          <div style={{ fontWeight: '500', color: 'var(--color-text-primary)' }}>
+                            GitHub URL
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                            Import from repository
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -449,6 +509,67 @@ export const SequenceManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* GitHub URL Input */}
+      {showGithubInput && (
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '16px',
+            backgroundColor: 'var(--color-bg-secondary)',
+            borderRadius: '8px',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '20px' }}>🐙</span>
+            <span style={{ fontWeight: '600', color: 'var(--color-text-primary)' }}>
+              Import from GitHub
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setShowGithubInput(false);
+                setGithubUrl('');
+              }}
+              style={{ marginLeft: 'auto' }}
+            >
+              Cancel
+            </Button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/owner/repo/tree/branch/path/to/sequence"
+              disabled={uploading}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !uploading) {
+                  handleGithubUpload();
+                }
+              }}
+            />
+            <Button onClick={handleGithubUpload} disabled={uploading || !githubUrl.trim()}>
+              {uploading ? uploadStatus : 'Import'}
+            </Button>
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+            Enter a GitHub URL pointing to a sequence folder (must contain manifest.yaml)
+          </div>
+        </div>
+      )}
 
       {/* Sequence List */}
       <Card>

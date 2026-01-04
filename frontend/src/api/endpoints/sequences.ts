@@ -44,6 +44,11 @@ export interface SequenceUploadResponse {
   message: string;
 }
 
+export interface GithubUploadRequest {
+  url: string;
+  change_notes?: string;
+}
+
 export interface SequenceUpdate {
   display_name?: string;
   description?: string;
@@ -122,6 +127,17 @@ export const sequencesApi = {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload sequence from GitHub URL
+   */
+  uploadFromGithub: async (request: GithubUploadRequest): Promise<SequenceUploadResponse> => {
+    const response = await apiClient.post<SequenceUploadResponse>(
+      '/sequences/upload/github',
+      request
     );
     return response.data;
   },

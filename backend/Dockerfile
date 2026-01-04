@@ -20,7 +20,7 @@ COPY pyproject.toml .
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir hatchling && \
-    pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels .
+    pip wheel --no-cache-dir --wheel-dir /app/wheels .
 
 # Stage 2: Production stage
 FROM python:3.13-slim AS production
