@@ -258,12 +258,15 @@ async def get_batch(
         steps: List[StepResult] = []
         manifest = None
         sequence_version = "1.0.0"
+        step_names: List[str] = []  # All step names from manifest
 
         # Load manifest for parameters and step metadata
         try:
             package_name = batch_config.sequence_package
             manifest = await sequence_loader.load_package(package_name)
             sequence_version = manifest.version
+            # Get all step names from manifest (for displaying skipped steps)
+            step_names = manifest.get_step_names()
         except Exception as e:
             logger.warning(f"Failed to load manifest for {batch_id}: {e}")
 
@@ -311,8 +314,8 @@ async def get_batch(
         batch_params = status_data.get("parameters", {})
         merged_parameters.update(batch_params)
 
-        # Update total_steps if we have steps from sequence
-        total_steps = status_data.get("total_steps", 0)
+        # Update total_steps: prefer manifest step count, fall back to status_data or executed steps
+        total_steps = len(step_names) if step_names else status_data.get("total_steps", 0)
         if total_steps == 0 and steps:
             total_steps = len(steps)
 
@@ -337,6 +340,7 @@ async def get_batch(
                 started_at=status_data.get("started_at"),
                 elapsed=status_data.get("elapsed", 0.0),
                 steps=steps,
+                step_names=step_names,  # Pass all step names for UI to display skipped steps
             ),
             last_run_passed=status_data.get("last_run_passed"),
             process_id=batch_config.process_id,

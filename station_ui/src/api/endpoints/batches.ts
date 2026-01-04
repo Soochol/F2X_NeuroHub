@@ -69,6 +69,8 @@ interface BatchDetailApiResponse {
       duration?: number;
       result?: Record<string, unknown>;
     }>;
+    /** All step names from manifest (for displaying skipped steps) */
+    stepNames?: string[];
   };
 }
 
@@ -116,8 +118,9 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
     result: step.result,
   }));
 
-  // Extract step names from steps
-  const stepNames = steps.map((step) => step.name);
+  // Use step names from API (manifest) - includes all steps even if skipped
+  // Fall back to extracting from executed steps if API doesn't provide stepNames
+  const stepNames = data.execution?.stepNames || steps.map((step) => step.name);
 
   // Transform API response to match BatchDetail interface
   return {
@@ -129,7 +132,8 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
     sequencePackage: data.sequence?.packagePath || '',
     currentStep: data.execution?.currentStep,
     stepIndex: data.execution?.stepIndex || 0,
-    totalSteps: data.execution?.totalSteps || steps.length,
+    // Prefer stepNames length (from manifest) for accurate total, fall back to API totalSteps or executed steps
+    totalSteps: stepNames.length || data.execution?.totalSteps || steps.length,
     stepNames,
     progress: data.execution?.progress || 0,
     startedAt: undefined,

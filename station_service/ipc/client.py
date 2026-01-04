@@ -355,11 +355,22 @@ class IPCClient:
         await self.publish_event(IPCEvent.error(self._batch_id, code, message, step))
 
     async def step_start(
-        self, step_name: str, step_index: int, total_steps: int, execution_id: str = ""
+        self,
+        step_name: str,
+        step_index: int,
+        total_steps: int,
+        execution_id: str = "",
+        step_names: Optional[List[str]] = None,
     ) -> None:
-        """Publish a step start event."""
+        """Publish a step start event.
+
+        Args:
+            step_names: List of all step names from manifest (sent on first step only)
+        """
         await self.publish_event(
-            IPCEvent.step_start(self._batch_id, step_name, step_index, total_steps, execution_id)
+            IPCEvent.step_start(
+                self._batch_id, step_name, step_index, total_steps, execution_id, step_names
+            )
         )
 
     async def step_complete(

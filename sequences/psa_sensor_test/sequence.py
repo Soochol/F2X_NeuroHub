@@ -390,6 +390,10 @@ class PSASensorTestSequence(SequenceBase):
 
         Always called, even if setup or run failed.
         """
+        # 이전 단계 에러 확인 (SDK 2.0 에러 접근자 활용)
+        if self.last_error:
+            self.emit_log("warning", f"이전 단계 에러로 인한 정리: {self.last_error}")
+
         self.emit_log("info", "리소스 정리 중...")
 
         try:

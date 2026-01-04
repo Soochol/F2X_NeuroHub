@@ -82,6 +82,7 @@ class BatchExecution(APIBaseModel):
         started_at: Execution start time
         elapsed: Elapsed time in seconds
         steps: List of step execution results
+        step_names: Ordered list of all step names from manifest (for displaying skipped steps)
     """
     status: str = Field(..., description="Execution status")
     current_step: Optional[str] = Field(None, description="Currently executing step name")
@@ -91,6 +92,7 @@ class BatchExecution(APIBaseModel):
     started_at: Optional[datetime] = Field(None, description="Execution start time")
     elapsed: float = Field(default=0.0, description="Elapsed time in seconds", ge=0.0)
     steps: List[StepResult] = Field(default_factory=list, description="Step execution results")
+    step_names: List[str] = Field(default_factory=list, description="Ordered list of all step names from manifest")
 
 
 # ============================================================================

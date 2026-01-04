@@ -150,18 +150,32 @@ class IPCEvent:
 
     @classmethod
     def step_start(
-        cls, batch_id: str, step_name: str, step_index: int, total_steps: int, execution_id: str = ""
+        cls,
+        batch_id: str,
+        step_name: str,
+        step_index: int,
+        total_steps: int,
+        execution_id: str = "",
+        step_names: Optional[list] = None,
     ) -> "IPCEvent":
-        """Create step start event."""
+        """Create step start event.
+
+        Args:
+            step_names: List of all step names from manifest (sent on first step only)
+        """
+        data: Dict[str, Any] = {
+            "step": step_name,
+            "index": step_index,
+            "total": total_steps,
+            "execution_id": execution_id,
+        }
+        # Include step_names on first step for UI to display skipped steps
+        if step_names is not None:
+            data["step_names"] = step_names
         return cls(
             type=EventType.STEP_START,
             batch_id=batch_id,
-            data={
-                "step": step_name,
-                "index": step_index,
-                "total": total_steps,
-                "execution_id": execution_id,
-            },
+            data=data,
         )
 
     @classmethod
