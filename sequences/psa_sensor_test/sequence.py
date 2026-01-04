@@ -14,7 +14,7 @@ import logging
 import time
 from typing import Any, Dict, Optional
 
-from station_service.sdk import (
+from station_service_sdk import (
     SequenceBase,
     RunResult,
     ExecutionContext,
