@@ -10819,18 +10819,29 @@ function MetaCard({ label, value }) {
   ] });
 }
 function StepsTable({ steps, totalSteps, stepNames, onStepClick }) {
-  const displaySteps = steps.length > 0 ? steps.map((step, i) => ({
-    ...step,
-    // Use stepNames as fallback if step.name is generic
-    name: step.name.startsWith("Step ") && (stepNames == null ? void 0 : stepNames[i]) ? stepNames[i] : step.name
-  })) : Array.from({ length: totalSteps || 0 }, (_, i) => ({
-    order: i + 1,
-    name: (stepNames == null ? void 0 : stepNames[i]) || `Step ${i + 1}`,
-    status: "pending",
-    pass: false,
-    duration: void 0,
-    result: void 0
-  }));
+  const stepCount = Math.max(totalSteps || 0, (stepNames == null ? void 0 : stepNames.length) || 0, steps.length);
+  const stepResultMap = /* @__PURE__ */ new Map();
+  for (const step of steps) {
+    stepResultMap.set(step.name, step);
+  }
+  const displaySteps = Array.from({ length: stepCount }, (_, i) => {
+    const placeholderName = (stepNames == null ? void 0 : stepNames[i]) || `Step ${i + 1}`;
+    const actualStep = stepResultMap.get(placeholderName);
+    if (actualStep) {
+      return {
+        ...actualStep,
+        order: actualStep.order ?? i + 1
+      };
+    }
+    return {
+      order: i + 1,
+      name: placeholderName,
+      status: "pending",
+      pass: false,
+      duration: void 0,
+      result: void 0
+    };
+  });
   if (displaySteps.length === 0) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", style: { color: "var(--color-text-tertiary)" }, children: "No steps defined for this sequence" });
   }

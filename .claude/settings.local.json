@@ -58,7 +58,8 @@
       "Bash(pip3 show:*)",
       "WebSearch",
       "Bash(python:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(uvicorn:*)"
     ],
     "deny": [],
     "ask": []

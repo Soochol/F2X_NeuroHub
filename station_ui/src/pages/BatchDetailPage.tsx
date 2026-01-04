@@ -470,22 +470,39 @@ function MetaCard({ label, value }: { label: string; value: string }) {
 }
 
 function StepsTable({ steps, totalSteps, stepNames, onStepClick }: { steps: StepResult[]; totalSteps: number; stepNames?: string[]; onStepClick?: (stepName: string) => void }) {
-  // Generate display steps - either from actual steps or placeholders
-  const displaySteps: StepResult[] =
-    steps.length > 0
-      ? steps.map((step, i) => ({
-          ...step,
-          // Use stepNames as fallback if step.name is generic
-          name: step.name.startsWith('Step ') && stepNames?.[i] ? stepNames[i] : step.name,
-        }))
-      : Array.from({ length: totalSteps || 0 }, (_, i) => ({
-          order: i + 1,
-          name: stepNames?.[i] || `Step ${i + 1}`,
-          status: 'pending' as const,
-          pass: false,
-          duration: undefined,
-          result: undefined,
-        }));
+  // Always generate placeholders from stepNames/totalSteps, then overlay actual results
+  // This ensures all steps are shown even when some are skipped (e.g., SETUP_ERROR)
+  const stepCount = Math.max(totalSteps || 0, stepNames?.length || 0, steps.length);
+
+  // Create a map of actual step results by name for quick lookup
+  const stepResultMap = new Map<string, StepResult>();
+  for (const step of steps) {
+    stepResultMap.set(step.name, step);
+  }
+
+  // Generate display steps: placeholders with actual results overlaid
+  const displaySteps: StepResult[] = Array.from({ length: stepCount }, (_, i) => {
+    const placeholderName = stepNames?.[i] || `Step ${i + 1}`;
+    const actualStep = stepResultMap.get(placeholderName);
+
+    if (actualStep) {
+      // Use actual step result
+      return {
+        ...actualStep,
+        order: actualStep.order ?? i + 1,
+      };
+    }
+
+    // Return placeholder for steps that haven't run
+    return {
+      order: i + 1,
+      name: placeholderName,
+      status: 'pending' as const,
+      pass: false,
+      duration: undefined,
+      result: undefined,
+    };
+  });
 
   if (displaySteps.length === 0) {
     return <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>No steps defined for this sequence</p>;

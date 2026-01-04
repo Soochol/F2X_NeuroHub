@@ -176,7 +176,18 @@ parameters:
     description: "MLX90640 IR 센서 테스트 실행 여부"
 
 # 스텝 정의
+# Note: setup과 teardown은 SDK에서 자동으로 추가되는 lifecycle 스텝입니다.
 steps:
+  - name: setup
+    display_name: "Setup"
+    order: 0
+    timeout: 30.0
+    estimated_duration: 3.0
+    lifecycle: true  # SDK 자동 관리 스텝
+    manual:
+      skippable: false
+      auto_only: true
+
   - name: initialize
     display_name: "하드웨어 초기화"
     order: 1
@@ -221,13 +232,23 @@ steps:
 
   - name: finalize
     display_name: "정리"
-    order: 99
+    order: 4
     timeout: 10.0
     estimated_duration: 2.0
     cleanup: true
     manual:
       skippable: false
       auto_only: false
+
+  - name: teardown
+    display_name: "Teardown"
+    order: 5
+    timeout: 10.0
+    estimated_duration: 1.0
+    lifecycle: true  # SDK 자동 관리 스텝
+    manual:
+      skippable: false
+      auto_only: true
 
 # Python 의존성
 dependencies:
