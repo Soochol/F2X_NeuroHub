@@ -54,6 +54,7 @@ from app.api.v1 import (
     search,
     stations,
     sequences,
+    git_sync,
 )
 
 # Import middleware
@@ -519,6 +520,7 @@ app.include_router(async_operations.router, prefix=f"{settings.API_V1_PREFIX}/as
 app.include_router(search.router, prefix=f"{settings.API_V1_PREFIX}/search", tags=["Search"])
 app.include_router(stations.router, prefix=settings.API_V1_PREFIX, tags=["Stations"])
 app.include_router(sequences.router, prefix=settings.API_V1_PREFIX, tags=["Sequences"])
+app.include_router(git_sync.router, prefix=settings.API_V1_PREFIX, tags=["Git Sync"])
 
 
 if __name__ == "__main__":

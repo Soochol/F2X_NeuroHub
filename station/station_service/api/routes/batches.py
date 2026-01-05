@@ -322,6 +322,14 @@ async def get_batch(
         if total_steps == 0 and steps:
             total_steps = len(steps)
 
+        # Build config object (merge legacy fields into config)
+        batch_config_dict = dict(batch_config.config) if batch_config.config else {}
+        # Legacy field migration: if not in config, add from legacy fields
+        if "processId" not in batch_config_dict and batch_config.process_id:
+            batch_config_dict["processId"] = batch_config.process_id
+        if "headerId" not in batch_config_dict and batch_config.header_id:
+            batch_config_dict["headerId"] = batch_config.header_id
+
         detail = BatchDetail(
             id=batch_id,
             name=status_data.get("name", ""),
@@ -333,6 +341,7 @@ async def get_batch(
                 package_path=batch_config.sequence_package or "",
             ),
             parameters=merged_parameters,
+            config=batch_config_dict,
             hardware=hardware_status,
             execution=BatchExecution(
                 status=status_data.get("status", "idle"),
@@ -346,8 +355,9 @@ async def get_batch(
                 step_names=step_names,  # Pass all step names for UI to display skipped steps
             ),
             last_run_passed=status_data.get("last_run_passed"),
-            process_id=batch_config.process_id,
-            header_id=batch_config.header_id,
+            # Legacy fields for backward compatibility
+            process_id=batch_config.get_process_id(),
+            header_id=batch_config.get_header_id(),
         )
 
         return ApiResponse(success=True, data=detail)
@@ -532,8 +542,14 @@ async def start_sequence(
                 parameters["operator_id"] = workflow.default_operator_id
 
         # Add process_id from batch config for backend integration
-        if batch_config and batch_config.process_id:
-            parameters["process_id"] = batch_config.process_id
+        process_id = batch_config.get_process_id() if batch_config else None
+        if process_id:
+            parameters["process_id"] = process_id
+
+        # Add header_id from batch config for backend integration
+        header_id = batch_config.get_header_id() if batch_config else None
+        if header_id:
+            parameters["header_id"] = header_id
 
         # Add pre-validated wip_int_id to skip lookup in worker
         if request and request.wip_int_id:
@@ -710,6 +726,13 @@ async def create_batch(
     Create a new batch configuration with YAML persistence.
     """
     try:
+        # Merge config: request.config takes priority over legacy fields
+        merged_config = dict(request.config) if request.config else {}
+        if request.process_id and "processId" not in merged_config:
+            merged_config["processId"] = request.process_id
+        if request.header_id and "headerId" not in merged_config:
+            merged_config["headerId"] = request.header_id
+
         # Create BatchConfig from request
         batch_config = BatchConfig(
             id=request.id,
@@ -717,8 +740,7 @@ async def create_batch(
             sequence_package=request.sequence_package,
             hardware=request.hardware,
             auto_start=request.auto_start,
-            process_id=request.process_id,
-            header_id=request.header_id,
+            config=merged_config,
             parameters=request.parameters,
         )
 

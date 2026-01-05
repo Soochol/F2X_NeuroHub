@@ -55,6 +55,7 @@ def set_operator_session(
     access_token: Optional[str] = None,
     refresh_token: Optional[str] = None,
     expires_in: Optional[int] = None,
+    station_api_key: Optional[str] = None,
 ) -> None:
     """
     Set the operator session state.
@@ -64,6 +65,7 @@ def set_operator_session(
         access_token: JWT access token
         refresh_token: Refresh token for obtaining new access tokens
         expires_in: Token expiration time in seconds
+        station_api_key: Station API key for service-level calls
     """
     global _operator_session
     if operator and access_token:
@@ -89,6 +91,7 @@ def set_operator_session(
             expires_in=expires_in,
             user_id=operator.get("id"),
             username=operator.get("username"),
+            station_api_key=station_api_key,
         )
     else:
         _operator_session = {
@@ -236,6 +239,7 @@ async def operator_login(
         refresh_token = login_response.get("refresh_token")
         expires_in = login_response.get("expires_in")
         user_info = login_response.get("user", {})
+        station_api_key = login_response.get("station_api_key")
 
         if not access_token or not user_info:
             raise HTTPException(
@@ -243,7 +247,7 @@ async def operator_login(
                 detail="Invalid login response from backend",
             )
 
-        # Store session with refresh token support
+        # Store session with refresh token and station API key
         set_operator_session(
             operator={
                 "id": user_info.get("id", 0),
@@ -254,6 +258,7 @@ async def operator_login(
             access_token=access_token,
             refresh_token=refresh_token,
             expires_in=expires_in,
+            station_api_key=station_api_key,
         )
 
         session = get_operator_session()

@@ -1,0 +1,11 @@
+{
+  "name": "station",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix station_ui",
+    "build": "npm run build --prefix station_ui",
+    "lint": "npm run lint --prefix station_ui",
+    "test": "npm run test --prefix station_ui",
+    "install:ui": "npm install --prefix station_ui"
+  }
+}

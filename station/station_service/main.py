@@ -34,6 +34,12 @@ from station_service.core.container import ServiceContainer, set_container
 from station_service.core.events import Event, EventEmitter, EventType
 from station_service.models.config import StationConfig
 from station_service.sync.backend_client import BackendClient
+from station_service.services.auto_sync import (
+    AutoSyncService,
+    AutoSyncConfig,
+    set_auto_sync_service,
+)
+from station_service.services.sequence_sync import SequenceSyncService
 
 # Configure logging
 logging.basicConfig(
@@ -239,6 +245,29 @@ async def lifespan(app: FastAPI):
         _backend_client.set_token_manager(token_manager)
         _backend_client.set_token_update_callback(update_operator_tokens)
         logger.info("BackendClient initialized with TokenManager")
+
+        # Initialize AutoSyncService for automatic sequence updates
+        sync_service = SequenceSyncService(
+            backend_config=config.backend,
+            sequences_dir=str(sequences_dir),
+        )
+        auto_sync_config = AutoSyncConfig(
+            enabled=config.git_sync.enabled,
+            poll_interval=config.git_sync.poll_interval,
+            auto_pull=config.git_sync.auto_pull,
+        )
+        auto_sync_service = AutoSyncService(
+            sync_service=sync_service,
+            config=auto_sync_config,
+        )
+        set_auto_sync_service(auto_sync_service)
+
+        # Start auto-sync if enabled
+        if config.git_sync.enabled:
+            auto_sync_service.start()
+            logger.info(f"AutoSyncService started with interval {config.git_sync.poll_interval}s")
+        else:
+            logger.info("AutoSyncService initialized (disabled)")
 
         # Store components in app state for route access
         app.state.config = config

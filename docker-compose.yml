@@ -30,8 +30,8 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-f2x_neurohub_mes}
-      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
-      DEBUG: ${DEBUG:-false}
+      SECRET_KEY: ${SECRET_KEY:-f2x-neurohub-dev-secret-key-for-local-development-only-32chars}
+      DEBUG: ${DEBUG:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}
     depends_on:
       postgres:

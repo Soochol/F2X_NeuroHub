@@ -507,6 +507,32 @@ def complete_process(
                 wip_item.status = WIPStatus.IN_PROGRESS.value
                 wip_item.current_process_id = None
 
+            # Handle SERIAL_CONVERSION process: auto-convert to Serial and print label
+            if process.process_type == ProcessType.SERIAL_CONVERSION.value:
+                from app.services.serial_service import serial_service
+                from app.models.process import LabelTemplateType
+                import logging
+                logger = logging.getLogger(__name__)
+
+                try:
+                    # Determine if we should print serial label based on label_template_type
+                    should_print_serial = (
+                        process.auto_print_label and
+                        process.label_template_type == LabelTemplateType.SERIAL_LABEL.value
+                    )
+
+                    # Generate serial from WIP (this also sets status to CONVERTED)
+                    serial_result = serial_service.generate_from_wip(
+                        db,
+                        wip_id=wip_item.wip_id,
+                        print_label=should_print_serial
+                    )
+                    logger.info(f"WIP {wip_item.wip_id} auto-converted to Serial {serial_result.serial_number}")
+                except Exception as e:
+                    logger.error(f"Failed to auto-convert WIP {wip_item.wip_id} to Serial: {e}")
+                    # Don't fail the process completion, just log the error
+                    # The WIP status is already updated, serial conversion can be retried
+
         elif result == ProcessResult.FAIL.value:
             wip_item.status = WIPStatus.FAILED.value
             wip_item.current_process_id = None

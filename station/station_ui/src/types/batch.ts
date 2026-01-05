@@ -122,11 +122,13 @@ export interface Batch {
 export interface BatchDetail extends Batch {
   /** Sequence parameters */
   parameters: Record<string, unknown>;
+  /** Dynamic batch configuration (processId, headerId, etc.) */
+  config: Record<string, unknown>;
   /** Hardware status by device ID */
   hardwareStatus: Record<string, HardwareStatus>;
-  /** Process ID for 착공/완공 workflow (1-8) */
+  /** [Deprecated] Use config.processId instead */
   processId?: number;
-  /** Process header ID for linking to existing header */
+  /** [Deprecated] Use config.headerId instead */
   headerId?: number;
   /** Current execution status */
   execution?: {

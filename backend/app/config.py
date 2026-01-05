@@ -12,8 +12,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
 
 
-# Default secret key - ONLY for development use
-_DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
+# Default secret key - ONLY for development use (must be 32+ chars)
+_DEFAULT_SECRET_KEY = "f2x-neurohub-dev-secret-key-for-local-development-only-32chars"
 
 
 class Settings(BaseSettings):

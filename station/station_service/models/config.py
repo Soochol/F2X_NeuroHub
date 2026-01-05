@@ -139,11 +139,17 @@ class BatchConfig(BaseModel):
     sequence_package: str
     hardware: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     auto_start: bool = False
+    # Dynamic config object (replaces hardcoded process_id, header_id)
+    config: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Dynamic batch configuration (processId, headerId, etc.)"
+    )
+    # Legacy fields - deprecated, use config instead
     process_id: Optional[int] = Field(
-        None, description="Associated process ID (1-8) for WIP tracking"
+        None, description="[Deprecated] Use config.processId instead"
     )
     header_id: Optional[int] = Field(
-        None, description="Process header ID for linking to existing header"
+        None, description="[Deprecated] Use config.headerId instead"
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Batch parameters for sequence execution"
@@ -156,6 +162,14 @@ class BatchConfig(BaseModel):
         None, description="Batch-specific barcode scanner configuration"
     )
 
+    def get_process_id(self) -> Optional[int]:
+        """Get process_id from config or legacy field."""
+        return self.config.get("processId") or self.process_id
+
+    def get_header_id(self) -> Optional[int]:
+        """Get header_id from config or legacy field."""
+        return self.config.get("headerId") or self.header_id
+
 
 class LoggingConfig(BaseModel):
     """Logging configuration."""
@@ -164,6 +178,19 @@ class LoggingConfig(BaseModel):
     file: str = "data/logs/station.log"
     max_size: str = "10MB"
     backup_count: int = 5
+
+
+class GitSyncConfig(BaseModel):
+    """Git repository sync configuration for sequences."""
+
+    enabled: bool = Field(False, description="Enable git-based sequence auto-sync")
+    repository_url: str = Field("", description="Git repository URL for sequences")
+    branch: str = Field("main", description="Git branch to track")
+    poll_interval: int = Field(60, description="Polling interval in seconds")
+    auto_pull: bool = Field(True, description="Automatically pull when new commits detected")
+    ssh_key_path: Optional[str] = Field(None, description="Path to SSH private key for authentication")
+    username: Optional[str] = Field(None, description="Git username for HTTPS auth")
+    password: Optional[str] = Field(None, description="Git password/token for HTTPS auth")
 
 
 class PathsConfig(BaseModel):
@@ -192,6 +219,10 @@ class StationConfig(BaseModel):
     paths: PathsConfig = Field(
         default_factory=PathsConfig,
         description="Path configuration",
+    )
+    git_sync: GitSyncConfig = Field(
+        default_factory=GitSyncConfig,
+        description="Git repository sync configuration for sequences",
     )
     batches: List[BatchConfig] = []
     logging: LoggingConfig = LoggingConfig()

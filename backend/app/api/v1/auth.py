@@ -138,12 +138,13 @@ def login_json(
     ```json
     {
         "username": "operator1",
-        "password": "SecurePass123"
+        "password": "SecurePass123",
+        "station_id": "station_001"  // Optional: for station API key
     }
     ```
 
     **Response:**
-    Same as /login endpoint
+    Same as /login endpoint, plus station_api_key if station_id provided
 
     Raises:
         UnauthorizedException: Invalid credentials
@@ -182,7 +183,7 @@ def login_json(
         db, user_id=user.id, expires_delta=refresh_token_expires
     )
 
-    return {
+    response = {
         "access_token": access_token,
         "refresh_token": refresh_token_obj.token,
         "token_type": "bearer",
@@ -195,6 +196,16 @@ def login_json(
             "role": user.role.value,
         }
     }
+
+    # Generate station API key if station_id provided
+    if credentials.station_id:
+        station_api_key = security.create_station_api_key(
+            station_id=credentials.station_id,
+            expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+        )
+        response["station_api_key"] = station_api_key
+
+    return response
 
 
 @router.get("/me", response_model=UserInDB)
@@ -233,15 +244,16 @@ def refresh_token(
 
     **Request Body:**
     - refresh_token: The refresh token string
+    - station_id: Optional station ID for station API key refresh
 
     **Response:**
-    New access token and same/new refresh token
+    New access token and same/new refresh token, plus station_api_key if station_id provided
 
     Raises:
         InvalidTokenException: If refresh token is invalid or expired
     """
     token_obj = refresh_token_crud.get_refresh_token(db, token=refresh_data.refresh_token)
-    
+
     if not token_obj or not refresh_token_crud.is_refresh_token_valid(token_obj):
         raise InvalidTokenException(message="유효하지 않거나 만료된 리프레시 토큰입니다")
 
@@ -260,12 +272,22 @@ def refresh_token(
         }
     )
 
-    return {
+    response = {
         "access_token": access_token,
         "refresh_token": token_obj.token,  # Keep same refresh token or could rotate
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
+
+    # Generate station API key if station_id provided
+    if refresh_data.station_id:
+        station_api_key = security.create_station_api_key(
+            station_id=refresh_data.station_id,
+            expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+        )
+        response["station_api_key"] = station_api_key
+
+    return response
 
 
 @router.post("/logout")

@@ -1,0 +1,56 @@
+name: mock_success
+version: "1.0.1"
+author: "Developer"
+description: "테스트용 Mock 시퀀스 - 항상 성공"
+
+entry_point:
+  module: sequence
+  class: MockSuccessSequence
+
+modes:
+  automatic: true
+  manual: true
+  cli: true
+
+parameters:
+  delay_per_step:
+    display_name: "스텝당 지연 시간"
+    type: float
+    required: false
+    default: 0.5
+    unit: "s"
+    description: "각 스텝 실행 시 지연 시간 (초)"
+
+steps:
+  - name: setup
+    display_name: "Setup"
+    order: 0
+    lifecycle: true
+    description: "시퀀스 초기화"
+
+  - name: mock_step_1
+    display_name: "Mock Step 1"
+    order: 1
+    timeout: 10.0
+    description: "테스트 스텝 1"
+
+  - name: mock_step_2
+    display_name: "Mock Step 2"
+    order: 2
+    timeout: 10.0
+    description: "테스트 스텝 2"
+
+  - name: mock_step_3
+    display_name: "Mock Step 3"
+    order: 3
+    timeout: 10.0
+    description: "테스트 스텝 3"
+
+  - name: teardown
+    display_name: "Teardown"
+    order: 4
+    lifecycle: true
+    description: "리소스 정리"
+
+dependencies:
+  python: []

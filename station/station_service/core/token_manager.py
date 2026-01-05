@@ -34,6 +34,7 @@ class TokenInfo:
         expires_at: Token expiration timestamp
         user_id: Associated user ID
         username: Associated username
+        station_api_key: Station API key for service-level calls
     """
 
     access_token: str
@@ -41,6 +42,7 @@ class TokenInfo:
     expires_at: Optional[datetime] = None
     user_id: Optional[int] = None
     username: Optional[str] = None
+    station_api_key: Optional[str] = None
 
     def is_expired(self, buffer_seconds: int = 60) -> bool:
         """
@@ -64,6 +66,7 @@ class TokenInfo:
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "user_id": self.user_id,
             "username": self.username,
+            "station_api_key": self.station_api_key,
         }
 
     @classmethod
@@ -78,6 +81,7 @@ class TokenInfo:
             expires_at=expires_at,
             user_id=data.get("user_id"),
             username=data.get("username"),
+            station_api_key=data.get("station_api_key"),
         )
 
 
@@ -128,6 +132,7 @@ class TokenManager:
         expires_in: Optional[int] = None,
         user_id: Optional[int] = None,
         username: Optional[str] = None,
+        station_api_key: Optional[str] = None,
     ) -> None:
         """
         Set authentication tokens.
@@ -138,6 +143,7 @@ class TokenManager:
             expires_in: Token expiration time in seconds
             user_id: Associated user ID
             username: Associated username
+            station_api_key: Station API key for service-level calls
         """
         expires_at = None
         if expires_in:
@@ -149,13 +155,15 @@ class TokenManager:
             expires_at=expires_at,
             user_id=user_id,
             username=username,
+            station_api_key=station_api_key,
         )
         # Reset cooldown on new tokens
         self._last_refresh_attempt = None
 
         logger.info(
             f"Tokens set for user {username or 'unknown'}, "
-            f"expires_at: {expires_at.isoformat() if expires_at else 'unknown'}"
+            f"expires_at: {expires_at.isoformat() if expires_at else 'unknown'}, "
+            f"station_api_key: {'set' if station_api_key else 'not set'}"
         )
 
     def clear_tokens(self) -> None:
@@ -184,6 +192,15 @@ class TokenManager:
             Refresh token or None if not set
         """
         return self._token_info.refresh_token if self._token_info else None
+
+    def get_station_api_key(self) -> Optional[str]:
+        """
+        Get current station API key.
+
+        Returns:
+            Station API key or None if not set
+        """
+        return self._token_info.station_api_key if self._token_info else None
 
     def get_token_info(self) -> Optional[TokenInfo]:
         """
@@ -295,6 +312,7 @@ class TokenManager:
                 # Extract new tokens
                 new_access_token = result.get("access_token")
                 new_refresh_token = result.get("refresh_token", refresh_token)
+                new_station_api_key = result.get("station_api_key")
                 expires_in = result.get("expires_in")
 
                 if not new_access_token:
@@ -310,10 +328,13 @@ class TokenManager:
                 self._token_info.access_token = new_access_token
                 self._token_info.refresh_token = new_refresh_token
                 self._token_info.expires_at = expires_at
+                if new_station_api_key:
+                    self._token_info.station_api_key = new_station_api_key
 
                 logger.info(
                     f"Token refreshed successfully, "
-                    f"expires_at: {expires_at.isoformat() if expires_at else 'unknown'}"
+                    f"expires_at: {expires_at.isoformat() if expires_at else 'unknown'}, "
+                    f"station_api_key: {'updated' if new_station_api_key else 'unchanged'}"
                 )
 
                 # Notify callback

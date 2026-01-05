@@ -20,6 +20,10 @@ import {
   getDeployments,
   getDeployedSequence,
   runSimulation,
+  getAutoSyncStatus,
+  configureAutoSync,
+  triggerAutoSyncCheck,
+  type AutoSyncConfig,
 } from '../api/endpoints/sequences';
 import type { SequenceUpdateRequest, SimulationMode } from '../types';
 
@@ -218,5 +222,50 @@ export function useSimulation() {
       mode: SimulationMode;
       parameters?: Record<string, unknown>;
     }) => runSimulation(sequenceName, mode, parameters),
+  });
+}
+
+// ============================================================================
+// Auto-Sync Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch auto-sync status.
+ */
+export function useAutoSyncStatus() {
+  return useQuery({
+    queryKey: ['auto-sync', 'status'],
+    queryFn: getAutoSyncStatus,
+    staleTime: 10 * 1000, // 10 seconds
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+  });
+}
+
+/**
+ * Hook to configure auto-sync.
+ */
+export function useConfigureAutoSync() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (config: AutoSyncConfig) => configureAutoSync(config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auto-sync'] });
+    },
+  });
+}
+
+/**
+ * Hook to trigger manual update check.
+ */
+export function useTriggerAutoSyncCheck() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => triggerAutoSyncCheck(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auto-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['registry'] });
+    },
   });
 }

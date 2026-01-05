@@ -43,6 +43,7 @@ from app.api.v1 import (
     search,
     stations,
     sequences,
+    git_sync,
 )
 
 __all__ = [
@@ -67,4 +68,5 @@ __all__ = [
     "search",
     "stations",
     "sequences",
+    "git_sync",
 ]

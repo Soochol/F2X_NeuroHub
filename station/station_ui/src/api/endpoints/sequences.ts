@@ -222,3 +222,114 @@ export async function runSimulation(
   );
   return extractData(response);
 }
+
+// ============================================================================
+// Auto-Sync Endpoints
+// ============================================================================
+
+export interface AutoSyncStatus {
+  enabled: boolean;
+  running: boolean;
+  pollInterval: number;
+  autoPull: boolean;
+  lastCheckAt?: string;
+  lastSyncAt?: string;
+  updatesAvailable: number;
+  lastError?: string;
+}
+
+export interface AutoSyncConfig {
+  enabled: boolean;
+  poll_interval: number;
+  auto_pull: boolean;
+}
+
+/**
+ * Get auto-sync status.
+ */
+export async function getAutoSyncStatus(): Promise<AutoSyncStatus> {
+  interface RawStatus {
+    enabled: boolean;
+    running: boolean;
+    poll_interval: number;
+    auto_pull: boolean;
+    last_check_at?: string;
+    last_sync_at?: string;
+    updates_available: number;
+    last_error?: string;
+  }
+
+  const response = await apiClient.get<ApiResponse<RawStatus>>('/deploy/auto-sync/status');
+  const data = extractData(response);
+
+  return {
+    enabled: data.enabled,
+    running: data.running,
+    pollInterval: data.poll_interval,
+    autoPull: data.auto_pull,
+    lastCheckAt: data.last_check_at,
+    lastSyncAt: data.last_sync_at,
+    updatesAvailable: data.updates_available,
+    lastError: data.last_error,
+  };
+}
+
+/**
+ * Configure auto-sync.
+ */
+export async function configureAutoSync(config: AutoSyncConfig): Promise<AutoSyncStatus> {
+  interface RawStatus {
+    enabled: boolean;
+    running: boolean;
+    poll_interval: number;
+    auto_pull: boolean;
+    last_check_at?: string;
+    last_sync_at?: string;
+    updates_available: number;
+    last_error?: string;
+  }
+
+  const response = await apiClient.post<ApiResponse<RawStatus>>('/deploy/auto-sync/configure', config);
+  const data = extractData(response);
+
+  return {
+    enabled: data.enabled,
+    running: data.running,
+    pollInterval: data.poll_interval,
+    autoPull: data.auto_pull,
+    lastCheckAt: data.last_check_at,
+    lastSyncAt: data.last_sync_at,
+    updatesAvailable: data.updates_available,
+    lastError: data.last_error,
+  };
+}
+
+/**
+ * Trigger manual update check.
+ */
+export async function triggerAutoSyncCheck(): Promise<AutoSyncStatus> {
+  interface RawStatus {
+    enabled: boolean;
+    running: boolean;
+    poll_interval: number;
+    auto_pull: boolean;
+    last_check_at?: string;
+    last_sync_at?: string;
+    updates_available: number;
+    last_error?: string;
+  }
+
+  const response = await apiClient.post<ApiResponse<RawStatus>>('/deploy/auto-sync/check');
+  const data = extractData(response);
+
+  return {
+    enabled: data.enabled,
+    running: data.running,
+    pollInterval: data.poll_interval,
+    autoPull: data.auto_pull,
+    lastCheckAt: data.last_check_at,
+    lastSyncAt: data.last_sync_at,
+    updatesAvailable: data.updates_available,
+    lastError: data.last_error,
+  };
+}

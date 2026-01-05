@@ -62,7 +62,13 @@
       "Bash(uvicorn:*)",
       "Bash(git submodule:*)",
       "Bash(.venv/bin/pip install:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git -C /home/dev/code/F2X_NeuroHub ls-files station_ui/.vite)",
+      "Bash(sudo journalctl:*)",
+      "Bash(timeout 3 bash -c 'echo -n | nc -w 2 192.168.35.79 9100')",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

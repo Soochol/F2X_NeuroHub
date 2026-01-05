@@ -171,9 +171,15 @@ class BatchConfigService:
 
             # 4. Update memory
             try:
+                # Dict fields that should be merged instead of replaced
+                merge_fields = {"config", "parameters", "hardware"}
                 for key, value in updates.items():
                     if hasattr(current, key) and key != "id":
-                        setattr(current, key, value)
+                        # Special handling for dict fields: merge instead of replace
+                        if key in merge_fields and isinstance(value, dict):
+                            getattr(current, key).update(value)
+                        else:
+                            setattr(current, key, value)
             except Exception as e:
                 logger.error(f"Memory update failed for batch '{batch_id}': {e}")
                 # Note: YAML is already updated, but we continue

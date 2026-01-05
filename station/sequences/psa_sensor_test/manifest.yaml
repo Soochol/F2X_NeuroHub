@@ -2,7 +2,7 @@
 # VL53L0X ToF 거리 센서와 MLX90640 IR 열화상 센서 테스트
 
 name: psa_sensor_test
-version: "1.0.0"
+version: "1.0.1"
 author: "Station SDK Team"
 description: |
   PSA(Preconfigured Sensor Array) 센서 테스트 시퀀스.
@@ -195,7 +195,7 @@ steps:
       auto_only: true
 
   - name: initialize
-    display_name: "Initialize"
+    display_name: "하드웨어 초기화"
     order: 1
     timeout: 30.0
     estimated_duration: 5.0
@@ -207,7 +207,7 @@ steps:
       pause_after: false
 
   - name: test_vl53l0x
-    display_name: "Test VL53L0X"
+    display_name: "VL53L0X 거리 테스트"
     order: 2
     timeout: 15.0
     estimated_duration: 8.0
@@ -222,7 +222,7 @@ steps:
         - vl53l0x_tolerance_mm
 
   - name: test_mlx90640
-    display_name: "Test MLX90640"
+    display_name: "MLX90640 온도 테스트"
     order: 3
     timeout: 20.0
     estimated_duration: 12.0
@@ -237,7 +237,7 @@ steps:
         - mlx90640_tolerance_celsius
 
   - name: finalize
-    display_name: "Finalize"
+    display_name: "정리"
     order: 4
     timeout: 10.0
     estimated_duration: 2.0
@@ -258,4 +258,5 @@ steps:
 # Python 의존성
 dependencies:
   python:
+    - station-service-sdk==1.0.4
     - pyserial>=3.5,<4.0

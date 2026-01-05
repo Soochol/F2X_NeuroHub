@@ -214,13 +214,25 @@ class BackendClient:
         Get API Key authentication header.
 
         Used for service-level calls that don't require user tracking.
+        Prioritizes dynamic station_api_key from TokenManager (issued at login),
+        falls back to static api_key from config.
 
         Returns:
-            Dict with X-API-Key header if api_key is configured
+            Dict with X-API-Key header if api_key is available
         """
         headers = {}
+
+        # Priority 1: Dynamic station_api_key from TokenManager (issued at operator login)
+        if self._token_manager:
+            station_api_key = self._token_manager.get_station_api_key()
+            if station_api_key:
+                headers["X-API-Key"] = station_api_key
+                return headers
+
+        # Priority 2: Static api_key from config (fallback for initial connection)
         if self._config.api_key:
             headers["X-API-Key"] = self._config.api_key
+
         return headers
 
     def _get_jwt_header(self) -> Dict[str, str]:
@@ -681,6 +693,7 @@ class BackendClient:
         self,
         username: str,
         password: str,
+        station_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Login to Backend and get operator credentials.
@@ -688,9 +701,10 @@ class BackendClient:
         Args:
             username: Operator username
             password: Operator password
+            station_id: Optional station ID for station_api_key generation
 
         Returns:
-            Login response with access_token and user info
+            Login response with access_token, user info, and station_api_key (if station_id provided)
 
         Raises:
             BackendError: If login fails
@@ -698,11 +712,16 @@ class BackendClient:
         if not self._client:
             raise BackendConnectionError(self._config.url, "Client not connected")
 
+        # Use configured station_id if not provided
+        effective_station_id = station_id or self._config.station_id
+
         url = "/api/v1/auth/login/json"
         payload = {
             "username": username,
             "password": password,
         }
+        if effective_station_id:
+            payload["station_id"] = effective_station_id
 
         try:
             response = await self._client.post(url, json=payload)
@@ -731,15 +750,17 @@ class BackendClient:
     async def refresh_access_token(
         self,
         refresh_token: str,
+        station_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Refresh access token using refresh token.
 
         Args:
             refresh_token: Valid refresh token
+            station_id: Optional station ID for station_api_key refresh
 
         Returns:
-            Dict with new access_token, refresh_token, expires_in
+            Dict with new access_token, refresh_token, expires_in, and station_api_key
 
         Raises:
             TokenRefreshError: If refresh fails
@@ -748,8 +769,13 @@ class BackendClient:
         if not self._client:
             raise BackendConnectionError(self._config.url, "Client not connected")
 
+        # Use configured station_id if not provided
+        effective_station_id = station_id or self._config.station_id
+
         url = "/api/v1/auth/refresh"
         payload = {"refresh_token": refresh_token}
+        if effective_station_id:
+            payload["station_id"] = effective_station_id
 
         try:
             response = await self._client.post(url, json=payload)

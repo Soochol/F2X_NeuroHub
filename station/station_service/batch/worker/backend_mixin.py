@@ -22,7 +22,7 @@ from station_service.sync.models import (
 )
 
 if TYPE_CHECKING:
-    from station_service.models.config import BackendConfig
+    from station_service.models.config import BackendConfig, BatchConfig
     from station_service.storage.repositories.sync_repository import SyncRepository
     from station_service.sync.backend_client import BackendClient
     from station_service.batch.worker.state import WorkerState
@@ -37,6 +37,7 @@ class BackendMixinProtocol(Protocol):
     _backend_config: Optional["BackendConfig"]
     _sync_repo: Optional["SyncRepository"]
     _state: "WorkerState"
+    _config: "BatchConfig"
 
     @property
     def batch_id(self) -> str: ...
@@ -117,6 +118,7 @@ class BackendMixin:
         process_id: int,
         operator_id: int,
         equipment_id: Optional[int] = None,
+        header_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Call Backend start-process API (착공).
@@ -126,6 +128,7 @@ class BackendMixin:
             process_id: Process number
             operator_id: Operator ID
             equipment_id: Optional equipment ID
+            header_id: Optional header ID from batch config
 
         Returns:
             Backend response
@@ -137,7 +140,7 @@ class BackendMixin:
             raise BackendConnectionError("", "Backend client not initialized")
 
         # Ensure process header exists for station/batch tracking
-        header_id = await self._ensure_process_header(process_id)
+        header_id = await self._ensure_process_header(process_id, header_id)
 
         request = ProcessStartRequest(
             process_id=process_id,
@@ -199,14 +202,17 @@ class BackendMixin:
     async def _ensure_process_header(
         self: BackendMixinProtocol,
         process_id: int,
+        header_id: Optional[int] = None,
     ) -> Optional[int]:
         """
         Ensure a process header exists for this batch session.
 
-        Opens a new header or retrieves existing one for station+batch+process.
+        Uses header ID from parameters if specified, otherwise opens a new header
+        or retrieves existing one for station+batch+process.
 
         Args:
             process_id: Process ID for the header
+            header_id: Optional header ID from batch config (via start_sequence params)
 
         Returns:
             Header ID if successful, None otherwise
@@ -219,6 +225,15 @@ class BackendMixin:
         if self._state.backend.current_header_id is not None:
             logger.debug(f"Using existing header: {self._state.backend.current_header_id}")
             return self._state.backend.current_header_id
+
+        # Use header_id from parameters (passed from batch config via start_sequence)
+        if header_id is not None:
+            self._state.backend.current_header_id = header_id
+            logger.info(
+                f"Using header_id from batch config: id={header_id}, "
+                f"batch={self.batch_id}, process={process_id}"
+            )
+            return header_id
 
         try:
             # Prepare header open request

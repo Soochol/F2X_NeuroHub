@@ -21,3 +21,7 @@ class TokenPayload(BaseModel):
 class RefreshTokenRequest(BaseModel):
     """Schema for token refresh request."""
     refresh_token: str = Field(..., description="The refresh token string")
+    station_id: Optional[str] = Field(
+        None,
+        description="Station ID for station API key refresh (optional)",
+    )

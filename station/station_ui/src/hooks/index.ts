@@ -48,6 +48,10 @@ export {
   useDeployedSequence,
   // Simulation hooks
   useSimulation,
+  // Auto-sync hooks
+  useAutoSyncStatus,
+  useConfigureAutoSync,
+  useTriggerAutoSyncCheck,
 } from './useSequences';
 
 // Result hooks

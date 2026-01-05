@@ -138,22 +138,25 @@ class BatchDetail(APIBaseModel):
         status: Current status
         sequence: Sequence information
         parameters: Runtime parameters
+        config: Dynamic batch configuration (processId, headerId, etc.)
         hardware: Hardware device statuses
         execution: Current execution state
         last_run_passed: Result of last completed execution (True=pass, False=fail, None=no execution)
-        process_id: Associated process ID for 착공/완공 tracking
-        header_id: Process header ID for linking to existing header
+        process_id: [Deprecated] Use config.processId instead
+        header_id: [Deprecated] Use config.headerId instead
     """
     id: str = Field(..., description="Unique batch identifier")
     name: str = Field(..., description="Display name of the batch")
     status: str = Field(..., description="Current status")
     sequence: BatchSequenceInfo = Field(..., description="Sequence information")
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Runtime parameters")
+    config: Dict[str, Any] = Field(default_factory=dict, description="Dynamic batch configuration")
     hardware: Dict[str, HardwareStatus] = Field(default_factory=dict, description="Hardware statuses")
     execution: BatchExecution = Field(..., description="Current execution state")
     last_run_passed: Optional[bool] = Field(None, description="Result of last completed execution (True=pass, False=fail, None=no execution)")
-    process_id: Optional[int] = Field(None, description="Associated process ID (1-8) for 착공/완공 tracking")
-    header_id: Optional[int] = Field(None, description="Process header ID for linking to existing header")
+    # Legacy fields for backward compatibility
+    process_id: Optional[int] = Field(None, description="[Deprecated] Use config.processId instead")
+    header_id: Optional[int] = Field(None, description="[Deprecated] Use config.headerId instead")
 
 
 # ============================================================================
@@ -285,9 +288,10 @@ class BatchCreateRequest(APIBaseModel):
         sequence_package: Sequence package path to use
         hardware: Hardware configuration (device_id -> config)
         auto_start: Whether to start automatically on station startup
-        process_id: Associated process ID (1-8) for WIP tracking
-        header_id: Process header ID for linking to existing header
+        config: Dynamic batch configuration (processId, headerId, etc.)
         parameters: Batch parameters for sequence execution
+        process_id: [Deprecated] Use config.processId instead
+        header_id: [Deprecated] Use config.headerId instead
     """
     id: str = Field(..., description="Unique batch identifier", min_length=1)
     name: str = Field(..., description="Display name of the batch", min_length=1)
@@ -297,19 +301,24 @@ class BatchCreateRequest(APIBaseModel):
         description="Hardware configuration"
     )
     auto_start: bool = Field(default=False, description="Auto-start on station startup")
+    config: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Dynamic batch configuration (processId, headerId, etc.)"
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Batch parameters for sequence execution"
+    )
+    # Legacy fields for backward compatibility
     process_id: Optional[int] = Field(
         None,
-        description="Associated process ID (1-8) for WIP tracking",
+        description="[Deprecated] Use config.processId instead",
         ge=1,
         le=8
     )
     header_id: Optional[int] = Field(
         None,
-        description="Process header ID for linking to existing header"
-    )
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Batch parameters for sequence execution"
+        description="[Deprecated] Use config.headerId instead"
     )
 
 
@@ -347,9 +356,10 @@ class BatchUpdateRequest(APIBaseModel):
         sequence_package: New sequence package path
         hardware: Updated hardware configuration
         auto_start: Whether to auto-start on station startup
-        process_id: Associated process ID (1-8) for WIP tracking
-        header_id: Process header ID for linking to existing header
+        config: Dynamic batch configuration (processId, headerId, etc.)
         parameters: Batch parameters for sequence execution
+        process_id: [Deprecated] Use config.processId instead
+        header_id: [Deprecated] Use config.headerId instead
     """
     name: Optional[str] = Field(None, description="Display name of the batch", min_length=1)
     sequence_package: Optional[str] = Field(None, description="Sequence package path", min_length=1)
@@ -358,19 +368,24 @@ class BatchUpdateRequest(APIBaseModel):
         description="Hardware configuration (device_id -> config)"
     )
     auto_start: Optional[bool] = Field(None, description="Auto-start on station startup")
+    config: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Dynamic batch configuration (processId, headerId, etc.)"
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Batch parameters for sequence execution"
+    )
+    # Legacy fields for backward compatibility
     process_id: Optional[int] = Field(
         None,
-        description="Associated process ID (1-8) for WIP tracking",
+        description="[Deprecated] Use config.processId instead",
         ge=1,
         le=8
     )
     header_id: Optional[int] = Field(
         None,
-        description="Process header ID for linking to existing header"
-    )
-    parameters: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Batch parameters for sequence execution"
+        description="[Deprecated] Use config.headerId instead"
     )
 
 

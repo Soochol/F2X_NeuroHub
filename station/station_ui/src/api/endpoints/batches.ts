@@ -34,6 +34,7 @@ interface BatchDetailApiResponse {
   id: string;
   name: string;
   status: string;
+  config?: Record<string, unknown>;
   processId?: number;
   headerId?: number;
   sequence?: {
@@ -141,6 +142,7 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
     hardwareConfig: {},
     autoStart: false,
     parameters: data.parameters || {},
+    config: data.config || {},
     hardwareStatus,
     processId: data.processId,
     headerId: data.headerId,
@@ -316,9 +318,12 @@ export interface UpdateBatchRequest {
   sequencePackage?: string;
   hardware?: Record<string, Record<string, unknown>>;
   autoStart?: boolean;
-  processId?: number;
-  headerId?: number;
+  config?: Record<string, unknown>;
   parameters?: Record<string, unknown>;
+  /** @deprecated Use config.processId instead */
+  processId?: number;
+  /** @deprecated Use config.headerId instead */
+  headerId?: number;
 }
 
 /**
@@ -329,14 +334,15 @@ interface ServerBatchUpdateRequest {
   sequence_package?: string;
   hardware?: Record<string, Record<string, unknown>>;
   auto_start?: boolean;
+  config?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
   process_id?: number;
   header_id?: number;
-  parameters?: Record<string, unknown>;
 }
 
 /**
  * Update batch properties (PUT).
- * Supports updating: name, sequence_package, hardware, auto_start, process_id, header_id, parameters
+ * Supports updating: name, sequence_package, hardware, auto_start, config, parameters
  */
 export async function updateBatch(
   batchId: string,
@@ -348,9 +354,11 @@ export async function updateBatch(
   if (request.sequencePackage !== undefined) serverRequest.sequence_package = request.sequencePackage;
   if (request.hardware !== undefined) serverRequest.hardware = request.hardware;
   if (request.autoStart !== undefined) serverRequest.auto_start = request.autoStart;
+  if (request.config !== undefined) serverRequest.config = request.config;
+  if (request.parameters !== undefined) serverRequest.parameters = request.parameters;
+  // Legacy fields (deprecated)
   if (request.processId !== undefined) serverRequest.process_id = request.processId;
   if (request.headerId !== undefined) serverRequest.header_id = request.headerId;
-  if (request.parameters !== undefined) serverRequest.parameters = request.parameters;
 
   const response = await apiClient.put<ApiResponse<{ batchId: string; status: string }>>(
     `/batches/${batchId}`,

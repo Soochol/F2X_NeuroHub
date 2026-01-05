@@ -64,6 +64,7 @@ class CommandsMixinProtocol(Protocol):
         process_id: int,
         operator_id: int,
         equipment_id: Optional[int] = None,
+        header_id: Optional[int] = None,
     ) -> Dict[str, Any]: ...
     async def close_process_header(self, status: str = "CLOSED") -> None: ...
     async def queue_for_offline_sync(
@@ -185,6 +186,7 @@ class CommandsMixin:
         process_id = parameters.get("process_id")
         operator_id = parameters.get("operator_id")
         equipment_id = parameters.get("equipment_id")
+        header_id = parameters.get("header_id")  # Header ID from batch config
 
         # Generate execution ID
         execution_id = str(uuid.uuid4())[:8]
@@ -216,8 +218,9 @@ class CommandsMixin:
                     process_id=process_id,
                     operator_id=operator_id,
                     equipment_id=equipment_id,
+                    header_id=header_id,
                 )
-                logger.info(f"착공 completed: WIP={wip_id_string}, Process={process_id}")
+                logger.info(f"착공 completed: WIP={wip_id_string}, Process={process_id}, Header={header_id}")
 
             except WIPNotFoundError as e:
                 logger.error(f"WIP not found: {e}")

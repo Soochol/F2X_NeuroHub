@@ -36,6 +36,55 @@ class WIPValidationError(Exception):
     pass
 
 
+def _validate_all_manufacturing_pass_for_serial_conversion(
+    db: Session,
+    wip_item: WIPItem,
+    serial_conversion_process_number: int,
+) -> None:
+    """
+    Validate all MANUFACTURING processes before SERIAL_CONVERSION are PASS.
+
+    For SERIAL_CONVERSION process to start, all previous MANUFACTURING processes
+    must have PASS results. This ensures the WIP is ready for serial conversion.
+
+    Args:
+        db: Database session
+        wip_item: WIP item instance
+        serial_conversion_process_number: The process number of SERIAL_CONVERSION
+
+    Raises:
+        WIPValidationError: If any MANUFACTURING process is not PASS
+    """
+    # Get all active MANUFACTURING processes before this SERIAL_CONVERSION
+    manufacturing_processes = db.query(Process).filter(
+        Process.process_type == ProcessType.MANUFACTURING.value,
+        Process.is_active == True,
+        Process.process_number < serial_conversion_process_number
+    ).order_by(Process.process_number).all()
+
+    if not manufacturing_processes:
+        # No MANUFACTURING processes before this one - allow start
+        return
+
+    # Check each MANUFACTURING process has PASS result
+    missing_pass = []
+    for mfg_process in manufacturing_processes:
+        pass_result = db.query(WIPProcessHistory).filter(
+            WIPProcessHistory.wip_item_id == wip_item.id,
+            WIPProcessHistory.process_id == mfg_process.id,
+            WIPProcessHistory.result == ProcessResult.PASS.value,
+        ).first()
+
+        if not pass_result:
+            missing_pass.append(f"P{mfg_process.process_number} ({mfg_process.process_code})")
+
+    if missing_pass:
+        raise WIPValidationError(
+            f"SERIAL_CONVERSION process requires all MANUFACTURING processes to be PASS. "
+            f"Missing PASS results: {', '.join(missing_pass)}"
+        )
+
+
 def validate_lot_for_wip_generation(db: Session, lot: Lot, quantity: int) -> None:
     """
     Validate LOT can generate WIP IDs (BR-001).
@@ -98,8 +147,9 @@ def validate_process_start(
     Business Rule BR-003:
     - First MANUFACTURING process: Can start if WIP is CREATED or IN_PROGRESS
     - Subsequent MANUFACTURING processes: Can only start if previous process is PASS
+    - SERIAL_CONVERSION process: Can only start if ALL previous MANUFACTURING processes are PASS
     - WIP must not be in FAILED or CONVERTED status
-    - Process must be MANUFACTURING type (SERIAL_CONVERSION is handled separately)
+    - Process must be MANUFACTURING or SERIAL_CONVERSION type
 
     Args:
         db: Database session
@@ -115,12 +165,16 @@ def validate_process_start(
     if not process:
         raise WIPValidationError(f"Process {process_id} not found")
     
-    # Validate process type - only MANUFACTURING processes allowed for WIP
-    if process.process_type != ProcessType.MANUFACTURING.value:
+    # Validate process type - MANUFACTURING and SERIAL_CONVERSION allowed for WIP
+    if process.process_type not in (ProcessType.MANUFACTURING.value, ProcessType.SERIAL_CONVERSION.value):
         raise WIPValidationError(
-            f"Process {process_number} is not a MANUFACTURING process. "
-            f"WIP items can only process MANUFACTURING type processes."
+            f"Process {process_number} has invalid process type '{process.process_type}'. "
+            f"WIP items can only process MANUFACTURING or SERIAL_CONVERSION type processes."
         )
+
+    # For SERIAL_CONVERSION, validate all previous MANUFACTURING processes are PASS
+    if process.process_type == ProcessType.SERIAL_CONVERSION.value:
+        _validate_all_manufacturing_pass_for_serial_conversion(db, wip_item, process_number)
 
     # Check WIP status
     if wip_item.status == WIPStatus.FAILED.value:

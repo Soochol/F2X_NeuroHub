@@ -142,18 +142,20 @@ def create_refresh_token() -> str:
 def create_station_api_key(
     station_id: str,
     expires_days: int = 365,
+    expires_minutes: int = None,
 ) -> str:
     """
-    Create a long-lived API key for station authentication.
+    Create an API key for station authentication.
 
     Station API keys are JWT tokens with:
     - type: "station" claim to distinguish from user tokens
     - station_id claim for identification
-    - Long expiration (default 1 year)
+    - Configurable expiration (minutes or days)
 
     Args:
         station_id: Station identifier (e.g., "STATION-01")
-        expires_days: Expiration in days (default 365)
+        expires_days: Expiration in days (default 365, ignored if expires_minutes set)
+        expires_minutes: Expiration in minutes (takes precedence over expires_days)
 
     Returns:
         JWT token string to be used as X-API-Key
@@ -161,8 +163,13 @@ def create_station_api_key(
     Example:
         >>> api_key = create_station_api_key("STATION-01")
         >>> # Use in X-API-Key header
+        >>> # Or with short expiration for session-based usage:
+        >>> api_key = create_station_api_key("STATION-01", expires_minutes=30)
     """
-    expire = datetime.utcnow() + timedelta(days=expires_days)
+    if expires_minutes is not None:
+        expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
+    else:
+        expire = datetime.utcnow() + timedelta(days=expires_days)
 
     to_encode = {
         "exp": expire,

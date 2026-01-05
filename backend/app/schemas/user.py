@@ -179,12 +179,17 @@ class UserLogin(BaseModel):
         min_length=1,
         description="User password",
     )
+    station_id: Optional[str] = Field(
+        None,
+        description="Station ID for station API key generation (optional)",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "username": "john_doe",
                 "password": "SecurePassword123",
+                "station_id": "station_001",
             }
         }
     )

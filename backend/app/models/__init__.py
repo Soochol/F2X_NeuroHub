@@ -43,6 +43,7 @@ from app.models.saved_filter import SavedFilter
 from app.models.refresh_token import RefreshToken
 from app.models.station import Station, StationStatus
 from app.models.sequence import Sequence, SequenceVersion, SequenceDeployment
+from app.models.git_sync import GitSyncConfig
 
 
 __all__ = [
@@ -68,6 +69,7 @@ __all__ = [
     "Sequence",
     "SequenceVersion",
     "SequenceDeployment",
+    "GitSyncConfig",
     # Enums
     "UserRole",
     "LotStatus",

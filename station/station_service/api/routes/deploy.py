@@ -30,6 +30,11 @@ from station_service.services.sequence_sync import (
     SyncResult,
     LocalSequenceInfo,
 )
+from station_service.services.auto_sync import (
+    AutoSyncConfig,
+    AutoSyncStatus,
+    get_auto_sync_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -871,4 +876,152 @@ async def get_sequence_registry(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get registry: {str(e)}",
+        )
+
+
+# ============================================================================
+# Auto-Sync Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/auto-sync/status",
+    response_model=ApiResponse[AutoSyncStatus],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get auto-sync status",
+    description="Get the current status of the auto-sync service.",
+)
+async def get_auto_sync_status() -> ApiResponse[AutoSyncStatus]:
+    """
+    Get auto-sync status.
+    """
+    auto_sync = get_auto_sync_service()
+    if auto_sync is None:
+        return ApiResponse(
+            success=True,
+            data=AutoSyncStatus(
+                enabled=False,
+                running=False,
+                poll_interval=60,
+                auto_pull=True,
+            ),
+            message="Auto-sync service not initialized",
+        )
+
+    return ApiResponse(success=True, data=auto_sync.status)
+
+
+@router.post(
+    "/auto-sync/configure",
+    response_model=ApiResponse[AutoSyncStatus],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Configure auto-sync",
+    description="""
+    Configure the auto-sync service.
+
+    Settings:
+    - enabled: Enable/disable auto-sync
+    - poll_interval: Interval between checks (10-3600 seconds)
+    - auto_pull: Automatically pull when updates are detected
+    """,
+)
+async def configure_auto_sync(
+    config: AutoSyncConfig,
+) -> ApiResponse[AutoSyncStatus]:
+    """
+    Configure auto-sync service.
+    """
+    auto_sync = get_auto_sync_service()
+    if auto_sync is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Auto-sync service not initialized",
+        )
+
+    auto_sync.configure(config)
+
+    message = "Auto-sync enabled" if config.enabled else "Auto-sync disabled"
+    return ApiResponse(success=True, data=auto_sync.status, message=message)
+
+
+@router.post(
+    "/auto-sync/check",
+    response_model=ApiResponse[AutoSyncStatus],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Trigger update check",
+    description="Manually trigger an update check without syncing.",
+)
+async def trigger_auto_sync_check() -> ApiResponse[AutoSyncStatus]:
+    """
+    Manually trigger update check.
+    """
+    auto_sync = get_auto_sync_service()
+    if auto_sync is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Auto-sync service not initialized",
+        )
+
+    try:
+        status_result = await auto_sync.check_now()
+        message = (
+            f"{status_result.updates_available} updates available"
+            if status_result.updates_available > 0
+            else "All sequences up-to-date"
+        )
+        return ApiResponse(success=True, data=status_result, message=message)
+    except Exception as e:
+        logger.exception(f"Check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Check failed: {str(e)}",
+        )
+
+
+@router.post(
+    "/auto-sync/sync-now",
+    response_model=ApiResponse[SyncResult],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Trigger immediate sync",
+    description="Manually trigger an immediate sync of all updates.",
+)
+async def trigger_auto_sync_now(
+    sequence_loader: SequenceLoader = Depends(get_sequence_loader),
+) -> ApiResponse[SyncResult]:
+    """
+    Manually trigger immediate sync.
+    """
+    auto_sync = get_auto_sync_service()
+    if auto_sync is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Auto-sync service not initialized",
+        )
+
+    try:
+        result = await auto_sync.sync_now()
+
+        # Clear loader cache if any updates
+        if result.sequences_updated > 0:
+            sequence_loader.clear_cache()
+
+        message = (
+            f"Synced {result.sequences_updated} sequences"
+            if result.sequences_updated > 0
+            else "No updates to sync"
+        )
+        return ApiResponse(success=True, data=result, message=message)
+    except Exception as e:
+        logger.exception(f"Sync failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Sync failed: {str(e)}",
         )

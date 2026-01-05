@@ -24,6 +24,9 @@ import {
   ArrowUpCircle,
   CircleDot,
   Circle,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import {
   useSequenceRegistry,
@@ -33,6 +36,8 @@ import {
   usePullSequence,
   useSyncSequences,
   useSimulation,
+  useAutoSyncStatus,
+  useConfigureAutoSync,
 } from '../hooks';
 import { LoadingOverlay, LoadingSpinner } from '../components/atoms/LoadingSpinner';
 import { Button } from '../components/atoms/Button';
@@ -64,6 +69,23 @@ export function SequencesPage() {
   const downloadMutation = useDownloadSequence();
   const pullMutation = usePullSequence();
   const syncMutation = useSyncSequences();
+
+  // Auto-sync hooks
+  const { data: autoSyncStatus } = useAutoSyncStatus();
+  const configureAutoSync = useConfigureAutoSync();
+
+  const handleToggleAutoSync = async () => {
+    if (!autoSyncStatus) return;
+    try {
+      await configureAutoSync.mutateAsync({
+        enabled: !autoSyncStatus.enabled,
+        poll_interval: autoSyncStatus.pollInterval,
+        auto_pull: autoSyncStatus.autoPull,
+      });
+    } catch (error) {
+      console.error('Failed to toggle auto-sync:', error);
+    }
+  };
 
   // Filter sequences
   const filteredRegistry = useMemo(() => {
@@ -156,18 +178,54 @@ export function SequencesPage() {
             Sequences
           </h2>
         </div>
-        <Button
-          variant="secondary"
-          onClick={handleSyncAll}
-          disabled={syncMutation.isPending}
-        >
-          {syncMutation.isPending ? (
-            <LoadingSpinner size="sm" className="mr-2" />
-          ) : (
-            <CloudDownload className="w-4 h-4 mr-2" />
-          )}
-          Sync All
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Auto-sync toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleAutoSync}
+              disabled={configureAutoSync.isPending}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors"
+              style={{
+                backgroundColor: autoSyncStatus?.enabled
+                  ? 'rgba(34, 197, 94, 0.1)'
+                  : 'var(--color-bg-tertiary)',
+                border: `1px solid ${autoSyncStatus?.enabled ? 'rgba(34, 197, 94, 0.3)' : 'var(--color-border-default)'}`,
+              }}
+            >
+              {autoSyncStatus?.enabled ? (
+                <ToggleRight className="w-5 h-5 text-green-500" />
+              ) : (
+                <ToggleLeft className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
+              )}
+              <span
+                className="text-sm font-medium"
+                style={{ color: autoSyncStatus?.enabled ? '#22c55e' : 'var(--color-text-secondary)' }}
+              >
+                Auto-sync
+              </span>
+              {autoSyncStatus?.running && (
+                <RefreshCw className="w-3 h-3 text-green-500 animate-spin" />
+              )}
+            </button>
+            {autoSyncStatus?.enabled && autoSyncStatus.lastCheckAt && (
+              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                Last: {new Date(autoSyncStatus.lastCheckAt).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleSyncAll}
+            disabled={syncMutation.isPending}
+          >
+            {syncMutation.isPending ? (
+              <LoadingSpinner size="sm" className="mr-2" />
+            ) : (
+              <CloudDownload className="w-4 h-4 mr-2" />
+            )}
+            Sync All
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs */}

@@ -131,6 +131,12 @@ class BatchConfigRepository:
                 if batch.get("id") == batch_id:
                     # Don't allow changing the ID
                     updates.pop("id", None)
+                    # Dict fields that should be merged instead of replaced
+                    merge_fields = {"config", "parameters", "hardware"}
+                    for field in merge_fields:
+                        if field in updates and field in batch and isinstance(batch[field], dict):
+                            batch[field].update(updates[field])
+                            updates = {k: v for k, v in updates.items() if k != field}
                     batch.update(updates)
                     self._save_config(config)
                     logger.info(f"Updated batch '{batch_id}' in YAML configuration")
