@@ -18,7 +18,11 @@ backend:
   api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTkwNDI2NTcsImlhdCI6MTc2NzUwNjY1NywidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoidGVzdF8wMDEifQ.J7mJ-jqbSUn1s2xR4RPz35GRk48y6F5fzIQz0pwqXek
   sync_interval: 30
   station_id: test_001
-batches: []
+batches:
+- id: batch-1767526282727-e7btmoo-0
+  name: psa_sensor_test
+  sequence_package: sequences/psa_sensor_test
+  auto_start: false
 logging:
   level: INFO
   file: data/logs/station.log

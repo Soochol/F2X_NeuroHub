@@ -2,7 +2,7 @@
 # VL53L0X ToF 거리 센서와 MLX90640 IR 열화상 센서 테스트
 
 name: psa_sensor_test
-version: "2.0.0"
+version: "1.0.0"
 author: "Station SDK Team"
 description: |
   PSA(Preconfigured Sensor Array) 센서 테스트 시퀀스.

@@ -16,10 +16,10 @@ class PrinterService:
     Supports direct network printing with logging capabilities.
     """
 
-    def __init__(self, queue_name: Optional[str] = None, printer_ip: str = "192.168.35.79", printer_port: int = 9100):
+    def __init__(self, queue_name: Optional[str] = None, printer_ip: Optional[str] = None, printer_port: Optional[int] = None):
         self.queue_name = queue_name or getattr(settings, 'PRINTER_QUEUE_NAME', None)
-        self.printer_ip = printer_ip
-        self.printer_port = printer_port
+        self.printer_ip = printer_ip or getattr(settings, 'PRINTER_IP', '192.168.35.79')
+        self.printer_port = printer_port or getattr(settings, 'PRINTER_PORT', 9100)
         self.use_network_printer = True
 
     def check_printer_status(self) -> dict:

@@ -380,6 +380,7 @@ class SequenceSyncService:
                 sequence_name,
                 package_data,
                 data["checksum"],
+                backend_version=data["version"],
             )
 
             logger.info(
@@ -414,6 +415,7 @@ class SequenceSyncService:
         sequence_name: str,
         package_data: str,
         expected_checksum: str,
+        backend_version: Optional[str] = None,
     ) -> None:
         """
         Install a package from base64-encoded data.
@@ -422,6 +424,7 @@ class SequenceSyncService:
             sequence_name: Name of the sequence
             package_data: Base64-encoded ZIP data
             expected_checksum: Expected SHA-256 checksum
+            backend_version: Version from backend to update in manifest
         """
         # Decode package
         zip_data = base64.b64decode(package_data)
@@ -486,6 +489,11 @@ class SequenceSyncService:
                 # Success - remove backup
                 if backup_dir.exists():
                     shutil.rmtree(backup_dir)
+
+                # Update manifest.yaml with backend version
+                if backend_version:
+                    self._update_manifest_version(target_dir, backend_version)
+
             except Exception:
                 # Restore backup
                 if backup_dir.exists():
@@ -507,6 +515,57 @@ class SequenceSyncService:
                 if name.startswith(f"{expected_name}/"):
                     return f"{expected_name}/"
         return ""
+
+    def _update_manifest_version(self, package_dir: Path, version: str) -> None:
+        """
+        Update manifest.yaml with the backend-managed version.
+
+        This ensures local manifest version matches the backend version,
+        since the backend manages versions independently.
+
+        Args:
+            package_dir: Path to the sequence package directory
+            version: Version string from backend
+        """
+        manifest_path = package_dir / "manifest.yaml"
+        if not manifest_path.exists():
+            logger.warning(f"Manifest not found at {manifest_path}")
+            return
+
+        try:
+            import yaml
+
+            # Read current manifest
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Parse to get current version for logging
+            manifest = yaml.safe_load(content)
+            old_version = manifest.get("version", "unknown")
+
+            if old_version == version:
+                return  # Already matches
+
+            # Update version field using regex to preserve formatting/comments
+            import re
+            updated_content = re.sub(
+                r'^(version:\s*["\']?)[\d.]+(["\']?)(\s*)$',
+                rf'\g<1>{version}\g<2>\g<3>',
+                content,
+                flags=re.MULTILINE,
+            )
+
+            # Write updated manifest
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                f.write(updated_content)
+
+            logger.info(
+                f"Updated manifest version: {old_version} -> {version} "
+                f"(synced with backend)"
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to update manifest version: {e}")
 
     # =========================================================================
     # Sync Operations

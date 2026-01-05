@@ -224,10 +224,10 @@ def print_wip_label(
 
     try:
         # Print label
-        success = printer_service.print_wip_label(wip_id)
+        result = printer_service.print_wip_label(wip_id, db=db, operator_id=current_user.id)
 
-        if not success:
-            raise InternalServerException(message="Failed to send print job to printer")
+        if not result.get("success", False):
+            raise InternalServerException(message=result.get("message", "Failed to send print job to printer"))
 
         return {
             "success": True,

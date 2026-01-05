@@ -49,6 +49,9 @@ const StationDetailPage = lazy(() => import('./pages/stations/StationDetailPage'
 // Other Pages
 const AlertsPage = lazy(() => import('./pages/AlertsPage').then(module => ({ default: module.AlertsPage })));
 
+// Settings Pages
+const PrinterSettingsPage = lazy(() => import('./pages/settings/PrinterSettingsPage').then(module => ({ default: module.PrinterSettingsPage })));
+
 // Create QueryClient for react-query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,6 +151,9 @@ function AppContent() {
 
                   {/* Alerts */}
                   <Route path="/alerts" element={<AlertsPage />} />
+
+                  {/* Settings */}
+                  <Route path="/settings/printer" element={<PrinterSettingsPage />} />
                 </Route>
               </Route>
 

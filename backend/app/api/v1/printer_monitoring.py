@@ -10,15 +10,32 @@ Provides endpoints for:
 from datetime import date, datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, and_
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models import PrintLog, User
+from app.models.user import UserRole
 from app.models.print_log import PrintStatus
-from app.services.printer_service import printer_service
+from app.services.printer_service import printer_service, PrinterService
+from app.config import settings
 
 router = APIRouter()
+
+
+class PrinterSettings(BaseModel):
+    """Printer settings schema."""
+    ip: str = Field(..., description="Printer IP address")
+    port: int = Field(..., ge=1, le=65535, description="Printer port")
+    queue_name: Optional[str] = Field(None, description="Printer queue name")
+
+
+class PrinterSettingsUpdate(BaseModel):
+    """Printer settings update schema."""
+    ip: Optional[str] = Field(None, description="Printer IP address")
+    port: Optional[int] = Field(None, ge=1, le=65535, description="Printer port")
+    queue_name: Optional[str] = Field(None, description="Printer queue name")
 
 
 @router.get("/status", summary="프린터 상태 확인")
@@ -250,5 +267,95 @@ def test_print(
         )
     else:
         return {"success": False, "message": "Invalid label type"}
-    
+
     return result
+
+
+@router.get("/settings", summary="프린터 설정 조회", response_model=PrinterSettings)
+def get_printer_settings(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Get current printer settings.
+
+    Returns:
+        Current printer IP, port, and queue name
+    """
+    return PrinterSettings(
+        ip=printer_service.printer_ip,
+        port=printer_service.printer_port,
+        queue_name=printer_service.queue_name
+    )
+
+
+@router.put("/settings", summary="프린터 설정 변경", response_model=PrinterSettings)
+def update_printer_settings(
+    settings_update: PrinterSettingsUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Update printer settings. Requires ADMIN role.
+
+    Note: Changes are applied immediately but not persisted to environment.
+    For permanent changes, update the PRINTER_IP and PRINTER_PORT environment variables.
+
+    Args:
+        settings_update: New printer settings (partial update supported)
+
+    Returns:
+        Updated printer settings
+    """
+    # Check admin permission
+    if current_user.role != UserRole.ADMIN:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permission required")
+
+    # Update printer service settings
+    global printer_service
+
+    if settings_update.ip is not None:
+        printer_service.printer_ip = settings_update.ip
+
+    if settings_update.port is not None:
+        printer_service.printer_port = settings_update.port
+
+    if settings_update.queue_name is not None:
+        printer_service.queue_name = settings_update.queue_name
+
+    return PrinterSettings(
+        ip=printer_service.printer_ip,
+        port=printer_service.printer_port,
+        queue_name=printer_service.queue_name
+    )
+
+
+@router.post("/settings/test", summary="프린터 연결 테스트")
+def test_printer_connection(
+    ip: str = Query(..., description="Printer IP to test"),
+    port: int = Query(9100, ge=1, le=65535, description="Printer port to test"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Test connection to a printer without changing settings.
+
+    Args:
+        ip: Printer IP address to test
+        port: Printer port to test
+
+    Returns:
+        Connection test result
+    """
+    # Create temporary printer service instance for testing
+    test_printer = PrinterService(printer_ip=ip, printer_port=port)
+    result = test_printer.check_printer_status()
+
+    return {
+        "success": result.get("online", False),
+        "ip": ip,
+        "port": port,
+        "response_time_ms": result.get("response_time_ms"),
+        "error": result.get("error")
+    }

@@ -32,6 +32,7 @@ import {
   LogOut,
   Server,
   FileCode,
+  Printer,
   type LucideIcon
 } from 'lucide-react';
 
@@ -66,15 +67,23 @@ const navSections: NavSection[] = [
   {
     sectionLabel: 'PRODUCTION',
     items: [
-      { path: '/lots', label: 'LOT Issuance', icon: Package, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
+      {
+        id: 'lot',
+        label: 'LOT Management',
+        icon: Package,
+        items: [
+          { path: '/lots', label: 'LOT Issuance', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
+          { path: '/admin/lot-monitor', label: 'LOT List', icon: Monitor, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+        ]
+      },
       {
         id: 'wip',
         label: 'WIP',
         icon: Layers,
         items: [
-          { path: '/wip/generate', label: 'WIP Generation', icon: PackagePlus },
+          { path: '/wip/generate', label: 'WIP Register', icon: PackagePlus },
           { path: '/wip/tracking', label: 'WIP Tracking', icon: Scan },
-          { path: '/wip/list', label: 'WIP List by LOT', icon: Package },
+          { path: '/wip/list', label: 'WIP List', icon: Package },
         ]
       },
       {
@@ -82,9 +91,9 @@ const navSections: NavSection[] = [
         label: 'Serial',
         icon: Box,
         items: [
-          { path: '/serials/generate', label: 'Serial Generation', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
+          { path: '/serials/generate', label: 'Serial Register', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
           { path: '/serials/tracking', label: 'Serial Tracking', icon: Search },
-          { path: '/serials/list', label: 'Serial List by LOT', icon: Package },
+          { path: '/serials/list', label: 'Serial List', icon: Package },
         ]
       },
     ]
@@ -93,6 +102,7 @@ const navSections: NavSection[] = [
     sectionLabel: 'MONITORING',
     items: [
       { path: '/stations', label: 'Station Monitor', icon: Server },
+      { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN, UserRole.MANAGER] },
     ]
   },
   {
@@ -103,29 +113,28 @@ const navSections: NavSection[] = [
     ]
   },
   {
-    sectionLabel: 'ADMIN',
+    sectionLabel: 'MASTER DATA',
     items: [
+      { path: '/admin/products', label: 'Products', icon: Package, roles: [UserRole.ADMIN] },
+      { path: '/admin/production-lines', label: 'Production Lines', icon: Factory, roles: [UserRole.ADMIN] },
+      { path: '/admin/processes', label: 'Processes', icon: Cog, roles: [UserRole.ADMIN] },
+      { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN] },
+      { path: '/admin/sequences', label: 'Test Sequences', icon: FileCode, roles: [UserRole.ADMIN] },
+    ]
+  },
+  {
+    sectionLabel: 'SYSTEM',
+    items: [
+      { path: '/admin/users', label: 'Users', icon: Users, roles: [UserRole.ADMIN] },
       {
-        id: 'admin',
+        id: 'settings',
         label: 'Settings',
         icon: Settings,
         roles: [UserRole.ADMIN],
         items: [
-          { path: '/admin/users', label: 'Users', icon: Users, roles: [UserRole.ADMIN] },
-          { path: '/admin/processes', label: 'Processes', icon: Cog, roles: [UserRole.ADMIN] },
-          { path: '/admin/products', label: 'Products', icon: Package, roles: [UserRole.ADMIN] },
-          { path: '/admin/production-lines', label: 'Production Lines', icon: Factory, roles: [UserRole.ADMIN] },
-          { path: '/admin/equipment', label: 'Equipment', icon: Wrench, roles: [UserRole.ADMIN] },
-          { path: '/admin/sequences', label: 'Test Sequences', icon: FileCode, roles: [UserRole.ADMIN] },
+          { path: '/settings/printer', label: 'Printer', icon: Printer, roles: [UserRole.ADMIN] },
         ]
       },
-      { path: '/admin/serial-inspector', label: 'Serial Inspector', icon: Search, roles: [UserRole.ADMIN] },
-      { path: '/admin/lot-monitor', label: 'LOT Monitor', icon: Monitor, roles: [UserRole.ADMIN] },
-    ]
-  },
-  {
-    sectionLabel: 'OTHERS',
-    items: [
       { path: '/alerts', label: 'Notifications', icon: Bell },
     ]
   },

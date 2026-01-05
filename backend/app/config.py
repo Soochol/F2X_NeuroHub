@@ -59,6 +59,8 @@ class Settings(BaseSettings):
 
     # Printer
     PRINTER_QUEUE_NAME: str = "ZDesigner GK420t"  # Default Zebra printer name
+    PRINTER_IP: str = "192.168.35.79"  # Zebra printer IP address
+    PRINTER_PORT: int = 9100  # Zebra printer port (default: 9100 for raw TCP)
 
     # CORS - Configure via environment variable CORS_ORIGINS as comma-separated list
     # Example: CORS_ORIGINS=["http://localhost:3000","https://production.example.com"]
