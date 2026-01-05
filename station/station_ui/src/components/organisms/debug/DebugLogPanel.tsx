@@ -2,7 +2,7 @@
  * DebugLogPanel - Main debug panel component with tabs for logs, step data, params, and config.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { FileText, Database, Download, Trash2, Settings, Sliders } from 'lucide-react';
 import { useDebugPanelStore, type DebugPanelTab } from '../../../stores/debugPanelStore';
 import { useLogStore } from '../../../stores';
@@ -21,6 +21,8 @@ interface DebugLogPanelProps {
   steps: StepResult[];
   /** Whether batch is currently running (disables config editing) */
   isRunning?: boolean;
+  /** Callback when there are pending unsaved changes */
+  onPendingChangesChange?: (hasPending: boolean) => void;
 }
 
 interface TabButtonProps {
@@ -47,10 +49,31 @@ function TabButton({ label, icon, isActive, onClick }: TabButtonProps) {
   );
 }
 
-export function DebugLogPanel({ batchId, steps, isRunning = false }: DebugLogPanelProps) {
+export function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChangesChange }: DebugLogPanelProps) {
   const { activeTab, setActiveTab, selectedStep, logLevel, searchQuery } = useDebugPanelStore();
   const logs = useLogStore((s) => s.logs);
   const clearLogs = useLogStore((s) => s.clearLogs);
+
+  // Track dirty state from both editors
+  const [configDirty, setConfigDirty] = useState(false);
+  const [paramsDirty, setParamsDirty] = useState(false);
+
+  // Combined pending changes state
+  const hasPendingChanges = configDirty || paramsDirty;
+
+  // Notify parent when pending changes state changes
+  useEffect(() => {
+    onPendingChangesChange?.(hasPendingChanges);
+  }, [hasPendingChanges, onPendingChangesChange]);
+
+  // Callbacks for editors
+  const handleConfigDirtyChange = useCallback((isDirty: boolean) => {
+    setConfigDirty(isDirty);
+  }, []);
+
+  const handleParamsDirtyChange = useCallback((isDirty: boolean) => {
+    setParamsDirty(isDirty);
+  }, []);
 
   // Get unique step names for filter dropdown
   const stepNames = useMemo(() => {
@@ -185,8 +208,20 @@ export function DebugLogPanel({ batchId, steps, isRunning = false }: DebugLogPan
       <div className="flex-1 overflow-hidden">
         {activeTab === 'logs' && <LogEntryList batchId={batchId} />}
         {activeTab === 'data' && <StepDataViewer steps={steps} />}
-        {activeTab === 'params' && <ParametersEditor batchId={batchId} isRunning={isRunning} />}
-        {activeTab === 'config' && <BatchConfigEditor batchId={batchId} isRunning={isRunning} />}
+        {activeTab === 'params' && (
+          <ParametersEditor
+            batchId={batchId}
+            isRunning={isRunning}
+            onDirtyChange={handleParamsDirtyChange}
+          />
+        )}
+        {activeTab === 'config' && (
+          <BatchConfigEditor
+            batchId={batchId}
+            isRunning={isRunning}
+            onDirtyChange={handleConfigDirtyChange}
+          />
+        )}
       </div>
     </div>
   );

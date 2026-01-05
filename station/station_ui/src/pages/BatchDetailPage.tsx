@@ -5,7 +5,7 @@
  * Includes a debug panel for viewing logs and step data.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -69,6 +69,14 @@ export function BatchDetailPage() {
   // WIP input modal state
   const [showWipModal, setShowWipModal] = useState(false);
   const [wipError, setWipError] = useState<string | null>(null);
+
+  // Track unsaved changes in config/params editors
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+
+  // Callback for DebugLogPanel to notify about pending changes
+  const handlePendingChangesChange = useCallback((hasPending: boolean) => {
+    setHasPendingChanges(hasPending);
+  }, []);
 
   // Subscribe to real-time updates for this batch
   // NOTE: We intentionally don't unsubscribe on cleanup because:
@@ -319,7 +327,14 @@ export function BatchDetailPage() {
 
   return (
     <SplitLayout
-      panel={<DebugLogPanel batchId={batchId || ''} steps={steps} isRunning={isRunning} />}
+      panel={
+        <DebugLogPanel
+          batchId={batchId || ''}
+          steps={steps}
+          isRunning={isRunning}
+          onPendingChangesChange={handlePendingChangesChange}
+        />
+      }
       panelWidth={panelWidth}
       isCollapsed={isCollapsed}
       onResize={setPanelWidth}
@@ -374,9 +389,11 @@ export function BatchDetailPage() {
               variant="primary"
               onClick={handleStartSequence}
               isLoading={startBatch.isPending || startSequence.isPending}
+              disabled={hasPendingChanges}
+              title={hasPendingChanges ? 'Save changes in Config/Params tabs first' : undefined}
             >
               <Play className="w-4 h-4 mr-2" />
-              Start Sequence
+              {hasPendingChanges ? 'Save Changes First' : 'Start Sequence'}
             </Button>
           )}
           {isRunning && (
