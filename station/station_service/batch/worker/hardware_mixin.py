@@ -336,6 +336,20 @@ class HardwareMixin:
             self._state.sequence_version = "0.0.0"
             return
 
+        # Install dependencies from pyproject.toml if exists
+        pyproject_path = package_dir / "pyproject.toml"
+        if pyproject_path.exists():
+            try:
+                from station_service.utils.dependency_installer import (
+                    install_sequence_dependencies,
+                )
+
+                installed = install_sequence_dependencies(package_dir)
+                if installed:
+                    logger.info(f"Installed dependencies: {installed}")
+            except Exception as e:
+                logger.warning(f"Failed to install dependencies: {e}")
+
         # Load manifest for metadata
         manifest_path = package_dir / "manifest.yaml"
         if manifest_path.exists():

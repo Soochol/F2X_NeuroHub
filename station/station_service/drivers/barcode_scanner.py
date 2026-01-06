@@ -106,7 +106,38 @@ class SerialBarcodeScannerDriver(BaseDriver):
         """
         try:
             import serial_asyncio
+        except ImportError:
+            import asyncio
+            import sys
 
+            self._logger.info("pyserial-asyncio not found, installing...")
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "pyserial-asyncio",
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await proc.communicate()
+                if proc.returncode != 0:
+                    raise DriverConnectionError(
+                        f"Failed to install pyserial-asyncio: {stderr.decode()}",
+                        driver_name=self.name,
+                    )
+                import serial_asyncio
+            except DriverConnectionError:
+                raise
+            except Exception as e:
+                raise DriverConnectionError(
+                    "pyserial-asyncio not installed and auto-install failed",
+                    driver_name=self.name,
+                    details={"error": str(e)},
+                )
+
+        try:
             self._logger.info(f"Connecting to barcode scanner on {self._port}")
 
             # Create serial connection using asyncio
@@ -119,12 +150,6 @@ class SerialBarcodeScannerDriver(BaseDriver):
             self._logger.info(f"Barcode scanner connected on {self._port}")
 
             return True
-
-        except ImportError:
-            raise DriverConnectionError(
-                "pyserial-asyncio not installed. Run: pip install pyserial-asyncio",
-                driver_name=self.name,
-            )
 
         except Exception as e:
             raise DriverConnectionError(

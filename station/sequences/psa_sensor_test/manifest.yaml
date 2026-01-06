@@ -267,8 +267,6 @@ steps:
       skippable: false
       auto_only: true
 
-# Python dependencies
+# Python dependencies (defined in pyproject.toml)
 dependencies:
-  python:
-    - station-service-sdk==1.0.4
-    - pyserial>=3.5,<4.0
+  python: []

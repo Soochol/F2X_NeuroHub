@@ -35,6 +35,8 @@ batches:
     reset_mode: HWrst
     frequency: 4000
     firmware_path: /home/dev/code/station-sdk-psa-firmware-upload/sequences/stm32_firmware_upload/firmwares/firmware.bin
+  config:
+    processId: 4
 - id: batch-1767665513325-n2r1pk9-0
   name: psa_sensor_test
   sequence_package: sequences/psa_sensor_test
