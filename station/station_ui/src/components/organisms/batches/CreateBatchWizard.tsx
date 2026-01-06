@@ -17,6 +17,7 @@ import {
 import { Button } from '../../atoms/Button';
 import { Input } from '../../atoms/Input';
 import { Select } from '../../atoms/Select';
+import { useWorkflowConfig, useProcesses } from '../../../hooks';
 import type {
   SequenceSummary,
   SequencePackage,
@@ -24,6 +25,7 @@ import type {
   StepSchema,
   CreateBatchRequest,
 } from '../../../types';
+import type { ProcessInfo } from '../../../api/endpoints/system';
 
 export interface CreateBatchWizardProps {
   isOpen: boolean;
@@ -60,6 +62,12 @@ export function CreateBatchWizard({
   const [parameters, setParameters] = useState<Record<string, unknown>>({});
   const [quantity, setQuantity] = useState(1);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [selectedProcessId, setSelectedProcessId] = useState<number | undefined>(undefined);
+
+  // Workflow and MES process hooks
+  const { data: workflowConfig } = useWorkflowConfig();
+  const { data: processes = [] } = useProcesses();
+  const isWorkflowEnabled = workflowConfig?.enabled ?? false;
 
   const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.key === currentStep);
   const isFirstStep = currentStepIndex === 0;
@@ -76,6 +84,7 @@ export function CreateBatchWizard({
       setParameters({});
       setQuantity(1);
       setDraggedIndex(null);
+      setSelectedProcessId(undefined);
     }
   }, [isOpen]);
 
@@ -198,6 +207,7 @@ export function CreateBatchWizard({
       sequenceName: selectedSequence,
       stepOrder: stepOrder.filter((s) => s.enabled),
       parameters,
+      processId: selectedProcessId,
     };
     onSubmit(request);
   };
@@ -205,8 +215,11 @@ export function CreateBatchWizard({
   // Validation
   const canProceed = useMemo(() => {
     switch (currentStep) {
-      case 'sequence':
-        return !!selectedSequence && !!sequenceDetail;
+      case 'sequence': {
+        const baseValid = !!selectedSequence && !!sequenceDetail;
+        // If workflow is enabled, MES Process selection is required
+        return isWorkflowEnabled ? (baseValid && !!selectedProcessId) : baseValid;
+      }
       case 'steps':
         return stepOrder.filter((s) => s.enabled).length > 0;
       case 'parameters':
@@ -218,7 +231,7 @@ export function CreateBatchWizard({
       default:
         return false;
     }
-  }, [currentStep, selectedSequence, sequenceDetail, stepOrder, quantity]);
+  }, [currentStep, selectedSequence, sequenceDetail, stepOrder, quantity, isWorkflowEnabled, selectedProcessId]);
 
   if (!isOpen) return null;
 
@@ -278,6 +291,10 @@ export function CreateBatchWizard({
               onSelect={handleSequenceSelect}
               sequenceDetail={sequenceDetail}
               isLoading={isLoadingSequence}
+              isWorkflowEnabled={isWorkflowEnabled}
+              processes={processes}
+              selectedProcessId={selectedProcessId}
+              onProcessSelect={setSelectedProcessId}
             />
           )}
 
@@ -312,6 +329,9 @@ export function CreateBatchWizard({
               stepOrder={stepOrder}
               parameters={parameters}
               quantity={quantity}
+              isWorkflowEnabled={isWorkflowEnabled}
+              selectedProcessId={selectedProcessId}
+              processes={processes}
             />
           )}
         </div>
@@ -356,12 +376,20 @@ function SequenceSelectStep({
   onSelect,
   sequenceDetail,
   isLoading,
+  isWorkflowEnabled,
+  processes,
+  selectedProcessId,
+  onProcessSelect,
 }: {
   sequences: SequenceSummary[];
   selectedSequence: string;
   onSelect: (name: string) => void;
   sequenceDetail: SequencePackage | null;
   isLoading: boolean;
+  isWorkflowEnabled: boolean;
+  processes: ProcessInfo[];
+  selectedProcessId: number | undefined;
+  onProcessSelect: (id: number | undefined) => void;
 }) {
   const sequenceOptions = [
     { value: '', label: 'Select a sequence...' },
@@ -385,6 +413,44 @@ function SequenceSelectStep({
           className="w-full"
         />
       </div>
+
+      {/* MES Process Selection - Only shown when workflow is enabled */}
+      {isWorkflowEnabled && (
+        <div>
+          <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            MES Process <span className="text-red-500">*</span>
+          </h3>
+          <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+            WIP 연동이 활성화되어 있습니다. 이 배치에서 실행할 MES 공정을 선택하세요.
+          </p>
+          <select
+            value={selectedProcessId ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              onProcessSelect(value ? parseInt(value, 10) : undefined);
+            }}
+            className="w-full px-3 py-2 rounded-lg border outline-none transition-colors text-sm"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: selectedProcessId ? 'var(--color-border-default)' : 'var(--color-status-fail)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
+            <option value="" disabled>-- Select MES Process --</option>
+            {processes.map((process) => (
+              <option key={process.id} value={process.id}>
+                {process.processNumber}. {process.processNameEn}
+              </option>
+            ))}
+          </select>
+          {!selectedProcessId && (
+            <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: 'var(--color-status-fail)' }}>
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>MES Process 선택이 필요합니다</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex items-center justify-center py-8">
@@ -665,14 +731,21 @@ function ReviewStep({
   stepOrder,
   parameters,
   quantity,
+  isWorkflowEnabled,
+  selectedProcessId,
+  processes,
 }: {
   sequenceName: string;
   sequenceDetail: SequencePackage | null;
   stepOrder: Array<{ name: string; displayName?: string; order: number; enabled: boolean }>;
   parameters: Record<string, unknown>;
   quantity: number;
+  isWorkflowEnabled: boolean;
+  selectedProcessId: number | undefined;
+  processes: ProcessInfo[];
 }) {
   const enabledSteps = stepOrder.filter((s) => s.enabled);
+  const selectedProcess = processes.find((p) => p.id === selectedProcessId);
 
   return (
     <div className="space-y-6">
@@ -691,6 +764,16 @@ function ReviewStep({
             {sequenceDetail?.displayName || sequenceName} (v{sequenceDetail?.version})
           </p>
         </div>
+
+        {/* MES Process - Only shown when workflow is enabled */}
+        {isWorkflowEnabled && selectedProcess && (
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>
+            <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>MES Process</h4>
+            <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+              {selectedProcess.processNumber}. {selectedProcess.processNameEn}
+            </p>
+          </div>
+        )}
 
         {/* Steps */}
         <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-default)' }}>

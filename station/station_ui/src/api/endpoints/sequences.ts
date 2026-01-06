@@ -33,9 +33,9 @@ export async function getSequences(): Promise<SequenceSummary[]> {
   // Get registry and filter to installed sequences
   const registry = await getSequenceRegistry();
 
-  return registry
-    .filter((item) => ['installed_latest', 'update_available', 'local_only'].includes(item.status))
-    .map((item) => ({
+  return registry.items
+    .filter((item: SequenceRegistryItem) => ['installed_latest', 'update_available', 'local_only'].includes(item.status))
+    .map((item: SequenceRegistryItem) => ({
       name: item.name,
       version: item.localVersion || '0.0.0',
       displayName: item.displayName || item.name,
@@ -88,6 +88,14 @@ export async function downloadSequence(name: string): Promise<Blob> {
 // ============================================================================
 
 /**
+ * Registry response with optional warnings.
+ */
+export interface RegistryResponse {
+  items: SequenceRegistryItem[];
+  warnings?: string[];
+}
+
+/**
  * Get unified sequence registry (local + remote).
  *
  * Returns all sequences with their installation status:
@@ -96,7 +104,7 @@ export async function downloadSequence(name: string): Promise<Blob> {
  * - not_installed: Available on server, not installed locally
  * - local_only: Installed locally, not on server
  */
-export async function getSequenceRegistry(): Promise<SequenceRegistryItem[]> {
+export async function getSequenceRegistry(): Promise<RegistryResponse> {
   interface RawRegistryItem {
     name: string;
     display_name?: string;
@@ -111,9 +119,10 @@ export async function getSequenceRegistry(): Promise<SequenceRegistryItem[]> {
 
   const response = await apiClient.get<ApiResponse<RawRegistryItem[]>>('/deploy/registry');
   const rawData = extractData(response);
+  const warnings = response.data.warnings;
 
   // Transform snake_case to camelCase
-  return rawData.map((item) => ({
+  const items = rawData.map((item) => ({
     name: item.name,
     displayName: item.display_name,
     description: item.description,
@@ -124,6 +133,8 @@ export async function getSequenceRegistry(): Promise<SequenceRegistryItem[]> {
     remoteUpdatedAt: item.remote_updated_at,
     isActive: item.is_active,
   }));
+
+  return { items, warnings };
 }
 
 /**

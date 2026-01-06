@@ -142,3 +142,29 @@ class ValidateWIPResponse(APIBaseModel):
     pass_warning_message: Optional[str] = Field(
         None, description="Warning message if has_pass_for_process is True"
     )
+
+
+# ============================================================================
+# Backend Config Schemas
+# ============================================================================
+
+
+class BackendConfigResponse(APIBaseModel):
+    """Backend configuration response."""
+
+    url: str = Field(..., description="Backend API URL")
+    api_key_masked: str = Field(..., description="Masked API key (e.g., 'eyJh...***')")
+    sync_interval: int = Field(..., description="Sync interval in seconds")
+    station_id: str = Field(..., description="Station identifier for backend")
+    timeout: float = Field(..., description="Request timeout in seconds")
+    max_retries: int = Field(..., description="Maximum retry attempts")
+
+
+class UpdateBackendConfigRequest(APIBaseModel):
+    """Request body for updating backend configuration."""
+
+    url: Optional[str] = Field(None, description="Backend API URL")
+    sync_interval: Optional[int] = Field(None, ge=5, le=3600, description="Sync interval (5-3600 seconds)")
+    station_id: Optional[str] = Field(None, min_length=1, max_length=100, description="Station identifier")
+    timeout: Optional[float] = Field(None, ge=1.0, le=300.0, description="Request timeout (1-300 seconds)")
+    max_retries: Optional[int] = Field(None, ge=0, le=10, description="Max retries (0-10)")

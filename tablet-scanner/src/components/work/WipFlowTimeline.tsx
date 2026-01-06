@@ -1,7 +1,8 @@
 /**
  * WIP Flow Timeline Component
  *
- * 8공정 진행 상황을 시각화하는 타임라인
+ * 동적 공정 진행 상황을 시각화하는 타임라인
+ * API에서 가져온 공정 목록 사용
  * 터치 최적화 - 공정 터치로 선택 가능
  */
 import { useMemo } from 'react';
@@ -21,16 +22,12 @@ interface WipFlowTimelineProps {
   className?: string;
 }
 
-// 공정 짧은 이름 매핑
-const PROCESS_SHORT_NAMES: Record<number, string> = {
-  1: 'Marking',
-  2: 'Assembly',
-  3: 'Sensor',
-  4: 'Firmware',
-  5: 'Robot',
-  6: 'Performance',
-  7: 'Label',
-  8: 'Packaging',
+// 공정 코드에서 짧은 이름 추출 (예: SENSOR_TEST -> Sensor, FIRMWARE_UPLOAD -> Firmware)
+const getShortName = (process: Process): string => {
+  const code = process.process_code || process.process_name_en || '';
+  // 첫 번째 단어만 추출하고 첫 글자 대문자로
+  const firstWord = code.split('_')[0];
+  return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
 };
 
 export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
@@ -41,14 +38,19 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
   disabled = false,
   className,
 }) => {
+  // 공정 목록을 process_number로 정렬
+  const sortedProcesses = useMemo(() => {
+    return [...processes].sort((a, b) => a.process_number - b.process_number);
+  }, [processes]);
+
   // 공정별 상태 계산
   const processStatuses = useMemo(() => {
     const statuses = new Map<number, ProcessStatus>();
 
-    // 기본값: 모두 pending
-    for (let i = 1; i <= 8; i++) {
-      statuses.set(i, 'pending');
-    }
+    // 기본값: 모든 공정을 pending으로 설정
+    sortedProcesses.forEach((p) => {
+      statuses.set(p.process_number, 'pending');
+    });
 
     if (!trace) return statuses;
 
@@ -66,24 +68,24 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
     });
 
     return statuses;
-  }, [trace]);
+  }, [trace, sortedProcesses]);
 
   // 다음 진행할 공정 번호 계산
   const nextProcessNumber = useMemo(() => {
     // 진행 중인 공정이 있으면 해당 공정
-    for (let i = 1; i <= 8; i++) {
-      if (processStatuses.get(i) === 'in-progress') {
-        return i;
+    for (const process of sortedProcesses) {
+      if (processStatuses.get(process.process_number) === 'in-progress') {
+        return process.process_number;
       }
     }
     // 아니면 첫 번째 pending 공정
-    for (let i = 1; i <= 8; i++) {
-      if (processStatuses.get(i) === 'pending') {
-        return i;
+    for (const process of sortedProcesses) {
+      if (processStatuses.get(process.process_number) === 'pending') {
+        return process.process_number;
       }
     }
     return null;
-  }, [processStatuses]);
+  }, [processStatuses, sortedProcesses]);
 
   // 공정 클릭 핸들러
   const handleProcessClick = (processNum: number) => {
@@ -109,16 +111,18 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
         <div
           className="absolute top-12 left-6 h-1.5 bg-success-500 rounded-full transition-all duration-700 ease-in-out shadow-[0_0_15px_rgba(16,185,129,0.4)]"
           style={{
-            width: `${Math.max(0, (Array.from(processStatuses.values()).filter((s) => s === 'pass').length - 1) / 7) * 100}%`,
+            width: sortedProcesses.length > 1
+              ? `${Math.max(0, (Array.from(processStatuses.values()).filter((s) => s === 'pass').length - 1) / (sortedProcesses.length - 1)) * 100}%`
+              : '0%',
           }}
         />
 
-        {/* 공정 노드들 */}
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => {
+        {/* 공정 노드들 - API에서 가져온 공정 목록 사용 */}
+        {sortedProcesses.map((process) => {
+          const num = process.process_number;
           const status = processStatuses.get(num) || 'pending';
           const isSelected = activeProcessNumber === num;
-          const process = processes.find((p) => p.process_number === num);
-          const shortName = PROCESS_SHORT_NAMES[num] || `${num}`;
+          const shortName = getShortName(process);
 
           return (
             <div key={num} className="relative z-10 flex flex-col items-center shrink-0">
@@ -169,8 +173,8 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
               {/* 공정 이름 */}
               <span
                 className={cn(
-                  'mt-3 text-[10px] lg:text-xs font-black text-center leading-tight uppercase tracking-tighter',
-                  'max-w-[56px] truncate transition-all duration-300',
+                  'mt-3 text-[10px] sm:text-xs lg:text-sm font-black text-center leading-tight uppercase tracking-tighter',
+                  'max-w-[60px] sm:max-w-[80px] lg:max-w-[100px] transition-all duration-300',
                   isSelected || status === 'in-progress'
                     ? 'text-primary-400 opacity-100 scale-110 font-black'
                     : status === 'pending'
@@ -196,8 +200,10 @@ export const WipFlowTimeline: React.FC<WipFlowTimelineProps> = ({
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Selected Process</span>
           <p className="text-xl font-black text-primary-400 mt-1 tracking-tight">
             <span className="opacity-70 mr-3">{activeProcessNumber}</span>
-            {processes.find((p) => p.process_number === activeProcessNumber)?.process_name_en ||
-              PROCESS_SHORT_NAMES[activeProcessNumber]}
+            {(() => {
+              const activeProcess = sortedProcesses.find((p) => p.process_number === activeProcessNumber);
+              return activeProcess?.process_name_en || activeProcess?.process_code || `Process ${activeProcessNumber}`;
+            })()}
           </p>
           {processStatuses.get(activeProcessNumber) === 'in-progress' && (
             <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-primary-500/10 border border-primary-500/20">

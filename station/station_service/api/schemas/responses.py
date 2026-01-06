@@ -35,10 +35,12 @@ class ApiResponse(APIBaseModel, Generic[T]):
         success: Whether the request was successful
         data: The response payload
         message: Optional message for the response
+        warnings: Optional list of warning messages (e.g., backend connection issues)
     """
     success: bool = Field(default=True, description="Whether the request was successful")
     data: T = Field(..., description="Response payload")
     message: Optional[str] = Field(None, description="Optional response message")
+    warnings: Optional[List[str]] = Field(None, description="Optional warning messages")
 
 
 class ErrorResponse(APIBaseModel):

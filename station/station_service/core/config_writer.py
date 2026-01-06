@@ -13,7 +13,7 @@ from typing import Optional
 
 import yaml
 
-from station_service.models.config import StationConfig, StationInfo, WorkflowConfig
+from station_service.models.config import BackendConfig, StationConfig, StationInfo, WorkflowConfig
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +291,76 @@ async def update_workflow_config(
         temp_path.replace(config_path)
         logger.info(
             f"Updated workflow config: {previous_workflow} -> {workflow_config.model_dump()}"
+        )
+
+    except Exception as e:
+        # Clean up temp file if it exists
+        if temp_path.exists():
+            temp_path.unlink()
+        raise e
+
+    # Clean up old backups
+    cleanup_old_backups(config_path)
+
+    # Return updated config
+    return StationConfig(**config_data)
+
+
+async def update_backend_config(
+    config_path: Path,
+    backend_config: BackendConfig,
+) -> StationConfig:
+    """
+    Update backend configuration in the station.yaml config file.
+
+    Performs an atomic update with backup to ensure config integrity.
+    Note: api_key is preserved from the existing config and cannot be updated via this function.
+
+    Args:
+        config_path: Path to the station.yaml file
+        backend_config: New backend configuration (api_key is ignored)
+
+    Returns:
+        Updated StationConfig
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    # Read current config
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_data = yaml.safe_load(f)
+
+    # Update backend config (preserve api_key)
+    previous_backend = config_data.get("backend", {})
+    existing_api_key = previous_backend.get("api_key", "")
+
+    config_data["backend"] = {
+        "url": backend_config.url,
+        "api_key": existing_api_key,  # Preserve existing API key
+        "sync_interval": backend_config.sync_interval,
+        "station_id": backend_config.station_id,
+        "timeout": backend_config.timeout,
+        "max_retries": backend_config.max_retries,
+    }
+
+    # Create backup
+    backup_path = config_path.with_suffix(f".yaml.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    shutil.copy2(config_path, backup_path)
+    logger.info(f"Created config backup: {backup_path}")
+
+    # Write updated config atomically (write to temp, then rename)
+    temp_path = config_path.with_suffix(".yaml.tmp")
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            yaml.dump(config_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+        # Atomic replace
+        temp_path.replace(config_path)
+        logger.info(
+            f"Updated backend config: url={backend_config.url}, sync_interval={backend_config.sync_interval}"
         )
 
     except Exception as e:

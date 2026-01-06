@@ -223,7 +223,7 @@ function ManualTestTab() {
       });
     } catch (error) {
       addLog('error', `Failed to create session: ${getErrorMessage(error)}`, error);
-      console.error('Failed to create session:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 
@@ -247,7 +247,7 @@ function ManualTestTab() {
       }
     } catch (error) {
       addLog('error', `Failed to initialize session: ${getErrorMessage(error)}`, error);
-      console.error('Failed to initialize session:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 
@@ -264,7 +264,7 @@ function ManualTestTab() {
       });
     } catch (error) {
       addLog('error', `Failed to finalize session: ${getErrorMessage(error)}`, error);
-      console.error('Failed to finalize session:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 
@@ -280,7 +280,7 @@ function ManualTestTab() {
       addLog('warning', 'Session aborted');
     } catch (error) {
       addLog('error', `Failed to abort session: ${getErrorMessage(error)}`, error);
-      console.error('Failed to abort session:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 
@@ -327,7 +327,7 @@ function ManualTestTab() {
       }
     } catch (error) {
       addLog('error', `Failed to run step "${stepName}": ${getErrorMessage(error)}`, error);
-      console.error('Failed to run step:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 
@@ -343,7 +343,7 @@ function ManualTestTab() {
       addLog('info', `Step "${stepName}" skipped`);
     } catch (error) {
       addLog('error', `Failed to skip step "${stepName}": ${getErrorMessage(error)}`, error);
-      console.error('Failed to skip step:', error);
+      // Error toast handled by global mutation error handler
     }
   };
 

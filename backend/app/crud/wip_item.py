@@ -31,6 +31,7 @@ from app.models.lot import Lot, LotStatus
 from app.models.wip_item import WIPItem, WIPStatus
 from app.models.wip_process_history import WIPProcessHistory, ProcessResult
 from app.models.process import Process, ProcessType
+from app.models.process_data import ProcessData, DataLevel
 from app.models.serial import Serial, SerialStatus
 from app.utils.wip_number import generate_batch_wip_ids
 from app.services import wip_service
@@ -355,12 +356,16 @@ def start_process(
     operator_id: int,
     equipment_id: Optional[int] = None,
     started_at: Optional[datetime] = None,
-) -> WIPProcessHistory:
+    header_id: Optional[int] = None,
+) -> WIPItem:
     """
     Start a process on WIP (BR-003).
 
     Business Rule BR-003: Process can only start if previous process is PASS
     (except process 1).
+
+    Creates a ProcessData record to track the in-progress state, which can be
+    queried by the trace API to show 착공 status.
 
     Args:
         db: Database session
@@ -369,9 +374,10 @@ def start_process(
         operator_id: Operator identifier
         equipment_id: Equipment identifier (optional)
         started_at: Process start timestamp (defaults to now)
+        header_id: Process header ID for station/batch tracking (optional)
 
     Returns:
-        Created WIP process history record
+        Updated WIP item
 
     Raises:
         ValueError: If validation fails
@@ -389,12 +395,41 @@ def start_process(
     # BR-003: Validate process can start
     wip_service.validate_process_start(db, wip_item, process_id, process.process_number)
 
-    # Create process history record (in-progress, no result yet)
-    # Note: This is a "start" record - will be updated when completed
     if started_at is None:
         started_at = datetime.now(timezone.utc)
 
     try:
+        # Check for existing in-progress ProcessData (재착공 지원)
+        existing_process_data = (
+            db.query(ProcessData)
+            .filter(
+                ProcessData.wip_id == wip_id,
+                ProcessData.process_id == process_id,
+                ProcessData.completed_at.is_(None),
+            )
+            .first()
+        )
+
+        if existing_process_data:
+            # 재착공: Update existing record
+            existing_process_data.started_at = started_at
+            existing_process_data.operator_id = operator_id
+            if header_id:
+                existing_process_data.header_id = header_id
+        else:
+            # 신규 착공: Create ProcessData record for trace API
+            process_data = ProcessData(
+                lot_id=wip_item.lot_id,
+                wip_id=wip_id,
+                process_id=process_id,
+                header_id=header_id,
+                operator_id=operator_id,
+                started_at=started_at,
+                data_level=DataLevel.WIP.value,
+                result=ProcessResult.PASS.value,  # Default, will be updated on complete
+            )
+            db.add(process_data)
+
         # Update WIP status to IN_PROGRESS
         if wip_item.status == WIPStatus.CREATED.value:
             wip_item.status = WIPStatus.IN_PROGRESS.value

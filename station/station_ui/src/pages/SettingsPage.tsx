@@ -19,7 +19,7 @@ import {
   ScanBarcode,
   FolderOpen,
 } from 'lucide-react';
-import { useSystemInfo, useHealthStatus, useUpdateStationInfo, useWorkflowConfig, useUpdateWorkflowConfig } from '../hooks';
+import { useSystemInfo, useHealthStatus, useUpdateStationInfo, useWorkflowConfig, useUpdateWorkflowConfig, useBackendConfig, useUpdateBackendConfig } from '../hooks';
 import { useUIStore } from '../stores/uiStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { Button } from '../components/atoms/Button';
@@ -30,19 +30,31 @@ export function SettingsPage() {
   const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
   const { data: workflowConfig, isLoading: workflowLoading, refetch: refetchWorkflow } = useWorkflowConfig();
+  const { data: backendConfig, isLoading: backendLoading, refetch: refetchBackend } = useBackendConfig();
   const updateStationInfo = useUpdateStationInfo();
   const updateWorkflow = useUpdateWorkflowConfig();
+  const updateBackend = useUpdateBackendConfig();
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   const theme = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
 
-  // Edit mode state
+  // Edit mode state for station info
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     id: '',
     name: '',
     description: '',
+  });
+
+  // Edit mode state for backend config
+  const [isEditingBackend, setIsEditingBackend] = useState(false);
+  const [backendForm, setBackendForm] = useState({
+    url: '',
+    syncInterval: 30,
+    stationId: '',
+    timeout: 30,
+    maxRetries: 5,
   });
 
   // Sync form with systemInfo when data loads (only when not editing)
@@ -60,10 +72,24 @@ export function SettingsPage() {
     }
   }, [stationId, stationName, stationDescription, isEditing]);
 
+  // Sync backend form when data loads
+  useEffect(() => {
+    if (backendConfig && !isEditingBackend) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries,
+      });
+    }
+  }, [backendConfig, isEditingBackend]);
+
   const handleRefresh = () => {
     refetchInfo();
     refetchHealth();
     refetchWorkflow();
+    refetchBackend();
   };
 
   const handleEditStart = () => {
@@ -182,6 +208,66 @@ export function SettingsPage() {
     }
   };
 
+  // Backend config handlers
+  const handleBackendEditStart = () => {
+    if (backendConfig) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries,
+      });
+    }
+    setIsEditingBackend(true);
+  };
+
+  const handleBackendEditCancel = () => {
+    setIsEditingBackend(false);
+    if (backendConfig) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries,
+      });
+    }
+  };
+
+  const handleBackendEditSave = async () => {
+    if (!backendForm.url.trim()) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Backend URL is required',
+      });
+      return;
+    }
+
+    try {
+      await updateBackend.mutateAsync({
+        url: backendForm.url.trim(),
+        syncInterval: backendForm.syncInterval,
+        stationId: backendForm.stationId.trim(),
+        timeout: backendForm.timeout,
+        maxRetries: backendForm.maxRetries,
+      });
+      setIsEditingBackend(false);
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Backend configuration updated successfully',
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: error instanceof Error ? error.message : 'Failed to update backend configuration',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -220,6 +306,8 @@ export function SettingsPage() {
                     value={editForm.id}
                     onChange={(value) => setEditForm((prev) => ({ ...prev, id: value }))}
                     placeholder="e.g., station_001"
+                    disabled
+                    hint="Configured in station.yaml"
                   />
                   <EditableRow
                     label="Station Name"
@@ -484,7 +572,14 @@ export function SettingsPage() {
         <Section
           icon={<Cloud className="w-5 h-5" />}
           title="Backend Connection"
-          isLoading={healthLoading}
+          isLoading={backendLoading || healthLoading}
+          action={
+            !isEditingBackend ? (
+              <Button variant="ghost" size="sm" onClick={handleBackendEditStart}>
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            ) : null
+          }
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -494,15 +589,120 @@ export function SettingsPage() {
                 size="sm"
               />
             </div>
-            <div className="flex items-center justify-between">
-              <span style={{ color: 'var(--color-text-secondary)' }}>Backend URL</span>
-              <span
-                className="text-sm font-mono"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
-                {getBackendUrl()}
-              </span>
-            </div>
+            {isEditingBackend ? (
+              <>
+                <EditableRow
+                  label="Backend URL"
+                  value={backendForm.url}
+                  onChange={(value) => setBackendForm((prev) => ({ ...prev, url: value }))}
+                  placeholder="http://localhost:8000"
+                />
+                <EditableRow
+                  label="Station ID"
+                  value={backendForm.stationId}
+                  onChange={(value) => setBackendForm((prev) => ({ ...prev, stationId: value }))}
+                  placeholder="station_001"
+                  disabled
+                  hint="Must match API Key"
+                />
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    className="text-sm whitespace-nowrap"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    Sync Interval (sec)
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={3600}
+                    value={backendForm.syncInterval}
+                    onChange={(e) => setBackendForm((prev) => ({ ...prev, syncInterval: parseInt(e.target.value) || 30 }))}
+                    className="w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors"
+                    style={{
+                      backgroundColor: 'var(--color-bg-primary)',
+                      borderColor: 'var(--color-border-default)',
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    className="text-sm whitespace-nowrap"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    Timeout (sec)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={300}
+                    value={backendForm.timeout}
+                    onChange={(e) => setBackendForm((prev) => ({ ...prev, timeout: parseFloat(e.target.value) || 30 }))}
+                    className="w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors"
+                    style={{
+                      backgroundColor: 'var(--color-bg-primary)',
+                      borderColor: 'var(--color-border-default)',
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    className="text-sm whitespace-nowrap"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    Max Retries
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={backendForm.maxRetries}
+                    onChange={(e) => setBackendForm((prev) => ({ ...prev, maxRetries: parseInt(e.target.value) || 5 }))}
+                    className="w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors"
+                    style={{
+                      backgroundColor: 'var(--color-bg-primary)',
+                      borderColor: 'var(--color-border-default)',
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackendEditCancel}
+                    disabled={updateBackend.isPending}
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleBackendEditSave}
+                    disabled={updateBackend.isPending}
+                  >
+                    {updateBackend.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <InfoRow label="Backend URL" value={backendConfig?.url || '-'} />
+                <InfoRow label="Station ID" value={backendConfig?.stationId || '-'} />
+                <InfoRow label="Sync Interval" value={backendConfig ? `${backendConfig.syncInterval}s` : '-'} />
+                <InfoRow label="Timeout" value={backendConfig ? `${backendConfig.timeout}s` : '-'} />
+                <InfoRow label="Max Retries" value={backendConfig?.maxRetries?.toString() || '-'} />
+                <InfoRow label="API Key" value={backendConfig?.apiKeyMasked || '-'} />
+              </>
+            )}
             <div
               className="text-xs p-2 rounded"
               style={{
@@ -510,7 +710,7 @@ export function SettingsPage() {
                 color: 'var(--color-text-tertiary)',
               }}
             >
-              Backend URL is configured in station.yaml
+              API Key cannot be modified through UI for security reasons.
             </div>
           </div>
         </Section>
@@ -562,12 +762,6 @@ export function SettingsPage() {
       </div>
     </div>
   );
-}
-
-// Helper to get backend URL from current location (API is on same origin)
-function getBackendUrl(): string {
-  // The station_ui is served from station_service, so backend is same origin
-  return window.location.origin;
 }
 
 interface SectionProps {
@@ -624,29 +818,39 @@ interface EditableRowProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  hint?: string;
 }
 
-function EditableRow({ label, value, onChange, placeholder }: EditableRowProps) {
+function EditableRow({ label, value, onChange, placeholder, disabled, hint }: EditableRowProps) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <label
-        className="text-sm whitespace-nowrap"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
-        {label}
-      </label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors"
-        style={{
-          backgroundColor: 'var(--color-bg-primary)',
-          borderColor: 'var(--color-border-default)',
-          color: 'var(--color-text-primary)',
-        }}
-      />
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-4">
+        <label
+          className="text-sm whitespace-nowrap"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          {label}
+        </label>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+          style={{
+            backgroundColor: disabled ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
+            borderColor: 'var(--color-border-default)',
+            color: 'var(--color-text-primary)',
+          }}
+        />
+      </div>
+      {hint && (
+        <span className="text-xs ml-auto" style={{ color: 'var(--color-text-tertiary)' }}>
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

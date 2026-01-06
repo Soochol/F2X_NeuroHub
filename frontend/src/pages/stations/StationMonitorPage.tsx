@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spin, Empty, Button } from 'antd';
+import { Spin, Empty, Button, message } from 'antd';
 import {
   Server,
   RefreshCw,
@@ -16,13 +16,23 @@ import {
   AlertTriangle,
   Activity,
 } from 'lucide-react';
-import { useRegisteredStations } from '@/hooks/useStationMonitor';
+import { useRegisteredStations, useDeleteStation } from '@/hooks/useStationMonitor';
 import { StationCard } from '@/components/organisms/station';
 import styles from './StationMonitorPage.module.css';
 
 export const StationMonitorPage = () => {
   const navigate = useNavigate();
   const { data: stations, isLoading, isError, refetch, isFetching } = useRegisteredStations();
+  const deleteStation = useDeleteStation();
+
+  const handleDeleteStation = async (stationId: string) => {
+    try {
+      await deleteStation.mutateAsync(stationId);
+      message.success('Station removed from registry');
+    } catch {
+      message.error('Failed to remove station');
+    }
+  };
 
   // Summary stats
   const summary = useMemo(() => {
@@ -142,6 +152,8 @@ export const StationMonitorPage = () => {
                 key={station.id}
                 station={station}
                 onClick={() => handleStationClick(station.id)}
+                onDelete={handleDeleteStation}
+                isDeleting={deleteStation.isPending}
               />
             ))}
           </div>

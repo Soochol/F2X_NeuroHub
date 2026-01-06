@@ -45,6 +45,20 @@ export const useRegisteredStation = (stationId: string | null, refetchInterval =
   });
 };
 
+/**
+ * Hook to delete (unregister) a station from the registry
+ */
+export const useDeleteStation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (stationId: string) => stationRegistryApi.deleteStation(stationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['registered-stations'] });
+    },
+  });
+};
+
 // Legacy hooks for backward compatibility
 // These will be deprecated in favor of useRegisteredStations
 

@@ -43,7 +43,6 @@ import {
   WIP_ID_PATTERN,
   QUEUE_CHECK_INTERVAL_MS,
   AUTO_START_DELAY_MS,
-  MAX_PROCESS_COUNT,
 } from '@/constants';
 import { logger } from '@/services/logger';
 
@@ -229,29 +228,22 @@ export const WorkPage: React.FC = () => {
         const inProgress = trace.process_history.find(h => h.start_time && !h.complete_time);
 
         if (!inProgress) {
-          // 2. 다음 공정 번호 찾기 (1~MAX_PROCESS_COUNT 중 PASS가 아닌 첫 번째)
+          // 2. 다음 공정 찾기 - API에서 가져온 공정 목록 사용 (동적)
           const completedNumbers = new Set(
             trace.process_history
               .filter(h => h.complete_time && h.result === 'PASS')
               .map(h => h.process_number)
           );
 
-          let nextNum = null;
-          for (let i = 1; i <= MAX_PROCESS_COUNT; i++) {
-            if (!completedNumbers.has(i)) {
-              nextNum = i;
-              break;
-            }
-          }
+          // 공정 번호로 정렬된 목록에서 미완료 공정 찾기
+          const sortedProcesses = [...currentProcesses].sort((a, b) => a.process_number - b.process_number);
+          const nextProcess = sortedProcesses.find(p => !completedNumbers.has(p.process_number));
 
-          if (nextNum !== null) {
-            const nextProcess = currentProcesses.find(p => p.process_number === nextNum);
-            if (nextProcess) {
-              // 약간의 지연 후 자동 착공 (UI 업데이트 보장)
-              setTimeout(async () => {
-                await handleStart(nextProcess.id, trace);
-              }, AUTO_START_DELAY_MS);
-            }
+          if (nextProcess) {
+            // 약간의 지연 후 자동 착공 (UI 업데이트 보장)
+            setTimeout(async () => {
+              await handleStart(nextProcess.id, trace);
+            }, AUTO_START_DELAY_MS);
           }
         }
       } catch (err) {

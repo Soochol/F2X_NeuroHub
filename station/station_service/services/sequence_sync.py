@@ -107,9 +107,26 @@ class SequenceSyncService:
         self.sequences_dir = Path(sequences_dir)
         self._client: Optional[httpx.AsyncClient] = None
         self._sync_lock = asyncio.Lock()
+        self._token_manager = None  # TokenManager for dynamic station_api_key
 
         # Ensure sequences directory exists
         self.sequences_dir.mkdir(parents=True, exist_ok=True)
+
+    def set_token_manager(self, token_manager) -> None:
+        """
+        Set TokenManager for dynamic station_api_key.
+
+        When set, prioritizes station_api_key from TokenManager
+        (issued at operator login) over static config api_key.
+
+        Args:
+            token_manager: TokenManager instance
+        """
+        self._token_manager = token_manager
+        # Reset client to pick up new auth
+        if self._client and not self._client.is_closed:
+            asyncio.create_task(self._client.aclose())
+            self._client = None
 
     @property
     def backend_url(self) -> str:
@@ -127,19 +144,41 @@ class SequenceSyncService:
             raise ValueError("Station ID not configured")
         return station_id
 
+    def _get_api_key(self) -> Optional[str]:
+        """
+        Get API key for authentication.
+
+        Priority:
+        1. Dynamic station_api_key from TokenManager (issued at operator login)
+        2. Static api_key from config (fallback)
+
+        Returns:
+            API key string or None
+        """
+        # Priority 1: TokenManager's station_api_key (from login)
+        if self._token_manager:
+            station_api_key = self._token_manager.get_station_api_key()
+            if station_api_key:
+                return station_api_key
+
+        # Priority 2: Static config api_key
+        return self.backend_config.api_key
+
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None or self._client.is_closed:
-            headers = {}
-            if self.backend_config.api_key:
-                # Use X-API-Key for station authentication
-                headers["X-API-Key"] = self.backend_config.api_key
-
             self._client = httpx.AsyncClient(
                 base_url=self.backend_url,
                 timeout=self.backend_config.timeout,
-                headers=headers,
             )
+
+        # Update API key header on each access (may change after login)
+        api_key = self._get_api_key()
+        if api_key:
+            self._client.headers["X-API-Key"] = api_key
+        elif "X-API-Key" in self._client.headers:
+            del self._client.headers["X-API-Key"]
+
         return self._client
 
     async def close(self) -> None:

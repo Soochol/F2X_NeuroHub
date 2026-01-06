@@ -341,6 +341,7 @@ def start_wip_process(
             process_start.operator_id,
             process_start.equipment_id,
             process_start.started_at,
+            process_start.header_id,
         )
         return wip_item
     except WIPValidationError as e:
@@ -498,7 +499,7 @@ def get_wip_trace(
         }
 
     # Get all WIP process history records (ordered by process sequence and timestamp)
-    # Note: WIPProcessHistory stores 착공/완공 records for processes 1-6
+    # Note: WIPProcessHistory stores 완공 records, ProcessData stores 착공 records
     wip_history_records = (
         db.query(WIPProcessHistory)
         .filter(WIPProcessHistory.wip_item_id == wip_item.id)
@@ -507,10 +508,26 @@ def get_wip_trace(
         .all()
     )
 
+    # Also get ProcessData records for in-progress (착공 only, not yet 완공)
+    # These are processes that have been started but not yet completed
+    process_data_records = (
+        db.query(ProcessData)
+        .filter(
+            ProcessData.wip_id == wip_item.id,
+            ProcessData.completed_at.is_(None)  # Only in-progress records
+        )
+        .join(Process, ProcessData.process_id == Process.id)
+        .order_by(Process.process_number, ProcessData.started_at)
+        .all()
+    )
+
     # Build process history
     process_history = []
     rework_history = []
     total_cycle_time = 0
+
+    # Track which processes we've already added from WIPProcessHistory
+    added_process_ids = set()
 
     for ph in wip_history_records:
         process_record = {
@@ -532,10 +549,40 @@ def get_wip_trace(
         }
 
         process_history.append(process_record)
+        added_process_ids.add(ph.process_id)
 
         # Accumulate cycle time
         if ph.duration_seconds:
             total_cycle_time += ph.duration_seconds
+
+    # Add in-progress records from ProcessData (착공 only, not yet completed)
+    # Note: Always add these records even if there's a completed record for the same process_id
+    # This supports rework scenarios where a FAIL was recorded and a new 착공 started
+    for pd in process_data_records:
+        # Check if this is a rework (same process has a completed record)
+        is_rework = pd.process_id in added_process_ids
+
+        process_record = {
+            "process_number": pd.process.process_number if pd.process else None,
+            "process_code": pd.process.process_code if pd.process else None,
+            "process_name": pd.process.process_name_en if pd.process else None,
+            "worker_id": pd.operator.username if pd.operator else None,
+            "worker_name": pd.operator.full_name if pd.operator else None,
+            "start_time": pd.started_at.isoformat() if pd.started_at else None,
+            "complete_time": None,  # Not completed yet
+            "cycle_time_seconds": None,
+            "duration_seconds": None,
+            "result": None,  # In progress, no result yet
+            "measurements": {},
+            "defect_codes": [],
+            "defects": [],
+            "notes": None,
+            "is_rework": is_rework
+        }
+        process_history.append(process_record)
+
+    # Sort process_history by process_number
+    process_history.sort(key=lambda x: (x["process_number"] or 0, x["start_time"] or ""))
 
     # Extract component LOTs from process history if available
     component_lots = {}

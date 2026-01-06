@@ -1,6 +1,6 @@
 station:
   id: station_001
-  name: Station 1
+  name: PROC_SENSOR_TEST
   description: Station 1 instance
 workflow:
   enabled: true
@@ -18,10 +18,33 @@ paths:
   data_dir: ./data/station1
 backend:
   url: http://localhost:8000
-  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTkxMzI1ODAsImlhdCI6MTc2NzU5NjU4MCwidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoidGVzdF8wMDEifQ.MCQ0uCcSNiWjE3nC6o-Z-hz-LxuNXe3f8I6mb5B4-WI
+  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwODMwNTc1ODYsImlhdCI6MTc2NzY5NzU4NiwidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoic3RhdGlvbl8wMDEifQ.51YVOOOKtS4ubPZ3N5ax-xMPHw4yVz4ygpEgCNVujdk
   sync_interval: 30
   station_id: station_001
-batches: []
+batches:
+- id: batch-1767701408181-50jv3q6-0
+  name: eol_force_test
+  sequence_package: sequences/eol_force_test
+  auto_start: false
+  process_id: 1
+  parameters:
+    stop_on_failure: true
+    voltage: 18
+    current: 20
+    temperature_list: 38.0,52.0,66.0
+    standby_temperature: 38
+    activation_temperature: 52
+    stroke_positions: '170000.0'
+    initial_position: 1000
+    operating_position: 170000
+    velocity: 100000
+    acceleration: 85000
+    repeat_count: 1
+    timeout_seconds: 60
+    force_limit_min: 0
+    force_limit_max: 100
+  config:
+    processId: 2
 logging:
   level: INFO
   file: data/station1/logs/station.log

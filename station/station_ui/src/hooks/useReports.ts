@@ -16,6 +16,9 @@ import {
   downloadBlob,
   getFileExtension,
 } from '../api/endpoints/reports';
+import { toast } from '../utils';
+
+// Note: Error handling is done globally via MutationCache in queryClient.ts
 import type {
   BatchSummaryReport,
   PeriodStatisticsReport,
@@ -77,6 +80,7 @@ export function useExportBatchSummaryReport() {
     onSuccess: (blob, { batchId, format }) => {
       const filename = `batch_summary_${batchId}_${new Date().toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success('리포트 다운로드 완료');
     },
   });
 }
@@ -124,6 +128,7 @@ export function useExportPeriodStatsReport() {
     onSuccess: (blob, { periodType, format }) => {
       const filename = `period_stats_${periodType}_${new Date().toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success('리포트 다운로드 완료');
     },
   });
 }
@@ -161,6 +166,7 @@ export function useExportStepAnalysisReport() {
     onSuccess: (blob, { format }) => {
       const filename = `step_analysis_${new Date().toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success('리포트 다운로드 완료');
     },
   });
 }
@@ -196,6 +202,7 @@ export function useExportResultsBulk() {
     onSuccess: (blob, { format }) => {
       const filename = `results_export_${new Date().toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success('결과 내보내기 완료');
     },
   });
 }
@@ -210,6 +217,7 @@ export function useExportSingleResult() {
     onSuccess: (blob, { resultId, format }) => {
       const filename = `result_${resultId}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success('결과 내보내기 완료');
     },
   });
 }

@@ -27,6 +27,8 @@ import {
   RefreshCw,
   ToggleLeft,
   ToggleRight,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import {
   useSequenceRegistry,
@@ -40,6 +42,7 @@ import {
   useConfigureAutoSync,
 } from '../hooks';
 import { LoadingOverlay, LoadingSpinner } from '../components/atoms/LoadingSpinner';
+import { toast } from '../utils/toast';
 import { Button } from '../components/atoms/Button';
 import { ROUTES, getSequenceDetailRoute } from '../constants';
 import type {
@@ -62,8 +65,11 @@ export function SequencesPage() {
   const { sequenceName } = useParams<{ sequenceName?: string }>();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterOption>('all');
+  const [dismissedWarning, setDismissedWarning] = useState(false);
 
-  const { data: registry, isLoading: listLoading } = useSequenceRegistry();
+  const { data: registryResponse, isLoading: listLoading } = useSequenceRegistry();
+  const registry = registryResponse?.items;
+  const warnings = registryResponse?.warnings;
   const { data: selectedSequence, isLoading: detailLoading } = useSequence(sequenceName ?? null);
   const deleteMutation = useDeleteSequence();
   const downloadMutation = useDownloadSequence();
@@ -82,8 +88,9 @@ export function SequencesPage() {
         poll_interval: autoSyncStatus.pollInterval,
         auto_pull: autoSyncStatus.autoPull,
       });
-    } catch (error) {
-      console.error('Failed to toggle auto-sync:', error);
+      toast.success(`Auto-sync ${!autoSyncStatus.enabled ? '활성화' : '비활성화'}됨`);
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 
@@ -132,35 +139,51 @@ export function SequencesPage() {
     }
     try {
       await deleteMutation.mutateAsync(name);
+      toast.success(`시퀀스 "${name}" 삭제 완료`);
       if (sequenceName === name) {
         navigate(ROUTES.SEQUENCES);
       }
-    } catch (error) {
-      console.error('Failed to delete sequence:', error);
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 
   const handleDownload = async (name: string) => {
     try {
       await downloadMutation.mutateAsync(name);
-    } catch (error) {
-      console.error('Failed to download sequence:', error);
+      toast.success(`시퀀스 "${name}" 다운로드 시작`);
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 
   const handlePull = async (name: string, force: boolean = false) => {
     try {
-      await pullMutation.mutateAsync({ name, force });
-    } catch (error) {
-      console.error('Failed to pull sequence:', error);
+      const result = await pullMutation.mutateAsync({ name, force });
+      if (result.updated) {
+        toast.success(`시퀀스 "${name}" 업데이트 완료`);
+      } else if (!result.needsUpdate) {
+        toast.info(`시퀀스 "${name}"는 이미 최신 버전입니다`);
+      } else {
+        toast.success(`시퀀스 "${name}" 설치 완료`);
+      }
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 
   const handleSyncAll = async () => {
     try {
-      await syncMutation.mutateAsync(undefined);
-    } catch (error) {
-      console.error('Failed to sync sequences:', error);
+      const result = await syncMutation.mutateAsync(undefined);
+      if (result.sequencesFailed > 0) {
+        toast.warning(`동기화 완료: ${result.sequencesUpdated}개 업데이트, ${result.sequencesFailed}개 실패`);
+      } else if (result.sequencesUpdated > 0) {
+        toast.success(`동기화 완료: ${result.sequencesUpdated}개 시퀀스 업데이트됨`);
+      } else {
+        toast.info('모든 시퀀스가 최신 상태입니다');
+      }
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 
@@ -170,6 +193,33 @@ export function SequencesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Backend Connection Warning */}
+      {warnings && warnings.length > 0 && !dismissedWarning && (
+        <div
+          className="flex items-start gap-3 p-4 rounded-lg border"
+          style={{
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            borderColor: 'rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-medium text-amber-500">백엔드 연결 문제</h4>
+            {warnings.map((warning, index) => (
+              <p key={index} className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                {warning}
+              </p>
+            ))}
+          </div>
+          <button
+            onClick={() => setDismissedWarning(true)}
+            className="p-1 rounded hover:bg-amber-500/20 transition-colors"
+          >
+            <X className="w-4 h-4 text-amber-500" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -290,7 +340,7 @@ export function SequencesPage() {
           {sequenceName ? (
             <SequenceDetail
               sequence={selectedSequence ?? null}
-              registryItem={registry?.find((r) => r.name === sequenceName) ?? null}
+              registryItem={registryResponse?.items?.find((r) => r.name === sequenceName) ?? null}
               isLoading={detailLoading}
               onClose={handleCloseSequence}
               onDelete={() => handleDelete(sequenceName)}
@@ -925,8 +975,11 @@ function TestTabContent({ sequenceName, defaultParameters }: TestTabContentProps
       });
       setResult(simResult);
       setExpanded(true);
-    } catch (error) {
-      console.error('Simulation failed:', error);
+      if (simResult.status === 'completed') {
+        toast.success(`${mode === 'preview' ? 'Preview' : 'Dry run'} 완료`);
+      }
+    } catch {
+      // Error handled by global mutation error handler
     }
   };
 

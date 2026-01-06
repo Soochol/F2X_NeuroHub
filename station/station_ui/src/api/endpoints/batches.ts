@@ -281,6 +281,7 @@ export async function createBatches(
       hardware: {},
       auto_start: false,
       parameters: request.parameters,
+      process_id: request.processId,
     };
 
     const response = await apiClient.post<ApiResponse<ServerBatchCreateResponse>>(

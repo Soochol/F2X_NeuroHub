@@ -415,6 +415,12 @@ def get_sync_service(config: StationConfig = Depends(get_config)) -> SequenceSyn
             backend_config=config.backend,
             sequences_dir="sequences",
         )
+        # Connect TokenManager for dynamic station_api_key
+        try:
+            from station_service.core.token_manager import get_token_manager
+            _sync_service.set_token_manager(get_token_manager())
+        except Exception as e:
+            logger.warning(f"Could not set TokenManager for sync service: {e}")
     return _sync_service
 
 
@@ -796,12 +802,23 @@ async def get_sequence_registry(
         # Try to get remote sequences
         remote_sequences = {}
         backend_available = True
+        backend_error: Optional[str] = None
         try:
             available = await sync_service.list_available_sequences()
             remote_sequences = {s.name: s for s in available}
         except Exception as e:
             logger.warning(f"Could not fetch remote sequences: {e}")
             backend_available = False
+            # Extract meaningful error message
+            error_str = str(e)
+            if "401" in error_str or "invalid" in error_str.lower() or "expired" in error_str.lower():
+                backend_error = "API 키가 만료되었거나 유효하지 않습니다. 다시 로그인해주세요."
+            elif "connection" in error_str.lower() or "connect" in error_str.lower():
+                backend_error = "백엔드 서버에 연결할 수 없습니다. 서버 상태를 확인해주세요."
+            elif "timeout" in error_str.lower():
+                backend_error = "백엔드 서버 응답 시간이 초과되었습니다."
+            else:
+                backend_error = f"백엔드 연결 실패: {error_str}"
 
         # Process remote sequences
         for name, remote in remote_sequences.items():
@@ -869,7 +886,10 @@ async def get_sequence_registry(
         else:
             message = f"{len(registry)} sequences, all up-to-date"
 
-        return ApiResponse(success=True, data=registry, message=message)
+        # Include warnings if backend failed
+        warnings = [backend_error] if backend_error else None
+
+        return ApiResponse(success=True, data=registry, message=message, warnings=warnings)
 
     except Exception as e:
         logger.exception(f"Failed to get registry: {e}")

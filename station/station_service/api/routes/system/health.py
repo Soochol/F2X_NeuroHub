@@ -25,9 +25,14 @@ from station_service.api.dependencies import (
 )
 from station_service.api.schemas.responses import ApiResponse, ErrorResponse
 from station_service.api.schemas.result import HealthStatus, SystemInfo
-from station_service.api.routes.system.schemas import SyncStatus, UpdateStationInfoRequest
+from station_service.api.routes.system.schemas import (
+    BackendConfigResponse,
+    SyncStatus,
+    UpdateBackendConfigRequest,
+    UpdateStationInfoRequest,
+)
 from station_service.batch.manager import BatchManager
-from station_service.models.config import StationConfig, StationInfo
+from station_service.models.config import BackendConfig, StationConfig, StationInfo
 from station_service.storage.database import Database
 from station_service.sync.engine import SyncEngine
 
@@ -311,3 +316,110 @@ def _determine_health_status(
         return "degraded"
 
     return "healthy"
+
+
+def _mask_api_key(api_key: str) -> str:
+    """Mask API key for display, showing only first 4 characters."""
+    if not api_key or len(api_key) < 8:
+        return "***"
+    return f"{api_key[:4]}...***"
+
+
+@router.get(
+    "/backend-config",
+    response_model=ApiResponse[BackendConfigResponse],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Get backend configuration",
+    description="Retrieve current backend connection configuration. API key is masked for security.",
+)
+async def get_backend_config(
+    config: StationConfig = Depends(get_config),
+) -> ApiResponse[BackendConfigResponse]:
+    """Get backend configuration (API key masked)."""
+    try:
+        backend_response = BackendConfigResponse(
+            url=config.backend.url,
+            api_key_masked=_mask_api_key(config.backend.api_key),
+            sync_interval=config.backend.sync_interval,
+            station_id=config.backend.station_id,
+            timeout=config.backend.timeout,
+            max_retries=config.backend.max_retries,
+        )
+
+        return ApiResponse(
+            success=True,
+            data=backend_response,
+        )
+    except Exception as e:
+        logger.exception("Failed to get backend config")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get backend config: {str(e)}",
+        )
+
+
+@router.put(
+    "/backend-config",
+    response_model=ApiResponse[BackendConfigResponse],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+    summary="Update backend configuration",
+    description="Update backend connection settings. API key cannot be modified through this endpoint.",
+)
+async def update_backend_config(
+    request: UpdateBackendConfigRequest,
+    config: StationConfig = Depends(get_config),
+    config_path: str = Depends(get_config_path),
+) -> ApiResponse[BackendConfigResponse]:
+    """Update backend configuration (API key is preserved)."""
+    from pathlib import Path
+    from station_service.core.config_writer import update_backend_config as write_backend_config
+
+    try:
+        # Merge request with current config (partial update)
+        updated_backend = BackendConfig(
+            url=request.url if request.url is not None else config.backend.url,
+            api_key=config.backend.api_key,  # Always preserve existing API key
+            sync_interval=request.sync_interval if request.sync_interval is not None else config.backend.sync_interval,
+            station_id=request.station_id if request.station_id is not None else config.backend.station_id,
+            timeout=request.timeout if request.timeout is not None else config.backend.timeout,
+            max_retries=request.max_retries if request.max_retries is not None else config.backend.max_retries,
+        )
+
+        # Write to config file
+        updated_config = await write_backend_config(Path(config_path), updated_backend)
+
+        # Update in-memory config
+        config.backend = updated_config.backend
+
+        backend_response = BackendConfigResponse(
+            url=updated_config.backend.url,
+            api_key_masked=_mask_api_key(updated_config.backend.api_key),
+            sync_interval=updated_config.backend.sync_interval,
+            station_id=updated_config.backend.station_id,
+            timeout=updated_config.backend.timeout,
+            max_retries=updated_config.backend.max_retries,
+        )
+
+        return ApiResponse(
+            success=True,
+            data=backend_response,
+            message="Backend configuration updated successfully",
+        )
+
+    except FileNotFoundError as e:
+        logger.error(f"Config file not found: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Configuration file not found",
+        )
+    except Exception as e:
+        logger.exception("Failed to update backend config")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update backend config: {str(e)}",
+        )

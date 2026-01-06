@@ -217,16 +217,17 @@ export function BatchConfigEditor({ batchId, isRunning, onDirtyChange }: BatchCo
             MES Process
           </label>
           <select
-            value={processId ?? 1}
+            value={processId ?? ''}
             onChange={(e) => handleConfigChange('processId', e.target.value)}
             disabled={isRunning}
             className="w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50"
             style={{
               backgroundColor: 'var(--color-bg-tertiary)',
-              borderColor: 'var(--color-border-default)',
+              borderColor: processId ? 'var(--color-border-default)' : 'var(--color-status-fail)',
               color: 'var(--color-text-primary)',
             }}
           >
+            <option value="" disabled>-- Select MES Process --</option>
             {processes.map((process) => (
               <option key={process.id} value={process.id}>
                 {process.processNumber}. {process.processNameEn}
@@ -245,14 +246,14 @@ export function BatchConfigEditor({ batchId, isRunning, onDirtyChange }: BatchCo
           </label>
           <input
             type="number"
-            value={headerId ?? 1}
+            value={headerId ?? ''}
             onChange={(e) => handleConfigChange('headerId', e.target.value)}
             disabled={isRunning}
             placeholder="Enter header ID (e.g., 1, 2, 3...)"
             className="w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50"
             style={{
               backgroundColor: 'var(--color-bg-tertiary)',
-              borderColor: 'var(--color-border-default)',
+              borderColor: headerId ? 'var(--color-border-default)' : 'var(--color-status-warning)',
               color: 'var(--color-text-primary)',
             }}
           />

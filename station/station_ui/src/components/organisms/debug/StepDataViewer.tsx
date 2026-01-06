@@ -111,6 +111,21 @@ function StepRow({ step, isSelected, isExpanded, onToggle, onClick }: StepRowPro
               <Database className="w-3 h-3" style={{ color: 'var(--color-text-tertiary)' }} />
             </span>
           )}
+
+          {/* Copy button - always visible when has data */}
+          {hasData && (
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-zinc-700 transition-colors"
+              title="Copy step data to clipboard"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" style={{ color: 'var(--color-text-tertiary)' }} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 

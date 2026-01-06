@@ -19,7 +19,7 @@ import {
   Package,
   Trash2,
 } from 'lucide-react';
-import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket, useWorkflowConfig } from '../hooks';
+import { useBatch, useBatchStatistics, useStartBatch, useStartSequence, useStopSequence, useStopBatch, useDeleteBatch, useWebSocket, useWorkflowConfig, useSequenceRegistry } from '../hooks';
 import { useBatchStore } from '../stores/batchStore';
 import { useDebugPanelStore } from '../stores/debugPanelStore';
 import { useLogStore } from '../stores/logStore';
@@ -65,6 +65,9 @@ export function BatchDetailPage() {
 
   // Workflow configuration
   const { data: workflowConfig } = useWorkflowConfig();
+
+  // Sequence registry for update check
+  const { data: registryResponse } = useSequenceRegistry();
 
   // WIP input modal state
   const [showWipModal, setShowWipModal] = useState(false);
@@ -131,6 +134,18 @@ export function BatchDetailPage() {
     if (!batchId || !batch) {
       log.error('handleStartSequence: Missing batchId or batch');
       return;
+    }
+
+    // Check sequence update status and show warning (non-blocking)
+    if (batch.sequencePackage && registryResponse?.items) {
+      const sequenceName = batch.sequencePackage.replace(/^sequences\//, '');
+      const registryItem = registryResponse.items.find(r => r.name === sequenceName);
+
+      if (registryItem?.status === 'update_available') {
+        toast.warning(
+          `시퀀스 업데이트가 가능합니다. 현재: v${registryItem.localVersion} → 최신: v${registryItem.remoteVersion}`
+        );
+      }
     }
 
     // If workflow is enabled, show WIP input modal first
@@ -201,8 +216,17 @@ export function BatchDetailPage() {
 
     try {
       // Step 1: Validate WIP first (fast check, ~100ms)
-      // Get processId from BatchDetail (only available after API fetch)
-      const processId = batch && isBatchDetail(batch) ? batch.processId : undefined;
+      // Get processId from BatchDetail - check both legacy field and config
+      const processId = batch && isBatchDetail(batch)
+        ? (batch.processId ?? (batch.config?.processId as number | undefined))
+        : undefined;
+
+      // Step 1.1: Ensure processId is set for WIP validation
+      if (processId === undefined || processId === null) {
+        setWipError('MES Process가 설정되지 않았습니다. Config 탭에서 MES Process를 선택하고 저장해주세요.');
+        return;
+      }
+
       const validationResult = await validateWip(wipId, processId);
 
       if (!validationResult.valid) {

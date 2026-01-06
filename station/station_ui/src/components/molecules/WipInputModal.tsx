@@ -19,6 +19,8 @@ interface WipInputModalProps {
   errorMessage?: string | null;
 }
 
+const LAST_WIP_ID_KEY = 'station-ui-last-wip-id';
+
 export function WipInputModal({
   isOpen,
   onClose,
@@ -34,10 +36,18 @@ export function WipInputModal({
   // Combine local and external errors
   const error = errorMessage || localError;
 
-  // Focus input when modal opens
+  // Load last WIP ID when modal opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen) {
+      const lastWipId = localStorage.getItem(LAST_WIP_ID_KEY);
+      if (lastWipId) {
+        setWipId(lastWipId);
+      }
+      // Focus and select all text for easy replacement
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
     }
   }, [isOpen]);
 
@@ -59,6 +69,8 @@ export function WipInputModal({
       return;
     }
 
+    // Save to localStorage for next time
+    localStorage.setItem(LAST_WIP_ID_KEY, trimmedWipId);
     onSubmit(trimmedWipId);
   };
 

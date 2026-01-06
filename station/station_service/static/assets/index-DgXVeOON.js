@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { j as jsxRuntimeExports, Q as QueryClient, u as useQuery, a as useQueryClient, b as useMutation, c as QueryClientProvider } from "./query-nDuVABiU.js";
+import { j as jsxRuntimeExports, M as MutationCache, Q as QueryClient, u as useQuery, a as useQueryClient, b as useMutation, c as QueryClientProvider } from "./query-CyZJxPQm.js";
 import { b as requireReactDom, a as reactExports, u as useLocation, N as NavLink, R as React, c as useNavigate, d as useParams, e as Routes, f as Route, B as BrowserRouter } from "./vendor-Br0po5n5.js";
 import { c as create } from "./state-CkuP8Qb0.js";
 (function polyfill() {
@@ -2588,6 +2588,41 @@ const WEBSOCKET_CONFIG = {
   /** Maximum reconnection delay in milliseconds */
   reconnectionDelayMax: 3e4
 };
+const ERROR_MESSAGES = {
+  UNAUTHORIZED: "API 키가 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.",
+  NETWORK_ERROR: "네트워크 연결을 확인해주세요.",
+  NOT_FOUND: "요청한 리소스를 찾을 수 없습니다.",
+  TIMEOUT: "요청 시간이 초과되었습니다.",
+  INTERNAL_ERROR: "서버 내부 오류가 발생했습니다."
+};
+function extractErrorCode(error) {
+  var _a, _b, _c, _d;
+  if (!error || typeof error !== "object") return null;
+  const axiosError = error;
+  if ((_c = (_b = (_a = axiosError.response) == null ? void 0 : _a.data) == null ? void 0 : _b.error) == null ? void 0 : _c.code) {
+    return axiosError.response.data.error.code;
+  }
+  const status = (_d = axiosError.response) == null ? void 0 : _d.status;
+  if (status === 401) return "UNAUTHORIZED";
+  if (status === 404) return "NOT_FOUND";
+  if (status === 500) return "INTERNAL_ERROR";
+  const errWithCode = error;
+  if (errWithCode.code === "ERR_NETWORK") return "NETWORK_ERROR";
+  if (errWithCode.code === "ECONNABORTED") return "TIMEOUT";
+  return null;
+}
+function globalMutationErrorHandler(error) {
+  const errorCode = extractErrorCode(error);
+  const message = errorCode && ERROR_MESSAGES[errorCode] ? ERROR_MESSAGES[errorCode] : getErrorMessage(error);
+  toast.error(message);
+  console.error("[API Error]", { errorCode, message, error });
+}
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    if (mutation.options.onError) return;
+    globalMutationErrorHandler(error);
+  }
+});
 const defaultQueryOptions = {
   queries: {
     staleTime: QUERY_OPTIONS.staleTime,
@@ -2601,7 +2636,8 @@ const defaultQueryOptions = {
   }
 };
 const queryClient = new QueryClient({
-  defaultOptions: defaultQueryOptions
+  defaultOptions: defaultQueryOptions,
+  mutationCache
 });
 const queryKeys = {
   // System
@@ -2609,6 +2645,7 @@ const queryKeys = {
   healthStatus: ["system", "health"],
   workflowConfig: ["system", "workflow"],
   operatorSession: ["system", "operator"],
+  backendConfig: ["system", "backend-config"],
   // Batches
   batches: ["batches"],
   batch: (id) => ["batches", id],
@@ -5214,6 +5251,20 @@ async function validateWip(wipId, processId) {
   );
   return extractData(response);
 }
+async function getBackendConfig() {
+  const response = await apiClient.get("/system/backend-config");
+  return extractData(response);
+}
+async function updateBackendConfig(data) {
+  const snakeCaseData = {};
+  if (data.url !== void 0) snakeCaseData.url = data.url;
+  if (data.syncInterval !== void 0) snakeCaseData.sync_interval = data.syncInterval;
+  if (data.stationId !== void 0) snakeCaseData.station_id = data.stationId;
+  if (data.timeout !== void 0) snakeCaseData.timeout = data.timeout;
+  if (data.maxRetries !== void 0) snakeCaseData.max_retries = data.maxRetries;
+  const response = await apiClient.put("/system/backend-config", snakeCaseData);
+  return extractData(response);
+}
 function useSystemInfo() {
   return useQuery({
     queryKey: queryKeys.systemInfo,
@@ -5234,6 +5285,24 @@ function useUpdateStationInfo() {
     mutationFn: (data) => updateStationInfo(data),
     onSuccess: (data) => {
       queryClient2.setQueryData(queryKeys.systemInfo, data);
+      toast.success("스테이션 정보 업데이트 완료");
+    }
+  });
+}
+function useBackendConfig() {
+  return useQuery({
+    queryKey: queryKeys.backendConfig,
+    queryFn: getBackendConfig,
+    staleTime: POLLING_INTERVALS.systemInfo
+  });
+}
+function useUpdateBackendConfig() {
+  const queryClient2 = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => updateBackendConfig(data),
+    onSuccess: (data) => {
+      queryClient2.setQueryData(queryKeys.backendConfig, data);
+      toast.success("백엔드 설정 업데이트 완료");
     }
   });
 }
@@ -5477,7 +5546,8 @@ async function createBatches(request) {
       sequence_package: `sequences/${request.sequenceName}`,
       hardware: {},
       auto_start: false,
-      parameters: request.parameters
+      parameters: request.parameters,
+      process_id: request.processId
     };
     const response = await apiClient.post(
       "/batches",
@@ -5808,7 +5878,7 @@ function useUpdateBatch() {
 }
 async function getSequences() {
   const registry = await getSequenceRegistry();
-  return registry.filter((item) => ["installed_latest", "update_available", "local_only"].includes(item.status)).map((item) => ({
+  return registry.items.filter((item) => ["installed_latest", "update_available", "local_only"].includes(item.status)).map((item) => ({
     name: item.name,
     version: item.localVersion || "0.0.0",
     displayName: item.displayName || item.name,
@@ -5832,7 +5902,8 @@ async function downloadSequence(name) {
 async function getSequenceRegistry() {
   const response = await apiClient.get("/deploy/registry");
   const rawData = extractData(response);
-  return rawData.map((item) => ({
+  const warnings = response.data.warnings;
+  const items = rawData.map((item) => ({
     name: item.name,
     displayName: item.display_name,
     description: item.description,
@@ -5843,6 +5914,7 @@ async function getSequenceRegistry() {
     remoteUpdatedAt: item.remote_updated_at,
     isActive: item.is_active
   }));
+  return { items, warnings };
 }
 async function pullSequence(name, force = false) {
   const response = await apiClient.post(
@@ -6982,6 +7054,7 @@ function useExportBatchSummaryReport() {
     onSuccess: (blob, { batchId, format }) => {
       const filename = `batch_summary_${batchId}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success("리포트 다운로드 완료");
     }
   });
 }
@@ -7005,6 +7078,7 @@ function useExportPeriodStatsReport() {
     onSuccess: (blob, { periodType, format }) => {
       const filename = `period_stats_${periodType}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success("리포트 다운로드 완료");
     }
   });
 }
@@ -7024,6 +7098,7 @@ function useExportStepAnalysisReport() {
     onSuccess: (blob, { format }) => {
       const filename = `step_analysis_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success("리포트 다운로드 완료");
     }
   });
 }
@@ -7033,6 +7108,7 @@ function useExportResultsBulk() {
     onSuccess: (blob, { format }) => {
       const filename = `results_export_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.${getFileExtension(format)}`;
       downloadBlob(blob, filename);
+      toast.success("결과 내보내기 완료");
     }
   });
 }
@@ -8686,6 +8762,10 @@ function CreateBatchWizard({
   const [parameters, setParameters] = reactExports.useState({});
   const [quantity, setQuantity] = reactExports.useState(1);
   const [draggedIndex, setDraggedIndex] = reactExports.useState(null);
+  const [selectedProcessId, setSelectedProcessId] = reactExports.useState(void 0);
+  const { data: workflowConfig } = useWorkflowConfig();
+  const { data: processes = [] } = useProcesses();
+  const isWorkflowEnabled = (workflowConfig == null ? void 0 : workflowConfig.enabled) ?? false;
   const currentStepIndex = WIZARD_STEPS.findIndex((s) => s.key === currentStep);
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === WIZARD_STEPS.length - 1;
@@ -8699,6 +8779,7 @@ function CreateBatchWizard({
       setParameters({});
       setQuantity(1);
       setDraggedIndex(null);
+      setSelectedProcessId(void 0);
     }
   }, [isOpen]);
   const handleSequenceSelect = reactExports.useCallback(
@@ -8793,14 +8874,17 @@ function CreateBatchWizard({
       quantity,
       sequenceName: selectedSequence,
       stepOrder: stepOrder.filter((s) => s.enabled),
-      parameters
+      parameters,
+      processId: selectedProcessId
     };
     onSubmit(request);
   };
   const canProceed = reactExports.useMemo(() => {
     switch (currentStep) {
-      case "sequence":
-        return !!selectedSequence && !!sequenceDetail;
+      case "sequence": {
+        const baseValid = !!selectedSequence && !!sequenceDetail;
+        return isWorkflowEnabled ? baseValid && !!selectedProcessId : baseValid;
+      }
       case "steps":
         return stepOrder.filter((s) => s.enabled).length > 0;
       case "parameters":
@@ -8813,7 +8897,7 @@ function CreateBatchWizard({
       default:
         return false;
     }
-  }, [currentStep, selectedSequence, sequenceDetail, stepOrder, quantity]);
+  }, [currentStep, selectedSequence, sequenceDetail, stepOrder, quantity, isWorkflowEnabled, selectedProcessId]);
   if (!isOpen) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-5xl rounded-xl border flex flex-col overflow-hidden", style: { height: "700px", minHeight: "700px", maxHeight: "700px", backgroundColor: "var(--color-bg-primary)", borderColor: "var(--color-border-default)" }, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "var(--color-border-default)" }, children: [
@@ -8853,7 +8937,11 @@ function CreateBatchWizard({
           selectedSequence,
           onSelect: handleSequenceSelect,
           sequenceDetail,
-          isLoading: isLoadingSequence
+          isLoading: isLoadingSequence,
+          isWorkflowEnabled,
+          processes,
+          selectedProcessId,
+          onProcessSelect: setSelectedProcessId
         }
       ),
       currentStep === "steps" && sequenceDetail && /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -8884,7 +8972,10 @@ function CreateBatchWizard({
           sequenceDetail,
           stepOrder,
           parameters,
-          quantity
+          quantity,
+          isWorkflowEnabled,
+          selectedProcessId,
+          processes
         }
       )
     ] }),
@@ -8920,7 +9011,11 @@ function SequenceSelectStep({
   selectedSequence,
   onSelect,
   sequenceDetail,
-  isLoading
+  isLoading,
+  isWorkflowEnabled,
+  processes,
+  selectedProcessId,
+  onProcessSelect
 }) {
   const sequenceOptions = [
     { value: "", label: "Select a sequence..." },
@@ -8942,6 +9037,41 @@ function SequenceSelectStep({
           className: "w-full"
         }
       )
+    ] }),
+    isWorkflowEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-medium mb-2", style: { color: "var(--color-text-primary)" }, children: [
+        "MES Process ",
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-500", children: "*" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mb-4", style: { color: "var(--color-text-secondary)" }, children: "WIP 연동이 활성화되어 있습니다. 이 배치에서 실행할 MES 공정을 선택하세요." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: selectedProcessId ?? "",
+          onChange: (e) => {
+            const value = e.target.value;
+            onProcessSelect(value ? parseInt(value, 10) : void 0);
+          },
+          className: "w-full px-3 py-2 rounded-lg border outline-none transition-colors text-sm",
+          style: {
+            backgroundColor: "var(--color-bg-secondary)",
+            borderColor: selectedProcessId ? "var(--color-border-default)" : "var(--color-status-fail)",
+            color: "var(--color-text-primary)"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", disabled: true, children: "-- Select MES Process --" }),
+            processes.map((process2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: process2.id, children: [
+              process2.processNumber,
+              ". ",
+              process2.processNameEn
+            ] }, process2.id))
+          ]
+        }
+      ),
+      !selectedProcessId && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mt-2 text-xs", style: { color: "var(--color-status-fail)" }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "w-3.5 h-3.5" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "MES Process 선택이 필요합니다" })
+      ] })
     ] }),
     isLoading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center py-8", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full" }) }),
     sequenceDetail && !isLoading && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
@@ -9166,9 +9296,13 @@ function ReviewStep({
   sequenceDetail,
   stepOrder,
   parameters,
-  quantity
+  quantity,
+  isWorkflowEnabled,
+  selectedProcessId,
+  processes
 }) {
   const enabledSteps = stepOrder.filter((s) => s.enabled);
+  const selectedProcess = processes.find((p) => p.id === selectedProcessId);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-medium mb-2", style: { color: "var(--color-text-primary)" }, children: "Review Configuration" }),
@@ -9182,6 +9316,14 @@ function ReviewStep({
           " (v",
           sequenceDetail == null ? void 0 : sequenceDetail.version,
           ")"
+        ] })
+      ] }),
+      isWorkflowEnabled && selectedProcess && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "text-sm font-medium mb-2", style: { color: "var(--color-text-secondary)" }, children: "MES Process" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: [
+          selectedProcess.processNumber,
+          ". ",
+          selectedProcess.processNameEn
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 rounded-lg border", style: { backgroundColor: "var(--color-bg-secondary)", borderColor: "var(--color-border-default)" }, children: [
@@ -9849,7 +9991,16 @@ function StepRow$3({ step, isSelected, isExpanded, onToggle, onClick }) {
                 step.status === "completed" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: step.pass ? "text-green-500" : "text-red-500", children: step.pass ? /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "w-3.5 h-3.5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5" }) }),
                 step.status === "running" && /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge$1, { status: "running", size: "sm" }),
                 step.status === "failed" && /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "w-3.5 h-3.5 text-red-500" }),
-                hasData && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { title: "Has data", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Database, { className: "w-3 h-3", style: { color: "var(--color-text-tertiary)" } }) })
+                hasData && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { title: "Has data", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Database, { className: "w-3 h-3", style: { color: "var(--color-text-tertiary)" } }) }),
+                hasData && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: handleCopy,
+                    className: "p-1 rounded hover:bg-zinc-700 transition-colors",
+                    title: "Copy step data to clipboard",
+                    children: copied ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3.5 h-3.5 text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { className: "w-3.5 h-3.5", style: { color: "var(--color-text-tertiary)" } })
+                  }
+                )
               ] })
             ]
           }
@@ -10105,23 +10256,26 @@ function BatchConfigEditor({ batchId, isRunning, onDirtyChange }) {
             children: "MES Process"
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "select",
           {
-            value: processId ?? 1,
+            value: processId ?? "",
             onChange: (e) => handleConfigChange("processId", e.target.value),
             disabled: isRunning,
             className: "w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50",
             style: {
               backgroundColor: "var(--color-bg-tertiary)",
-              borderColor: "var(--color-border-default)",
+              borderColor: processId ? "var(--color-border-default)" : "var(--color-status-fail)",
               color: "var(--color-text-primary)"
             },
-            children: processes.map((process2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: process2.id, children: [
-              process2.processNumber,
-              ". ",
-              process2.processNameEn
-            ] }, process2.id))
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", disabled: true, children: "-- Select MES Process --" }),
+              processes.map((process2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: process2.id, children: [
+                process2.processNumber,
+                ". ",
+                process2.processNameEn
+              ] }, process2.id))
+            ]
           }
         )
       ] }),
@@ -10138,14 +10292,14 @@ function BatchConfigEditor({ batchId, isRunning, onDirtyChange }) {
           "input",
           {
             type: "number",
-            value: headerId ?? 1,
+            value: headerId ?? "",
             onChange: (e) => handleConfigChange("headerId", e.target.value),
             disabled: isRunning,
             placeholder: "Enter header ID (e.g., 1, 2, 3...)",
             className: "w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50",
             style: {
               backgroundColor: "var(--color-bg-tertiary)",
-              borderColor: "var(--color-border-default)",
+              borderColor: headerId ? "var(--color-border-default)" : "var(--color-status-warning)",
               color: "var(--color-text-primary)"
             }
           }
@@ -10632,6 +10786,7 @@ function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChangesChan
     ] })
   ] });
 }
+const LAST_WIP_ID_KEY = "station-ui-last-wip-id";
 function WipInputModal({
   isOpen,
   onClose,
@@ -10645,8 +10800,15 @@ function WipInputModal({
   const inputRef = reactExports.useRef(null);
   const error = errorMessage || localError;
   reactExports.useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen) {
+      const lastWipId = localStorage.getItem(LAST_WIP_ID_KEY);
+      if (lastWipId) {
+        setWipId(lastWipId);
+      }
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
     }
   }, [isOpen]);
   reactExports.useEffect(() => {
@@ -10663,6 +10825,7 @@ function WipInputModal({
       setLocalError("WIP ID is required");
       return;
     }
+    localStorage.setItem(LAST_WIP_ID_KEY, trimmedWipId);
     onSubmit(trimmedWipId);
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -10784,6 +10947,7 @@ function BatchDetailPage() {
   const deleteBatch2 = useDeleteBatch();
   const { isCollapsed, panelWidth, setPanelWidth, toggleCollapsed, setSelectedStep } = useDebugPanelStore();
   const { data: workflowConfig } = useWorkflowConfig();
+  const { data: registryResponse } = useSequenceRegistry();
   const [showWipModal, setShowWipModal] = reactExports.useState(false);
   const [wipError, setWipError] = reactExports.useState(null);
   const [hasPendingChanges, setHasPendingChanges] = reactExports.useState(false);
@@ -10823,6 +10987,15 @@ function BatchDetailPage() {
     if (!batchId || !batch) {
       log.error("handleStartSequence: Missing batchId or batch");
       return;
+    }
+    if (batch.sequencePackage && (registryResponse == null ? void 0 : registryResponse.items)) {
+      const sequenceName = batch.sequencePackage.replace(/^sequences\//, "");
+      const registryItem = registryResponse.items.find((r) => r.name === sequenceName);
+      if ((registryItem == null ? void 0 : registryItem.status) === "update_available") {
+        toast.warning(
+          `시퀀스 업데이트가 가능합니다. 현재: v${registryItem.localVersion} → 최신: v${registryItem.remoteVersion}`
+        );
+      }
     }
     if (workflowConfig == null ? void 0 : workflowConfig.enabled) {
       setShowWipModal(true);
@@ -10868,9 +11041,14 @@ function BatchDetailPage() {
     }
   };
   const handleWipSubmit = async (wipId) => {
+    var _a;
     setWipError(null);
     try {
-      const processId = batch && isBatchDetail(batch) ? batch.processId : void 0;
+      const processId = batch && isBatchDetail(batch) ? batch.processId ?? ((_a = batch.config) == null ? void 0 : _a.processId) : void 0;
+      if (processId === void 0 || processId === null) {
+        setWipError("MES Process가 설정되지 않았습니다. Config 탭에서 MES Process를 선택하고 저장해주세요.");
+        return;
+      }
       const validationResult = await validateWip(wipId, processId);
       if (!validationResult.valid) {
         setWipError(validationResult.message || `WIP '${wipId}' not found`);
@@ -11219,10 +11397,14 @@ function StepRow$2({ step, onClick }) {
   );
 }
 function SequencesPage() {
+  var _a;
   const { sequenceName } = useParams();
   const navigate = useNavigate();
   const [filter2, setFilter] = reactExports.useState("all");
-  const { data: registry, isLoading: listLoading } = useSequenceRegistry();
+  const [dismissedWarning, setDismissedWarning] = reactExports.useState(false);
+  const { data: registryResponse, isLoading: listLoading } = useSequenceRegistry();
+  const registry = registryResponse == null ? void 0 : registryResponse.items;
+  const warnings = registryResponse == null ? void 0 : registryResponse.warnings;
   const { data: selectedSequence, isLoading: detailLoading } = useSequence(sequenceName ?? null);
   const deleteMutation = useDeleteSequence();
   const downloadMutation = useDownloadSequence();
@@ -11238,8 +11420,8 @@ function SequencesPage() {
         poll_interval: autoSyncStatus.pollInterval,
         auto_pull: autoSyncStatus.autoPull
       });
-    } catch (error) {
-      console.error("Failed to toggle auto-sync:", error);
+      toast.success(`Auto-sync ${!autoSyncStatus.enabled ? "활성화" : "비활성화"}됨`);
+    } catch {
     }
   };
   const filteredRegistry = reactExports.useMemo(() => {
@@ -11280,38 +11462,75 @@ function SequencesPage() {
     }
     try {
       await deleteMutation.mutateAsync(name);
+      toast.success(`시퀀스 "${name}" 삭제 완료`);
       if (sequenceName === name) {
         navigate(ROUTES.SEQUENCES);
       }
-    } catch (error) {
-      console.error("Failed to delete sequence:", error);
+    } catch {
     }
   };
   const handleDownload = async (name) => {
     try {
       await downloadMutation.mutateAsync(name);
-    } catch (error) {
-      console.error("Failed to download sequence:", error);
+      toast.success(`시퀀스 "${name}" 다운로드 시작`);
+    } catch {
     }
   };
   const handlePull = async (name, force = false) => {
     try {
-      await pullMutation.mutateAsync({ name, force });
-    } catch (error) {
-      console.error("Failed to pull sequence:", error);
+      const result = await pullMutation.mutateAsync({ name, force });
+      if (result.updated) {
+        toast.success(`시퀀스 "${name}" 업데이트 완료`);
+      } else if (!result.needsUpdate) {
+        toast.info(`시퀀스 "${name}"는 이미 최신 버전입니다`);
+      } else {
+        toast.success(`시퀀스 "${name}" 설치 완료`);
+      }
+    } catch {
     }
   };
   const handleSyncAll = async () => {
     try {
-      await syncMutation.mutateAsync(void 0);
-    } catch (error) {
-      console.error("Failed to sync sequences:", error);
+      const result = await syncMutation.mutateAsync(void 0);
+      if (result.sequencesFailed > 0) {
+        toast.warning(`동기화 완료: ${result.sequencesUpdated}개 업데이트, ${result.sequencesFailed}개 실패`);
+      } else if (result.sequencesUpdated > 0) {
+        toast.success(`동기화 완료: ${result.sequencesUpdated}개 시퀀스 업데이트됨`);
+      } else {
+        toast.info("모든 시퀀스가 최신 상태입니다");
+      }
+    } catch {
     }
   };
   if (listLoading) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingOverlay, { message: "Loading sequences..." });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    warnings && warnings.length > 0 && !dismissedWarning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-start gap-3 p-4 rounded-lg border",
+        style: {
+          backgroundColor: "rgba(251, 191, 36, 0.1)",
+          borderColor: "rgba(251, 191, 36, 0.3)"
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "text-sm font-medium text-amber-500", children: "백엔드 연결 문제" }),
+            warnings.map((warning, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mt-1", style: { color: "var(--color-text-secondary)" }, children: warning }, index))
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => setDismissedWarning(true),
+              className: "p-1 rounded hover:bg-amber-500/20 transition-colors",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-4 h-4 text-amber-500" })
+            }
+          )
+        ]
+      }
+    ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { className: "w-6 h-6 text-brand-500" }),
@@ -11425,7 +11644,7 @@ function SequencesPage() {
           SequenceDetail,
           {
             sequence: selectedSequence ?? null,
-            registryItem: (registry == null ? void 0 : registry.find((r) => r.name === sequenceName)) ?? null,
+            registryItem: ((_a = registryResponse == null ? void 0 : registryResponse.items) == null ? void 0 : _a.find((r) => r.name === sequenceName)) ?? null,
             isLoading: detailLoading,
             onClose: handleCloseSequence,
             onDelete: () => handleDelete(sequenceName),
@@ -11931,8 +12150,10 @@ function TestTabContent({ sequenceName, defaultParameters }) {
       });
       setResult(simResult);
       setExpanded(true);
-    } catch (error) {
-      console.error("Simulation failed:", error);
+      if (simResult.status === "completed") {
+        toast.success(`${mode === "preview" ? "Preview" : "Dry run"} 완료`);
+      }
+    } catch {
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
@@ -12206,7 +12427,6 @@ function ManualTestTab() {
       });
     } catch (error) {
       addLog("error", `Failed to create session: ${getErrorMessage(error)}`, error);
-      console.error("Failed to create session:", error);
     }
   };
   const handleInitialize = async () => {
@@ -12228,7 +12448,6 @@ function ManualTestTab() {
       }
     } catch (error) {
       addLog("error", `Failed to initialize session: ${getErrorMessage(error)}`, error);
-      console.error("Failed to initialize session:", error);
     }
   };
   const handleFinalize = async () => {
@@ -12242,7 +12461,6 @@ function ManualTestTab() {
       });
     } catch (error) {
       addLog("error", `Failed to finalize session: ${getErrorMessage(error)}`, error);
-      console.error("Failed to finalize session:", error);
     }
   };
   const handleAbort = async () => {
@@ -12257,7 +12475,6 @@ function ManualTestTab() {
       addLog("warning", "Session aborted");
     } catch (error) {
       addLog("error", `Failed to abort session: ${getErrorMessage(error)}`, error);
-      console.error("Failed to abort session:", error);
     }
   };
   const handleReset = async () => {
@@ -12296,7 +12513,6 @@ function ManualTestTab() {
       }
     } catch (error) {
       addLog("error", `Failed to run step "${stepName}": ${getErrorMessage(error)}`, error);
-      console.error("Failed to run step:", error);
     }
   };
   const handleSkipStep = async (stepName) => {
@@ -12311,7 +12527,6 @@ function ManualTestTab() {
       addLog("info", `Step "${stepName}" skipped`);
     } catch (error) {
       addLog("error", `Failed to skip step "${stepName}": ${getErrorMessage(error)}`, error);
-      console.error("Failed to skip step:", error);
     }
   };
   const handleSequenceChange = (sequenceName) => {
@@ -14887,11 +15102,14 @@ function LogsPage() {
   ] });
 }
 function SettingsPage() {
+  var _a;
   const { data: systemInfo, isLoading: infoLoading, refetch: refetchInfo } = useSystemInfo();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useHealthStatus();
   const { data: workflowConfig, isLoading: workflowLoading, refetch: refetchWorkflow } = useWorkflowConfig();
+  const { data: backendConfig, isLoading: backendLoading, refetch: refetchBackend } = useBackendConfig();
   const updateStationInfo2 = useUpdateStationInfo();
   const updateWorkflow = useUpdateWorkflowConfig();
+  const updateBackend = useUpdateBackendConfig();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const theme = useUIStore((state) => state.theme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
@@ -14900,6 +15118,14 @@ function SettingsPage() {
     id: "",
     name: "",
     description: ""
+  });
+  const [isEditingBackend, setIsEditingBackend] = reactExports.useState(false);
+  const [backendForm, setBackendForm] = reactExports.useState({
+    url: "",
+    syncInterval: 30,
+    stationId: "",
+    timeout: 30,
+    maxRetries: 5
   });
   const stationId = systemInfo == null ? void 0 : systemInfo.stationId;
   const stationName = systemInfo == null ? void 0 : systemInfo.stationName;
@@ -14913,10 +15139,22 @@ function SettingsPage() {
       });
     }
   }, [stationId, stationName, stationDescription, isEditing]);
+  reactExports.useEffect(() => {
+    if (backendConfig && !isEditingBackend) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries
+      });
+    }
+  }, [backendConfig, isEditingBackend]);
   const handleRefresh = () => {
     refetchInfo();
     refetchHealth();
     refetchWorkflow();
+    refetchBackend();
   };
   const handleEditStart = () => {
     if (systemInfo) {
@@ -15019,6 +15257,61 @@ function SettingsPage() {
       });
     }
   };
+  const handleBackendEditStart = () => {
+    if (backendConfig) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries
+      });
+    }
+    setIsEditingBackend(true);
+  };
+  const handleBackendEditCancel = () => {
+    setIsEditingBackend(false);
+    if (backendConfig) {
+      setBackendForm({
+        url: backendConfig.url,
+        syncInterval: backendConfig.syncInterval,
+        stationId: backendConfig.stationId,
+        timeout: backendConfig.timeout,
+        maxRetries: backendConfig.maxRetries
+      });
+    }
+  };
+  const handleBackendEditSave = async () => {
+    if (!backendForm.url.trim()) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "Backend URL is required"
+      });
+      return;
+    }
+    try {
+      await updateBackend.mutateAsync({
+        url: backendForm.url.trim(),
+        syncInterval: backendForm.syncInterval,
+        stationId: backendForm.stationId.trim(),
+        timeout: backendForm.timeout,
+        maxRetries: backendForm.maxRetries
+      });
+      setIsEditingBackend(false);
+      addNotification({
+        type: "success",
+        title: "Success",
+        message: "Backend configuration updated successfully"
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Update Failed",
+        message: error instanceof Error ? error.message : "Failed to update backend configuration"
+      });
+    }
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
@@ -15045,7 +15338,9 @@ function SettingsPage() {
                 label: "Station ID",
                 value: editForm.id,
                 onChange: (value) => setEditForm((prev) => ({ ...prev, id: value })),
-                placeholder: "e.g., station_001"
+                placeholder: "e.g., station_001",
+                disabled: true,
+                hint: "Configured in station.yaml"
               }
             ),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -15316,7 +15611,8 @@ function SettingsPage() {
         {
           icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Cloud, { className: "w-5 h-5" }),
           title: "Backend Connection",
-          isLoading: healthLoading,
+          isLoading: backendLoading || healthLoading,
+          action: !isEditingBackend ? /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "sm", onClick: handleBackendEditStart, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pen, { className: "w-4 h-4" }) }) : null,
           children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Status" }),
@@ -15328,16 +15624,140 @@ function SettingsPage() {
                 }
               )
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-secondary)" }, children: "Backend URL" }),
+            isEditingBackend ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "span",
+                EditableRow,
                 {
-                  className: "text-sm font-mono",
-                  style: { color: "var(--color-text-primary)" },
-                  children: getBackendUrl()
+                  label: "Backend URL",
+                  value: backendForm.url,
+                  onChange: (value) => setBackendForm((prev) => ({ ...prev, url: value })),
+                  placeholder: "http://localhost:8000"
                 }
-              )
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                EditableRow,
+                {
+                  label: "Station ID",
+                  value: backendForm.stationId,
+                  onChange: (value) => setBackendForm((prev) => ({ ...prev, stationId: value })),
+                  placeholder: "station_001",
+                  disabled: true,
+                  hint: "Must match API Key"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "label",
+                  {
+                    className: "text-sm whitespace-nowrap",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Sync Interval (sec)"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "number",
+                    min: 5,
+                    max: 3600,
+                    value: backendForm.syncInterval,
+                    onChange: (e) => setBackendForm((prev) => ({ ...prev, syncInterval: parseInt(e.target.value) || 30 })),
+                    className: "w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "label",
+                  {
+                    className: "text-sm whitespace-nowrap",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Timeout (sec)"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "number",
+                    min: 1,
+                    max: 300,
+                    value: backendForm.timeout,
+                    onChange: (e) => setBackendForm((prev) => ({ ...prev, timeout: parseFloat(e.target.value) || 30 })),
+                    className: "w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "label",
+                  {
+                    className: "text-sm whitespace-nowrap",
+                    style: { color: "var(--color-text-secondary)" },
+                    children: "Max Retries"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "number",
+                    min: 0,
+                    max: 10,
+                    value: backendForm.maxRetries,
+                    onChange: (e) => setBackendForm((prev) => ({ ...prev, maxRetries: parseInt(e.target.value) || 5 })),
+                    className: "w-24 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
+                    style: {
+                      backgroundColor: "var(--color-bg-primary)",
+                      borderColor: "var(--color-border-default)",
+                      color: "var(--color-text-primary)"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-end gap-2 pt-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  Button,
+                  {
+                    variant: "ghost",
+                    size: "sm",
+                    onClick: handleBackendEditCancel,
+                    disabled: updateBackend.isPending,
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "w-4 h-4 mr-1" }),
+                      "Cancel"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  Button,
+                  {
+                    variant: "primary",
+                    size: "sm",
+                    onClick: handleBackendEditSave,
+                    disabled: updateBackend.isPending,
+                    children: [
+                      updateBackend.isPending ? /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-4 h-4 mr-1 animate-spin" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-4 h-4 mr-1" }),
+                      "Save"
+                    ]
+                  }
+                )
+              ] })
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Backend URL", value: (backendConfig == null ? void 0 : backendConfig.url) || "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Station ID", value: (backendConfig == null ? void 0 : backendConfig.stationId) || "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Sync Interval", value: backendConfig ? `${backendConfig.syncInterval}s` : "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Timeout", value: backendConfig ? `${backendConfig.timeout}s` : "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "Max Retries", value: ((_a = backendConfig == null ? void 0 : backendConfig.maxRetries) == null ? void 0 : _a.toString()) || "-" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(InfoRow$1, { label: "API Key", value: (backendConfig == null ? void 0 : backendConfig.apiKeyMasked) || "-" })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "div",
@@ -15347,7 +15767,7 @@ function SettingsPage() {
                   backgroundColor: "var(--color-bg-tertiary)",
                   color: "var(--color-text-tertiary)"
                 },
-                children: "Backend URL is configured in station.yaml"
+                children: "API Key cannot be modified through UI for security reasons."
               }
             )
           ] })
@@ -15390,9 +15810,6 @@ function SettingsPage() {
     )
   ] });
 }
-function getBackendUrl() {
-  return window.location.origin;
-}
 function Section$1({ icon, title, children, isLoading, action }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
@@ -15428,31 +15845,35 @@ function InfoRow$1({ label, value }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", style: { color: "var(--color-text-primary)" }, children: value })
   ] });
 }
-function EditableRow({ label, value, onChange, placeholder }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "label",
-      {
-        className: "text-sm whitespace-nowrap",
-        style: { color: "var(--color-text-secondary)" },
-        children: label
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "input",
-      {
-        type: "text",
-        value,
-        onChange: (e) => onChange(e.target.value),
-        placeholder,
-        className: "flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors",
-        style: {
-          backgroundColor: "var(--color-bg-primary)",
-          borderColor: "var(--color-border-default)",
-          color: "var(--color-text-primary)"
+function EditableRow({ label, value, onChange, placeholder, disabled, hint }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "label",
+        {
+          className: "text-sm whitespace-nowrap",
+          style: { color: "var(--color-text-secondary)" },
+          children: label
         }
-      }
-    )
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "text",
+          value,
+          onChange: (e) => onChange(e.target.value),
+          placeholder,
+          disabled,
+          className: `flex-1 px-3 py-1.5 text-sm rounded border outline-none transition-colors ${disabled ? "cursor-not-allowed opacity-60" : ""}`,
+          style: {
+            backgroundColor: disabled ? "var(--color-bg-tertiary)" : "var(--color-bg-primary)",
+            borderColor: "var(--color-border-default)",
+            color: "var(--color-text-primary)"
+          }
+        }
+      )
+    ] }),
+    hint && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs ml-auto", style: { color: "var(--color-text-tertiary)" }, children: hint })
   ] });
 }
 function ToggleSwitch({ enabled, onToggle, disabled }) {

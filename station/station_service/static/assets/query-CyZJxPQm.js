@@ -2785,6 +2785,7 @@ function useMutation(options, queryClient) {
   return { ...result, mutate, mutateAsync: result.mutate };
 }
 export {
+  MutationCache as M,
   QueryClient as Q,
   useQueryClient as a,
   useMutation as b,

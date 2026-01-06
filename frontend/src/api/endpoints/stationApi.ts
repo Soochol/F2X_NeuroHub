@@ -429,6 +429,13 @@ export const stationRegistryApi = {
   },
 
   /**
+   * Delete a station from the registry (unregister)
+   */
+  deleteStation: async (stationId: string): Promise<void> => {
+    await apiClient.delete(`/stations/${stationId}`);
+  },
+
+  /**
    * Fetch a single station by ID with real-time data
    */
   fetchStationById: async (stationId: string): Promise<Station | null> => {

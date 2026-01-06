@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Progress, Tooltip } from 'antd';
+import { Progress, Tooltip, Popconfirm } from 'antd';
 import {
   Server,
   Wifi,
@@ -19,6 +19,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import type { Station, BatchStatus } from '@/types/station';
 import styles from './StationCard.module.css';
@@ -26,6 +27,8 @@ import styles from './StationCard.module.css';
 interface StationCardProps {
   station: Station;
   onClick?: () => void;
+  onDelete?: (stationId: string) => void;
+  isDeleting?: boolean;
 }
 
 const formatUptime = (seconds: number): string => {
@@ -63,7 +66,7 @@ const getHealthColor = (status: 'healthy' | 'degraded' | 'unhealthy'): string =>
   }
 };
 
-export const StationCard = ({ station, onClick }: StationCardProps) => {
+export const StationCard = ({ station, onClick, onDelete, isDeleting }: StationCardProps) => {
   const navigate = useNavigate();
 
   const { runningBatches, totalBatches, avgProgress } = useMemo(() => {
@@ -226,6 +229,29 @@ export const StationCard = ({ station, onClick }: StationCardProps) => {
           <span className={styles.disconnectedHint}>
             {station.description || 'Check network connection'}
           </span>
+          {!isConnecting && onDelete && (
+            <Popconfirm
+              title="Delete Station"
+              description={`Are you sure you want to remove "${station.name}" from the registry?`}
+              onConfirm={(e) => {
+                e?.stopPropagation();
+                onDelete(station.id);
+              }}
+              onCancel={(e) => e?.stopPropagation()}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true, loading: isDeleting }}
+            >
+              <button
+                className={styles.deleteButton}
+                onClick={(e) => e.stopPropagation()}
+                disabled={isDeleting}
+              >
+                <Trash2 size={14} />
+                <span>Remove from registry</span>
+              </button>
+            </Popconfirm>
+          )}
         </div>
       )}
     </div>

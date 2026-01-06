@@ -241,3 +241,54 @@ export async function validateWip(
   );
   return extractData(response);
 }
+
+// ============================================================================
+// Backend Configuration
+// ============================================================================
+
+/**
+ * Backend configuration response.
+ */
+export interface BackendConfig {
+  url: string;
+  apiKeyMasked: string;
+  syncInterval: number;
+  stationId: string;
+  timeout: number;
+  maxRetries: number;
+}
+
+/**
+ * Update backend configuration request payload.
+ */
+export interface UpdateBackendConfigRequest {
+  url?: string;
+  syncInterval?: number;
+  stationId?: string;
+  timeout?: number;
+  maxRetries?: number;
+}
+
+/**
+ * Get backend configuration.
+ */
+export async function getBackendConfig(): Promise<BackendConfig> {
+  const response = await apiClient.get<ApiResponse<BackendConfig>>('/system/backend-config');
+  return extractData(response);
+}
+
+/**
+ * Update backend configuration.
+ */
+export async function updateBackendConfig(data: UpdateBackendConfigRequest): Promise<BackendConfig> {
+  // Convert camelCase to snake_case for API
+  const snakeCaseData: Record<string, unknown> = {};
+  if (data.url !== undefined) snakeCaseData.url = data.url;
+  if (data.syncInterval !== undefined) snakeCaseData.sync_interval = data.syncInterval;
+  if (data.stationId !== undefined) snakeCaseData.station_id = data.stationId;
+  if (data.timeout !== undefined) snakeCaseData.timeout = data.timeout;
+  if (data.maxRetries !== undefined) snakeCaseData.max_retries = data.maxRetries;
+
+  const response = await apiClient.put<ApiResponse<BackendConfig>>('/system/backend-config', snakeCaseData);
+  return extractData(response);
+}

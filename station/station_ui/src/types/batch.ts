@@ -208,6 +208,8 @@ export interface CreateBatchRequest {
   stepOrder?: Array<{ name: string; displayName?: string; order: number; enabled: boolean }>;
   /** Parameter overrides */
   parameters?: Record<string, unknown>;
+  /** MES Process ID (required when workflow.enabled) */
+  processId?: number;
 }
 
 /**

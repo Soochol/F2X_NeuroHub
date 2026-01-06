@@ -20,6 +20,10 @@ export interface ApiResponse<T> {
   success: true;
   /** Response payload */
   data: T;
+  /** Optional response message */
+  message?: string;
+  /** Optional warning messages (e.g., backend connection issues) */
+  warnings?: string[];
 }
 
 /**

@@ -38,9 +38,6 @@ dev = [
     "mypy>=1.0.0",
 ]
 
-[tool.uv.sources]
-station-service-sdk = { path = "/home/dev/code/station-service-sdk" }
-
 [tool.hatch.build.targets.wheel]
 packages = ["station_service"]
 

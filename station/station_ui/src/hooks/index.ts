@@ -3,7 +3,7 @@
  */
 
 // System hooks
-export { useSystemInfo, useHealthStatus, useUpdateStationInfo } from './useSystem';
+export { useSystemInfo, useHealthStatus, useUpdateStationInfo, useBackendConfig, useUpdateBackendConfig } from './useSystem';
 
 // Workflow hooks
 export { useWorkflowConfig, useUpdateWorkflowConfig, useProcesses, useProcessHeaders } from './useWorkflow';

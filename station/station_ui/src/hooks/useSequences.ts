@@ -27,6 +27,8 @@ import {
 } from '../api/endpoints/sequences';
 import type { SequenceUpdateRequest, SimulationMode } from '../types';
 
+// Note: Error handling is done globally via MutationCache in queryClient.ts
+
 // ============================================================================
 // Sequence Hooks
 // ============================================================================

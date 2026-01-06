@@ -1,6 +1,6 @@
 [project]
 name = "psa-sensor-test"
-version = "1.0.6"
+version = "2.0.0"
 description = "PSA sensor test sequence for VL53L0X and MLX90640 sensors"
 requires-python = ">=3.10"
 dependencies = [
