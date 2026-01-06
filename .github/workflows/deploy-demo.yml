@@ -6,13 +6,13 @@
 name: Deploy Demo (Replace Prod)
 
 on:
-  # 수동 배포 트리거만 (GitHub UI에서 실행)
+  # 수동 배포 트리거
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: '⚠️ Prod를 중지하고 Demo로 교체합니다. "yes"를 입력하세요'
-        required: true
-        default: ''
+
+  # 자동 배포: main 브랜치 push 시
+  push:
+    branches:
+      - main
 
 # 배포 충돌 방지 - 동시 실행 시 대기
 concurrency:
@@ -29,7 +29,6 @@ jobs:
   deploy-demo:
     name: Deploy Demo (Replace Prod)
     runs-on: self-hosted
-    if: ${{ github.event.inputs.confirm == 'yes' }}
 
     steps:
       # 1. 코드 체크아웃
