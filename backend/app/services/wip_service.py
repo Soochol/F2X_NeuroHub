@@ -176,22 +176,19 @@ def validate_process_start(
     if process.process_type == ProcessType.SERIAL_CONVERSION.value:
         _validate_all_manufacturing_pass_for_serial_conversion(db, wip_item, process_number)
 
-    # Check WIP status
-    if wip_item.status == WIPStatus.FAILED.value:
-        raise WIPValidationError(
-            f"WIP {wip_item.wip_id} is in FAILED status and cannot start processes"
-        )
-
+    # Check WIP status - FAILED is allowed for re-work (착공 재시도)
+    # Only CONVERTED status blocks new processes
     if wip_item.status == WIPStatus.CONVERTED.value:
         raise WIPValidationError(
             f"WIP {wip_item.wip_id} is already converted to serial number"
         )
 
-    # BR-003: First process can always start if WIP is CREATED or IN_PROGRESS
+    # BR-003: First process can always start if WIP is CREATED, IN_PROGRESS, or FAILED
+    # FAILED status is allowed for re-work (착공 재시도)
     if process_number == 1:
-        if wip_item.status not in (WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value):
+        if wip_item.status not in (WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value, WIPStatus.FAILED.value):
             raise WIPValidationError(
-                f"WIP {wip_item.wip_id} must be in CREATED or IN_PROGRESS status. "
+                f"WIP {wip_item.wip_id} must be in CREATED, IN_PROGRESS, or FAILED status. "
                 f"Current status: {wip_item.status}"
             )
         return

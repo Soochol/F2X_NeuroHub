@@ -338,11 +338,12 @@ class WIPItem(Base):
         """Check if WIP can start a specific process.
 
         Business Rule BR-003: Process can only start if:
-        - First process: WIP must be CREATED or IN_PROGRESS
+        - First process: WIP must be CREATED, IN_PROGRESS, or FAILED (re-work)
         - Subsequent processes: Previous process must be PASS
 
         Note: Actual process count is determined dynamically by active MANUFACTURING
         processes in the database. This method only performs basic status checks.
+        FAILED status is allowed for re-work (착공 재시도).
 
         Args:
             process_number: Process number to check (must be >= 1)
@@ -353,19 +354,17 @@ class WIPItem(Base):
         if process_number < 1:
             return False
 
-        if self.status == WIPStatus.FAILED.value:
-            return False
-
+        # Only CONVERTED status blocks new processes
         if self.status == WIPStatus.CONVERTED.value:
             return False
 
-        # First process can always start if WIP is CREATED or IN_PROGRESS
+        # First process can start if WIP is CREATED, IN_PROGRESS, or FAILED (re-work)
         if process_number == 1:
-            return self.status in (WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value)
+            return self.status in (WIPStatus.CREATED.value, WIPStatus.IN_PROGRESS.value, WIPStatus.FAILED.value)
 
-        # For subsequent processes, check if WIP is IN_PROGRESS
+        # For subsequent processes, check if WIP is IN_PROGRESS or FAILED (re-work)
         # Detailed validation (previous process PASS) is done in the service layer
-        return self.status == WIPStatus.IN_PROGRESS.value
+        return self.status in (WIPStatus.IN_PROGRESS.value, WIPStatus.FAILED.value)
 
     def can_convert_to_serial(self) -> bool:
         """Check if WIP can be converted to serial number.

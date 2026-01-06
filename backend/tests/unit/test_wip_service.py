@@ -265,15 +265,13 @@ def test_validate_process_start_process2_with_process1_pass(db: Session, wip_ite
     validate_process_start(db, wip_item, processes[1].id, 2)
 
 
-def test_validate_process_start_failed_wip(db: Session, wip_item: WIPItem, processes: list[Process]):
-    """BR-003: FAILED WIP should not start any process."""
+def test_validate_process_start_failed_wip_allowed(db: Session, wip_item: WIPItem, processes: list[Process]):
+    """BR-003: FAILED WIP can start process (re-work/착공 재시도)."""
     wip_item.status = WIPStatus.FAILED.value
     db.commit()
 
-    with pytest.raises(WIPValidationError) as exc_info:
-        validate_process_start(db, wip_item, processes[0].id, 1)
-
-    assert "FAILED status" in str(exc_info.value)
+    # Should NOT raise - FAILED WIP can re-start process 1
+    validate_process_start(db, wip_item, processes[0].id, 1)
 
 
 def test_validate_process_start_converted_wip(db: Session, wip_item: WIPItem, processes: list[Process]):
