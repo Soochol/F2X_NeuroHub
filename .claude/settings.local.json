@@ -74,7 +74,8 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(for f in /home/dev/code/F2X_NeuroHub/backend/alembic/versions/*.py)",
-      "Bash(systemctl list-units:*)"
+      "Bash(systemctl list-units:*)",
+      "Bash(gh auth:*)"
     ],
     "deny": [],
     "ask": []

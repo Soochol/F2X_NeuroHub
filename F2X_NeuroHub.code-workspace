@@ -1,8 +1,27 @@
 {
 	"folders": [
 		{
-			"path": "."
+			"path": "C:/myCode/F2X_NeuroHub",
+			"name": "f2x-neurohub"
+		},
+		{
+			"path": "C:/myCode/F2X_NeuroHub_Station",
+			"name": "f2x-neurohub-station"
+		},
+		{
+			"path": "C:/myCode/station-service-sdk",
+			"name": "station-service-sdk"
+		},
+		{
+			"path": "C:/myCode/station-sdk-psa-sensor-test",
+			"name": "station-sdk-psa-sensor-test"
+		},
+		{
+			"path": "C:/myCode/station-sdk-eol_tester",
+			"name": "station-sdk-eol-tester"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"stm32cube-ide-clangd.path": "cube"
+	}
 }
