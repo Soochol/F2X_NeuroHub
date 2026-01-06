@@ -60,26 +60,35 @@ jobs:
         shell: powershell
         continue-on-error: true
 
-      # 5. Demo Docker 이미지 빌드
+      # 5. Demo 볼륨 리셋 (DB 초기화)
+      - name: Reset Demo volumes
+        run: |
+          Write-Host "=== Resetting Demo database volume ==="
+          docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} down -v --remove-orphans
+          Write-Host "Demo volumes removed"
+        shell: powershell
+        continue-on-error: true
+
+      # 6. Demo Docker 이미지 빌드
       - name: Build Demo Docker images
         run: |
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} build --no-cache
         shell: powershell
 
-      # 6. Demo 서비스 시작
+      # 7. Demo 서비스 시작
       - name: Start Demo services
         run: |
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} up -d
         shell: powershell
 
-      # 7. 서비스 준비 대기
+      # 8. 서비스 준비 대기
       - name: Wait for services to be ready
         run: |
           Write-Host "Waiting for Demo services to start..."
           Start-Sleep -Seconds 20
         shell: powershell
 
-      # 8. 헬스체크
+      # 9. 헬스체크
       - name: Health check
         run: |
           $maxRetries = 5
@@ -106,7 +115,7 @@ jobs:
           }
         shell: powershell
 
-      # 9. DB 마이그레이션 (안전한 업그레이드)
+      # 10. DB 마이그레이션 (안전한 업그레이드)
       - name: Run database migrations
         run: |
           # PowerShell이 stderr 출력을 에러로 인식하여 중단되는 것을 방지
@@ -138,14 +147,14 @@ jobs:
           }
         shell: powershell
 
-      # 10. Seed 성능 테스트 데이터 생성
+      # 11. Seed 성능 테스트 데이터 생성
       - name: Seed performance test data
         run: |
           Write-Host "=== Generating performance test data ==="
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend python scripts/seed_performance_data.py --reset
         shell: powershell
 
-      # 11. 배포 완료 상태 확인
+      # 12. 배포 완료 상태 확인
       - name: Deployment status
         run: |
           Write-Host "=== Demo Deployment Complete ==="
