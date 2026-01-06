@@ -175,7 +175,10 @@ class ServiceContainer:
 
         # 3. Initialize IPC server
         logger.debug("Initializing IPC server...")
-        self._ipc_server = IPCServer()
+        self._ipc_server = IPCServer(
+            router_port=config.ipc.router_port,
+            sub_port=config.ipc.sub_port,
+        )
         await self._ipc_server.start()
 
         # 4. Initialize sequence loader

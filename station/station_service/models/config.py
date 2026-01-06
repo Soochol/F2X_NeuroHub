@@ -193,6 +193,13 @@ class GitSyncConfig(BaseModel):
     password: Optional[str] = Field(None, description="Git password/token for HTTPS auth")
 
 
+class IPCConfig(BaseModel):
+    """IPC (Inter-Process Communication) configuration."""
+
+    router_port: int = Field(5555, description="ZMQ router port for IPC")
+    sub_port: int = Field(5557, description="ZMQ subscriber port for IPC")
+
+
 class PathsConfig(BaseModel):
     """Path configuration for Station Service."""
 
@@ -215,6 +222,10 @@ class StationConfig(BaseModel):
         description="Station-level workflow configuration",
     )
     server: ServerConfig = ServerConfig()
+    ipc: IPCConfig = Field(
+        default_factory=IPCConfig,
+        description="IPC (Inter-Process Communication) configuration",
+    )
     backend: BackendConfig = BackendConfig()
     paths: PathsConfig = Field(
         default_factory=PathsConfig,
