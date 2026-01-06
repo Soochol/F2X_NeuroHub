@@ -38,6 +38,8 @@ from app.models.process import Process
 from app.models.serial import Serial
 from app.models.lot import Lot
 from app.models.user import User
+from app.models.wip_item import WIPItem, WIPStatus
+from app.models.wip_process_history import WIPProcessHistory
 from app.schemas.process_data import ProcessDataCreate, ProcessDataUpdate
 
 
@@ -1139,3 +1141,200 @@ def get_measurement_codes(
         })
 
     return sorted(result, key=lambda x: x["code"])
+
+
+def get_wip_measurements(
+    db: Session,
+    *,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    process_id: Optional[int] = None,
+    lot_id: Optional[int] = None,
+    result_filter: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> Tuple[List[WIPProcessHistory], int]:
+    """
+    Get measurement data from wip_process_history for Serial-converted WIPs.
+
+    Returns the latest PASS record for each WIP+process combination,
+    filtered to only include WIPs that have been converted to Serial.
+
+    Args:
+        db: SQLAlchemy Session
+        start_date: Filter records from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process ID
+        lot_id: Filter by specific LOT ID
+        result_filter: Filter by result (PASS, FAIL)
+        skip: Pagination offset
+        limit: Maximum records to return
+
+    Returns:
+        Tuple of (List of WIPProcessHistory records, total count)
+    """
+    # Subquery: Get the latest record ID for each WIP+process combination
+    # For PASS records only (as they represent successful completion)
+    latest_subq = (
+        db.query(
+            WIPProcessHistory.wip_item_id,
+            WIPProcessHistory.process_id,
+            func.max(WIPProcessHistory.id).label("max_id")
+        )
+        .filter(WIPProcessHistory.result == "PASS")
+        .group_by(
+            WIPProcessHistory.wip_item_id,
+            WIPProcessHistory.process_id
+        )
+        .subquery("latest_pass")
+    )
+
+    # Base query: Join with WIPItem and filter for CONVERTED status
+    base_query = (
+        db.query(WIPProcessHistory)
+        .join(WIPItem, WIPProcessHistory.wip_item_id == WIPItem.id)
+        .join(
+            latest_subq,
+            and_(
+                WIPProcessHistory.wip_item_id == latest_subq.c.wip_item_id,
+                WIPProcessHistory.process_id == latest_subq.c.process_id,
+                WIPProcessHistory.id == latest_subq.c.max_id
+            )
+        )
+        .filter(WIPItem.status == WIPStatus.CONVERTED.value)
+        .filter(WIPProcessHistory.measurements.isnot(None))
+        .filter(WIPProcessHistory.measurements != {})
+    )
+
+    # Apply optional filters
+    if start_date:
+        base_query = base_query.filter(WIPProcessHistory.completed_at >= start_date)
+    if end_date:
+        base_query = base_query.filter(WIPProcessHistory.completed_at <= end_date)
+    if process_id:
+        base_query = base_query.filter(WIPProcessHistory.process_id == process_id)
+    if lot_id:
+        base_query = base_query.filter(WIPItem.lot_id == lot_id)
+    if result_filter:
+        base_query = base_query.filter(WIPProcessHistory.result == result_filter)
+
+    # Get total count before pagination
+    total_count = base_query.count()
+
+    # Apply eager loading for relationships
+    query = base_query.options(
+        joinedload(WIPProcessHistory.wip_item).joinedload(WIPItem.lot),
+        joinedload(WIPProcessHistory.process),
+        joinedload(WIPProcessHistory.operator),
+    )
+
+    # Apply ordering and pagination
+    records = (
+        query
+        .order_by(desc(WIPProcessHistory.completed_at))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return records, total_count
+
+
+def get_wip_measurement_summary(
+    db: Session,
+    *,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    process_id: Optional[int] = None,
+) -> dict:
+    """
+    Get summary statistics for WIP measurement data.
+
+    Similar to get_measurement_summary but for wip_process_history table.
+    Only includes Serial-converted WIPs.
+
+    Args:
+        db: SQLAlchemy Session
+        start_date: Filter records from this date (inclusive)
+        end_date: Filter records up to this date (inclusive)
+        process_id: Filter by specific process ID
+
+    Returns:
+        Dictionary with summary statistics
+    """
+    # Base query for Serial-converted WIPs with measurements
+    base_query = (
+        db.query(WIPProcessHistory)
+        .join(WIPItem, WIPProcessHistory.wip_item_id == WIPItem.id)
+        .filter(WIPItem.status == WIPStatus.CONVERTED.value)
+        .filter(WIPProcessHistory.measurements.isnot(None))
+        .filter(WIPProcessHistory.measurements != {})
+    )
+
+    # Apply optional filters
+    if start_date:
+        base_query = base_query.filter(WIPProcessHistory.completed_at >= start_date)
+    if end_date:
+        base_query = base_query.filter(WIPProcessHistory.completed_at <= end_date)
+    if process_id:
+        base_query = base_query.filter(WIPProcessHistory.process_id == process_id)
+
+    # Get aggregate counts
+    total_count = base_query.count()
+    pass_count = base_query.filter(WIPProcessHistory.result == "PASS").count()
+    fail_count = base_query.filter(WIPProcessHistory.result == "FAIL").count()
+
+    # Calculate pass rate
+    pass_rate = (pass_count / total_count * 100) if total_count > 0 else 0.0
+
+    # Get stats by process
+    by_process_query = (
+        db.query(
+            Process.id.label("process_id"),
+            Process.process_name_ko.label("process_name"),
+            func.count(WIPProcessHistory.id).label("total"),
+            func.sum(
+                case(
+                    (WIPProcessHistory.result == "FAIL", 1),
+                    else_=0
+                )
+            ).label("fail")
+        )
+        .join(Process, WIPProcessHistory.process_id == Process.id)
+        .join(WIPItem, WIPProcessHistory.wip_item_id == WIPItem.id)
+        .filter(WIPItem.status == WIPStatus.CONVERTED.value)
+        .filter(WIPProcessHistory.measurements.isnot(None))
+        .filter(WIPProcessHistory.measurements != {})
+    )
+
+    if start_date:
+        by_process_query = by_process_query.filter(WIPProcessHistory.completed_at >= start_date)
+    if end_date:
+        by_process_query = by_process_query.filter(WIPProcessHistory.completed_at <= end_date)
+
+    by_process_results = (
+        by_process_query
+        .group_by(Process.id, Process.process_name_ko)
+        .order_by(Process.id)
+        .all()
+    )
+
+    by_process = []
+    for row in by_process_results:
+        rate = (row.fail / row.total * 100) if row.total > 0 else 0.0
+        by_process.append({
+            "process_id": row.process_id,
+            "process_name": row.process_name,
+            "total": row.total,
+            "fail": row.fail,
+            "rate": round(rate, 2)
+        })
+
+    return {
+        "total_count": total_count,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "rework_count": 0,  # WIP doesn't have REWORK status
+        "pass_rate": round(pass_rate, 2),
+        "by_process": by_process
+    }

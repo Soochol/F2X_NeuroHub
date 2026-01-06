@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Activity,
+  Clock,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -65,6 +66,17 @@ interface TrendDataPoint {
   result: string;
 }
 
+// Duration statistics by process
+interface ProcessDurationStats {
+  processName: string;
+  processNumber: number;
+  count: number;
+  min: number;
+  max: number;
+  avg: number;
+  stdDev: number;
+}
+
 export const MeasurementAnalysisPage = () => {
   // Data states
   const [data, setData] = useState<MeasurementHistory[]>([]);
@@ -74,6 +86,7 @@ export const MeasurementAnalysisPage = () => {
   const [measurementStats, setMeasurementStats] = useState<MeasurementStats[]>([]);
   const [selectedMeasurement, setSelectedMeasurement] = useState<string>('');
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
+  const [durationStats, setDurationStats] = useState<ProcessDurationStats[]>([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -179,6 +192,48 @@ export const MeasurementAnalysisPage = () => {
     if (stats.length > 0 && !selectedMeasurement) {
       setSelectedMeasurement(stats[0].code);
     }
+
+    // Calculate duration statistics by process
+    const durationMap = new Map<string, { processName: string; processNumber: number; durations: number[] }>();
+    records.forEach((record) => {
+      if (record.duration_seconds != null) {
+        const key = `${record.process_number}-${record.process_name}`;
+        if (!durationMap.has(key)) {
+          durationMap.set(key, {
+            processName: record.process_name,
+            processNumber: record.process_number,
+            durations: [],
+          });
+        }
+        durationMap.get(key)!.durations.push(record.duration_seconds);
+      }
+    });
+
+    const durStats: ProcessDurationStats[] = [];
+    durationMap.forEach((data) => {
+      const durations = data.durations;
+      if (durations.length === 0) return;
+
+      const min = Math.min(...durations);
+      const max = Math.max(...durations);
+      const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+      const variance = durations.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / durations.length;
+      const stdDev = Math.sqrt(variance);
+
+      durStats.push({
+        processName: data.processName,
+        processNumber: data.processNumber,
+        count: durations.length,
+        min,
+        max,
+        avg,
+        stdDev,
+      });
+    });
+
+    // Sort by process number
+    durStats.sort((a, b) => a.processNumber - b.processNumber);
+    setDurationStats(durStats);
   }, [selectedMeasurement]);
 
   // Build trend data for selected measurement
@@ -609,6 +664,96 @@ export const MeasurementAnalysisPage = () => {
                     <Bar dataKey="failCount" name="Fail" stackId="a" fill="var(--color-error)" />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {/* Process Duration Analysis */}
+          {durationStats.length > 0 && (
+            <Card style={{ marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: 'var(--color-text-primary)' }}>
+                <Clock size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Process Duration Analysis
+              </h3>
+
+              {/* Duration Bar Chart */}
+              <div style={{ width: '100%', height: 280, marginBottom: '20px' }}>
+                <ResponsiveContainer>
+                  <BarChart
+                    data={durationStats}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="processName" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
+                    <YAxis tick={{ fontSize: 12 }} label={{ value: 'Duration (s)', angle: -90, position: 'insideLeft', fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--color-bg-primary)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                      }}
+                      formatter={(value: number) => [`${value.toFixed(1)}s`, 'Avg Duration']}
+                    />
+                    <Bar dataKey="avg" name="Avg Duration" fill="var(--color-info)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Duration Statistics Table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px' }}>Process</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px' }}>Count</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px' }}>Avg (s)</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px' }}>Std Dev</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px' }}>Min (s)</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px' }}>Max (s)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {durationStats.map((stat) => (
+                      <tr key={stat.processNumber} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '12px', fontSize: '13px' }}>
+                          <div style={{ fontWeight: '500' }}>{stat.processName}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Process #{stat.processNumber}</div>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px' }}>{stat.count}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace', fontWeight: '500' }}>
+                          {stat.avg.toFixed(1)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace' }}>
+                          {stat.stdDev.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace' }}>
+                          {stat.min.toFixed(1)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace' }}>
+                          {stat.max.toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    <tr style={{ borderTop: '2px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)' }}>
+                      <td style={{ padding: '12px', fontSize: '13px', fontWeight: '600' }}>Total</td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>
+                        {durationStats.reduce((sum, s) => sum + s.count, 0)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace', fontWeight: '600' }}>
+                        {(durationStats.reduce((sum, s) => sum + s.avg * s.count, 0) / durationStats.reduce((sum, s) => sum + s.count, 0)).toFixed(1)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px' }}>-</td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace' }}>
+                        {Math.min(...durationStats.map(s => s.min)).toFixed(1)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontSize: '13px', fontFamily: 'monospace' }}>
+                        {Math.max(...durationStats.map(s => s.max)).toFixed(1)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </Card>
           )}

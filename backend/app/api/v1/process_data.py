@@ -720,7 +720,7 @@ def _parse_measurements(measurements_dict: dict) -> list:
     "/measurements/history",
     response_model=MeasurementHistoryListResponse,
     summary="Get measurement data history",
-    description="Retrieve measurement data history with filtering and pagination for quality analysis.",
+    description="Retrieve measurement data history with filtering and pagination for quality analysis. Includes both WIP (processes 1-6) and Serial (processes 7-8) data.",
 )
 def get_measurement_history(
     start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
@@ -736,6 +736,10 @@ def get_measurement_history(
 ):
     """
     Get measurement data history for quality analysis.
+
+    This endpoint returns measurement data from two sources:
+    1. wip_process_history: WIP processes 1-6 (for Serial-converted WIPs only)
+    2. process_data: Serial processes 7-8
 
     Query Parameters:
         start_date: Filter records from this date (inclusive)
@@ -760,7 +764,42 @@ def get_measurement_history(
             "start_date must be before or equal to end_date"
         )
 
-    records, total = crud.process_data.get_with_measurements(
+    items = []
+
+    # 1. Get WIP measurements (processes 1-6, Serial-converted WIPs only)
+    wip_records, wip_total = crud.process_data.get_wip_measurements(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        process_id=process_id,
+        lot_id=lot_id,
+        result_filter=result,
+        skip=0,  # Get all for now, will sort and paginate combined results
+        limit=limit + skip,  # Get enough for pagination
+    )
+
+    # Transform WIP records to response format
+    for record in wip_records:
+        measurements = _parse_measurements(record.measurements)
+        wip_item = record.wip_item
+
+        items.append(MeasurementHistoryResponse(
+            id=record.id,
+            lot_number=wip_item.lot.lot_number if wip_item and wip_item.lot else "",
+            wip_id=wip_item.wip_id if wip_item else None,
+            serial_number=None,  # WIP doesn't have serial yet (will be linked via wip_item.serial_id)
+            process_name=record.process.process_name_ko if record.process else "",
+            process_number=record.process.process_number if record.process else 0,
+            result=record.result,
+            operator_name=record.operator.full_name if record.operator else "",
+            measurements=measurements,
+            started_at=record.started_at,
+            completed_at=record.completed_at,
+            duration_seconds=record.duration_seconds,
+        ))
+
+    # 2. Get ProcessData measurements (processes 7-8)
+    pd_records, pd_total = crud.process_data.get_with_measurements(
         db,
         start_date=start_date,
         end_date=end_date,
@@ -768,17 +807,16 @@ def get_measurement_history(
         lot_id=lot_id,
         header_id=header_id,
         result=result,
-        skip=skip,
-        limit=limit,
+        skip=0,
+        limit=limit + skip,
     )
 
-    # Transform to response format
-    items = []
-    for record in records:
+    # Transform ProcessData records to response format
+    for record in pd_records:
         measurements = _parse_measurements(record.measurements)
 
         items.append(MeasurementHistoryResponse(
-            id=record.id,
+            id=record.id + 1000000,  # Offset ID to avoid collision with WIP IDs
             lot_number=record.lot.lot_number if record.lot else "",
             wip_id=record.wip_item.wip_id if record.wip_item else None,
             serial_number=record.serial.serial_number if record.serial else None,
@@ -792,8 +830,15 @@ def get_measurement_history(
             duration_seconds=record.duration_seconds,
         ))
 
+    # Sort combined results by completed_at descending
+    items.sort(key=lambda x: x.completed_at or datetime.min, reverse=True)
+
+    # Calculate total and apply pagination
+    total = wip_total + pd_total
+    paginated_items = items[skip:skip + limit]
+
     return MeasurementHistoryListResponse(
-        items=items,
+        items=paginated_items,
         total=total,
         skip=skip,
         limit=limit,
@@ -804,7 +849,7 @@ def get_measurement_history(
     "/measurements/summary",
     response_model=MeasurementSummaryResponse,
     summary="Get measurement data summary statistics",
-    description="Get aggregate statistics for measurement data including pass/fail rates and process breakdown.",
+    description="Get aggregate statistics for measurement data including pass/fail rates and process breakdown. Includes both WIP and Serial data.",
 )
 def get_measurement_summary(
     start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
@@ -815,6 +860,10 @@ def get_measurement_summary(
 ):
     """
     Get measurement data summary statistics.
+
+    This endpoint combines data from two sources:
+    1. wip_process_history: WIP processes 1-6 (for Serial-converted WIPs only)
+    2. process_data: Serial processes 7-8
 
     Query Parameters:
         start_date: Filter records from this date (inclusive)
@@ -834,31 +883,71 @@ def get_measurement_summary(
             "start_date must be before or equal to end_date"
         )
 
-    summary = crud.process_data.get_measurement_summary(
+    # 1. Get WIP measurement summary
+    wip_summary = crud.process_data.get_wip_measurement_summary(
         db,
         start_date=start_date,
         end_date=end_date,
         process_id=process_id,
     )
 
-    # Transform by_process to schema format
-    by_process = [
-        ProcessMeasurementSummary(
+    # 2. Get ProcessData measurement summary
+    pd_summary = crud.process_data.get_measurement_summary(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        process_id=process_id,
+    )
+
+    # Combine totals
+    total_count = wip_summary["total_count"] + pd_summary["total_count"]
+    pass_count = wip_summary["pass_count"] + pd_summary["pass_count"]
+    fail_count = wip_summary["fail_count"] + pd_summary["fail_count"]
+    rework_count = wip_summary["rework_count"] + pd_summary["rework_count"]
+    pass_rate = (pass_count / total_count * 100) if total_count > 0 else 0.0
+
+    # Combine by_process (merge entries with same process_id)
+    process_map = {}
+    for p in wip_summary["by_process"]:
+        pid = p["process_id"]
+        process_map[pid] = {
+            "process_id": pid,
+            "process_name": p["process_name"],
+            "total": p["total"],
+            "fail": p["fail"],
+        }
+    for p in pd_summary["by_process"]:
+        pid = p["process_id"]
+        if pid in process_map:
+            process_map[pid]["total"] += p["total"]
+            process_map[pid]["fail"] += p["fail"]
+        else:
+            process_map[pid] = {
+                "process_id": pid,
+                "process_name": p["process_name"],
+                "total": p["total"],
+                "fail": p["fail"],
+            }
+
+    # Calculate rates and transform to schema format
+    by_process = []
+    for pid in sorted(process_map.keys()):
+        p = process_map[pid]
+        rate = (p["fail"] / p["total"] * 100) if p["total"] > 0 else 0.0
+        by_process.append(ProcessMeasurementSummary(
             process_id=p["process_id"],
             process_name=p["process_name"],
             total=p["total"],
             fail=p["fail"],
-            rate=p["rate"],
-        )
-        for p in summary["by_process"]
-    ]
+            rate=round(rate, 2),
+        ))
 
     return MeasurementSummaryResponse(
-        total_count=summary["total_count"],
-        pass_count=summary["pass_count"],
-        fail_count=summary["fail_count"],
-        rework_count=summary["rework_count"],
-        pass_rate=summary["pass_rate"],
+        total_count=total_count,
+        pass_count=pass_count,
+        fail_count=fail_count,
+        rework_count=rework_count,
+        pass_rate=round(pass_rate, 2),
         by_process=by_process,
     )
 
