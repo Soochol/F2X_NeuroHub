@@ -19,6 +19,10 @@
 		{
 			"path": "C:/myCode/station-sdk-eol_tester",
 			"name": "station-sdk-eol-tester"
+		},
+		{
+			"path": "C:/myCode/station-sdk-psa-firmware-upload",
+			"name": "station-sdk-psa-firmware-upload"
 		}
 	],
 	"settings": {
