@@ -3,7 +3,7 @@
  */
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { FileText, Database, Download, Trash2, Settings, Sliders } from 'lucide-react';
+import { FileText, Database, Download, Trash2, Settings, Sliders, Copy, Check } from 'lucide-react';
 import { useDebugPanelStore, type DebugPanelTab } from '../../../stores/debugPanelStore';
 import { useLogStore } from '../../../stores';
 import { LogFilters } from './LogFilters';
@@ -58,6 +58,9 @@ export function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChan
   const [configDirty, setConfigDirty] = useState(false);
   const [paramsDirty, setParamsDirty] = useState(false);
 
+  // Track clipboard copy success state
+  const [copied, setCopied] = useState(false);
+
   // Combined pending changes state
   const hasPendingChanges = configDirty || paramsDirty;
 
@@ -91,8 +94,9 @@ export function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChan
     });
   }, [logs, batchId, logLevel, searchQuery, selectedStep]);
 
-  const handleExportLogs = () => {
-    const content = filteredLogs
+  // Format logs as text content
+  const formatLogsAsText = useCallback(() => {
+    return filteredLogs
       .map((log) => {
         const time = log.timestamp.toLocaleTimeString('en-US', {
           hour12: false,
@@ -103,6 +107,21 @@ export function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChan
         return `${time} [${log.level.toUpperCase()}] ${log.message}`;
       })
       .join('\n');
+  }, [filteredLogs]);
+
+  const handleCopyLogs = useCallback(async () => {
+    const content = formatLogsAsText();
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy logs:', err);
+    }
+  }, [formatLogsAsText]);
+
+  const handleExportLogs = () => {
+    const content = formatLogsAsText();
 
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -176,6 +195,22 @@ export function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChan
 
         {/* Action buttons */}
         <div className="flex items-center gap-1">
+          {activeTab === 'logs' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyLogs}
+              disabled={filteredLogs.length === 0}
+              title={copied ? 'Copied!' : 'Copy logs to clipboard'}
+              className="p-1"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

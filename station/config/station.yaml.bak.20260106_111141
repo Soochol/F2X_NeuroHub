@@ -19,6 +19,11 @@ backend:
   sync_interval: 30
   station_id: test_001
 batches:
+- id: batch-1767663771561-a604w1y-0
+  name: psa_sensor_test
+  sequence_package: sequences/psa_sensor_test
+  auto_start: false
+  process_id: 1
 - id: batch-1767664104076-f326dzn-0
   name: stm32_firmware_upload
   sequence_package: sequences/stm32_firmware_upload
@@ -35,10 +40,6 @@ batches:
     reset_mode: HWrst
     frequency: 4000
     firmware_path: /home/dev/code/station-sdk-psa-firmware-upload/sequences/stm32_firmware_upload/firmwares/firmware.bin
-- id: batch-1767665513325-n2r1pk9-0
-  name: psa_sensor_test
-  sequence_package: sequences/psa_sensor_test
-  auto_start: false
 logging:
   level: INFO
   file: data/logs/station.log

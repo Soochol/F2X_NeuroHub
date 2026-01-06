@@ -325,4 +325,10 @@ class BatchConfigService:
         if config.hardware:
             result["hardware"] = config.hardware
 
+        if config.parameters:
+            result["parameters"] = config.parameters
+
+        if config.config:
+            result["config"] = config.config
+
         return result

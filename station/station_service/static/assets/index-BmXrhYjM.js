@@ -5476,7 +5476,8 @@ async function createBatches(request) {
       name: batchName,
       sequence_package: `sequences/${request.sequenceName}`,
       hardware: {},
-      auto_start: false
+      auto_start: false,
+      parameters: request.parameters
     };
     const response = await apiClient.post(
       "/batches",
@@ -9938,45 +9939,37 @@ function StepDataViewer({ steps }) {
     `${step.order}-${step.name}`
   )) });
 }
-const DEBOUNCE_DELAY$1 = 500;
 function isBatchDetail$2(batch) {
   return batch !== null && typeof batch === "object" && "config" in batch;
 }
-function BatchConfigEditor({ batchId, isRunning }) {
+function BatchConfigEditor({ batchId, isRunning, onDirtyChange }) {
   const { data: batch } = useBatch(batchId);
   const { data: workflowConfig } = useWorkflowConfig();
   const { data: processes = [] } = useProcesses();
   const updateBatch2 = useUpdateBatch();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const [editedConfig, setEditedConfig] = reactExports.useState({});
+  const [originalConfig, setOriginalConfig] = reactExports.useState("");
   const [searchQuery, setSearchQuery] = reactExports.useState("");
   const [saveStatus, setSaveStatus] = reactExports.useState("idle");
-  const debounceTimerRef = reactExports.useRef(null);
-  const initialLoadRef = reactExports.useRef(true);
-  const lastSavedConfigRef = reactExports.useRef("");
-  const pendingConfigRef = reactExports.useRef(null);
   const isWorkflowEnabled = (workflowConfig == null ? void 0 : workflowConfig.enabled) ?? false;
   const processId = editedConfig.processId;
   const headerId = editedConfig.headerId;
   const isMesProcessMissing = isWorkflowEnabled && !processId;
+  const isDirty = reactExports.useMemo(() => {
+    return JSON.stringify(editedConfig) !== originalConfig;
+  }, [editedConfig, originalConfig]);
+  reactExports.useEffect(() => {
+    onDirtyChange == null ? void 0 : onDirtyChange(isDirty);
+  }, [isDirty, onDirtyChange]);
   reactExports.useEffect(() => {
     if (batch && isBatchDetail$2(batch)) {
       const config = { ...batch.config || {} };
       setEditedConfig(config);
-      lastSavedConfigRef.current = JSON.stringify(config);
-      initialLoadRef.current = true;
+      setOriginalConfig(JSON.stringify(config));
+      setSaveStatus("idle");
     }
   }, [batch]);
-  reactExports.useEffect(() => {
-    if (batch && isBatchDetail$2(batch) && isWorkflowEnabled && !isRunning) {
-      const config = batch.config || {};
-      if (config.processId === void 0) {
-        const newConfig = { ...config, processId: 1 };
-        setEditedConfig(newConfig);
-        updateBatch2.mutate({ batchId, request: { config: newConfig } });
-      }
-    }
-  }, [batch, isWorkflowEnabled, isRunning, batchId, updateBatch2]);
   const filteredConfig = reactExports.useMemo(() => {
     if (!searchQuery.trim()) {
       return Object.entries(editedConfig);
@@ -9986,11 +9979,9 @@ function BatchConfigEditor({ batchId, isRunning }) {
       ([key, value]) => key.toLowerCase().includes(query) || String(value ?? "").toLowerCase().includes(query)
     );
   }, [editedConfig, searchQuery]);
-  const autoSave = reactExports.useCallback(async (config) => {
-    if (!batchId || isRunning) return;
-    const configJson = JSON.stringify(config);
-    if (configJson === lastSavedConfigRef.current) return;
-    if (isWorkflowEnabled && !config.processId) {
+  const handleSave = reactExports.useCallback(async () => {
+    if (!batchId || isRunning || !isDirty) return;
+    if (isWorkflowEnabled && !editedConfig.processId) {
       addNotification({
         type: "error",
         title: "MES Process Required",
@@ -10000,8 +9991,8 @@ function BatchConfigEditor({ batchId, isRunning }) {
     }
     setSaveStatus("saving");
     try {
-      await updateBatch2.mutateAsync({ batchId, request: { config } });
-      lastSavedConfigRef.current = configJson;
+      await updateBatch2.mutateAsync({ batchId, request: { config: editedConfig } });
+      setOriginalConfig(JSON.stringify(editedConfig));
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
     } catch (error) {
@@ -10013,67 +10004,7 @@ function BatchConfigEditor({ batchId, isRunning }) {
       });
       console.error("[BatchConfigEditor] Failed to save config:", error);
     }
-  }, [batchId, isRunning, isWorkflowEnabled, updateBatch2, addNotification]);
-  const debouncedSave = reactExports.useCallback((config) => {
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
-    }
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    pendingConfigRef.current = config;
-    debounceTimerRef.current = setTimeout(() => {
-      autoSave(config);
-      pendingConfigRef.current = null;
-    }, DEBOUNCE_DELAY$1);
-  }, [autoSave]);
-  const syncSave = reactExports.useCallback((config) => {
-    if (!batchId || isRunning) return;
-    const configJson = JSON.stringify(config);
-    if (configJson === lastSavedConfigRef.current) return;
-    fetch(`/api/batches/${batchId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config }),
-      keepalive: true
-      // Ensures request completes even if page unloads
-    }).then(() => {
-      console.log("[BatchConfigEditor] Flushed pending config");
-    }).catch((err) => {
-      console.warn("[BatchConfigEditor] Failed to flush config:", err);
-    });
-    pendingConfigRef.current = null;
-    lastSavedConfigRef.current = configJson;
-  }, [batchId, isRunning]);
-  reactExports.useEffect(() => {
-    const handleUnload = () => {
-      if (pendingConfigRef.current) {
-        syncSave(pendingConfigRef.current);
-      }
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && pendingConfigRef.current) {
-        syncSave(pendingConfigRef.current);
-      }
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [syncSave]);
-  reactExports.useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      if (pendingConfigRef.current) {
-        syncSave(pendingConfigRef.current);
-      }
-    };
-  }, [syncSave]);
+  }, [batchId, isRunning, isDirty, isWorkflowEnabled, editedConfig, updateBatch2, addNotification]);
   const handleConfigChange = (key, value) => {
     const newConfig = { ...editedConfig };
     if (value === "true") {
@@ -10086,17 +10017,6 @@ function BatchConfigEditor({ batchId, isRunning }) {
       newConfig[key] = value;
     }
     setEditedConfig(newConfig);
-    debouncedSave(newConfig);
-  };
-  const handleBlur = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (pendingConfigRef.current) {
-      autoSave(pendingConfigRef.current);
-      pendingConfigRef.current = null;
-    }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -10116,16 +10036,29 @@ function BatchConfigEditor({ batchId, isRunning }) {
               ")"
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
-            saveStatus === "saving" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", style: { color: "var(--color-text-tertiary)" }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-3 h-3 animate-spin" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saving..." })
-            ] }),
-            saveStatus === "saved" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", style: { color: "var(--color-status-pass)" }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3 h-3" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saved" })
-            ] })
-          ] })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1", children: saveStatus === "saved" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs px-2 py-1", style: { color: "var(--color-status-pass)" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3 h-3" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saved" })
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: handleSave,
+              disabled: !isDirty || isRunning || saveStatus === "saving",
+              className: "flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+              style: {
+                backgroundColor: isDirty && saveStatus !== "saving" ? "var(--color-brand-500)" : "var(--color-bg-tertiary)",
+                color: isDirty && saveStatus !== "saving" ? "white" : "var(--color-text-tertiary)"
+              },
+              title: !isDirty ? "No changes to save" : isRunning ? "Cannot save while running" : "Save changes",
+              children: saveStatus === "saving" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-3 h-3 animate-spin" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saving..." })
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-3 h-3" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Save" })
+              ] })
+            }
+          ) })
         ]
       }
     ),
@@ -10177,7 +10110,6 @@ function BatchConfigEditor({ batchId, isRunning }) {
           {
             value: processId ?? 1,
             onChange: (e) => handleConfigChange("processId", e.target.value),
-            onBlur: handleBlur,
             disabled: isRunning,
             className: "w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50",
             style: {
@@ -10208,7 +10140,6 @@ function BatchConfigEditor({ batchId, isRunning }) {
             type: "number",
             value: headerId ?? 1,
             onChange: (e) => handleConfigChange("headerId", e.target.value),
-            onBlur: handleBlur,
             disabled: isRunning,
             placeholder: "Enter header ID (e.g., 1, 2, 3...)",
             className: "w-full text-xs rounded px-2 py-1.5 border outline-none transition-colors disabled:opacity-50",
@@ -10241,7 +10172,6 @@ function BatchConfigEditor({ batchId, isRunning }) {
             type: "text",
             value: String(value ?? ""),
             onChange: (e) => handleConfigChange(key, e.target.value),
-            onBlur: handleBlur,
             disabled: isRunning,
             className: "flex-1 text-xs rounded px-2 py-1 border outline-none transition-colors disabled:opacity-50",
             style: {
@@ -10266,6 +10196,20 @@ function BatchConfigEditor({ batchId, isRunning }) {
           ]
         }
       ),
+      isDirty && !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex items-center gap-2 text-xs p-2 rounded mt-4",
+          style: {
+            backgroundColor: "rgba(234, 179, 8, 0.1)",
+            color: "var(--color-status-warning)"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-3.5 h-3.5 flex-shrink-0" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "You have unsaved changes. Click Save to apply." })
+          ]
+        }
+      ),
       isRunning && /* @__PURE__ */ jsxRuntimeExports.jsx(
         "div",
         {
@@ -10280,27 +10224,29 @@ function BatchConfigEditor({ batchId, isRunning }) {
     ] })
   ] });
 }
-const DEBOUNCE_DELAY = 500;
 function isBatchDetail$1(batch) {
   return batch !== null && typeof batch === "object" && "parameters" in batch;
 }
-function ParametersEditor({ batchId, isRunning }) {
+function ParametersEditor({ batchId, isRunning, onDirtyChange }) {
   const { data: batch } = useBatch(batchId);
   const updateBatch2 = useUpdateBatch();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const [editedParams, setEditedParams] = reactExports.useState({});
+  const [originalParams, setOriginalParams] = reactExports.useState("");
   const [searchQuery, setSearchQuery] = reactExports.useState("");
   const [saveStatus, setSaveStatus] = reactExports.useState("idle");
-  const debounceTimerRef = reactExports.useRef(null);
-  const initialLoadRef = reactExports.useRef(true);
-  const lastSavedParamsRef = reactExports.useRef("");
-  const pendingParamsRef = reactExports.useRef(null);
+  const isDirty = reactExports.useMemo(() => {
+    return JSON.stringify(editedParams) !== originalParams;
+  }, [editedParams, originalParams]);
+  reactExports.useEffect(() => {
+    onDirtyChange == null ? void 0 : onDirtyChange(isDirty);
+  }, [isDirty, onDirtyChange]);
   reactExports.useEffect(() => {
     if (batch && isBatchDetail$1(batch)) {
       const params = batch.parameters || {};
       setEditedParams(params);
-      lastSavedParamsRef.current = JSON.stringify(params);
-      initialLoadRef.current = true;
+      setOriginalParams(JSON.stringify(params));
+      setSaveStatus("idle");
     }
   }, [batch]);
   const filteredParams = reactExports.useMemo(() => {
@@ -10312,14 +10258,12 @@ function ParametersEditor({ batchId, isRunning }) {
       ([key, value]) => key.toLowerCase().includes(query) || String(value ?? "").toLowerCase().includes(query)
     );
   }, [editedParams, searchQuery]);
-  const autoSave = reactExports.useCallback(async (params) => {
-    if (!batchId || isRunning) return;
-    const paramsJson = JSON.stringify(params);
-    if (paramsJson === lastSavedParamsRef.current) return;
+  const handleSave = reactExports.useCallback(async () => {
+    if (!batchId || isRunning || !isDirty) return;
     setSaveStatus("saving");
     try {
-      await updateBatch2.mutateAsync({ batchId, request: { parameters: params } });
-      lastSavedParamsRef.current = paramsJson;
+      await updateBatch2.mutateAsync({ batchId, request: { parameters: editedParams } });
+      setOriginalParams(JSON.stringify(editedParams));
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1500);
     } catch (error) {
@@ -10331,66 +10275,7 @@ function ParametersEditor({ batchId, isRunning }) {
       });
       console.error("[ParametersEditor] Failed to save params:", error);
     }
-  }, [batchId, isRunning, updateBatch2, addNotification]);
-  const debouncedSave = reactExports.useCallback((params) => {
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
-    }
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    pendingParamsRef.current = params;
-    debounceTimerRef.current = setTimeout(() => {
-      autoSave(params);
-      pendingParamsRef.current = null;
-    }, DEBOUNCE_DELAY);
-  }, [autoSave]);
-  const syncSave = reactExports.useCallback((params) => {
-    if (!batchId || isRunning) return;
-    const paramsJson = JSON.stringify(params);
-    if (paramsJson === lastSavedParamsRef.current) return;
-    fetch(`/api/batches/${batchId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ parameters: params }),
-      keepalive: true
-    }).then(() => {
-      console.log("[ParametersEditor] Flushed pending params");
-    }).catch((err) => {
-      console.warn("[ParametersEditor] Failed to flush params:", err);
-    });
-    pendingParamsRef.current = null;
-    lastSavedParamsRef.current = paramsJson;
-  }, [batchId, isRunning]);
-  reactExports.useEffect(() => {
-    const handleUnload = () => {
-      if (pendingParamsRef.current) {
-        syncSave(pendingParamsRef.current);
-      }
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && pendingParamsRef.current) {
-        syncSave(pendingParamsRef.current);
-      }
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [syncSave]);
-  reactExports.useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      if (pendingParamsRef.current) {
-        syncSave(pendingParamsRef.current);
-      }
-    };
-  }, [syncSave]);
+  }, [batchId, isRunning, isDirty, editedParams, updateBatch2, addNotification]);
   const handleParamChange = (key, value) => {
     const newParams = { ...editedParams };
     if (value === "true") {
@@ -10403,17 +10288,6 @@ function ParametersEditor({ batchId, isRunning }) {
       newParams[key] = value;
     }
     setEditedParams(newParams);
-    debouncedSave(newParams);
-  };
-  const handleBlur = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (pendingParamsRef.current) {
-      autoSave(pendingParamsRef.current);
-      pendingParamsRef.current = null;
-    }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col h-full", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -10433,16 +10307,29 @@ function ParametersEditor({ batchId, isRunning }) {
               ")"
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
-            saveStatus === "saving" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", style: { color: "var(--color-text-tertiary)" }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-3 h-3 animate-spin" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saving..." })
-            ] }),
-            saveStatus === "saved" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", style: { color: "var(--color-status-pass)" }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3 h-3" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saved" })
-            ] })
-          ] })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1", children: saveStatus === "saved" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs px-2 py-1", style: { color: "var(--color-status-pass)" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3 h-3" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saved" })
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: handleSave,
+              disabled: !isDirty || isRunning || saveStatus === "saving",
+              className: "flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+              style: {
+                backgroundColor: isDirty && saveStatus !== "saving" ? "var(--color-brand-500)" : "var(--color-bg-tertiary)",
+                color: isDirty && saveStatus !== "saving" ? "white" : "var(--color-text-tertiary)"
+              },
+              title: !isDirty ? "No changes to save" : isRunning ? "Cannot save while running" : "Save changes",
+              children: saveStatus === "saving" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "w-3 h-3 animate-spin" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Saving..." })
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "w-3 h-3" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Save" })
+              ] })
+            }
+          ) })
         ]
       }
     ),
@@ -10500,7 +10387,6 @@ function ParametersEditor({ batchId, isRunning }) {
             type: "text",
             value: String(value ?? ""),
             onChange: (e) => handleParamChange(key, e.target.value),
-            onBlur: handleBlur,
             disabled: isRunning,
             className: "flex-1 text-xs rounded px-2 py-1 border outline-none transition-colors disabled:opacity-50",
             style: {
@@ -10511,6 +10397,20 @@ function ParametersEditor({ batchId, isRunning }) {
           }
         )
       ] }, key)) }),
+      isDirty && !isRunning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex items-center gap-2 text-xs p-2 rounded mt-4",
+          style: {
+            backgroundColor: "rgba(234, 179, 8, 0.1)",
+            color: "var(--color-status-warning)"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "w-3.5 h-3.5 flex-shrink-0" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "You have unsaved changes. Click Save to apply." })
+          ]
+        }
+      ),
       isRunning && /* @__PURE__ */ jsxRuntimeExports.jsx(
         "div",
         {
@@ -10538,10 +10438,23 @@ function TabButton$1({ label, icon, isActive, onClick }) {
     }
   );
 }
-function DebugLogPanel({ batchId, steps, isRunning = false }) {
+function DebugLogPanel({ batchId, steps, isRunning = false, onPendingChangesChange }) {
   const { activeTab, setActiveTab, selectedStep, logLevel, searchQuery } = useDebugPanelStore();
   const logs = useLogStore((s) => s.logs);
   const clearLogs = useLogStore((s) => s.clearLogs);
+  const [configDirty, setConfigDirty] = reactExports.useState(false);
+  const [paramsDirty, setParamsDirty] = reactExports.useState(false);
+  const [copied, setCopied] = reactExports.useState(false);
+  const hasPendingChanges = configDirty || paramsDirty;
+  reactExports.useEffect(() => {
+    onPendingChangesChange == null ? void 0 : onPendingChangesChange(hasPendingChanges);
+  }, [hasPendingChanges, onPendingChangesChange]);
+  const handleConfigDirtyChange = reactExports.useCallback((isDirty) => {
+    setConfigDirty(isDirty);
+  }, []);
+  const handleParamsDirtyChange = reactExports.useCallback((isDirty) => {
+    setParamsDirty(isDirty);
+  }, []);
   const stepNames = reactExports.useMemo(() => {
     return steps.map((s) => s.name);
   }, [steps]);
@@ -10554,8 +10467,8 @@ function DebugLogPanel({ batchId, steps, isRunning = false }) {
       return true;
     });
   }, [logs, batchId, logLevel, searchQuery, selectedStep]);
-  const handleExportLogs = () => {
-    const content = filteredLogs.map((log2) => {
+  const formatLogsAsText = reactExports.useCallback(() => {
+    return filteredLogs.map((log2) => {
       const time = log2.timestamp.toLocaleTimeString("en-US", {
         hour12: false,
         hour: "2-digit",
@@ -10564,6 +10477,19 @@ function DebugLogPanel({ batchId, steps, isRunning = false }) {
       });
       return `${time} [${log2.level.toUpperCase()}] ${log2.message}`;
     }).join("\n");
+  }, [filteredLogs]);
+  const handleCopyLogs = reactExports.useCallback(async () => {
+    const content = formatLogsAsText();
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2e3);
+    } catch (err) {
+      console.error("Failed to copy logs:", err);
+    }
+  }, [formatLogsAsText]);
+  const handleExportLogs = () => {
+    const content = formatLogsAsText();
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -10643,6 +10569,18 @@ function DebugLogPanel({ batchId, steps, isRunning = false }) {
             )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Button,
+              {
+                variant: "ghost",
+                size: "sm",
+                onClick: handleCopyLogs,
+                disabled: filteredLogs.length === 0,
+                title: copied ? "Copied!" : "Copy logs to clipboard",
+                className: "p-1",
+                children: copied ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "w-3.5 h-3.5 text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { className: "w-3.5 h-3.5" })
+              }
+            ),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               Button,
               {
@@ -10675,8 +10613,22 @@ function DebugLogPanel({ batchId, steps, isRunning = false }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-hidden", children: [
       activeTab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(LogEntryList, { batchId }),
       activeTab === "data" && /* @__PURE__ */ jsxRuntimeExports.jsx(StepDataViewer, { steps }),
-      activeTab === "params" && /* @__PURE__ */ jsxRuntimeExports.jsx(ParametersEditor, { batchId, isRunning }),
-      activeTab === "config" && /* @__PURE__ */ jsxRuntimeExports.jsx(BatchConfigEditor, { batchId, isRunning })
+      activeTab === "params" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        ParametersEditor,
+        {
+          batchId,
+          isRunning,
+          onDirtyChange: handleParamsDirtyChange
+        }
+      ),
+      activeTab === "config" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        BatchConfigEditor,
+        {
+          batchId,
+          isRunning,
+          onDirtyChange: handleConfigDirtyChange
+        }
+      )
     ] })
   ] });
 }
@@ -10834,6 +10786,10 @@ function BatchDetailPage() {
   const { data: workflowConfig } = useWorkflowConfig();
   const [showWipModal, setShowWipModal] = reactExports.useState(false);
   const [wipError, setWipError] = reactExports.useState(null);
+  const [hasPendingChanges, setHasPendingChanges] = reactExports.useState(false);
+  const handlePendingChangesChange = reactExports.useCallback((hasPending) => {
+    setHasPendingChanges(hasPending);
+  }, []);
   reactExports.useEffect(() => {
     if (batchId) {
       log.debug(`useEffect: subscribing to batch ${batchId.slice(0, 8)}...`);
@@ -10990,7 +10946,15 @@ function BatchDetailPage() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     SplitLayout,
     {
-      panel: /* @__PURE__ */ jsxRuntimeExports.jsx(DebugLogPanel, { batchId: batchId || "", steps, isRunning }),
+      panel: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        DebugLogPanel,
+        {
+          batchId: batchId || "",
+          steps,
+          isRunning,
+          onPendingChangesChange: handlePendingChangesChange
+        }
+      ),
       panelWidth,
       isCollapsed,
       onResize: setPanelWidth,
@@ -11049,9 +11013,11 @@ function BatchDetailPage() {
                   variant: "primary",
                   onClick: handleStartSequence,
                   isLoading: startBatch2.isPending || startSequence2.isPending,
+                  disabled: hasPendingChanges,
+                  title: hasPendingChanges ? "Save changes in Config/Params tabs first" : void 0,
                   children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx(Play, { className: "w-4 h-4 mr-2" }),
-                    "Start Sequence"
+                    hasPendingChanges ? "Save Changes First" : "Start Sequence"
                   ]
                 }
               ),
@@ -11176,12 +11142,47 @@ function StepsTable({ steps, totalSteps, stepNames, onStepClick }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4", children: "Step Name" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4 w-24", children: "Status" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4 w-20", children: "Result" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4", children: "Measurements" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "pb-3 pr-4 w-28", children: "Duration" })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: displaySteps.map((step) => /* @__PURE__ */ jsxRuntimeExports.jsx(StepRow$2, { step, onClick: onStepClick ? () => onStepClick(step.name) : void 0 }, `${step.order}-${step.name}`)) })
   ] }) });
 }
+function MeasurementsCell({ measurements }) {
+  if (!measurements || Object.keys(measurements).length === 0) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "var(--color-text-tertiary)" }, children: "-" });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: Object.entries(measurements).map(([key, val]) => {
+    const m = val;
+    const value = (m == null ? void 0 : m.value) ?? val;
+    const unit = (m == null ? void 0 : m.unit) ?? "";
+    const passed = m == null ? void 0 : m.passed;
+    const hasLimits = (m == null ? void 0 : m.min) !== void 0 || (m == null ? void 0 : m.max) !== void 0;
+    const displayValue = typeof value === "number" ? value.toFixed(2) : String(value);
+    const valueColor = passed === true ? "text-green-500" : passed === false ? "text-red-500" : "";
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "span",
+      {
+        className: "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono",
+        style: { backgroundColor: "var(--color-bg-tertiary)" },
+        title: hasLimits ? `${key}: ${displayValue}${unit} (${m.min ?? "-"} ~ ${m.max ?? "-"})` : `${key}: ${displayValue}${unit}`,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { color: "var(--color-text-tertiary)" }, children: [
+            key,
+            ":"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: valueColor, style: !valueColor ? { color: "var(--color-text-primary)" } : void 0, children: [
+            displayValue,
+            unit
+          ] })
+        ]
+      },
+      key
+    );
+  }) });
+}
 function StepRow$2({ step, onClick }) {
+  var _a;
   const getStatusBadge = () => {
     if (step.status === "completed") return "completed";
     if (step.status === "running") return "running";
@@ -11211,6 +11212,7 @@ function StepRow$2({ step, onClick }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4 font-medium", style: { color: "var(--color-text-primary)" }, children: step.name }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(StatusBadge$1, { status: getStatusBadge(), size: "sm" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4", children: getResultBadge() }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(MeasurementsCell, { measurements: (_a = step.result) == null ? void 0 : _a.measurements }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-3 pr-4 font-mono", style: { color: "var(--color-text-secondary)" }, children: step.duration != null ? `${step.duration.toFixed(2)}s` : "-" })
       ]
     }

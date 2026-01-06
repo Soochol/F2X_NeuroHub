@@ -1,0 +1,26 @@
+station:
+  id: test_001
+  name: Test Station
+  description: Test description
+workflow:
+  enabled: true
+  input_mode: popup
+  auto_sequence_start: true
+  require_operator_login: false
+server:
+  host: 0.0.0.0
+  port: 8080
+paths:
+  sequences_dir: ./sequences
+  data_dir: ./data
+backend:
+  url: http://localhost:8000
+  api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTkxMzI1ODAsImlhdCI6MTc2NzU5NjU4MCwidHlwZSI6InN0YXRpb24iLCJzdGF0aW9uX2lkIjoidGVzdF8wMDEifQ.MCQ0uCcSNiWjE3nC6o-Z-hz-LxuNXe3f8I6mb5B4-WI
+  sync_interval: 30
+  station_id: test_001
+batches: []
+logging:
+  level: INFO
+  file: data/logs/station.log
+  max_size: 10MB
+  backup_count: 5

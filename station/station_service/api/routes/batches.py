@@ -742,6 +742,7 @@ async def create_batch(
             auto_start=request.auto_start,
             config=merged_config,
             parameters=request.parameters,
+            process_id=request.process_id,  # Pass process_id directly for YAML persistence
         )
 
         # Create via service (persists to YAML + memory)

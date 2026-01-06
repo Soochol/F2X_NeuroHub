@@ -534,6 +534,7 @@ function StepsTable({ steps, totalSteps, stepNames, onStepClick }: { steps: Step
             <th className="pb-3 pr-4">Step Name</th>
             <th className="pb-3 pr-4 w-24">Status</th>
             <th className="pb-3 pr-4 w-20">Result</th>
+            <th className="pb-3 pr-4">Measurements</th>
             <th className="pb-3 pr-4 w-28">Duration</th>
           </tr>
         </thead>
@@ -543,6 +544,56 @@ function StepsTable({ steps, totalSteps, stepNames, onStepClick }: { steps: Step
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+interface MeasurementValue {
+  value?: number | string;
+  unit?: string;
+  passed?: boolean;
+  min?: number;
+  max?: number;
+}
+
+function MeasurementsCell({ measurements }: { measurements?: Record<string, unknown> }) {
+  if (!measurements || Object.keys(measurements).length === 0) {
+    return <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {Object.entries(measurements).map(([key, val]) => {
+        const m = val as MeasurementValue;
+        const value = m?.value ?? val;
+        const unit = m?.unit ?? '';
+        const passed = m?.passed;
+        const hasLimits = m?.min !== undefined || m?.max !== undefined;
+
+        // Format display value
+        const displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+
+        // Determine color based on pass/fail
+        const valueColor = passed === true
+          ? 'text-green-500'
+          : passed === false
+            ? 'text-red-500'
+            : '';
+
+        return (
+          <span
+            key={key}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono"
+            style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
+            title={hasLimits ? `${key}: ${displayValue}${unit} (${m.min ?? '-'} ~ ${m.max ?? '-'})` : `${key}: ${displayValue}${unit}`}
+          >
+            <span style={{ color: 'var(--color-text-tertiary)' }}>{key}:</span>
+            <span className={valueColor} style={!valueColor ? { color: 'var(--color-text-primary)' } : undefined}>
+              {displayValue}{unit}
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -594,6 +645,9 @@ function StepRow({ step, onClick }: { step: StepResult; onClick?: () => void }) 
         <StatusBadge status={getStatusBadge()} size="sm" />
       </td>
       <td className="py-3 pr-4">{getResultBadge()}</td>
+      <td className="py-3 pr-4">
+        <MeasurementsCell measurements={step.result?.measurements as Record<string, unknown> | undefined} />
+      </td>
       <td className="py-3 pr-4 font-mono" style={{ color: 'var(--color-text-secondary)' }}>
         {step.duration != null ? `${step.duration.toFixed(2)}s` : '-'}
       </td>

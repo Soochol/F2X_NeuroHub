@@ -68,7 +68,8 @@
       "Bash(timeout 3 bash -c 'echo -n | nc -w 2 192.168.35.79 9100')",
       "Bash(pip install:*)",
       "Bash(pip show:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(sudo -S docker-compose:*)"
     ],
     "deny": [],
     "ask": []

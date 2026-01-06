@@ -243,6 +243,7 @@ interface ServerBatchCreateRequest {
   hardware?: Record<string, Record<string, unknown>>;
   auto_start?: boolean;
   process_id?: number;
+  parameters?: Record<string, unknown>;
 }
 
 /**
@@ -279,6 +280,7 @@ export async function createBatches(
       sequence_package: `sequences/${request.sequenceName}`,
       hardware: {},
       auto_start: false,
+      parameters: request.parameters,
     };
 
     const response = await apiClient.post<ApiResponse<ServerBatchCreateResponse>>(
