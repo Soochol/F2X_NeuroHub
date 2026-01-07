@@ -1,27 +1,27 @@
 {
 	"folders": [
 		{
-			"path": "C:/myCode/F2X_NeuroHub",
+			"path": ".",
 			"name": "f2x-neurohub"
 		},
 		{
-			"path": "C:/myCode/F2X_NeuroHub_Station",
+			"path": "../F2X_NeuroHub_Station",
 			"name": "f2x-neurohub-station"
 		},
 		{
-			"path": "C:/myCode/station-service-sdk",
+			"path": "../station-service-sdk",
 			"name": "station-service-sdk"
 		},
 		{
-			"path": "C:/myCode/station-sdk-psa-sensor-test",
+			"path": "../station-sdk-psa-sensor-test",
 			"name": "station-sdk-psa-sensor-test"
 		},
 		{
-			"path": "C:/myCode/station-sdk-eol_tester",
+			"path": "../station-sdk-eol-tester",
 			"name": "station-sdk-eol-tester"
 		},
 		{
-			"path": "C:/myCode/station-sdk-psa-firmware-upload",
+			"path": "../station-sdk-psa-firmware-upload",
 			"name": "station-sdk-psa-firmware-upload"
 		}
 	],

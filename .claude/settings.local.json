@@ -75,7 +75,15 @@
       "Bash(gh run view:*)",
       "Bash(for f in /home/dev/code/F2X_NeuroHub/backend/alembic/versions/*.py)",
       "Bash(systemctl list-units:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(git -C /home/dev/code/F2X_NeuroHub pull)",
+      "Bash(kill:*)",
+      "Bash(fuser:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Skill(sequence-development)",
+      "Skill(sequence-development:*)",
+      "Bash(/opt/st/stm32cubeclt_1.20.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI:*)"
     ],
     "deny": [],
     "ask": []
