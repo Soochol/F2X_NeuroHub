@@ -120,3 +120,11 @@ jobs:
           Write-Host "=== Deployment Complete ==="
           docker compose ${{ env.COMPOSE_FILES }} --env-file ${{ env.ENV_FILE }} ps
         shell: powershell
+
+      # 11. Docker 이미지 정리 (디스크 공간 확보)
+      - name: Cleanup Docker images
+        run: |
+          Write-Host "=== Cleaning up unused Docker images ==="
+          docker image prune -f
+        shell: powershell
+        continue-on-error: true

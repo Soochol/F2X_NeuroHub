@@ -161,3 +161,11 @@ jobs:
           Write-Host "⚠️ Prod is stopped. Run 'Restore Prod' workflow to restore."
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} ps
         shell: powershell
+
+      # 13. Docker 이미지 정리 (디스크 공간 확보)
+      - name: Cleanup Docker images
+        run: |
+          Write-Host "=== Cleaning up unused Docker images ==="
+          docker image prune -f
+        shell: powershell
+        continue-on-error: true

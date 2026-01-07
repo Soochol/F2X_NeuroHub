@@ -1,0 +1,74 @@
+# =============================================================================
+# F2X NeuroHub MES - Database Reset Workflow
+# 수동 트리거 전용 - 선택한 환경의 DB 데이터를 완전히 삭제 (볼륨 제거)
+# =============================================================================
+
+name: Reset Database (CAUTION)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Reset environment database'
+        required: true
+        default: 'demo'
+        type: choice
+        options:
+          - demo
+          - production
+      confirm:
+        description: 'Type "RESET" to confirm data deletion'
+        required: true
+        type: string
+
+jobs:
+  reset-db:
+    name: Reset Database Data
+    runs-on: self-hosted
+    
+    steps:
+      # 1. 확인 절차
+      - name: Verify confirmation
+        run: |
+          if ("${{ github.event.inputs.confirm }}" -ne "RESET") {
+            Write-Error "Confirmation failed. Please type 'RESET' to proceed."
+            exit 1
+          }
+        shell: powershell
+
+      # 2. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 3. 환경 설정
+      - name: Setup environment variables
+        run: |
+          if ("${{ github.event.inputs.environment }}" -eq "demo") {
+            echo "COMPOSE_FILES=-f docker-compose.yml -f docker-compose.demo.yml" >> $env:GITHUB_ENV
+            echo "ENV_FILE=.env.demo" >> $env:GITHUB_ENV
+          } else {
+            echo "COMPOSE_FILES=-f docker-compose.yml -f docker-compose.prod.yml" >> $env:GITHUB_ENV
+            echo "ENV_FILE=.env.production" >> $env:GITHUB_ENV
+          }
+        shell: powershell
+
+      # 4. 서비스 중지 및 볼륨 삭제
+      - name: Reset Database Volume
+        run: |
+          Write-Host "=== Resetting Database for ${{ github.event.inputs.environment }} ==="
+          docker compose ${{ env.COMPOSE_FILES }} --env-file ${{ env.ENV_FILE }} down -v --remove-orphans
+        shell: powershell
+
+      # 5. 서비스 재시작
+      - name: Restart Services
+        run: |
+          Write-Host "=== Restarting Services ==="
+          docker compose ${{ env.COMPOSE_FILES }} --env-file ${{ env.ENV_FILE }} up -d
+        shell: powershell
+
+      # 6. 완료 알림
+      - name: Final status
+        run: |
+          Write-Host "=== Database Reset Complete for ${{ github.event.inputs.environment }} ==="
+          docker compose ${{ env.COMPOSE_FILES }} --env-file ${{ env.ENV_FILE }} ps
+        shell: powershell
