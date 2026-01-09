@@ -118,6 +118,7 @@ def list_headers(
             id=item.id,
             station_id=item.station_id,
             batch_id=item.batch_id,
+            slot_id=item.slot_id,
             process_id=item.process_id,
             status=item.status,
             total_count=item.total_count,
@@ -252,6 +253,7 @@ def get_by_station(
             id=h.id,
             station_id=h.station_id,
             batch_id=h.batch_id,
+            slot_id=h.slot_id,
             process_id=h.process_id,
             status=h.status,
             total_count=h.total_count,
@@ -298,6 +300,7 @@ def get_by_batch(
             id=h.id,
             station_id=h.station_id,
             batch_id=h.batch_id,
+            slot_id=h.slot_id,
             process_id=h.process_id,
             status=h.status,
             total_count=h.total_count,
@@ -380,6 +383,33 @@ def create_header(
         )
 
 
+@router.get(
+    "/slots/{station_id}",
+    response_model=List[int],
+    summary="Get available slots",
+    description="Get list of available slot IDs (1-12) for a station",
+)
+def get_available_slots(
+    station_id: str = Path(..., description="Station ID"),
+    db: Session = Depends(deps.get_db),
+    auth: Union[User, StationAuth] = Depends(get_auth_context),
+) -> List[int]:
+    """Get available slot IDs for a station.
+
+    Returns list of slot IDs that are not currently in use (OPEN status).
+
+    Args:
+        station_id: Station identifier
+        db: SQLAlchemy database session
+        auth: Current authenticated user or station
+
+    Returns:
+        List of available slot IDs (1-12)
+    """
+    used_slots = set(crud.get_used_slots(db, station_id))
+    return [slot for slot in range(1, 13) if slot not in used_slots]
+
+
 @router.post(
     "/open",
     response_model=ProcessHeaderInDB,
@@ -397,16 +427,28 @@ def open_or_get_header(
     If a header already exists for the same station+batch+process
     combination and is OPEN, it will be returned.
 
+    If slot_id is not provided, the lowest available slot (1-12) will be
+    auto-assigned for the station.
+
     Args:
         header_in: ProcessHeaderOpen schema with data
         db: SQLAlchemy database session
-        current_user: Current authenticated user
+        auth: Current authenticated user or station
 
     Returns:
         ProcessHeaderInDB (new or existing)
+
+    Raises:
+        HTTPException 409: If all 12 slots are occupied
     """
-    header, was_created = crud.open_or_get(db, header_in=header_in)
-    return header
+    try:
+        header, was_created = crud.open_or_get(db, header_in=header_in)
+        return header
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
 
 
 @router.post(

@@ -93,18 +93,5 @@
     "embedded-debugger",
     "docker-mcp",
     "chrome-devtools"
-  ],
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/sc-command-hook.py\"",
-            "timeout": 5000
-          }
-        ]
-      }
-    ]
-  }
+  ]
 }
