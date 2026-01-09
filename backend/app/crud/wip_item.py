@@ -356,7 +356,7 @@ def start_process(
     operator_id: int,
     equipment_id: Optional[int] = None,
     started_at: Optional[datetime] = None,
-    header_id: Optional[int] = None,
+    process_session_id: Optional[int] = None,
 ) -> WIPItem:
     """
     Start a process on WIP (BR-003).
@@ -374,7 +374,7 @@ def start_process(
         operator_id: Operator identifier
         equipment_id: Equipment identifier (optional)
         started_at: Process start timestamp (defaults to now)
-        header_id: Process header ID for station/batch tracking (optional)
+        process_session_id: Process session ID for station/batch tracking (optional)
 
     Returns:
         Updated WIP item
@@ -414,15 +414,15 @@ def start_process(
             # 재착공: Update existing record
             existing_process_data.started_at = started_at
             existing_process_data.operator_id = operator_id
-            if header_id:
-                existing_process_data.header_id = header_id
+            if process_session_id:
+                existing_process_data.process_session_id = process_session_id
         else:
             # 신규 착공: Create ProcessData record for trace API
             process_data = ProcessData(
                 lot_id=wip_item.lot_id,
                 wip_id=wip_id,
                 process_id=process_id,
-                header_id=header_id,
+                process_session_id=process_session_id,
                 operator_id=operator_id,
                 started_at=started_at,
                 data_level=DataLevel.WIP.value,

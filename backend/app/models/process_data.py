@@ -192,8 +192,8 @@ class ProcessData(Base):
         default=None,
     )
 
-    # Header foreign key - links to process execution session
-    header_id: Mapped[Optional[int]] = mapped_column(
+    # Process session foreign key - links to process execution session
+    process_session_id: Mapped[Optional[int]] = mapped_column(
         BIGINT,
         ForeignKey("process_headers.id", ondelete="SET NULL", onupdate="CASCADE"),
         nullable=True,
@@ -300,10 +300,10 @@ class ProcessData(Base):
         lazy="select",
     )
 
-    header: Mapped[Optional["ProcessHeader"]] = relationship(
+    session: Mapped[Optional["ProcessHeader"]] = relationship(
         "ProcessHeader",
         back_populates="process_data_records",
-        foreign_keys=[header_id],
+        foreign_keys=[process_session_id],
         lazy="select",
     )
 
@@ -429,10 +429,10 @@ class ProcessData(Base):
             started_at,
         ),
 
-        # HEADER INDEX
+        # PROCESS SESSION INDEX
         Index(
-            "idx_process_data_header",
-            header_id,
+            "idx_process_data_session",
+            process_session_id,
         ),
     )
 
@@ -517,7 +517,7 @@ class ProcessData(Base):
             "process_id": self.process_id,
             "operator_id": self.operator_id,
             "equipment_id": self.equipment_id,
-            "header_id": self.header_id,
+            "process_session_id": self.process_session_id,
             "data_level": self.data_level,
             "result": self.result,
             "measurements": self.measurements,

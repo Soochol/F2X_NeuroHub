@@ -147,8 +147,8 @@ class WIPProcessHistory(Base):
         comment="Foreign key reference to equipment table (nullable)",
     )
 
-    # Header foreign key - links to process execution session
-    header_id: Mapped[Optional[int]] = mapped_column(
+    # Process session foreign key - links to process execution session
+    process_session_id: Mapped[Optional[int]] = mapped_column(
         BIGINT,
         ForeignKey("process_headers.id", ondelete="SET NULL", onupdate="CASCADE"),
         nullable=True,
@@ -242,10 +242,10 @@ class WIPProcessHistory(Base):
         lazy="select",
     )
 
-    header: Mapped[Optional["ProcessHeader"]] = relationship(
+    session: Mapped[Optional["ProcessHeader"]] = relationship(
         "ProcessHeader",
         back_populates="wip_history_records",
-        foreign_keys=[header_id],
+        foreign_keys=[process_session_id],
         lazy="select",
     )
 
@@ -331,10 +331,10 @@ class WIPProcessHistory(Base):
             postgresql_using="gin",
         ),
 
-        # HEADER INDEX
+        # PROCESS SESSION INDEX
         Index(
-            "idx_wip_history_header",
-            header_id,
+            "idx_wip_history_session",
+            process_session_id,
         ),
     )
 
@@ -419,7 +419,7 @@ class WIPProcessHistory(Base):
             "process_id": self.process_id,
             "operator_id": self.operator_id,
             "equipment_id": self.equipment_id,
-            "header_id": self.header_id,
+            "process_session_id": self.process_session_id,
             "result": self.result,
             "measurements": self.measurements,
             "defects": self.defects,

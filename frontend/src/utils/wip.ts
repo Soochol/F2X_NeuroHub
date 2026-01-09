@@ -41,3 +41,39 @@ export const parseWipId = (wipId: string) => {
         sequence,
     };
 };
+
+/**
+ * Get current process display text for WIP item
+ * Handles all WIP status cases correctly
+ *
+ * @param wip - WIP item with status and current_process_id
+ * @returns Human-readable process status text
+ */
+export const getWipProcessDisplayText = (wip: {
+    status: string;
+    current_process_id?: number;
+}): string => {
+    // Active process - show process number
+    if (wip.current_process_id) {
+        return `Process #${wip.current_process_id}`;
+    }
+
+    // No active process - check status
+    switch (wip.status) {
+        case 'CONVERTED':
+            return 'Converted';
+
+        case 'COMPLETED':
+            return 'All Processes Completed, Awaiting Conversion';
+
+        case 'FAILED':
+            return 'Failed';
+
+        case 'IN_PROGRESS':
+            return 'Between Processes';
+
+        case 'CREATED':
+        default:
+            return 'Not Started';
+    }
+};

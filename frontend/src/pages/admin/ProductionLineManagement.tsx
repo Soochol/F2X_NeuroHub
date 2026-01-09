@@ -164,8 +164,33 @@ export const ProductionLineManagement = () => {
             onChange={(e) => form.setField('line_code', e.target.value)}
             required
             disabled={!!modal.editingItem}
-            placeholder="e.g., LINE-A"
+            placeholder="e.g., LINE-A, LINE_01, TEST-LINE_A1"
           />
+          {/* Line Code Validation Rules */}
+          <div style={{
+            marginTop: '-12px',
+            marginBottom: '15px',
+            padding: '12px 15px',
+            backgroundColor: 'var(--color-bg-secondary)',
+            borderRadius: '6px',
+            border: '1px solid var(--color-border)',
+            fontSize: '13px'
+          }}>
+            <div style={{ fontWeight: '600', marginBottom: '6px', color: 'var(--color-text-primary)' }}>
+              ✓ Allowed:
+            </div>
+            <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
+              <li>Letters (A-Z), Numbers (0-9)</li>
+              <li>Hyphens (-) and Underscores (_)</li>
+              <li>Automatically converted to UPPERCASE</li>
+            </ul>
+            <div style={{ fontWeight: '600', marginBottom: '6px', color: 'var(--color-error)' }}>
+              ✗ Not Allowed:
+            </div>
+            <ul style={{ margin: '0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
+              <li>Spaces or special characters (@, #, $, etc.)</li>
+            </ul>
+          </div>
           <Input
             label="Line Name"
             value={form.formData.line_name}

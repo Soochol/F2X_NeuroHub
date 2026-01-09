@@ -47,7 +47,7 @@ export interface MeasurementHistoryFilters {
   end_date?: string;
   process_id?: number;
   lot_id?: number;
-  header_id?: number;
+  process_session_id?: number;
   result?: ProcessResult;
   skip?: number;
   limit?: number;

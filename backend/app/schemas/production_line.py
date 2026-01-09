@@ -13,7 +13,7 @@ Schemas:
     - ProductionLineResponse: Schema for API response with relationships
 
 Key Features:
-    - Line code format validation (alphanumeric and hyphens)
+    - Line code format validation (alphanumeric, hyphens, and underscores)
     - Cycle time validation (positive integer)
     - Location and description fields
     - is_active status flag
@@ -38,7 +38,7 @@ class ProductionLineBase(BaseModel):
         is_active: Whether this line is currently operational (default: True)
 
     Validators:
-        - validate_line_code: Ensures line_code format is valid
+        - validate_line_code: Ensures line_code contains only alphanumeric, hyphens, and underscores
         - validate_cycle_time_sec: Ensures positive cycle time if provided
     """
 
@@ -95,10 +95,10 @@ class ProductionLineBase(BaseModel):
         if not value:
             raise ValueError("line_code cannot be empty")
 
-        # Check for valid characters (alphanumeric and hyphens)
-        if not all(c.isalnum() or c == '-' for c in value):
+        # Check for valid characters (alphanumeric, hyphens, and underscores)
+        if not all(c.isalnum() or c in '-_' for c in value):
             raise ValueError(
-                "line_code can only contain alphanumeric characters and hyphens"
+                "line_code can only contain alphanumeric characters, hyphens, and underscores"
             )
 
         return value.upper()
@@ -193,10 +193,10 @@ class ProductionLineUpdate(BaseModel):
         if not value:
             raise ValueError("line_code cannot be empty")
 
-        # Check for valid characters (alphanumeric and hyphens)
-        if not all(c.isalnum() or c == '-' for c in value):
+        # Check for valid characters (alphanumeric, hyphens, and underscores)
+        if not all(c.isalnum() or c in '-_' for c in value):
             raise ValueError(
-                "line_code can only contain alphanumeric characters and hyphens"
+                "line_code can only contain alphanumeric characters, hyphens, and underscores"
             )
 
         return value.upper()

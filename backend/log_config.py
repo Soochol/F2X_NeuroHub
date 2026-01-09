@@ -38,5 +38,6 @@ LOGGING_CONFIG = {
         "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
         "uvicorn.error": {"level": "INFO"},
         "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+        "httpx": {"handlers": ["default"], "level": "WARNING", "propagate": False},
     },
 }

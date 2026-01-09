@@ -257,7 +257,7 @@ class WIPItemProcessStart(BaseModel):
         process_id: Process identifier (1-6)
         operator_id: Operator performing the process
         equipment_id: Equipment used (optional)
-        header_id: Process header ID for station/batch tracking (optional)
+        process_session_id: Process session ID for station/batch tracking (optional)
         started_at: Process start timestamp (optional, defaults to current time)
     """
     process_id: int = Field(
@@ -272,9 +272,9 @@ class WIPItemProcessStart(BaseModel):
         gt=0,
         description="Equipment identifier (optional)"
     )
-    header_id: Optional[int] = Field(
+    process_session_id: Optional[int] = Field(
         None,
-        description="Process header ID for station/batch tracking (optional)"
+        description="Process session ID for station/batch tracking (optional)"
     )
     started_at: Optional[datetime] = Field(
         None,

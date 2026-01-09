@@ -29,7 +29,7 @@ export const measurementsApi = {
     if (filters?.end_date) params.end_date = filters.end_date;
     if (filters?.process_id) params.process_id = filters.process_id;
     if (filters?.lot_id) params.lot_id = filters.lot_id;
-    if (filters?.header_id) params.header_id = filters.header_id;
+    if (filters?.process_session_id) params.process_session_id = filters.process_session_id;
     if (filters?.result) params.result = filters.result;
     if (filters?.skip !== undefined) params.skip = filters.skip;
     if (filters?.limit !== undefined) params.limit = filters.limit;

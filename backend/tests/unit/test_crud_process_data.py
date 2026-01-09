@@ -18,7 +18,8 @@ from app.crud import serial as serial_crud
 from app.crud import lot as lot_crud
 from app.crud import user as user_crud
 from app.models import (
-    ProductModel, Lot, LotStatus, Process, ProcessData, User, UserRole
+    ProductModel, Lot, LotStatus, Process, ProcessData, User, UserRole,
+    ProcessHeader, WIPItem
 )
 from app.models.production_line import ProductionLine
 from app.models.process_data import ProcessResult, DataLevel
@@ -745,3 +746,184 @@ class TestProcessDataSpecializedQueries:
 
         assert len(incomplete) == 1
         assert incomplete[0].completed_at is None
+
+    def test_get_with_measurements_filter_by_session_id(self, db: Session):
+        """Test filtering process_data by process_session_id in get_with_measurements."""
+        product_model = create_product_model(db)
+        production_line = create_production_line(db)
+        lot = create_lot(db, product_model.id, production_line.id)
+        process = create_process(db, 1)
+        operator = create_operator(db)
+
+        # Create ProcessHeader (session) objects
+        session1 = ProcessHeader(
+            process_id=process.id,
+            slot_id=1,
+            station_id=1,
+            status="ACTIVE",
+        )
+        session2 = ProcessHeader(
+            process_id=process.id,
+            slot_id=2,
+            station_id=1,
+            status="ACTIVE",
+        )
+        db.add_all([session1, session2])
+        db.flush()
+
+        # Create test data with different session IDs
+        now = datetime.utcnow()
+        pd1_data = ProcessDataCreate(
+            lot_id=lot.id,
+            process_id=process.id,
+            operator_id=operator.id,
+            data_level=DataLevelSchema.LOT,
+            result=ProcessResultSchema.PASS,
+            measurements={"temp": 25.0, "voltage": 3.3},
+            started_at=now,
+        )
+        pd1 = process_data_crud.create(db, obj_in=pd1_data)
+        pd1.process_session_id = session1.id
+
+        pd2_data = ProcessDataCreate(
+            lot_id=lot.id,
+            process_id=process.id,
+            operator_id=operator.id,
+            data_level=DataLevelSchema.LOT,
+            result=ProcessResultSchema.PASS,
+            measurements={"temp": 26.0, "voltage": 3.4},
+            started_at=now + timedelta(hours=1),
+        )
+        pd2 = process_data_crud.create(db, obj_in=pd2_data)
+        pd2.process_session_id = session2.id
+        db.commit()
+
+        # Test filtering by session_id=session1.id
+        results, total = process_data_crud.get_with_measurements(
+            db,
+            process_session_id=session1.id
+        )
+        assert total == 1
+        assert len(results) == 1
+        assert results[0].process_session_id == session1.id
+        assert results[0].measurements["temp"] == 25.0
+
+        # Test filtering by session_id=session2.id
+        results, total = process_data_crud.get_with_measurements(
+            db,
+            process_session_id=session2.id
+        )
+        assert total == 1
+        assert len(results) == 1
+        assert results[0].process_session_id == session2.id
+        assert results[0].measurements["temp"] == 26.0
+
+    def test_get_with_measurements_no_session_filter(self, db: Session):
+        """Test get_with_measurements without session filter returns all records."""
+        product_model = create_product_model(db)
+        production_line = create_production_line(db)
+        lot = create_lot(db, product_model.id, production_line.id)
+        process = create_process(db, 1)
+        operator = create_operator(db)
+
+        # Create sessions
+        session1 = ProcessHeader(
+            process_id=process.id,
+            slot_id=1,
+            station_id=1,
+            status="ACTIVE",
+        )
+        session2 = ProcessHeader(
+            process_id=process.id,
+            slot_id=2,
+            station_id=1,
+            status="ACTIVE",
+        )
+        db.add_all([session1, session2])
+        db.flush()
+
+        # Create test data
+        now = datetime.utcnow()
+        for i, session in enumerate([session1, session2]):
+            pd_data = ProcessDataCreate(
+                lot_id=lot.id,
+                process_id=process.id,
+                operator_id=operator.id,
+                data_level=DataLevelSchema.LOT,
+                result=ProcessResultSchema.PASS,
+                measurements={"index": i, "temp": 25.0 + i},
+                started_at=now + timedelta(hours=i),
+            )
+            pd = process_data_crud.create(db, obj_in=pd_data)
+            pd.process_session_id = session.id
+        db.commit()
+
+        # Test without session filter - should return all
+        results, total = process_data_crud.get_with_measurements(db)
+        assert total == 2
+        assert len(results) == 2
+
+    def test_get_with_measurements_session_and_other_filters(self, db: Session):
+        """Test combining process_session_id with other filters."""
+        product_model = create_product_model(db)
+        production_line = create_production_line(db)
+        lot = create_lot(db, product_model.id, production_line.id)
+        process1 = create_process(db, 1)
+        process2 = create_process(db, 2)
+        operator = create_operator(db)
+
+        # Create session
+        session = ProcessHeader(
+            process_id=process1.id,
+            slot_id=1,
+            station_id=1,
+            status="ACTIVE",
+        )
+        db.add(session)
+        db.flush()
+
+        # Create test data for process1 with session
+        now = datetime.utcnow()
+        pd1_data = ProcessDataCreate(
+            lot_id=lot.id,
+            process_id=process1.id,
+            operator_id=operator.id,
+            data_level=DataLevelSchema.LOT,
+            result=ProcessResultSchema.PASS,
+            measurements={"temp": 25.0},
+            started_at=now,
+        )
+        pd1 = process_data_crud.create(db, obj_in=pd1_data)
+        pd1.process_session_id = session.id
+
+        # Create test data for process2 with same session (to test combination)
+        pd2_data = ProcessDataCreate(
+            lot_id=lot.id,
+            process_id=process2.id,
+            operator_id=operator.id,
+            data_level=DataLevelSchema.LOT,
+            result=ProcessResultSchema.FAIL,
+            measurements={"temp": 30.0},
+            started_at=now + timedelta(hours=1),
+        )
+        pd2 = process_data_crud.create(db, obj_in=pd2_data)
+        pd2.process_session_id = session.id
+        db.commit()
+
+        # Test session + process filter
+        results, total = process_data_crud.get_with_measurements(
+            db,
+            process_session_id=session.id,
+            process_id=process1.id
+        )
+        assert total == 1
+        assert results[0].process_id == process1.id
+
+        # Test session + result filter
+        results, total = process_data_crud.get_with_measurements(
+            db,
+            process_session_id=session.id,
+            result="FAIL"
+        )
+        assert total == 1
+        assert results[0].result == ProcessResult.FAIL.value

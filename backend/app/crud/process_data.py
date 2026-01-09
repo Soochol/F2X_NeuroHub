@@ -875,7 +875,7 @@ def get_with_measurements(
     end_date: Optional[datetime] = None,
     process_id: Optional[int] = None,
     lot_id: Optional[int] = None,
-    header_id: Optional[int] = None,
+    process_session_id: Optional[int] = None,
     result: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
@@ -894,7 +894,7 @@ def get_with_measurements(
         end_date: Filter records up to this date (inclusive)
         process_id: Filter by specific process ID
         lot_id: Filter by specific LOT ID
-        header_id: Filter by specific process header (execution session) ID
+        process_session_id: Filter by specific process session (execution session) ID
         result: Filter by result status (PASS, FAIL, REWORK)
         skip: Number of records to skip for pagination (default 0)
         limit: Maximum number of records to return (default 50)
@@ -929,8 +929,8 @@ def get_with_measurements(
         base_query = base_query.filter(ProcessData.process_id == process_id)
     if lot_id:
         base_query = base_query.filter(ProcessData.lot_id == lot_id)
-    if header_id:
-        base_query = base_query.filter(ProcessData.header_id == header_id)
+    if process_session_id:
+        base_query = base_query.filter(ProcessData.process_session_id == process_session_id)
     if result:
         base_query = base_query.filter(ProcessData.result == result)
 

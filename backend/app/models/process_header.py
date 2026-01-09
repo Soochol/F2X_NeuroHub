@@ -240,15 +240,15 @@ class ProcessHeader(Base):
 
     process_data_records: Mapped[List["ProcessData"]] = relationship(
         "ProcessData",
-        back_populates="header",
-        foreign_keys="ProcessData.header_id",
+        back_populates="session",
+        foreign_keys="ProcessData.process_session_id",
         lazy="select",
     )
 
     wip_history_records: Mapped[List["WIPProcessHistory"]] = relationship(
         "WIPProcessHistory",
-        back_populates="header",
-        foreign_keys="WIPProcessHistory.header_id",
+        back_populates="session",
+        foreign_keys="WIPProcessHistory.process_session_id",
         lazy="select",
     )
 

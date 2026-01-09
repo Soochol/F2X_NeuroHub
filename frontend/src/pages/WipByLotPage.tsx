@@ -11,6 +11,7 @@ import { wipItemsApi } from '@/api';
 import type { Lot, WIPItem } from '@/types/api';
 import { getErrorMessage } from '@/types/api';
 import { useLotSearch, getStatusColor, getStatusBgColor, getLotStatusStyle } from '@/hooks';
+import { getWipProcessDisplayText } from '@/utils/wip';
 import { format } from 'date-fns';
 import styles from './LotSearchPage.module.css';
 
@@ -259,7 +260,7 @@ export const WipByLotPage = () => {
                     <div className={styles.itemInfoSection}>
                       <div className={styles.itemInfoLabel}>Current Process</div>
                       <div className={styles.itemInfoValue}>
-                        {wip.current_process_id ? `Process #${wip.current_process_id}` : 'Not Started'}
+                        {getWipProcessDisplayText(wip)}
                       </div>
                     </div>
                     <div className={styles.itemCardFooter}>

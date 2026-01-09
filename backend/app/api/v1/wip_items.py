@@ -341,7 +341,7 @@ def start_wip_process(
             process_start.operator_id,
             process_start.equipment_id,
             process_start.started_at,
-            process_start.header_id,
+            process_start.process_session_id,
         )
         return wip_item
     except WIPValidationError as e:

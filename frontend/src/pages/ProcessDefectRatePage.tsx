@@ -102,7 +102,7 @@ export const ProcessDefectRatePage = () => {
         start_date: startDate ? `${startDate}T00:00:00` : undefined,
         end_date: endDate ? `${endDate}T23:59:59` : undefined,
         process_id: selectedProcessId,
-        header_id: selectedHeaderId,
+        process_session_id: selectedHeaderId,
         result: selectedResult,
         skip: (currentPage - 1) * pageSize,
         limit: pageSize,

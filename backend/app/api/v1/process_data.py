@@ -727,7 +727,7 @@ def get_measurement_history(
     end_date: Optional[datetime] = Query(None, description="End date filter (inclusive)"),
     process_id: Optional[int] = Query(None, gt=0, description="Filter by process ID"),
     lot_id: Optional[int] = Query(None, gt=0, description="Filter by LOT ID"),
-    header_id: Optional[int] = Query(None, gt=0, description="Filter by process header (execution session) ID"),
+    process_session_id: Optional[int] = Query(None, gt=0, description="Filter by process session (execution session) ID"),
     result: Optional[str] = Query(None, description="Filter by result: PASS, FAIL, or REWORK"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=500, description="Maximum records to return (max 500)"),
@@ -746,7 +746,7 @@ def get_measurement_history(
         end_date: Filter records up to this date (inclusive)
         process_id: Filter by specific process
         lot_id: Filter by specific LOT
-        header_id: Filter by specific process header (execution session)
+        process_session_id: Filter by specific process session (execution session)
         result: Filter by result status (PASS, FAIL, REWORK)
         skip: Offset for pagination
         limit: Maximum records per page (max 500)
@@ -805,7 +805,7 @@ def get_measurement_history(
         end_date=end_date,
         process_id=process_id,
         lot_id=lot_id,
-        header_id=header_id,
+        process_session_id=process_session_id,
         result=result,
         skip=0,
         limit=limit + skip,
