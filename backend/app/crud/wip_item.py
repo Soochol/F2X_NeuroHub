@@ -21,11 +21,14 @@ Functions:
     get_statistics: Get WIP statistics by LOT or process
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Literal
 from sqlalchemy import and_, func, desc
 from sqlalchemy.orm import Session, selectinload, joinedload, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 from app.models.lot import Lot, LotStatus
 from app.models.wip_item import WIPItem, WIPStatus
@@ -522,6 +525,35 @@ def complete_process(
         )
         db.add(history)
 
+        # Find and update the corresponding ProcessData record
+        process_data = (
+            db.query(ProcessData)
+            .filter(
+                ProcessData.wip_id == wip_id,
+                ProcessData.process_id == process_id,
+                ProcessData.completed_at.is_(None),
+            )
+            .order_by(ProcessData.started_at.desc())
+            .first()
+        )
+
+        if process_data:
+            process_data.completed_at = completed_at
+            process_data.result = result
+            process_data.measurements = measurements or {}
+            process_data.defects = defects or []
+            process_data.notes = notes
+            process_data.duration_seconds = duration_seconds
+            logger.info(
+                f"Updated ProcessData {process_data.id} for WIP {wip_id}, "
+                f"Process {process_id}, completed_at={completed_at}"
+            )
+        else:
+            logger.warning(
+                f"No active ProcessData found for WIP {wip_id}, Process {process_id} "
+                f"during completion - this may indicate a data integrity issue"
+            )
+
         # Update WIP status based on result
         if result == ProcessResult.PASS.value:
             # Get count of active MANUFACTURING processes dynamically
@@ -546,8 +578,6 @@ def complete_process(
             if process.process_type == ProcessType.SERIAL_CONVERSION.value:
                 from app.services.serial_service import serial_service
                 from app.models.process import LabelTemplateType
-                import logging
-                logger = logging.getLogger(__name__)
 
                 try:
                     # Determine if we should print serial label based on label_template_type
