@@ -1,6 +1,6 @@
 """add slot_id to process_headers table
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 3e25d5f87008
 Revises: d0e1f2a3b4c5
 Create Date: 2026-01-09 10:00:00.000000
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a1b2c3d4e5f6'
+revision: str = '3e25d5f87008'
 down_revision: Union[str, None] = 'd0e1f2a3b4c5'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

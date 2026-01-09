@@ -1,7 +1,7 @@
 """Rename header_id to process_session_id
 
 Revision ID: 20260109_1030
-Revises: a1b2c3d4e5f6
+Revises: 3e25d5f87008
 Create Date: 2026-01-09 10:30:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20260109_1030'
-down_revision = 'a1b2c3d4e5f6'
+down_revision = '3e25d5f87008'
 branch_labels = None
 depends_on = None
 
