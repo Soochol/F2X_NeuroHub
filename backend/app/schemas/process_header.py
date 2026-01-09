@@ -155,6 +155,12 @@ class ProcessHeaderOpen(BaseModel):
         gt=0,
         description="Process identifier"
     )
+    slot_id: Optional[int] = Field(
+        None,
+        ge=1,
+        le=12,
+        description="Slot ID for UI display order (1-12, auto-assigned if not provided)"
+    )
     sequence_package: Optional[str] = Field(
         None,
         max_length=255,
@@ -254,6 +260,7 @@ class ProcessHeaderInDB(ProcessHeaderBase):
     and calculated properties.
     """
     id: int = Field(..., description="Header identifier")
+    slot_id: Optional[int] = Field(None, description="Slot ID for UI display order (1-12)")
     status: HeaderStatus = Field(..., description="Header status")
     opened_at: datetime = Field(..., description="When header was opened")
     closed_at: Optional[datetime] = Field(None, description="When header was closed")
@@ -326,6 +333,7 @@ class ProcessHeaderSummary(BaseModel):
     id: int = Field(..., description="Header identifier")
     station_id: str = Field(..., description="Station identifier")
     batch_id: str = Field(..., description="Batch identifier")
+    slot_id: Optional[int] = Field(None, description="Slot ID for UI display order (1-12)")
     process_id: int = Field(..., description="Process identifier")
     status: HeaderStatus = Field(..., description="Header status")
     total_count: int = Field(default=0, description="Total items processed")

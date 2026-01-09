@@ -118,6 +118,13 @@ class ProcessHeader(Base):
         comment="Batch identifier from station_service",
     )
 
+    # Slot ID for UI display order (1-12 per station)
+    slot_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Slot ID for UI display order (1-12 per station)",
+    )
+
     # Process reference
     process_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -359,6 +366,7 @@ class ProcessHeader(Base):
             "id": self.id,
             "station_id": self.station_id,
             "batch_id": self.batch_id,
+            "slot_id": self.slot_id,
             "process_id": self.process_id,
             "sequence_package": self.sequence_package,
             "sequence_version": self.sequence_version,
@@ -383,6 +391,7 @@ class ProcessHeader(Base):
             "id": self.id,
             "station_id": self.station_id,
             "batch_id": self.batch_id,
+            "slot_id": self.slot_id,
             "process_id": self.process_id,
             "status": self.status,
             "total_count": self.total_count,

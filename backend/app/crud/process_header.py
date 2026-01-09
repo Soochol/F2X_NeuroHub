@@ -115,6 +115,49 @@ def get_multi(
     return results, total
 
 
+def get_used_slots(db: Session, station_id: str) -> List[int]:
+    """
+    Get list of slot IDs currently in use (OPEN status) for a station.
+
+    Args:
+        db: SQLAlchemy database session
+        station_id: Station identifier
+
+    Returns:
+        List of slot IDs that are currently in use
+    """
+    results = (
+        db.query(ProcessHeader.slot_id)
+        .filter(
+            and_(
+                ProcessHeader.station_id == station_id,
+                ProcessHeader.status == HeaderStatus.OPEN.value,
+                ProcessHeader.slot_id.isnot(None),
+            )
+        )
+        .all()
+    )
+    return [r[0] for r in results]
+
+
+def get_available_slot(db: Session, station_id: str) -> Optional[int]:
+    """
+    Get the lowest available slot ID for a station.
+
+    Args:
+        db: SQLAlchemy database session
+        station_id: Station identifier
+
+    Returns:
+        Lowest available slot ID (1-12), or None if all slots are occupied
+    """
+    used_slots = set(get_used_slots(db, station_id))
+    for slot in range(1, 13):  # 1-12
+        if slot not in used_slots:
+            return slot
+    return None
+
+
 def get_open(
     db: Session,
     station_id: str,
@@ -198,6 +241,9 @@ def open_or_get(db: Session, header_in: ProcessHeaderOpen) -> Tuple[ProcessHeade
     This is the primary method for opening execution sessions. It ensures
     only one OPEN header exists per station+batch+process combination.
 
+    If slot_id is not provided, it will be auto-assigned to the lowest
+    available slot (1-12) for the station.
+
     Args:
         db: SQLAlchemy database session
         header_in: ProcessHeaderOpen schema with data
@@ -206,6 +252,9 @@ def open_or_get(db: Session, header_in: ProcessHeaderOpen) -> Tuple[ProcessHeade
         Tuple of (ProcessHeader instance, was_created: bool)
         - was_created=True: New header was created
         - was_created=False: Existing OPEN header was returned
+
+    Raises:
+        ValueError: If all 12 slots are occupied and slot_id is not provided
     """
     # Check for existing OPEN header
     existing = get_open(
@@ -218,10 +267,22 @@ def open_or_get(db: Session, header_in: ProcessHeaderOpen) -> Tuple[ProcessHeade
     if existing:
         return existing, False
 
+    # Determine slot_id
+    slot_id = header_in.slot_id
+    if slot_id is None:
+        # Auto-assign to lowest available slot
+        slot_id = get_available_slot(db, header_in.station_id)
+        if slot_id is None:
+            raise ValueError(
+                f"All 12 slots are occupied for station '{header_in.station_id}'. "
+                f"Close an existing header to free up a slot."
+            )
+
     # Create new header
     db_header = ProcessHeader(
         station_id=header_in.station_id,
         batch_id=header_in.batch_id,
+        slot_id=slot_id,
         process_id=header_in.process_id,
         sequence_package=header_in.sequence_package,
         sequence_version=header_in.sequence_version,
