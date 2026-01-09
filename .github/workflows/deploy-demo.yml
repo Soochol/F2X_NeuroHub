@@ -8,6 +8,12 @@ name: Deploy Demo (Replace Prod)
 on:
   # 수동 배포 트리거
   workflow_dispatch:
+    inputs:
+      reset_database:
+        description: 'DB 완전 초기화 (기존 데이터 모두 삭제)'
+        required: false
+        type: boolean
+        default: false
 
   # 자동 배포: main 브랜치 push 시
   push:
@@ -60,8 +66,9 @@ jobs:
         shell: powershell
         continue-on-error: true
 
-      # 5. Demo 볼륨 리셋 (DB 초기화)
+      # 5. Demo 볼륨 리셋 (DB 초기화) - 선택적
       - name: Reset Demo volumes
+        if: ${{ github.event.inputs.reset_database == 'true' }}
         run: |
           Write-Host "=== Resetting Demo database volume ==="
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} down -v --remove-orphans
@@ -147,17 +154,23 @@ jobs:
           }
         shell: powershell
 
-      # 11. Seed 성능 테스트 데이터 생성
-      - name: Seed performance test data
-        run: |
-          Write-Host "=== Generating performance test data ==="
-          docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend python scripts/seed_performance_data.py --reset
-        shell: powershell
+      # 11. Seed 성능 테스트 데이터 생성 (비활성화 - 빈 스키마 사용)
+      # - name: Seed performance test data
+      #   if: ${{ github.event.inputs.reset_database == 'true' }}
+      #   run: |
+      #     Write-Host "=== Generating performance test data ==="
+      #     docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} exec -T backend python scripts/seed_performance_data.py --reset
+      #   shell: powershell
 
       # 12. 배포 완료 상태 확인
       - name: Deployment status
         run: |
           Write-Host "=== Demo Deployment Complete ==="
+          if ("${{ github.event.inputs.reset_database }}" -eq "true") {
+            Write-Host "🔄 Database RESET: Fresh database with empty schema"
+          } else {
+            Write-Host "✅ Database PRESERVED: Code updated, data retained"
+          }
           Write-Host "⚠️ Prod is stopped. Run 'Restore Prod' workflow to restore."
           docker compose ${{ env.COMPOSE_FILES_DEMO }} --env-file ${{ env.ENV_FILE_DEMO }} ps
         shell: powershell
