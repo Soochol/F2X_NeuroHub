@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Progress, Tooltip, Popconfirm } from 'antd';
+import { sortBatchesBySlotId } from '@/utils/batchSort';
 import {
   Server,
   Wifi,
@@ -82,6 +83,10 @@ export const StationCard = ({ station, onClick, onDelete, isDeleting }: StationC
       totalBatches: total,
       avgProgress: Math.round(progress),
     };
+  }, [station.batches]);
+
+  const sortedBatches = useMemo(() => {
+    return sortBatchesBySlotId(station.batches || []);
   }, [station.batches]);
 
   const handleClick = () => {
@@ -191,7 +196,7 @@ export const StationCard = ({ station, onClick, onDelete, isDeleting }: StationC
 
             {/* Batch List Preview */}
             <div className={styles.batchList}>
-              {(station.batches || []).slice(0, 3).map((batch) => (
+              {sortedBatches.slice(0, 3).map((batch) => (
                 <div key={batch.id} className={styles.batchItem}>
                   <div className={styles.batchItemIcon}>
                     {getStatusIcon(batch.status, batch.status === 'running')}

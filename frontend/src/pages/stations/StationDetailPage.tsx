@@ -26,6 +26,7 @@ import {
 } from '@/hooks/useStationMonitor';
 import { BatchCard, HealthMetrics } from '@/components/organisms/station';
 import type { Station, StationWebSocketMessage } from '@/types/station';
+import { sortBatchesBySlotId } from '@/utils/batchSort';
 import styles from './StationDetailPage.module.css';
 
 type BatchFilter = 'all' | 'running' | 'idle' | 'completed' | 'error';
@@ -86,21 +87,28 @@ export const StationDetailPage = () => {
   // Filter batches
   const filteredBatches = useMemo(() => {
     if (!batches) return [];
-    if (batchFilter === 'all') return batches;
-    return batches.filter((b) => {
-      switch (batchFilter) {
-        case 'running':
-          return b.status === 'running' || b.status === 'starting';
-        case 'idle':
-          return b.status === 'idle';
-        case 'completed':
-          return b.status === 'completed';
-        case 'error':
-          return b.status === 'error';
-        default:
-          return true;
-      }
-    });
+
+    // Filter by status first
+    const filtered =
+      batchFilter === 'all'
+        ? batches
+        : batches.filter((b) => {
+            switch (batchFilter) {
+              case 'running':
+                return b.status === 'running' || b.status === 'starting';
+              case 'idle':
+                return b.status === 'idle';
+              case 'completed':
+                return b.status === 'completed';
+              case 'error':
+                return b.status === 'error';
+              default:
+                return true;
+            }
+          });
+
+    // Sort by slot_id after filtering
+    return sortBatchesBySlotId(filtered);
   }, [batches, batchFilter]);
 
   // Count by status

@@ -69,6 +69,7 @@ export interface BatchSummary {
   status: BatchStatus;
   sequenceName: string;
   sequenceVersion: string;
+  slotId?: number;
   currentStep?: string;
   stepIndex: number;
   totalSteps: number;

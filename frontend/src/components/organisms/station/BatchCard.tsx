@@ -99,7 +99,12 @@ export const BatchCard = ({
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.batchInfo}>
-          <h3 className={styles.title}>{batch.name}</h3>
+          <div className={styles.titleRow}>
+            <h3 className={styles.title}>{batch.name}</h3>
+            {batch.slotId && (
+              <span className={styles.slotId}>Slot {batch.slotId}</span>
+            )}
+          </div>
           <span className={styles.sequence}>
             {batch.sequenceName} v{batch.sequenceVersion}
           </span>
@@ -128,7 +133,7 @@ export const BatchCard = ({
           </span>
           {batch.totalSteps > 0 && (
             <span className={styles.stepCount}>
-              Step {batch.stepIndex + 1}/{batch.totalSteps}
+              Step {Math.min(batch.stepIndex + 1, batch.totalSteps)}/{batch.totalSteps}
             </span>
           )}
         </div>
