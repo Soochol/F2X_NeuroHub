@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react';
 import { Button, Select } from '@/components/atoms';
 import { Modal } from '@/components/molecules';
 import { lotsApi } from '@/api';
-import { LotStatus, type Lot, type LotUpdate, getErrorMessage } from '@/types/api';
+import { LotStatus, UserRole, type Lot, type LotUpdate, getErrorMessage } from '@/types/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
 interface LotDetailModalProps {
@@ -17,6 +18,9 @@ interface LotDetailModalProps {
 }
 
 export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailModalProps) => {
+  const { user } = useAuth();
+  const canEdit = user?.role === UserRole.ADMIN || user?.role === UserRole.MANAGER;
+
   const [lot, setLot] = useState<Lot | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -95,7 +99,7 @@ export const LotDetailModal = ({ isOpen, onClose, lotId, onUpdate }: LotDetailMo
               <Button variant="secondary" onClick={onClose}>
                 Close
               </Button>
-              <Button onClick={() => setIsEditing(true)}>Edit</Button>
+              {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
             </>
           )}
         </>

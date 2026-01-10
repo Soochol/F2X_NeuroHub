@@ -233,3 +233,56 @@
     color: var(--color-text-secondary);
     font-size: 14px;
 }
+
+/* Quick Stats Section */
+.quickStatsContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.quickStatCard {
+    padding: 20px;
+    text-align: center;
+    background-color: var(--color-bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.quickStatLabel {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.quickStatValue {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.quickStatValueBrand {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--color-brand);
+}
+
+/* Header Actions */
+.headerActions {
+    display: flex;
+    gap: 10px;
+}
+
+.buttonIcon {
+    margin-right: 6px;
+}
+
+/* Clickable LOT Card */
+.lotCard:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    cursor: pointer;
+}

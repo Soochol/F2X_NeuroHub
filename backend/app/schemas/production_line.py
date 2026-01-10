@@ -95,10 +95,10 @@ class ProductionLineBase(BaseModel):
         if not value:
             raise ValueError("line_code cannot be empty")
 
-        # Check for valid characters (alphanumeric, hyphens, and underscores)
-        if not all(c.isalnum() or c in '-_' for c in value):
+        # Check for valid characters (alphanumeric only, no separators)
+        if not value.isalnum():
             raise ValueError(
-                "line_code can only contain alphanumeric characters, hyphens, and underscores"
+                "line_code can only contain alphanumeric characters (no hyphens or underscores)"
             )
 
         return value.upper()
@@ -193,10 +193,10 @@ class ProductionLineUpdate(BaseModel):
         if not value:
             raise ValueError("line_code cannot be empty")
 
-        # Check for valid characters (alphanumeric, hyphens, and underscores)
-        if not all(c.isalnum() or c in '-_' for c in value):
+        # Check for valid characters (alphanumeric only, no separators)
+        if not value.isalnum():
             raise ValueError(
-                "line_code can only contain alphanumeric characters, hyphens, and underscores"
+                "line_code can only contain alphanumeric characters (no hyphens or underscores)"
             )
 
         return value.upper()

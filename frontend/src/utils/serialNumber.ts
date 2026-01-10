@@ -266,3 +266,31 @@ export const PATTERNS = {
   V0: SERIAL_NUMBER_V0_PATTERN,
   V1: SERIAL_NUMBER_V1_PATTERN,
 } as const;
+
+/**
+ * Search type for unified serial search
+ */
+export type SerialSearchType = 'serial' | 'lot' | 'unknown';
+
+/**
+ * Detect if input is a Serial Number or LOT number
+ *
+ * @param input User input string
+ * @returns 'serial' if valid serial format, 'lot' if LOT format, 'unknown' otherwise
+ */
+export const detectSerialSearchType = (input: string): SerialSearchType => {
+  const trimmed = input.trim();
+  if (!trimmed) return 'unknown';
+
+  // Check for Serial Number formats (V1 or V0)
+  if (validateSerialNumber(trimmed)) {
+    return 'serial';
+  }
+
+  // LOT number format: 10-15 alphanumeric characters (without hyphens)
+  if (/^[A-Z0-9]{10,15}$/i.test(trimmed)) {
+    return 'lot';
+  }
+
+  return 'unknown';
+};

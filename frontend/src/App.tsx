@@ -18,14 +18,12 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => 
 const LotsPage = lazy(() => import('./pages/LotsPage').then(module => ({ default: module.LotsPage })));
 
 // WIP Pages
-const WipTrackingPage = lazy(() => import('./pages/WipTrackingPage').then(module => ({ default: module.WipTrackingPage })));
-const WipByLotPage = lazy(() => import('./pages/WipByLotPage').then(module => ({ default: module.WipByLotPage })));
+const UnifiedWipPage = lazy(() => import('./pages/UnifiedWipPage').then(module => ({ default: module.UnifiedWipPage })));
 const WipGenerationPage = lazy(() => import('./pages/WipGenerationPage').then(module => ({ default: module.WipGenerationPage })));
 
 // Serial Pages
-const SerialsPage = lazy(() => import('./pages/SerialsPage').then(module => ({ default: module.SerialsPage })));
+const UnifiedSerialPage = lazy(() => import('./pages/UnifiedSerialPage').then(module => ({ default: module.UnifiedSerialPage })));
 const SerialGenerationPage = lazy(() => import('./pages/SerialGenerationPage').then(module => ({ default: module.SerialGenerationPage })));
-const SerialByLotPage = lazy(() => import('./pages/SerialByLotPage').then(module => ({ default: module.SerialByLotPage })));
 
 // Admin Pages - Direct imports from AdminPage (removes unnecessary wrapper files)
 const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -35,7 +33,6 @@ const AdminProcessesPage = lazy(() => import('./pages/AdminPage').then(module =>
 const AdminProductsPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProductModelManagement })));
 const AdminProductionLinesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.ProductionLineManagement })));
 const SerialInspectorPage = lazy(() => import('./pages/admin/SerialInspectorPage').then(module => ({ default: module.SerialInspectorPage })));
-const LotMonitorPage = lazy(() => import('./pages/admin/LotMonitorPage').then(module => ({ default: module.LotMonitorPage })));
 const AdminSequencesPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.SequenceManagement })));
 
 // Quality Pages
@@ -121,14 +118,17 @@ function AppContent() {
                   <Route path="/lots" element={<LotsPage />} />
 
                   {/* WIP Routes */}
-                  <Route path="/wip/tracking" element={<WipTrackingPage />} />
-                  <Route path="/wip/list" element={<WipByLotPage />} />
+                  <Route path="/wip/search" element={<UnifiedWipPage />} />
+                  <Route path="/wip" element={<Navigate to="/wip/search" replace />} />
+                  <Route path="/wip/tracking" element={<Navigate to="/wip/search" replace />} />
+                  <Route path="/wip/list" element={<Navigate to="/wip/search" replace />} />
                   <Route path="/wip/generate" element={<WipGenerationPage />} />
 
                   {/* Serial Routes */}
-                  <Route path="/serials/tracking" element={<SerialsPage />} />
+                  <Route path="/serials/search" element={<UnifiedSerialPage />} />
+                  <Route path="/serials/tracking" element={<Navigate to="/serials/search" replace />} />
+                  <Route path="/serials/list" element={<Navigate to="/serials/search" replace />} />
                   <Route path="/serials/generate" element={<SerialGenerationPage />} />
-                  <Route path="/serials/list" element={<SerialByLotPage />} />
 
                   {/* Admin Routes */}
                   <Route path="/admin" element={<AdminPage />} />
@@ -139,7 +139,6 @@ function AppContent() {
                   <Route path="/admin/equipment" element={<AdminEquipmentPage />} />
                   <Route path="/admin/sequences" element={<AdminSequencesPage />} />
                   <Route path="/admin/serial-inspector" element={<SerialInspectorPage />} />
-                  <Route path="/admin/lot-monitor" element={<LotMonitorPage />} />
 
                   {/* Quality Routes */}
                   <Route path="/quality/defect-rate" element={<ProcessDefectRatePage />} />

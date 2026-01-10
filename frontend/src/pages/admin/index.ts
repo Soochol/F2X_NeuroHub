@@ -19,7 +19,6 @@ export { SequenceManagement } from './SequenceManagement';
 export { UserManagement } from './UserManagement';
 
 // Other admin pages
-export { LotMonitorPage } from './LotMonitorPage';
 export { SerialInspectorPage } from './SerialInspectorPage';
 
 // Shared types and utilities

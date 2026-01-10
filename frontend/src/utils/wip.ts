@@ -9,6 +9,28 @@
 // WIP ID format regex: WIP-{LOT}-{SEQ} where LOT is 11-15 chars, SEQ is 3 digits
 const WIP_ID_PATTERN = /^WIP-[A-Z0-9]{11,15}-\d{3}$/;
 
+export type SearchType = 'wip' | 'lot' | 'unknown';
+
+/**
+ * Detect search input type (WIP ID or LOT number)
+ */
+export const detectSearchType = (input: string): SearchType => {
+    const trimmed = input.trim();
+    if (!trimmed) return 'unknown';
+
+    // WIP ID format: starts with "WIP-"
+    if (trimmed.toUpperCase().startsWith('WIP-')) {
+        return 'wip';
+    }
+
+    // LOT number format: 10-15 alphanumeric characters
+    if (/^[A-Z0-9]{10,15}$/i.test(trimmed)) {
+        return 'lot';
+    }
+
+    return 'unknown';
+};
+
 /**
  * Validate WIP ID format
  */

@@ -164,7 +164,7 @@ export const ProductionLineManagement = () => {
             onChange={(e) => form.setField('line_code', e.target.value)}
             required
             disabled={!!modal.editingItem}
-            placeholder="e.g., LINE-A, LINE_01, TEST-LINE_A1"
+            placeholder="e.g., LINEA, LINE01, KR001"
           />
           {/* Line Code Validation Rules */}
           <div style={{
@@ -181,14 +181,14 @@ export const ProductionLineManagement = () => {
             </div>
             <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
               <li>Letters (A-Z), Numbers (0-9)</li>
-              <li>Hyphens (-) and Underscores (_)</li>
+              <li>Alphanumeric characters only (no hyphens or underscores)</li>
               <li>Automatically converted to UPPERCASE</li>
             </ul>
             <div style={{ fontWeight: '600', marginBottom: '6px', color: 'var(--color-error)' }}>
               ✗ Not Allowed:
             </div>
             <ul style={{ margin: '0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
-              <li>Spaces or special characters (@, #, $, etc.)</li>
+              <li>Hyphens (-), Underscores (_), Spaces, or special characters</li>
             </ul>
           </div>
           <Input

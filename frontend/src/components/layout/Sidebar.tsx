@@ -67,23 +67,14 @@ const navSections: NavSection[] = [
   {
     sectionLabel: 'PRODUCTION',
     items: [
-      {
-        id: 'lot',
-        label: 'LOT Management',
-        icon: Package,
-        items: [
-          { path: '/lots', label: 'LOT Issuance', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.OPERATOR] },
-          { path: '/admin/lot-monitor', label: 'LOT List', icon: Monitor, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-        ]
-      },
+      { path: '/lots', label: 'LOT Management', icon: Package },
       {
         id: 'wip',
         label: 'WIP',
         icon: Layers,
         items: [
           { path: '/wip/generate', label: 'WIP Register', icon: PackagePlus },
-          { path: '/wip/tracking', label: 'WIP Tracking', icon: Scan },
-          { path: '/wip/list', label: 'WIP List', icon: Package },
+          { path: '/wip/search', label: 'WIP Search', icon: Search },
         ]
       },
       {
@@ -92,8 +83,7 @@ const navSections: NavSection[] = [
         icon: Box,
         items: [
           { path: '/serials/generate', label: 'Serial Register', icon: PackagePlus, roles: [UserRole.ADMIN, UserRole.MANAGER] },
-          { path: '/serials/tracking', label: 'Serial Tracking', icon: Search },
-          { path: '/serials/list', label: 'Serial List', icon: Package },
+          { path: '/serials/search', label: 'Serial Search', icon: Search },
         ]
       },
     ]
@@ -176,8 +166,6 @@ export const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() =>
     getInitialExpandedGroups(location.pathname)
   );
-  const [searchQuery, setSearchQuery] = useState('');
-
   // Update expanded groups when route changes - only add if not already expanded
   useEffect(() => {
     for (const section of navSections) {
@@ -376,48 +364,16 @@ export const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         height: '100vh',
       }}
     >
-      {/* Logo and Toggle */}
+      {/* Toggle and Title */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         padding: '16px',
         borderBottom: '1px solid var(--color-border)',
         minHeight: '64px',
+        gap: '12px',
       }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-        }}>
-          {/* Logo Icon */}
-          <div style={{
-            width: '36px',
-            height: '36px',
-            backgroundColor: 'var(--color-brand)',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            flexShrink: 0,
-          }}>
-            F2
-          </div>
-          {!isCollapsed && (
-            <span style={{
-              fontWeight: '600',
-              fontSize: '16px',
-              color: 'var(--color-text-primary)',
-              whiteSpace: 'nowrap',
-            }}>
-              NeuroHub
-            </span>
-          )}
-        </div>
-
         {/* Toggle Button */}
         <button
           onClick={onToggle}
@@ -438,60 +394,18 @@ export const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         >
           {isCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
         </button>
+
+        {!isCollapsed && (
+          <span style={{
+            fontWeight: '600',
+            fontSize: '16px',
+            color: 'var(--color-text-primary)',
+            whiteSpace: 'nowrap',
+          }}>
+            NeuroHub
+          </span>
+        )}
       </div>
-
-      {/* Search Bar */}
-      {!isCollapsed && (
-        <div style={{ padding: '16px 16px 8px' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            gap: '8px',
-            border: '1px solid var(--color-border)',
-          }}>
-            <Search size={16} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: 'none',
-                border: 'none',
-                outline: 'none',
-                flex: 1,
-                fontSize: '14px',
-                color: 'var(--color-text-primary)',
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Search Icon Only (Collapsed) */}
-      {isCollapsed && (
-        <div style={{
-          padding: '12px 0',
-          display: 'flex',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <Search size={18} style={{ color: 'var(--color-text-tertiary)' }} />
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav style={{

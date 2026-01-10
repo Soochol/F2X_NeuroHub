@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Select, Input, Card } from '@/components/common';
-import { LotCreateModal } from '@/components/organisms/lots';
+import { LotCreateModal, LotDetailModal } from '@/components/organisms/lots';
 import { LotStatus, SerialStatus, type Lot } from '@/types/api';
 import { format } from 'date-fns';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Plus, Download, RefreshCw } from 'lucide-react';
 import styles from './LotsPage.module.css';
 import { useLots, useProductModels, useProductionLines, useSerials } from '@/hooks';
 
@@ -17,6 +17,7 @@ export const LotsPage = () => {
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(0);
@@ -62,6 +63,46 @@ export const LotsPage = () => {
     setCurrentPage(0);
     queryClient.invalidateQueries({ queryKey: ['lots'] });
   };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['lots'] });
+    queryClient.invalidateQueries({ queryKey: ['serials'] });
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['LOT Number', 'Product Model', 'Status', 'Target Qty', 'Generated', 'Passed', 'Failed', 'Missing', 'Production Date', 'Created At'];
+    const rows = filteredAndSortedLots.map((lot) => {
+      const stats = getLotSerialStats(lot);
+      return [
+        lot.lot_number,
+        lot.product_model ? `${lot.product_model.model_code} - ${lot.product_model.model_name}` : 'N/A',
+        lot.status,
+        lot.target_quantity,
+        stats.total,
+        stats.passed,
+        stats.failed,
+        stats.missing,
+        format(new Date(lot.production_date), 'yyyy-MM-dd'),
+        format(new Date(lot.created_at), 'yyyy-MM-dd HH:mm'),
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lot-report-${format(new Date(), 'yyyyMMdd-HHmmss')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Calculate active LOTs count
+  const activeLots = lots.filter(l => l.status === LotStatus.CREATED || l.status === LotStatus.IN_PROGRESS).length;
 
   const filteredAndSortedLots = lots
     .filter((lot) => {
@@ -113,16 +154,38 @@ export const LotsPage = () => {
         <div className={styles.headerContent}>
           <div>
             <h1 className={styles.pageTitle}>
-              LOT Issuance
+              LOT Management
             </h1>
             <p className={styles.pageSubtitle}>
               Create and manage production LOTs
             </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus size={16} className={styles.createButtonIcon} />
-            Create LOT
-          </Button>
+          <div className={styles.headerActions}>
+            <Button variant="secondary" onClick={handleExportCSV}>
+              <Download size={16} className={styles.buttonIcon} />
+              Export CSV
+            </Button>
+            <Button variant="secondary" onClick={handleRefresh}>
+              <RefreshCw size={16} className={styles.buttonIcon} />
+              Refresh
+            </Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus size={16} className={styles.buttonIcon} />
+              Create LOT
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className={styles.quickStatsContainer}>
+          <div className={styles.quickStatCard}>
+            <div className={styles.quickStatLabel}>Total LOTs</div>
+            <div className={styles.quickStatValue}>{totalLots}</div>
+          </div>
+          <div className={styles.quickStatCard}>
+            <div className={styles.quickStatLabel}>Active LOTs</div>
+            <div className={styles.quickStatValueBrand}>{activeLots}</div>
+          </div>
         </div>
 
         {/* Filters */}
@@ -230,6 +293,7 @@ export const LotsPage = () => {
                       <div
                         key={lot.id}
                         className={cardClassName}
+                        onClick={() => setSelectedLotId(lot.id)}
                       >
                         <div className={styles.lotHeader}>
                           <div className={styles.lotHeaderContent}>
@@ -348,6 +412,15 @@ export const LotsPage = () => {
         productModels={productModels}
         productionLines={productionLines}
       />
+
+      {selectedLotId && (
+        <LotDetailModal
+          isOpen={!!selectedLotId}
+          onClose={() => setSelectedLotId(null)}
+          lotId={selectedLotId}
+          onUpdate={handleRefresh}
+        />
+      )}
     </div>
   );
 };

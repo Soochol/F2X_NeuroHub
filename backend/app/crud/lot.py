@@ -214,19 +214,10 @@ def create(
 
     line_code = production_line.line_code
 
-    # 3. Generate LOT number: {Country 2}{Line 2}{Model 3}{Month 4}{Seq 2} = 13 chars
-    # Extract components for LOT generation
-    # line_code format: "KR001" → country="KR", line_number="01"
-    if len(line_code) < 3:
-        raise ValueError(f"Invalid line_code format: {line_code}")
-
-    country_code = line_code[:2].upper()  # "KR"
-    line_number_str = line_code[2:]  # "001"
-    try:
-        line_number = int(line_number_str)  # 1
-        line_number_formatted = f"{line_number:02d}"  # "01"
-    except ValueError:
-        raise ValueError(f"Invalid line number in line_code: {line_code}")
+    # 3. Generate LOT number: {LinePrefix}{Model 3}{Month 4}{Seq 2}
+    # Remove separators from line_code for LOT number generation (backward compatible)
+    line_prefix = line_code.replace('_', '').replace('-', '').upper()
+    # "DT_01" → "DT01", "KR-02" → "KR02", "KR001" → "KR001"
 
     # model_prefix is already 3 chars (e.g., "PSA")
     model_code = model_prefix[:3].upper()
@@ -234,8 +225,8 @@ def create(
     # Format production month as YYMM
     production_month = lot_in.production_date.strftime('%y%m')  # "2511" for Nov 2025
 
-    # Generate base LOT number (11 chars)
-    lot_number_base = f"{country_code}{line_number_formatted}{model_code}{production_month}"
+    # Generate base LOT number
+    lot_number_base = f"{line_prefix}{model_code}{production_month}"
 
     # 4. Find the last sequence number for this base LOT number
     last_lot = (
